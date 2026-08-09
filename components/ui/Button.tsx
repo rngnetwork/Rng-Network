@@ -43,22 +43,20 @@ export function Button({
   const isDisabled = disabled || isLoading;
 
   return (
-    <motion.button
-      whileHover={isDisabled ? {} : { scale: 1.02 }}
-      whileTap={isDisabled ? {} : { scale: 0.98 }}
-      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
+    <button
+      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98]'} ${className}`}
       disabled={isDisabled}
-      {...props}
+      {...props as any}
     >
       {isLoading ? (
         <Loader2 className="w-5 h-5 animate-spin" />
       ) : (
         <>
-          {leftIcon}
+          {leftIcon && <span className="flex items-center justify-center">{leftIcon}</span>}
           {children}
-          {rightIcon}
+          {rightIcon && <span className="flex items-center justify-center">{rightIcon}</span>}
         </>
       )}
-    </motion.button>
+    </button>
   );
 }
