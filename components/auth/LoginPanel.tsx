@@ -5,7 +5,7 @@ import { ArrowLeft, Mail } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { LoginRole } from './AuthShell';
-import { mockAuthApi } from '@/lib/auth/mockApi';
+import { api } from '@/lib/api';
 
 const contentVariants = {
   enter: (direction: number) => ({ opacity: 0, x: direction > 0 ? 30 : -30 }),
@@ -15,68 +15,43 @@ const contentVariants = {
 
 export function LoginPanel({ role, onBack }: { role: NonNullable<LoginRole>, onBack: () => void }) {
   const router = useRouter();
-  const [step, setStep] = useState<'email' | 'discord'>('email');
+  const [step, setStep] = useState<'email' | 'whitelist' | 'discord'>('email');
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [direction, setDirection] = useState(1);
-
-  // =====================================================================
-  // BACKEND INTEGRATION READY HOOKS
-  // (Backend Developer: Add your actual endpoints here)
-  // =====================================================================
-
-  const apiSubmitEmailLogin = async (emailAddress: string) => {
-    // TODO: Replace with actual backend API call 
-    // Example: return await axios.post('/api/v1/auth/login', { email: emailAddress });
-    await new Promise(r => setTimeout(r, 600)); 
-    return { success: true };
-  };
-
-  const apiSubmitGoogleLogin = async () => {
-    // TODO: Replace with Google OAuth redirect
-    // Example: window.location.href = '/api/v1/auth/google';
-    await new Promise(r => setTimeout(r, 600)); 
-    return { success: true };
-  };
-
-  const apiConnectDiscord = async () => {
-    // TODO: Replace with Discord OAuth linking
-    // Example: window.location.href = '/api/v1/auth/discord/link';
-    const res = await mockAuthApi.simulateDiscordOAuth(role);
-    return res;
-  };
-
-  // =====================================================================
+  const [isWhitelisted, setIsWhitelisted] = useState<boolean | null>(null);
 
   const handleEmailSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!email) return;
     
     setIsLoading(true);
-    const res = await apiSubmitEmailLogin(email);
+    const res = await api.submitEmailLogin(email);
     setIsLoading(false);
     
     if (res.success) {
+      setIsWhitelisted(res.isWhitelisted ?? true);
       setDirection(1);
-      setStep('discord');
+      setStep('whitelist');
     }
   };
 
   const handleGoogleSubmit = async () => {
     setIsLoading(true);
-    const res = await apiSubmitGoogleLogin();
+    const res = await api.submitGoogleLogin();
     setIsLoading(false);
 
     if (res.success) {
+      setIsWhitelisted(res.isWhitelisted ?? true);
       setDirection(1);
-      setStep('discord');
+      setStep('whitelist');
     }
   };
 
   const handleDiscordSubmit = async () => {
     setIsLoading(true);
-    const res = await apiConnectDiscord();
+    const res = await api.connectDiscord();
     setIsLoading(false);
     
     if (res.success) {
@@ -89,6 +64,9 @@ export function LoginPanel({ role, onBack }: { role: NonNullable<LoginRole>, onB
 
   const handleBack = () => {
     if (step === 'discord') {
+      setDirection(-1);
+      setStep('whitelist');
+    } else if (step === 'whitelist') {
       setDirection(-1);
       setStep('email');
     } else {
@@ -164,6 +142,51 @@ export function LoginPanel({ role, onBack }: { role: NonNullable<LoginRole>, onB
                 {!isLoading && "Continue"}
               </Button>
             </form>
+          </motion.div>
+        )}
+
+        {step === 'whitelist' && !showWelcome && (
+          <motion.div
+            key="whitelist"
+            custom={direction}
+            variants={contentVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.35, ease: "easeOut" }}
+            className="flex flex-col w-full h-full justify-center pt-2 pb-6"
+          >
+            <h3 className="text-3xl font-extrabold text-slate-900 mb-2 tracking-tight">Checking access</h3>
+            <p className="text-slate-500 text-[14px] mb-8 leading-relaxed">Verifying your account against the network whitelist.</p>
+            
+            {isWhitelisted ? (
+              <div>
+                <div className="flex items-center gap-3 p-4 bg-[#3BA55D]/10 border border-[#3BA55D]/30 rounded-xl mb-6">
+                  <div className="w-2 h-2 rounded-full bg-[#3BA55D] shadow-[0_0_8px_#3BA55D]" />
+                  <span className="text-[13px] text-[#3BA55D] font-bold">You're whitelisted — access granted</span>
+                </div>
+                
+                <Button 
+                  type="button" 
+                  onClick={() => { setDirection(1); setStep('discord'); }}
+                  className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white font-semibold shadow-md"
+                >
+                  Continue to Discord
+                </Button>
+              </div>
+            ) : (
+              <div>
+                <div className="bg-[#A71D1D]/10 border border-[#ED4245]/30 rounded-xl p-5 mb-5">
+                  <h2 className="font-bold text-[15px] text-[#FF8789] mb-1.5 tracking-tight">You aren't whitelisted</h2>
+                  <p className="text-[12.5px] text-slate-600 leading-relaxed">Your account isn't on the network whitelist yet. Ask a network admin to add your email, then try again.</p>
+                </div>
+                
+                <Button 
+                  type="button" 
+                  onClick={handleBack}
+                  variant="outline"
+                  className="w-full h-11 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold"
+                >
+                  Back to sign in
+                </Button>
+              </div>
+            )}
           </motion.div>
         )}
 
