@@ -25,12 +25,13 @@ export function BrandingPanel({ type }: { type: "main" | LoginRole }) {
              initial={{ scale: 0.9, opacity: 0 }}
              animate={{ scale: 1, opacity: 1 }}
              transition={{ duration: 0.8, ease: "easeOut" }}
-             className="w-24 h-24 mb-8"
+             className="w-32 h-32 mb-8 bg-white rounded-3xl p-4 shadow-[0_25px_40px_-15px_rgba(225,29,46,0.6)] relative"
            >
-             <img src="/visuals/LOGO_FOR_STAFFS.png" alt="RNG Logo" className="w-full h-full object-contain drop-shadow-[0_0_20px_rgba(225,29,46,0.6)]" />
+             <div className="absolute inset-x-6 -bottom-4 h-8 bg-[#E11D2E] blur-2xl opacity-80 z-0 mix-blend-screen pointer-events-none"></div>
+             <img src="/visuals/LOGO_FOR_STAFFS.png" alt="RNG Logo" className="w-full h-full object-contain relative z-10 drop-shadow-sm" />
            </motion.div>
            
-           <h1 className="text-3xl font-extrabold tracking-[0.1em] text-transparent bg-clip-text bg-gradient-to-br from-white via-white to-white/40 drop-shadow-lg relative mb-3 leading-tight uppercase">
+           <h1 className="text-3xl font-extrabold tracking-[0.1em] text-transparent bg-clip-text bg-gradient-to-b from-[#ff3333] to-[#8b0000] drop-shadow-md relative mb-3 leading-tight uppercase">
              RNG<br/>Administration
            </h1>
            <div className="h-[2px] w-12 bg-[#E11D2E] rounded-full shadow-[0_0_10px_rgba(225,29,46,0.8)] mt-2" />
@@ -41,11 +42,12 @@ export function BrandingPanel({ type }: { type: "main" | LoginRole }) {
              initial={{ scale: 0.9, opacity: 0 }}
              animate={{ scale: 1, opacity: 1 }}
              transition={{ duration: 0.5, ease: "easeOut" }}
-             className="w-20 h-20 mb-6 bg-black/40 border border-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.5)]"
+             className="w-28 h-28 mb-6 bg-white rounded-[2rem] p-3 shadow-[0_20px_35px_-12px_rgba(225,29,46,0.6)] relative flex items-center justify-center"
            >
-             {type === 'owner' && <ShieldAlert size={36} className="text-[#E11D2E] drop-shadow-[0_0_15px_rgba(225,29,46,0.8)]" />}
-             {type === 'manager' && <ShieldCheck size={36} className="text-[#E11D2E] drop-shadow-[0_0_15px_rgba(225,29,46,0.8)]" />}
-             {type === 'staff' && <Shield size={36} className="text-[#E11D2E] drop-shadow-[0_0_15px_rgba(225,29,46,0.8)]" />}
+             <div className="absolute inset-x-4 -bottom-3 h-6 bg-[#E11D2E] blur-xl opacity-70 z-0 pointer-events-none mix-blend-screen"></div>
+             {type === 'owner' && <img src="/visuals/owner.jpg" className="w-full h-full object-cover rounded-xl relative z-10" />}
+             {type === 'manager' && <img src="/visuals/manager.png" className="w-full h-full object-contain relative z-10" />}
+             {type === 'staff' && <img src="/visuals/staff.png" className="w-full h-full object-contain relative z-10" />}
            </motion.div>
            
            <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">Login as {type?.charAt(0).toUpperCase()}{type?.slice(1)}</h2>
