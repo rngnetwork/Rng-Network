@@ -14,16 +14,20 @@ import {
   Settings,
   LogOut
 } from 'lucide-react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { mockAuthApi } from '@/lib/auth/mockApi';
 
 interface NavItemProps {
   icon: React.ReactNode;
   label: string;
+  href: string;
   isActive?: boolean;
 }
 
-const NavItem = ({ icon, label, isActive }: NavItemProps) => (
-  <button 
+const NavItem = ({ icon, label, href, isActive }: NavItemProps) => (
+  <Link 
+    href={href}
     className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 relative group overflow-hidden ${
       isActive 
         ? 'bg-[#E11D2E]/10 text-white' 
@@ -40,10 +44,12 @@ const NavItem = ({ icon, label, isActive }: NavItemProps) => (
       {icon}
     </div>
     <span className="font-medium text-sm tracking-wide">{label}</span>
-  </button>
+  </Link>
 );
 
 export function Sidebar() {
+  const params = useParams();
+  const serverId = params.serverId as string;
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -74,17 +80,17 @@ export function Sidebar() {
       {/* Navigation Links */}
       <div className="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto custom-scrollbar relative z-10">
         <div className="mb-4 px-3 text-[10px] font-bold tracking-[0.2em] text-[#555] uppercase">Core</div>
-        <NavItem icon={<LayoutDashboard size={18} />} label="Dashboard" isActive />
-        <NavItem icon={<Ticket size={18} />} label="Tickets" />
-        <NavItem icon={<ShieldAlert size={18} />} label="Punishments" />
-        <NavItem icon={<Swords size={18} />} label="Moderation" />
-        <NavItem icon={<Users size={18} />} label="Members" />
+        <NavItem icon={<LayoutDashboard size={18} />} href={`/servers/${serverId}/dashboard`} label="Dashboard" isActive />
+        <NavItem icon={<Ticket size={18} />} href={`/servers/${serverId}/tickets`} label="Tickets" />
+        <NavItem icon={<ShieldAlert size={18} />} href={`/servers/${serverId}/punishments`} label="Punishments" />
+        <NavItem icon={<Swords size={18} />} href={`/servers/${serverId}/moderation`} label="Moderation" />
+        <NavItem icon={<Users size={18} />} href={`/servers/${serverId}/members`} label="Members" />
         
         <div className="mt-6 mb-4 px-3 text-[10px] font-bold tracking-[0.2em] text-[#555] uppercase">System</div>
-        <NavItem icon={<FileText size={18} />} label="Applications" />
-        <NavItem icon={<BarChart3 size={18} />} label="Analytics" />
-        <NavItem icon={<ScrollText size={18} />} label="Logs" />
-        <NavItem icon={<Settings size={18} />} label="Settings" />
+        <NavItem icon={<FileText size={18} />} href={`/servers/${serverId}/applications`} label="Applications" />
+        <NavItem icon={<BarChart3 size={18} />} href={`/servers/${serverId}/analytics`} label="Analytics" />
+        <NavItem icon={<ScrollText size={18} />} href={`/servers/${serverId}/logs`} label="Logs" />
+        <NavItem icon={<Settings size={18} />} href={`/servers/${serverId}/settings`} label="Settings" />
       </div>
 
       {/* User Card (Bottom) */}

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, ShieldAlert, ShieldCheck, Mail, ArrowRight, ArrowLeft, User, Lock } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { mockAuthApi } from '../../../lib/auth/mockApi';
 import { Button } from '@/components/ui/Button';
 
@@ -73,6 +74,7 @@ const BackgroundEffects = () => {
 };
 
 export default function LoginPage() {
+  const router = useRouter();
   const [selectedRole, setSelectedRole] = useState<Role>(null);
   const [step, setStep] = useState<AuthStep>('select');
   const [email, setEmail] = useState('');
@@ -123,7 +125,12 @@ export default function LoginPage() {
     if (res.success && res.data?.user?.whitelisted) {
       setUserData(res.data.user);
       setIsTransitioning(true);
-      setTimeout(() => setStep('welcome'), 600);
+      setTimeout(() => {
+        setStep('welcome');
+        setTimeout(() => {
+          router.push('/servers');
+        }, 2000);
+      }, 600);
     } else {
       setStep('denied');
     }
