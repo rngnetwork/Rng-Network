@@ -24,21 +24,9 @@ export function RoleSelector({ onSelect }: { onSelect: (role: LoginRole) => void
 
       <div className="flex flex-col gap-3">
         <RoleButton 
-          title="Manager" 
-          subtitle="Access manager dashboard" 
-          icon={<ShieldCheck size={20} strokeWidth={2} />} 
-          onClick={() => onSelect('manager')} 
-        />
-        <RoleButton 
-          title="Owner" 
-          subtitle="Access owner dashboard" 
-          icon={<ShieldAlert size={20} strokeWidth={2} />} 
-          onClick={() => onSelect('owner')} 
-        />
-        <RoleButton 
-          title="Staff" 
-          subtitle="Access staff dashboard" 
-          icon={<Shield size={20} strokeWidth={2} />} 
+          title="Sign In to RAC" 
+          subtitle="Access the Rednecks Administrative Centre" 
+          icon={<img src="/visuals/staff.png" className="w-6 h-6 object-contain" alt="Staff Logo" />} 
           onClick={() => onSelect('staff')} 
         />
       </div>
