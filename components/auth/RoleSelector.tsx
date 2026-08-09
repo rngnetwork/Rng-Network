@@ -26,7 +26,7 @@ export function RoleSelector({ onSelect }: { onSelect: (role: LoginRole) => void
         <RoleButton 
           title="Sign In to RAC" 
           subtitle="Access the Rednecks Administrative Centre" 
-          icon={<img src="/visuals/staff.png" className="w-6 h-6 object-contain" alt="Staff Logo" />} 
+          icon={<Shield size={22} strokeWidth={2.5} />} 
           onClick={() => onSelect('staff')} 
         />
       </div>

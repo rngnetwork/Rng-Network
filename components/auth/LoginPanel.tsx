@@ -112,14 +112,9 @@ export function LoginPanel({ role, onBack }: { role: NonNullable<LoginRole>, onB
           </button>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Button type="submit" isLoading={isLoading} className="flex-1 h-11 rounded-xl text-[13.5px] font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-md">
-            {!isLoading && "Sign In"}
-          </Button>
-          <Button type="button" onClick={(e) => handleEmailAuth(e, true)} disabled={isLoading} className="flex-1 h-11 rounded-xl text-[13.5px] font-semibold bg-white border border-slate-200 hover:bg-slate-50 text-slate-700">
-            Sign Up
-          </Button>
-        </div>
+        <Button type="submit" isLoading={isLoading} className="w-full h-11 rounded-xl text-[13.5px] font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-md">
+          {!isLoading && "Sign In"}
+        </Button>
       </form>
 
       <div className="flex items-center gap-3 my-5">
@@ -128,15 +123,35 @@ export function LoginPanel({ role, onBack }: { role: NonNullable<LoginRole>, onB
         <div className="flex-1 h-px bg-slate-100" />
       </div>
 
-      <Button 
-        type="button" 
-        onClick={handleDiscordOAuth}
-        disabled={isLoading}
-        className="w-full h-11 rounded-xl text-[13.5px] font-semibold bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-md transition-all flex items-center justify-center gap-2"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 5.4A17.9 17.9 0 0 0 15.9 4l-.2.4c1.9.5 2.9 1.2 3 1.2a12.9 12.9 0 0 0-11.4 0s1-.8 3.1-1.2L10.2 4a18 18 0 0 0-4.5 1.4S2 10.6 2 17.5c1.9 2.1 4.7 3.4 4.7 3.4l1-1.3a9.6 9.6 0 0 1-2.5-1.3l.6-.4a13 13 0 0 0 12.4 0l.6.4a9.6 9.6 0 0 1-2.5 1.3l1 1.3s2.8-1.3 4.7-3.4c0-6.9-3.7-12.1-3.7-12.1ZM9.3 15.4c-.9 0-1.6-.9-1.6-1.9s.7-1.9 1.6-1.9 1.6.9 1.6 1.9-.7 1.9-1.6 1.9Zm5.4 0c-.9 0-1.6-.9-1.6-1.9s.7-1.9 1.6-1.9 1.6.9 1.6 1.9-.7 1.9-1.6 1.9Z"/></svg>
-        Connect with Discord
-      </Button>
+      <div className="flex flex-col gap-3 w-full">
+        <Button 
+          type="button" 
+          disabled={isLoading}
+          className="w-full h-11 rounded-xl text-[13.5px] font-semibold bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 shadow-sm transition-all flex items-center justify-center gap-2"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none"><path d="M21.8 12.2c0-.7-.06-1.4-.19-2H12v3.8h5.5a4.7 4.7 0 0 1-2 3.1v2.6h3.3c1.9-1.8 3-4.4 3-7.5Z" fill="#4285F4"/><path d="M12 22c2.7 0 5-.9 6.7-2.4l-3.3-2.6c-.9.6-2.1 1-3.4 1-2.6 0-4.8-1.7-5.6-4.1H3v2.6A10 10 0 0 0 12 22Z" fill="#34A853"/><path d="M6.4 13.9a6 6 0 0 1 0-3.8V7.5H3a10 10 0 0 0 0 9l3.4-2.6Z" fill="#FBBC05"/><path d="M12 6.2c1.5 0 2.8.5 3.8 1.5l2.9-2.9C16.9 3.1 14.6 2 12 2 8.1 2 4.7 4.2 3 7.5l3.4 2.6c.8-2.4 3-4 5.6-4Z" fill="#EA4335"/></svg>
+          Continue with Google
+        </Button>
+
+        <Button 
+          type="button" 
+          onClick={handleDiscordOAuth}
+          disabled={isLoading}
+          className="w-full h-11 rounded-xl text-[13.5px] font-semibold bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-md transition-all flex items-center justify-center gap-2"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 5.4A17.9 17.9 0 0 0 15.9 4l-.2.4c1.9.5 2.9 1.2 3 1.2a12.9 12.9 0 0 0-11.4 0s1-.8 3.1-1.2L10.2 4a18 18 0 0 0-4.5 1.4S2 10.6 2 17.5c1.9 2.1 4.7 3.4 4.7 3.4l1-1.3a9.6 9.6 0 0 1-2.5-1.3l.6-.4a13 13 0 0 0 12.4 0l.6.4a9.6 9.6 0 0 1-2.5 1.3l1 1.3s2.8-1.3 4.7-3.4c0-6.9-3.7-12.1-3.7-12.1ZM9.3 15.4c-.9 0-1.6-.9-1.6-1.9s.7-1.9 1.6-1.9 1.6.9 1.6 1.9-.7 1.9-1.6 1.9Zm5.4 0c-.9 0-1.6-.9-1.6-1.9s.7-1.9 1.6-1.9 1.6.9 1.6 1.9-.7 1.9-1.6 1.9Z"/></svg>
+          Continue with Discord
+        </Button>
+      </div>
+
+      <div className="mt-8 text-center">
+        <p className="text-slate-500 text-[13px]">
+          Don't have an account?{' '}
+          <button type="button" className="text-[#E11D2E] font-bold hover:underline transition-all">
+            Request Access
+          </button>
+        </p>
+      </div>
     </motion.div>
   );
 }
