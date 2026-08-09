@@ -112,7 +112,7 @@ export default function EmbedBuilderPage() {
                     >
                       <div 
                         className="w-1 flex-shrink-0" 
-                        style={{ backgroundColor: embed.color ? \`#\${embed.color.toString(16).padStart(6, '0')}\` : '#202225' }} 
+                        style={{ backgroundColor: embed.color ? `#${embed.color.toString(16).padStart(6, '0')}` : '#202225' }} 
                       />
                       <div className="p-4 flex-1">
                         {embed.author?.name && (
