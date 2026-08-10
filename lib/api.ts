@@ -17,6 +17,12 @@ export const api = {
     return { success: true, isWhitelisted: true };
   },
 
+  async submitRegister(email: string, username: string, password?: string): Promise<AuthResponse> {
+    console.log("Mock API Call: submitRegister", email, username, !!password);
+    await new Promise(r => setTimeout(r, 600)); 
+    return { success: true };
+  },
+
   async connectDiscord(role: any): Promise<AuthResponse> {
     console.log("Mock API Call: connectDiscord", role);
     await new Promise(r => setTimeout(r, 800)); 

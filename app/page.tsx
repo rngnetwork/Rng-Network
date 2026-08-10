@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { AuthShell } from '@/components/auth/AuthShell';
+import { InitialLoader } from '@/components/ui/InitialLoader';
 
 const BackgroundEffects = () => {
   const [particles, setParticles] = useState<{ id: number; x: number; y: number; size: number; duration: number; delay: number }[]>([]);
@@ -72,6 +73,7 @@ const BackgroundEffects = () => {
 export default function LandingAuthPage() {
   return (
     <main className="min-h-screen w-full flex items-center justify-center bg-black relative overflow-hidden font-sans selection:bg-[#E11D2E]/30 selection:text-white">
+      <InitialLoader />
       <BackgroundEffects />
       <div className="relative z-10 w-full">
         <AuthShell />

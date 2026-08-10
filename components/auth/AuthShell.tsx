@@ -5,7 +5,7 @@ import { RoleSelector } from './RoleSelector';
 import { BrandingPanel } from './BrandingPanel';
 import { LoginPanel } from './LoginPanel';
 
-export type LoginRole = "manager" | "owner" | "staff" | null;
+export type LoginRole = 'login' | 'register' | null;
 
 const panelTransition = {
   type: "spring" as const,
@@ -36,7 +36,14 @@ export function AuthShell() {
             {role === null ? (
               <RoleSelector key="selector" onSelect={(r) => { setDirection(1); setRole(r); }} />
             ) : (
-              <LoginPanel key="login" role={role} onBack={() => { setDirection(-1); setRole(null); }} />
+              <LoginPanel 
+                key="panel"
+                mode={role} 
+                onBack={() => {
+                  setDirection(-1);
+                  setRole(null);
+                }} 
+              />
             )}
           </AnimatePresence>
         </motion.div>
