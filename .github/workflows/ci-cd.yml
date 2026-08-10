@@ -1,0 +1,126 @@
+name: RNG Control Center CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master, auth-backend, backend, dev ]
+  pull_request:
+    branches: [ main, master, auth-backend, backend, dev ]
+
+jobs:
+  # ----------------------------------------------------------------------------
+  # Job 1: Security & Secret Leak Scanning
+  # ----------------------------------------------------------------------------
+  security-scan:
+    name: Security & Secret Leak Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks Secret Scanner
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ----------------------------------------------------------------------------
+  # Job 2: Next.js 16 Frontend CI Pipeline
+  # ----------------------------------------------------------------------------
+  frontend-ci:
+    name: Frontend (Next.js 16) CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Frontend Dependencies
+        id: install
+        run: npm ci
+
+      - name: TypeScript Type Check
+        id: typecheck
+        run: npx tsc --noEmit
+
+      - name: Run Next.js Linter
+        id: lint
+        run: npm run lint
+
+      - name: Audit Dependencies
+        id: audit
+        run: npm audit --audit-level=critical || true
+
+      - name: Build Next.js Application
+        id: build
+        run: npm run build
+
+      - name: Generate Dynamic Frontend Markdown Report
+        if: always()
+        run: |
+          node .github/scripts/generate-frontend-report.js \
+            "${{ steps.install.outcome }}" \
+            "${{ steps.typecheck.outcome }}" \
+            "${{ steps.lint.outcome }}" \
+            "${{ steps.audit.outcome }}" \
+            "${{ steps.build.outcome }}"
+
+      - name: Output Real-Time Frontend Report to CI Summary
+        if: always()
+        run: cat target/frontend-report.md >> $GITHUB_STEP_SUMMARY
+
+  # ----------------------------------------------------------------------------
+  # Job 3: Spring Boot 3.2.4 Backend CI Pipeline
+  # ----------------------------------------------------------------------------
+  backend-ci:
+    name: Backend (Spring Boot 3.2.4) CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Setup Node.js for Flyway Validation Script
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Verify Flyway SQL Schema Mirrored to JPA Entities
+        run: node .github/scripts/verify-flyway-jpa-sync.js
+
+      - name: Output Real-Time Schema Sync Report to CI Summary
+        if: always()
+        run: cat backend/target/schema-sync-report.md >> $GITHUB_STEP_SUMMARY || true
+
+      - name: Grant Execute Permission for Maven Wrapper
+        run: chmod +x ./backend/mvnw
+
+      - name: Run Backend Integration Tests & JaCoCo Coverage
+        run: ./backend/mvnw -f ./backend/pom.xml test -Dspring.profiles.active=test
+
+      - name: Upload JaCoCo Coverage Report Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-coverage-report
+          path: backend/target/site/jacoco/
+          if-no-files-found: ignore
+
+      - name: Publish Test Report (JUnit Annotations)
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: JUnit Test Results
+          path: backend/target/surefire-reports/*.xml
+          reporter: java-junit
