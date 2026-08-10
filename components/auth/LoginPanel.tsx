@@ -51,7 +51,7 @@ export function LoginPanel({ role, onBack }: { role: NonNullable<LoginRole>, onB
 
   const handleDiscordSubmit = async () => {
     setIsLoading(true);
-    const res = await api.connectDiscord();
+    const res = await api.connectDiscord(role);
     setIsLoading(false);
     
     if (res.success) {
