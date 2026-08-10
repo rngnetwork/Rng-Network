@@ -32,7 +32,7 @@ export function InitialLoader() {
             <div className="relative w-24 h-24 mb-6">
               <div className="absolute inset-0 rounded-full border-t-2 border-l-2 border-[#E11D2E] animate-spin" style={{ animationDuration: '1.5s' }} />
               <div className="absolute inset-2 rounded-full border-b-2 border-r-2 border-white/30 animate-spin" style={{ animationDuration: '2s', animationDirection: 'reverse' }} />
-              <img src="/visuals/rng2.png" alt="RNG Logo" className="absolute inset-0 w-full h-full object-contain p-4 drop-shadow-[0_0_15px_rgba(225,29,46,0.6)]" />
+              <img src="/visuals/MAIN_LOGO.png" alt="" className="absolute inset-0 w-full h-full object-contain p-4 drop-shadow-[0_0_15px_rgba(225,29,46,0.6)]" />
             </div>
             <h2 className="text-white font-display font-bold tracking-widest text-lg uppercase mb-2">RNG Network</h2>
             <p className="text-slate-400 font-mono text-xs tracking-[0.2em] uppercase flex items-center gap-2">
