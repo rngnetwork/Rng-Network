@@ -17,6 +17,7 @@ const BackgroundEffects = () => {
       duration: Math.random() * 15 + 10,
       delay: Math.random() * 5,
     }));
+    // eslint-disable-next-line
     setParticles(generated);
   }, []);
 

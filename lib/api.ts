@@ -23,7 +23,7 @@ export const api = {
     return { success: true };
   },
 
-  async connectDiscord(role: any): Promise<AuthResponse> {
+  async connectDiscord(role: string): Promise<AuthResponse> {
     console.log("Mock API Call: connectDiscord", role);
     await new Promise(r => setTimeout(r, 800)); 
     return { success: true };

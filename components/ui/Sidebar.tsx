@@ -47,10 +47,11 @@ const NavItem = ({ icon, label, href, isActive }: NavItemProps) => (
   </Link>
 );
 
-export function Sidebar() {
+export function Sidebar({ className }: { className?: string }) {
   const params = useParams();
+  const pathname = usePathname();
   const serverId = params.serverId as string;
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{ avatar: string; username: string; discordId: string } | null>(null);
 
   useEffect(() => {
     // Simulate fetching user session from backend
