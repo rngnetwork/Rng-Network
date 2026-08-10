@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Mail } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { LoginRole } from './AuthShell';
@@ -17,6 +17,8 @@ export function LoginPanel({ role, onBack }: { role: NonNullable<LoginRole>, onB
   const router = useRouter();
   const [step, setStep] = useState<'email' | 'whitelist' | 'discord'>('email');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [direction, setDirection] = useState(1);
@@ -24,10 +26,10 @@ export function LoginPanel({ role, onBack }: { role: NonNullable<LoginRole>, onB
 
   const handleEmailSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!email) return;
+    if (!email || !password) return;
     
     setIsLoading(true);
-    const res = await api.submitEmailLogin(email);
+    const res = await api.submitEmailLogin(email, password);
     setIsLoading(false);
     
     if (res.success) {
@@ -108,8 +110,7 @@ export function LoginPanel({ role, onBack }: { role: NonNullable<LoginRole>, onB
               type="button" 
               onClick={handleGoogleSubmit}
               disabled={isLoading}
-              variant="outline"
-              className="w-full h-11 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold"
+              className="w-full h-11 bg-white hover:bg-slate-50 border border-slate-200 !text-slate-700 font-semibold"
               leftIcon={<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none"><path d="M21.8 12.2c0-.7-.06-1.4-.19-2H12v3.8h5.5a4.7 4.7 0 0 1-2 3.1v2.6h3.3c1.9-1.8 3-4.4 3-7.5Z" fill="#4285F4"/><path d="M12 22c2.7 0 5-.9 6.7-2.4l-3.3-2.6c-.9.6-2.1 1-3.4 1-2.6 0-4.8-1.7-5.6-4.1H3v2.6A10 10 0 0 0 12 22Z" fill="#34A853"/><path d="M6.4 13.9a6 6 0 0 1 0-3.8V7.5H3a10 10 0 0 0 0 9l3.4-2.6Z" fill="#FBBC05"/><path d="M12 6.2c1.5 0 2.8.5 3.8 1.5l2.9-2.9C16.9 3.1 14.6 2 12 2 8.1 2 4.7 4.2 3 7.5l3.4 2.6c.8-2.4 3-4 5.6-4Z" fill="#EA4335"/></svg>}
             >
               Continue with Google
@@ -134,10 +135,35 @@ export function LoginPanel({ role, onBack }: { role: NonNullable<LoginRole>, onB
                 />
               </div>
 
+              <div className="relative group">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#E11D2E] transition-colors" size={18} />
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-11 pr-12 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#E11D2E]/50 focus:bg-white focus:ring-4 focus:ring-[#E11D2E]/5 transition-all font-medium text-[13.5px]"
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-md"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+
+              <div className="flex justify-end mb-1">
+                <button type="button" className="text-[#E11D2E] text-[12px] font-bold hover:underline">
+                  Forgot Password?
+                </button>
+              </div>
+
               <Button 
                 type="submit" 
                 isLoading={isLoading} 
-                className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white font-semibold shadow-md mt-1"
+                className="w-full h-11 bg-slate-900 hover:bg-slate-800 !text-white font-semibold shadow-md mt-1"
               >
                 {!isLoading && "Continue"}
               </Button>
