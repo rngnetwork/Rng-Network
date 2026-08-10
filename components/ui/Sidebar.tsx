@@ -15,7 +15,7 @@ import {
   LogOut
 } from 'lucide-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
 import { mockAuthApi } from '@/lib/auth/mockApi';
 
 interface NavItemProps {
@@ -57,8 +57,8 @@ export function Sidebar({ className }: { className?: string }) {
     // Simulate fetching user session from backend
     const fetchUser = async () => {
       const res = await mockAuthApi.simulateDiscordOAuth('staff');
-      if (res.success) {
-        setUser(res.data?.user);
+      if (res.success && res.data && typeof res.data !== 'string' && 'user' in res.data) {
+        setUser(res.data.user as any);
       }
     };
     fetchUser();

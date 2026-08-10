@@ -4,7 +4,8 @@
 export interface AuthResponse {
   success: boolean;
   message: string;
-  data?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data?: any;
 }
 
 export const mockAuthApi = {
