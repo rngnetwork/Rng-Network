@@ -15,6 +15,7 @@ import {
   LogOut
 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { mockAuthApi } from '@/lib/auth/mockApi';
 
@@ -70,7 +71,7 @@ export function Sidebar({ className }: { className?: string }) {
 
       {/* Header / Logo */}
       <div className="px-6 py-8 flex items-center gap-4 relative z-10">
-        <img src="/visuals/LOGO_FOR_STAFFS.png" alt="RNG Logo" className="w-10 h-10 object-contain drop-shadow-[0_0_10px_rgba(225,29,46,0.4)]" />
+        <Image src="/visuals/LOGO_FOR_STAFFS.png" alt="RNG Logo" width={40} height={40} unoptimized className="object-contain drop-shadow-[0_0_10px_rgba(225,29,46,0.4)]" />
         <div>
           <h2 className="text-white font-bold tracking-widest uppercase text-sm font-display">RNG Network</h2>
           <p className="text-[#A0A0A0] text-[10px] tracking-widest uppercase">Management</p>
@@ -99,7 +100,7 @@ export function Sidebar({ className }: { className?: string }) {
           {user ? (
             <div className="flex items-center gap-3">
               <div className="relative">
-                <img src={user.avatar} alt="User Avatar" className="w-10 h-10 rounded-full border border-white/10 object-cover" />
+                <Image src={user.avatar} alt="User Avatar" width={40} height={40} unoptimized className="rounded-full border border-white/10 object-cover" />
                 {/* Online Indicator */}
                 <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-[#23a559] rounded-full border-2 border-[#111111]" />
               </div>

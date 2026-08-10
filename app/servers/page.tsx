@@ -4,6 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Server, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 // Mock list of servers the user has access to
 const MOCK_SERVERS = [
@@ -22,7 +23,7 @@ export default function ServersPage() {
       {/* Header */}
       <header className="w-full px-10 py-8 border-b border-white/5 bg-[#111111]/50 backdrop-blur-xl relative z-10 flex items-center justify-between">
         <div className="flex items-center gap-4">
-           <img src="/visuals/LOGO_FOR_STAFFS.png" alt="RNG Logo" className="w-10 h-10 object-contain drop-shadow-[0_0_10px_rgba(225,29,46,0.4)]" />
+           <Image src="/visuals/LOGO_FOR_STAFFS.png" alt="RNG Logo" width={40} height={40} unoptimized className="object-contain drop-shadow-[0_0_10px_rgba(225,29,46,0.4)]" />
            <h2 className="text-lg font-bold tracking-widest uppercase font-display">Select Server</h2>
         </div>
         <div className="flex items-center gap-4">
@@ -50,8 +51,8 @@ export default function ServersPage() {
               <div className="absolute top-0 right-0 w-32 h-32 bg-[#E11D2E] opacity-0 blur-[50px] group-hover:opacity-[0.05] transition-opacity duration-500 rounded-bl-full" />
               
               <div className="flex items-center gap-5 mb-8 relative z-10">
-                <div className="w-16 h-16 rounded-2xl bg-[#1A1A1A] border border-white/10 p-2 shadow-inner overflow-hidden">
-                   <img src={server.icon} alt={server.name} className="w-full h-full object-contain" />
+                <div className="w-16 h-16 rounded-2xl bg-[#1A1A1A] border border-white/10 p-2 shadow-inner overflow-hidden relative">
+                   <Image src={server.icon} alt={server.name} fill unoptimized className="object-contain p-2" />
                 </div>
                 <div>
                   <h3 className="font-bold text-xl mb-1 truncate max-w-[150px]">{server.name}</h3>
