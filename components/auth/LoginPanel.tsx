@@ -153,13 +153,16 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
             key="email"
             custom={direction}
             variants={contentVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.35, ease: "easeOut" }}
-            className="flex flex-col w-full h-full justify-center overflow-y-auto pt-2 pb-6"
+            className="flex flex-col w-full h-full justify-center overflow-y-auto pt-10 pb-6 relative"
           >
-            <button onClick={handleBack} className="text-slate-400 hover:text-slate-800 flex items-center gap-1.5 text-[13px] font-bold mb-4 transition-colors w-fit p-1 -ml-1 mt-2">
-              <ArrowLeft size={16} /> Back to options
+            <button 
+              onClick={handleBack} 
+              className="absolute top-0 left-0 text-slate-400 hover:text-slate-800 flex items-center gap-1.5 text-[14px] font-bold transition-colors w-fit p-2 -ml-2"
+            >
+              <ArrowLeft size={16} strokeWidth={3} /> Back
             </button>
 
-            <h3 className="text-3xl font-extrabold text-slate-900 mb-1 tracking-tight">
+            <h3 className="text-3xl font-extrabold text-slate-900 mb-1 tracking-tight mt-4">
               {mode === 'register' ? 'Request Access' : 'Sign In'}
             </h3>
             <p className="text-slate-500 text-[14px] mb-6 leading-relaxed">
@@ -252,12 +255,15 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
             key="whitelist"
             custom={direction}
             variants={contentVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.35, ease: "easeOut" }}
-            className="flex flex-col w-full h-full justify-center pt-2 pb-6"
+            className="flex flex-col w-full h-full justify-center pt-10 pb-6 relative"
           >
-            <button onClick={handleBack} className="text-slate-400 hover:text-slate-800 flex items-center gap-1.5 text-[13px] font-bold mb-6 transition-colors w-fit p-1 -ml-1 mt-2">
-              <ArrowLeft size={16} /> Back to email
+            <button 
+              onClick={handleBack} 
+              className="absolute top-0 left-0 text-slate-400 hover:text-slate-800 flex items-center gap-1.5 text-[14px] font-bold transition-colors w-fit p-2 -ml-2"
+            >
+              <ArrowLeft size={16} strokeWidth={3} /> Back
             </button>
-            <h3 className="text-3xl font-extrabold text-slate-900 mb-2 tracking-tight">Checking access</h3>
+            <h3 className="text-3xl font-extrabold text-slate-900 mb-2 tracking-tight mt-4">Checking access</h3>
             <p className="text-slate-500 text-[14px] mb-8 leading-relaxed">Verifying your account against the network whitelist.</p>
             
             {isWhitelisted ? (
@@ -299,13 +305,16 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
             key="discord"
             custom={direction}
             variants={contentVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.35, ease: "easeOut" }}
-            className="flex flex-col w-full h-full justify-center pt-2 pb-6"
+            className="flex flex-col w-full h-full justify-center pt-10 pb-6 relative"
           >
-            <button onClick={handleBack} className="text-slate-400 hover:text-slate-800 flex items-center gap-1.5 text-[13px] font-bold mb-6 transition-colors w-fit p-1 -ml-1 mt-2">
-              <ArrowLeft size={16} /> Back
+            <button 
+              onClick={handleBack} 
+              className="absolute top-0 left-0 text-slate-400 hover:text-slate-800 flex items-center gap-1.5 text-[14px] font-bold transition-colors w-fit p-2 -ml-2"
+            >
+              <ArrowLeft size={16} strokeWidth={3} /> Back
             </button>
 
-            <div className="w-14 h-14 bg-[#5865F2]/10 rounded-2xl flex items-center justify-center mb-6">
+            <div className="w-14 h-14 bg-[#5865F2]/10 rounded-2xl flex items-center justify-center mb-6 mt-4">
               <svg className="w-8 h-8 text-[#5865F2]" viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 5.4A17.9 17.9 0 0 0 15.9 4l-.2.4c1.9.5 2.9 1.2 3 1.2a12.9 12.9 0 0 0-11.4 0s1-.8 3.1-1.2L10.2 4a18 18 0 0 0-4.5 1.4S2 10.6 2 17.5c1.9 2.1 4.7 3.4 4.7 3.4l1-1.3a9.6 9.6 0 0 1-2.5-1.3l.6-.4a13 13 0 0 0 12.4 0l.6.4a9.6 9.6 0 0 1-2.5 1.3l1 1.3s2.8-1.3 4.7-3.4c0-6.9-3.7-12.1-3.7-12.1ZM9.3 15.4c-.9 0-1.6-.9-1.6-1.9s.7-1.9 1.6-1.9 1.6.9 1.6 1.9-.7 1.9-1.6 1.9Zm5.4 0c-.9 0-1.6-.9-1.6-1.9s.7-1.9 1.6-1.9 1.6.9 1.6 1.9-.7 1.9-1.6 1.9Z"/></svg>
             </div>
             
