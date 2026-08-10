@@ -18,7 +18,8 @@ export default function EmbedBuilderPage() {
     }
   ]
 }`);
-  const [parsed, setParsed] = useState<Record<string, unknown> | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [parsed, setParsed] = useState<any>(null);
   const [error, setError] = useState("");
 
   const handleEditorChange = (value: string | undefined) => {
@@ -104,7 +105,8 @@ export default function EmbedBuilderPage() {
                     </div>
                   )}
 
-                  {(parsed.embeds as Record<string, unknown>[])?.map((embed: Record<string, unknown>, i: number) => (
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {parsed.embeds?.map((embed: any, i: number) => (
                     <div 
                       key={i} 
                       className="bg-[#2B2D31] rounded flex overflow-hidden mt-2 max-w-[520px]"
