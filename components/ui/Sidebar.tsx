@@ -15,7 +15,8 @@ import {
   LogOut
 } from 'lucide-react';
 import Link from 'next/link';
-import { useParams, usePathname } from 'next/navigation';
+import Image from 'next/image';
+import { useParams } from 'next/navigation';
 import { mockAuthApi } from '@/lib/auth/mockApi';
 
 interface NavItemProps {
@@ -49,7 +50,6 @@ const NavItem = ({ icon, label, href, isActive }: NavItemProps) => (
 
 export function Sidebar({ className }: { className?: string }) {
   const params = useParams();
-  const pathname = usePathname();
   const serverId = params.serverId as string;
   const [user, setUser] = useState<{ avatar: string; username: string; discordId: string } | null>(null);
 
@@ -58,20 +58,20 @@ export function Sidebar({ className }: { className?: string }) {
     const fetchUser = async () => {
       const res = await mockAuthApi.simulateDiscordOAuth('staff');
       if (res.success && res.data && typeof res.data !== 'string' && 'user' in res.data) {
-        setUser(res.data.user as any);
+        setUser(res.data.user as { avatar: string; username: string; discordId: string });
       }
     };
     fetchUser();
   }, []);
 
   return (
-    <div className="w-[280px] h-screen bg-[#090909] border-r border-white/5 flex flex-col flex-shrink-0 relative overflow-hidden font-sans">
+    <div className={`w-[280px] h-screen bg-[#090909] border-r border-white/5 flex flex-col flex-shrink-0 relative overflow-hidden font-sans ${className || ''}`}>
       {/* Subtle cinematic glow in the top left corner of the sidebar */}
       <div className="absolute top-[-10%] left-[-20%] w-[80%] h-[20%] bg-[#E11D2E] opacity-[0.03] blur-[80px] rounded-full pointer-events-none" />
 
       {/* Header / Logo */}
       <div className="px-6 py-8 flex items-center gap-4 relative z-10">
-        <img src="/visuals/LOGO_FOR_STAFFS.png" alt="RNG Logo" className="w-10 h-10 object-contain drop-shadow-[0_0_10px_rgba(225,29,46,0.4)]" />
+        <Image src="/visuals/LOGO_FOR_STAFFS.png" alt="RNG Logo" width={40} height={40} unoptimized className="object-contain drop-shadow-[0_0_10px_rgba(225,29,46,0.4)]" />
         <div>
           <h2 className="text-white font-bold tracking-widest uppercase text-sm font-display">RNG Network</h2>
           <p className="text-[#A0A0A0] text-[10px] tracking-widest uppercase">Management</p>
@@ -100,7 +100,7 @@ export function Sidebar({ className }: { className?: string }) {
           {user ? (
             <div className="flex items-center gap-3">
               <div className="relative">
-                <img src={user.avatar} alt="User Avatar" className="w-10 h-10 rounded-full border border-white/10 object-cover" />
+                <Image src={user.avatar} alt="User Avatar" width={40} height={40} unoptimized className="rounded-full border border-white/10 object-cover" />
                 {/* Online Indicator */}
                 <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-[#23a559] rounded-full border-2 border-[#111111]" />
               </div>
