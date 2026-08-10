@@ -1,0 +1,58 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: rng-api
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/rng_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:google-client-id-placeholder}
+            client-secret: ${GOOGLE_CLIENT_SECRET:google-client-secret-placeholder}
+            scope:
+              - email
+              - profile
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+          discord:
+            client-id: ${DISCORD_CLIENT_ID:discord-client-id-placeholder}
+            client-secret: ${DISCORD_CLIENT_SECRET:discord-client-secret-placeholder}
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope:
+              - identify
+              - email
+        provider:
+          discord:
+            authorization-uri: https://discord.com/api/oauth2/authorize
+            token-uri: https://discord.com/api/oauth2/token
+            user-info-uri: https://discord.com/api/users/@me
+            user-name-attribute: id
+
+jwt:
+  secret: ${JWT_SECRET:rngSecretKeyForJwtSigningMustBeAtLeast32BytesLongForHmacSha256!}
+
+app:
+  frontend:
+    2fa-redirect-url: ${FRONTEND_2FA_URL:http://localhost:3000/auth/2fa}
