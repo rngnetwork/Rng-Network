@@ -15,7 +15,7 @@ import {
   LogOut
 } from 'lucide-react';
 import Link from 'next/link';
-import { useParams, usePathname } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { mockAuthApi } from '@/lib/auth/mockApi';
 
 interface NavItemProps {
@@ -49,7 +49,6 @@ const NavItem = ({ icon, label, href, isActive }: NavItemProps) => (
 
 export function Sidebar({ className }: { className?: string }) {
   const params = useParams();
-  const pathname = usePathname();
   const serverId = params.serverId as string;
   const [user, setUser] = useState<{ avatar: string; username: string; discordId: string } | null>(null);
 
@@ -58,14 +57,14 @@ export function Sidebar({ className }: { className?: string }) {
     const fetchUser = async () => {
       const res = await mockAuthApi.simulateDiscordOAuth('staff');
       if (res.success && res.data && typeof res.data !== 'string' && 'user' in res.data) {
-        setUser(res.data.user as any);
+        setUser(res.data.user as { avatar: string; username: string; discordId: string });
       }
     };
     fetchUser();
   }, []);
 
   return (
-    <div className="w-[280px] h-screen bg-[#090909] border-r border-white/5 flex flex-col flex-shrink-0 relative overflow-hidden font-sans">
+    <div className={`w-[280px] h-screen bg-[#090909] border-r border-white/5 flex flex-col flex-shrink-0 relative overflow-hidden font-sans ${className || ''}`}>
       {/* Subtle cinematic glow in the top left corner of the sidebar */}
       <div className="absolute top-[-10%] left-[-20%] w-[80%] h-[20%] bg-[#E11D2E] opacity-[0.03] blur-[80px] rounded-full pointer-events-none" />
 

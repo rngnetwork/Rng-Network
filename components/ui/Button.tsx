@@ -45,7 +45,7 @@ export function Button({
     <button
       className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98]'} ${className}`}
       disabled={isDisabled}
-      {...props as any}
+      {...props}
     >
       {isLoading ? (
         <Loader2 className="w-5 h-5 animate-spin" />
