@@ -1,8 +1,6 @@
-"use client";
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Shield, ChevronRight } from 'lucide-react';
-import { LoginRole } from './AuthShell';
 
 const contentVariants = {
   enter: (direction: number) => ({ opacity: 0, x: direction > 0 ? 30 : -30 }),

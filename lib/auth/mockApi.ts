@@ -4,7 +4,7 @@
 export interface AuthResponse {
   success: boolean;
   message: string;
-  data?: any;
+  data?: string;
 }
 
 export const mockAuthApi = {

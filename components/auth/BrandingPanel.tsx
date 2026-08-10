@@ -2,7 +2,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { AnimatedGradient } from '../background/AnimatedGradient';
-import { ShieldAlert, ShieldCheck, Shield } from 'lucide-react';
 import { LoginRole } from './AuthShell';
 
 const contentVariants = {
@@ -45,8 +44,8 @@ export function BrandingPanel({ type }: { type: "main" | LoginRole }) {
              className="w-28 h-28 mb-6 bg-white rounded-[2rem] p-3 shadow-[0_20px_35px_-12px_rgba(225,29,46,0.6)] relative flex items-center justify-center"
            >
              <div className="absolute inset-x-4 -bottom-3 h-6 bg-[#E11D2E] blur-xl opacity-70 z-0 pointer-events-none mix-blend-screen"></div>
-             {type === 'register' && <img src="/visuals/owner.jpg" className="w-full h-full object-cover rounded-xl relative z-10" />}
-             {type === 'login' && <img src="/visuals/staff.png" className="w-full h-full object-contain relative z-10" />}
+             {type === 'register' && <img src="/visuals/owner.jpg" alt="Register Icon" className="w-full h-full object-cover rounded-xl relative z-10" />}
+             {type === 'login' && <img src="/visuals/staff.png" alt="Login Icon" className="w-full h-full object-contain relative z-10" />}
            </motion.div>
            
            <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">

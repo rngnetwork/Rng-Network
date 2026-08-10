@@ -5,7 +5,6 @@ import { ArrowLeft, Mail, Lock, Eye, EyeOff, User, CheckCircle2 } from 'lucide-r
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/lib/api';
-import { LoginRole } from './AuthShell';
 
 const contentVariants = {
   enter: (direction: number) => ({ opacity: 0, x: direction > 0 ? 30 : -30 }),
@@ -270,7 +269,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
               <div>
                 <div className="flex items-center gap-3 p-4 bg-[#3BA55D]/10 border border-[#3BA55D]/30 rounded-xl mb-6">
                   <div className="w-2 h-2 rounded-full bg-[#3BA55D] shadow-[0_0_8px_#3BA55D]" />
-                  <span className="text-[13px] text-[#3BA55D] font-bold">You're whitelisted — access granted</span>
+                  <span className="text-[13px] text-[#3BA55D] font-bold">You&apos;re whitelisted — access granted</span>
                 </div>
                 
                 <Button 
@@ -284,8 +283,8 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
             ) : (
               <div>
                 <div className="bg-[#A71D1D]/10 border border-[#ED4245]/30 rounded-xl p-5 mb-5">
-                  <h2 className="font-bold text-[15px] text-[#FF8789] mb-1.5 tracking-tight">You aren't whitelisted</h2>
-                  <p className="text-[12.5px] text-slate-600 leading-relaxed">Your account isn't on the network whitelist yet. Ask a network admin to add your email, then try again.</p>
+                  <h2 className="font-bold text-[15px] text-[#FF8789] mb-1.5 tracking-tight">You aren&apos;t whitelisted</h2>
+                  <p className="text-[12.5px] text-slate-600 leading-relaxed">Your account isn&apos;t on the network whitelist yet. Ask a network admin to add your email, then try again.</p>
                 </div>
                 
                 <Button 

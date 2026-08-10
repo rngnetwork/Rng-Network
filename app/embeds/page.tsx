@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
 import Editor from "@monaco-editor/react";
 import { Send, Code2, Eye, HelpCircle } from "lucide-react";
 
@@ -19,7 +18,7 @@ export default function EmbedBuilderPage() {
     }
   ]
 }`);
-  const [parsed, setParsed] = useState<any>(null);
+  const [parsed, setParsed] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState("");
 
   const handleEditorChange = (value: string | undefined) => {
@@ -28,7 +27,7 @@ export default function EmbedBuilderPage() {
     try {
       setParsed(JSON.parse(value));
       setError("");
-    } catch (e) {
+    } catch {
       setError("Invalid JSON format");
     }
   };
@@ -105,7 +104,7 @@ export default function EmbedBuilderPage() {
                     </div>
                   )}
 
-                  {parsed.embeds?.map((embed: any, i: number) => (
+                  {(parsed.embeds as Record<string, unknown>[])?.map((embed: Record<string, unknown>, i: number) => (
                     <div 
                       key={i} 
                       className="bg-[#2B2D31] rounded flex overflow-hidden mt-2 max-w-[520px]"
