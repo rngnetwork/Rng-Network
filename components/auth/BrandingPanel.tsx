@@ -25,10 +25,10 @@ export function BrandingPanel({ type }: { type: "main" | LoginRole }) {
              initial={{ scale: 0.9, opacity: 0 }}
              animate={{ scale: 1, opacity: 1 }}
              transition={{ duration: 0.8, ease: "easeOut" }}
-             className="w-32 h-32 mb-8 bg-white rounded-3xl p-4 shadow-[0_25px_40px_-15px_rgba(225,29,46,0.6)] relative overflow-hidden"
+             className="w-32 h-32 mb-8 bg-white rounded-3xl shadow-[0_25px_40px_-15px_rgba(225,29,46,0.6)] relative overflow-hidden"
            >
              <div className="absolute inset-x-6 -bottom-4 h-8 bg-[#E11D2E] blur-2xl opacity-80 z-0 mix-blend-screen pointer-events-none"></div>
-             <img src="/visuals/MAIN_LOGO.png" alt="RNG Logo" className="w-full h-full object-cover relative z-10 drop-shadow-sm" />
+             <img src="/visuals/MAIN_LOGO.png" alt="RNG Logo" className="w-full h-full object-cover rounded-3xl relative z-10 drop-shadow-sm" />
            </motion.div>
            
            <h1 className="text-3xl font-extrabold tracking-[0.1em] text-transparent bg-clip-text bg-gradient-to-b from-[#ff3333] to-[#8b0000] drop-shadow-md relative mb-3 leading-tight uppercase">
