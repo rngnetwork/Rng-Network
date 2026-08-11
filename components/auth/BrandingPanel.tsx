@@ -46,7 +46,7 @@ export function BrandingPanel({ type }: { type: "main" | LoginRole }) {
            >
              <div className="absolute inset-x-4 -bottom-3 h-6 bg-[#E11D2E] blur-xl opacity-70 z-0 pointer-events-none mix-blend-screen"></div>
              {type === 'register' && <Image src="/visuals/owner.jpg" alt="Register Icon" fill unoptimized className="object-cover rounded-xl relative z-10" />}
-             {type === 'login' && <Image src="/visuals/staff.png" alt="Login Icon" fill unoptimized className="object-contain relative z-10" />}
+             {type === 'login' && <Image src="/visuals/staff.png" alt="Login Icon" fill unoptimized className="object-cover rounded-xl relative z-10" />}
            </motion.div>
            
            <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">
