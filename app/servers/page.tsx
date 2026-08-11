@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Server, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { UserProfileDropdown } from '@/components/ui/UserProfileDropdown';
 
 // Mock list of servers the user has access to
 const MOCK_SERVERS = [
@@ -27,7 +28,7 @@ export default function ServersPage() {
            <h2 className="text-lg font-bold tracking-widest uppercase font-display">Select Server</h2>
         </div>
         <div className="flex items-center gap-4">
-          <div className="w-8 h-8 rounded-full bg-white/10" />
+          <UserProfileDropdown />
         </div>
       </header>
 
