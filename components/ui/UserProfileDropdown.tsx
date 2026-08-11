@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
-import { LogOut, User, Key } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { mockAuthApi } from '@/lib/auth/mockApi';
 
 interface UserData {
@@ -78,19 +78,7 @@ export function UserProfileDropdown() {
                 </span>
               </div>
             </div>
-
             <div className="p-2">
-              <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-[#A0A0A0] hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-                <User size={16} />
-                <span>Profile Settings</span>
-              </button>
-              <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-[#A0A0A0] hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-                <Key size={16} />
-                <span>Access Logs</span>
-              </button>
-            </div>
-            
-            <div className="p-2 border-t border-white/10">
               <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-[#E11D2E] hover:bg-[#E11D2E]/10 rounded-lg transition-colors font-medium">
                 <LogOut size={16} />
                 <span>Sign Out</span>
