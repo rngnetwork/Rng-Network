@@ -68,17 +68,9 @@ export function AuthShell() {
         </motion.div>
       </div>
 
-      {/* MOBILE LAYOUT: Simple Login Card with Watermark */}
-      <div className="flex md:hidden w-full bg-white rounded-3xl shadow-2xl relative overflow-hidden border border-slate-200/60 min-h-[500px]">
-        {/* Grey Watermark Background */}
-        <div className="absolute inset-0 z-0 flex items-center justify-center opacity-5 grayscale pointer-events-none">
-          <img src="/visuals/MAIN_LOGO.png" alt="RNG Watermark" className="w-[250px] object-contain" />
-        </div>
-        
-        {/* Simple Form Container */}
-        <div className="w-full relative z-10 flex flex-col h-full">
-           <LoginPanel mode="login" onBack={() => {}} />
-        </div>
+      {/* MOBILE LAYOUT: Simple Login Card */}
+      <div className="flex md:hidden w-full rounded-3xl shadow-2xl relative overflow-hidden border border-slate-200/60 bg-white">
+        <LoginPanel mode="login" onBack={() => {}} />
       </div>
     </>
   );

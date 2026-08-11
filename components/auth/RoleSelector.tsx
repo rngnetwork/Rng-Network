@@ -12,7 +12,7 @@ export function RoleSelector({ onSelect }: { onSelect: (role: 'login' | 'registe
   return (
     <motion.div 
       variants={contentVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.35, ease: "easeOut" }}
-      className="absolute inset-0 flex flex-col justify-center p-6 md:p-12 bg-transparent"
+      className="w-full h-full flex-1 flex flex-col justify-center p-6 md:p-12 bg-white relative"
     >
       <div className="mb-2">
         <span className="text-slate-400 text-xs font-bold tracking-widest uppercase">Secure Administration Portal</span>
