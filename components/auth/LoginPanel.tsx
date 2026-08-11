@@ -20,6 +20,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   // States for end of flow
   const [showWelcome, setShowWelcome] = useState(false);
@@ -33,74 +34,75 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
     if (!email || !password || (mode === 'register' && !username)) return;
     
     setIsLoading(true);
-    let res;
-    if (mode === 'register') {
-      res = await api.submitRegister(email, username, password);
-    } else {
-      res = await api.submitEmailLogin(email, password);
-    }
-    setIsLoading(false);
-    
-    if (res.success) {
+    setErrorMessage(null);
+    try {
       if (mode === 'register') {
-        // Skip whitelist check for register
+        await api.submitRegister(email, username, password);
+        setIsLoading(false);
         setDirection(1);
         setStep('discord');
       } else {
-        setIsWhitelisted(res.isWhitelisted ?? true);
-        setDirection(1);
-        setStep('whitelist');
+        const res = await api.submitEmailLogin(email, password);
+        setIsLoading(false);
+        
+        if (res.success && res.data?.token) {
+          sessionStorage.setItem('pre2FaToken', res.data.token);
+          sessionStorage.setItem('pre2FaEmail', res.data.userEmail || email);
+          setIsWhitelisted(true);
+          setDirection(1);
+          setStep('discord');
+        }
       }
+    } catch (err: unknown) {
+      setIsLoading(false);
+      const message = err instanceof Error ? err.message : 'Authentication failed';
+      setErrorMessage(message);
     }
   };
 
-  const handleGoogleSubmit = async () => {
-    setIsLoading(true);
-    let res;
+  const handleGoogleSubmit = () => {
+    setErrorMessage(null);
     if (mode === 'register') {
-      res = await api.submitRegister(email, username, password); // just simulating
+      setDirection(1);
+      setStep('discord');
     } else {
-      res = await api.submitGoogleLogin();
-    }
-    setIsLoading(false);
-
-    if (res.success) {
-      if (mode === 'register') {
-        setDirection(1);
-        setStep('discord');
-      } else {
-        setIsWhitelisted(res.isWhitelisted ?? true);
-        setDirection(1);
-        setStep('whitelist');
-      }
+      api.redirectToGoogle();
     }
   };
 
-  const handleDiscordSubmit = async () => {
+  const handleDiscordSubmit = () => {
     setIsLoading(true);
-    const res = await api.connectDiscord(mode);
-    setIsLoading(false);
-    
-    if (res.success) {
-      if (mode === 'register') {
-        setShowRegisterSuccess(true);
-      } else {
-        setShowWelcome(true);
-        setTimeout(() => {
-          router.push('/servers');
-        }, 1500);
-      }
+    if (mode === 'register') {
+      setIsLoading(false);
+      setShowRegisterSuccess(true);
+    } else {
+      const clientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || '123456789';
+      const redirectUri = encodeURIComponent(
+        process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI || 'http://localhost:3000/auth/discord/callback'
+      );
+      window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=identify%20email`;
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setErrorMessage('Please enter your network email first.');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const res = await api.submitForgotPassword(email);
+      alert(res.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleBack = () => {
+    setErrorMessage(null);
     if (step === 'discord') {
       setDirection(-1);
-      if (mode === 'register') {
-        setStep('email'); // skipped whitelist
-      } else {
-        setStep('whitelist');
-      }
+      setStep('email');
     } else if (step === 'whitelist') {
       setDirection(-1);
       setStep('email');
@@ -168,6 +170,12 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
             <p className="text-slate-500 text-[14px] mb-6 leading-relaxed">
               {mode === 'register' ? 'Apply for a network account with your details.' : 'Use your network email, or continue with Google.'}
             </p>
+
+            {errorMessage && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs font-semibold">
+                {errorMessage}
+              </div>
+            )}
             
             <Button 
               type="button" 
@@ -233,7 +241,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
 
               {mode === 'login' && (
                 <div className="flex justify-end mb-1">
-                  <button type="button" className="text-[#E11D2E] text-[12px] font-bold hover:underline">
+                  <button type="button" onClick={handleForgotPassword} className="text-[#E11D2E] text-[12px] font-bold hover:underline">
                     Forgot Password?
                   </button>
                 </div>
