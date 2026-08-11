@@ -284,7 +284,8 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
               <div>
                 <div className="bg-[#A71D1D]/10 border border-[#ED4245]/30 rounded-xl p-5 mb-5">
                   <h2 className="font-bold text-[15px] text-[#FF8789] mb-1.5 tracking-tight">You aren&apos;t whitelisted</h2>
-                  <p className="text-[12.5px] text-slate-600 leading-relaxed">Your account isn&apos;t on the network whitelist yet. Ask a network admin to add your email, then try again.</p>
+                  <p className="text-[12.5px] text-[#FF8789]/80 font-medium mb-1 uppercase tracking-wider">Access Revoked</p>
+                  <p className="text-[12.5px] text-slate-600 leading-relaxed">Your account isn&apos;t on the network whitelist. Ask a network admin to add your credentials, then try again.</p>
                 </div>
                 
                 <Button 

@@ -24,7 +24,7 @@ export function UserProfileDropdown() {
   const handleLogout = async () => {
     const res = await api.logout();
     if (res.success) {
-      router.push('/');
+      window.location.href = '/';
     }
   };
 
