@@ -111,13 +111,13 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
 
   return (
     <motion.div 
-      className="absolute inset-0 flex flex-col justify-center p-6 md:p-10 bg-white overflow-hidden"
+      className="absolute inset-0 flex flex-col justify-center p-6 md:p-10 bg-transparent overflow-hidden"
     >
       <AnimatePresence mode="wait" custom={direction}>
         {showWelcome && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="absolute inset-0 bg-white z-50 flex flex-col items-center justify-center"
+            className="absolute inset-0 bg-white/95 backdrop-blur-sm z-50 flex flex-col items-center justify-center"
           >
             <div className="w-16 h-16 border-4 border-slate-100 border-t-[#E11D2E] rounded-full animate-spin mb-6" />
             <h3 className="text-xl font-bold text-slate-900">Authenticating...</h3>
@@ -128,7 +128,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
         {showRegisterSuccess && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="absolute inset-0 bg-white z-50 flex flex-col items-center justify-center p-6 md:p-10 text-center"
+            className="absolute inset-0 bg-white/95 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6 md:p-10 text-center"
           >
             <div className="w-16 h-16 bg-[#3BA55D]/10 rounded-full flex items-center justify-center mb-6">
               <CheckCircle2 className="text-[#3BA55D] w-10 h-10" />
