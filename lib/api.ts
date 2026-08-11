@@ -1,4 +1,5 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const rawBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const API_BASE = rawBase.replace(/\/api\/v1\/?$/, '').replace(/\/$/, '');
 
 export interface ApiResponseEnvelope<T> {
   success: boolean;
