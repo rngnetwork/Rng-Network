@@ -59,6 +59,7 @@ echo -e "\n[2/7] Purging Build Caches..."
 rm -rf .next node_modules/.cache out build
 
 cd backend
+chmod +x ./mvnw || true
 ./mvnw clean > /dev/null
 cd ..
 echo "  [x] Caches Purged."
