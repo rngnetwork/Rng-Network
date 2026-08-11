@@ -113,11 +113,6 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
     <motion.div 
       className="w-full h-full flex-1 flex flex-col justify-center p-6 md:p-10 bg-white relative overflow-hidden"
     >
-      {/* Subtle Logo Watermark */}
-      <div className="absolute -bottom-16 -right-16 z-0 opacity-[0.03] grayscale pointer-events-none">
-        <img src="/visuals/MAIN_LOGO.png" alt="Watermark" className="w-[350px] object-contain" />
-      </div>
-      
       <div className="relative z-10 flex flex-col w-full h-full">
       <AnimatePresence mode="wait" custom={direction}>
         {showWelcome && (
