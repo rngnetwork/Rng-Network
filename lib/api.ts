@@ -49,6 +49,7 @@ export const api = {
   // Step 1: Google OAuth2 Sign-In Redirect
   // ---------------------------------------------------------------------------
   redirectToGoogle(): void {
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = `${API_BASE}/oauth2/authorization/google`;
   },
 

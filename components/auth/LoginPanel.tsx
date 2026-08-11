@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, User, CheckCircle2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/lib/api';
 
@@ -13,7 +12,6 @@ const contentVariants = {
 };
 
 export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBack: () => void }) {
-  const router = useRouter();
   const [step, setStep] = useState<'email' | 'whitelist' | 'discord'>('email');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -23,7 +21,6 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   // States for end of flow
-  const [showWelcome, setShowWelcome] = useState(false);
   const [showRegisterSuccess, setShowRegisterSuccess] = useState(false);
   
   const [direction, setDirection] = useState(1);
@@ -117,17 +114,6 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
     >
       <div className="relative z-10 flex flex-col w-full h-full">
       <AnimatePresence mode="wait" custom={direction}>
-        {showWelcome && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="absolute inset-0 bg-white/95 backdrop-blur-sm z-50 flex flex-col items-center justify-center"
-          >
-            <div className="w-16 h-16 shrink-0 border-4 border-slate-100 border-t-[#E11D2E] rounded-full animate-spin mb-6" />
-            <h3 className="text-xl font-bold text-slate-900">Authenticating...</h3>
-            <p className="text-slate-500 text-sm mt-2">Preparing your dashboard</p>
-          </motion.div>
-        )}
-
         {showRegisterSuccess && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -150,7 +136,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
           </motion.div>
         )}
 
-        {step === 'email' && !showWelcome && !showRegisterSuccess && (
+        {step === 'email' && !showRegisterSuccess && (
           <motion.div
             key="email"
             custom={direction}
@@ -258,7 +244,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
           </motion.div>
         )}
 
-        {step === 'whitelist' && !showWelcome && !showRegisterSuccess && (
+        {step === 'whitelist' && !showRegisterSuccess && (
           <motion.div
             key="whitelist"
             custom={direction}
@@ -309,7 +295,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
           </motion.div>
         )}
 
-        {step === 'discord' && !showWelcome && !showRegisterSuccess && (
+        {step === 'discord' && !showRegisterSuccess && (
           <motion.div
             key="discord"
             custom={direction}

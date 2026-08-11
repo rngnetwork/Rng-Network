@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ShieldCheck } from 'lucide-react';
@@ -9,20 +9,15 @@ import { Button } from '@/components/ui/Button';
 function Google2FaContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState<string>('');
-  const [hasToken, setHasToken] = useState<boolean>(false);
+  const token = searchParams.get('token');
+  const userEmail = searchParams.get('email');
 
   useEffect(() => {
-    const token = searchParams.get('token');
-    const userEmail = searchParams.get('email');
-
     if (token) {
       sessionStorage.setItem('pre2FaToken', token);
       if (userEmail) sessionStorage.setItem('pre2FaEmail', userEmail);
-      setEmail(userEmail || 'Google User');
-      setHasToken(true);
     }
-  }, [searchParams]);
+  }, [token, userEmail]);
 
   const handleConnectDiscord = () => {
     const clientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || '123456789';
@@ -32,7 +27,7 @@ function Google2FaContent() {
     window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=identify%20email`;
   };
 
-  if (!hasToken) {
+  if (!token) {
     return (
       <div className="min-h-screen w-full bg-[#090909] text-white flex flex-col items-center justify-center p-6 font-sans">
         <div className="w-12 h-12 border-4 border-white/10 border-t-[#E11D2E] rounded-full animate-spin mb-4" />
@@ -56,7 +51,7 @@ function Google2FaContent() {
 
         <h2 className="text-2xl font-bold tracking-tight mb-2">Step 1 Authenticated</h2>
         <p className="text-[#A0A0A0] text-sm mb-6">
-          Signed in as <span className="text-white font-semibold">{email}</span>. Complete mandatory Discord 2FA to access dashboard.
+          Signed in as <span className="text-white font-semibold">{userEmail || 'Google User'}</span>. Complete mandatory Discord 2FA to access dashboard.
         </p>
 
         <Button
