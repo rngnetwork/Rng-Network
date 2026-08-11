@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { mockAuthApi } from '@/lib/auth/mockApi';
 import { api } from '@/lib/api';
 
 interface UserData {
@@ -22,18 +21,56 @@ export function UserProfileDropdown() {
   const router = useRouter();
 
   const handleLogout = async () => {
-    const res = await api.logout();
-    if (res.success) {
-      router.push('/');
-      router.refresh(); // Ensure state resets
-    }
+    localStorage.removeItem('accessToken');
+    sessionStorage.clear();
+    await api.logout();
+    router.push('/');
+    router.refresh();
   };
 
   useEffect(() => {
     const fetchUser = async () => {
-      const res = await mockAuthApi.simulateDiscordOAuth('staff');
-      if (res.success && res.data && typeof res.data !== 'string' && 'user' in res.data) {
-        setUser(res.data.user as UserData);
+      let accessToken = localStorage.getItem('accessToken');
+      
+      if (!accessToken) {
+        try {
+          const refreshRes = await api.refreshToken();
+          if (refreshRes.success && refreshRes.data?.accessToken) {
+            accessToken = refreshRes.data.accessToken;
+            localStorage.setItem('accessToken', accessToken);
+          }
+        } catch {
+          // Token refresh unavailable
+        }
+      }
+
+      if (!accessToken) {
+        setUser({
+          avatar: 'https://cdn.discordapp.com/embed/avatars/0.png',
+          username: 'Guest Staff',
+          id: 'STAFF-001',
+          role: 'STAFF',
+        });
+        return;
+      }
+
+      try {
+        const res = await api.fetchCurrentUser(accessToken);
+        if (res.success && res.data) {
+          setUser({
+            avatar: 'https://cdn.discordapp.com/embed/avatars/0.png',
+            username: res.data.discordUsername || res.data.email,
+            id: res.data.discordId || `USER-${res.data.id}`,
+            role: res.data.role || 'STAFF',
+          });
+        }
+      } catch {
+        setUser({
+          avatar: 'https://cdn.discordapp.com/embed/avatars/0.png',
+          username: 'RNG Staff Member',
+          id: 'ID: 1',
+          role: 'STAFF',
+        });
       }
     };
     fetchUser();
