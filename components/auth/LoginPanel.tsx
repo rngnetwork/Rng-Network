@@ -111,7 +111,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
 
   return (
     <motion.div 
-      className="w-full h-full flex-1 flex flex-col justify-center p-6 md:p-10 bg-white relative overflow-hidden"
+      className="w-full h-full min-h-[450px] flex-1 flex flex-col justify-center p-6 md:p-10 bg-white relative overflow-hidden"
     >
       <div className="relative z-10 flex flex-col w-full h-full">
       <AnimatePresence mode="wait" custom={direction}>
