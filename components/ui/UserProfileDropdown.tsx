@@ -4,7 +4,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { mockAuthApi } from '@/lib/auth/mockApi';
+import { api } from '@/lib/api';
 
 interface UserData {
   avatar: string;
@@ -17,6 +19,14 @@ export function UserProfileDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    const res = await api.logout();
+    if (res.success) {
+      router.push('/');
+    }
+  };
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -78,8 +88,12 @@ export function UserProfileDropdown() {
                 </span>
               </div>
             </div>
-            <div className="p-2">
-              <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-[#E11D2E] hover:bg-[#E11D2E]/10 rounded-lg transition-colors font-medium">
+            
+            <div className="p-2 border-t border-white/10">
+              <button 
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-3 py-2 text-sm text-[#E11D2E] hover:bg-[#E11D2E]/10 rounded-lg transition-colors font-medium"
+              >
                 <LogOut size={16} />
                 <span>Sign Out</span>
               </button>

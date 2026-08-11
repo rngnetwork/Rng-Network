@@ -80,10 +80,10 @@ export default function ServersPage() {
       <AnimatePresence>
         {toastVisible && (
           <motion.div
-            initial={{ opacity: 0, y: -20, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.9 }}
-            className="fixed top-10 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-[#1A1A1A] border border-white/10 text-white px-6 py-4 rounded-full shadow-[0_20px_40px_-10px_rgba(0,0,0,0.5)] backdrop-blur-md"
+            initial={{ opacity: 0, y: -20, scale: 0.9, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
+            exit={{ opacity: 0, y: -20, scale: 0.9, x: "-50%" }}
+            className="fixed top-10 left-1/2 z-50 flex items-center gap-3 bg-[#1A1A1A] border border-white/10 text-white px-6 py-4 rounded-full shadow-[0_20px_40px_-10px_rgba(0,0,0,0.5)] backdrop-blur-md"
           >
             <div className="w-8 h-8 rounded-full bg-[#E11D2E]/20 flex items-center justify-center">
               <Info className="text-[#E11D2E]" size={16} />

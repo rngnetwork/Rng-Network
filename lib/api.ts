@@ -27,5 +27,11 @@ export const api = {
     console.log("Mock API Call: connectDiscord", role);
     await new Promise(r => setTimeout(r, 800)); 
     return { success: true };
+  },
+
+  async logout(): Promise<AuthResponse> {
+    console.log("Mock API Call: logout");
+    await new Promise(r => setTimeout(r, 400));
+    return { success: true };
   }
 };
