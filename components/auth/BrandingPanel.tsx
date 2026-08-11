@@ -15,7 +15,7 @@ export function BrandingPanel({ type }: { type: "main" | LoginRole }) {
   return (
     <motion.div 
       variants={contentVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.35, ease: "easeOut" }}
-      className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center"
+      className="absolute inset-0 flex flex-col items-center justify-center p-6 md:p-12 text-center"
     >
       <AnimatedGradient />
 

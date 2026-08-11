@@ -20,15 +20,15 @@ export function AuthShell() {
   const isFlipped = role !== null;
 
   return (
-    <div className="w-full max-w-[850px] mx-auto z-20 px-4">
+    <div className="w-full max-w-[850px] mx-auto z-20 px-4 py-8 md:py-0">
       <motion.div 
-        className="w-full h-[480px] bg-white rounded-3xl shadow-[0_30px_100px_-15px_rgba(0,0,0,0.12)] overflow-hidden relative flex flex-col md:flex-row border border-slate-200/60"
+        className="w-full h-auto min-h-[600px] md:min-h-0 md:h-[480px] bg-white rounded-3xl shadow-[0_30px_100px_-15px_rgba(0,0,0,0.12)] overflow-hidden relative flex flex-col md:flex-row border border-slate-200/60"
       >
         {/* Dynamic Form Side (Left when default, Right when flipped) */}
         <motion.div
           layout
           transition={panelTransition}
-          className="w-full md:w-1/2 flex flex-col relative h-full bg-white z-20"
+          className="w-full md:w-1/2 flex flex-col relative min-h-[400px] md:min-h-0 md:h-full bg-white z-20 shrink-0"
           style={{ order: isFlipped ? 2 : 1 }}
         >
           <div className="absolute inset-y-0 right-0 w-[1px] bg-slate-100 z-30" />
@@ -52,7 +52,7 @@ export function AuthShell() {
         <motion.div
           layout
           transition={panelTransition}
-          className="w-full md:w-1/2 relative bg-[#0A0A0A] z-10 h-full overflow-hidden flex flex-col items-center justify-center"
+          className="w-full md:w-1/2 relative bg-[#0A0A0A] z-10 h-64 md:h-full overflow-hidden flex flex-col items-center justify-center shrink-0"
           style={{ order: isFlipped ? 1 : 2 }}
         >
           <AnimatePresence mode="wait" custom={direction}>
