@@ -92,7 +92,7 @@ export function UserProfileDropdown() {
             
             <div className="p-2 border-t border-white/10">
               <button 
-                onClick={handleLogout}
+                onMouseDown={(e) => { e.preventDefault(); handleLogout(); }}
                 className="w-full flex items-center gap-3 px-3 py-2 text-sm text-[#E11D2E] hover:bg-[#E11D2E]/10 rounded-lg transition-colors font-medium"
               >
                 <LogOut size={16} />

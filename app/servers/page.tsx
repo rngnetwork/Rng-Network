@@ -28,7 +28,7 @@ export default function ServersPage() {
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#E11D2E] opacity-[0.03] blur-[150px] rounded-full pointer-events-none" />
       
       {/* Header */}
-      <header className="w-full px-10 py-8 border-b border-white/5 bg-[#111111]/50 backdrop-blur-xl relative z-10 flex items-center justify-between">
+      <header className="w-full px-10 py-8 border-b border-white/5 bg-[#111111]/50 backdrop-blur-xl relative z-40 flex items-center justify-between">
         <div className="flex items-center gap-4">
            <Image src="/visuals/LOGO_FOR_STAFFS.png" alt="RNG Logo" width={40} height={40} unoptimized className="object-contain drop-shadow-[0_0_10px_rgba(225,29,46,0.4)]" />
            <h2 className="text-lg font-bold tracking-widest uppercase font-display">Select Server</h2>
