@@ -111,15 +111,16 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
 
   return (
     <motion.div 
-      className="absolute inset-0 flex flex-col justify-center p-10 bg-white overflow-hidden"
+      className="w-full h-full min-h-[450px] flex-1 flex flex-col justify-center p-6 md:p-10 bg-white relative overflow-hidden"
     >
+      <div className="relative z-10 flex flex-col w-full h-full">
       <AnimatePresence mode="wait" custom={direction}>
         {showWelcome && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="absolute inset-0 bg-white z-50 flex flex-col items-center justify-center"
+            className="absolute inset-0 bg-white/95 backdrop-blur-sm z-50 flex flex-col items-center justify-center"
           >
-            <div className="w-16 h-16 border-4 border-slate-100 border-t-[#E11D2E] rounded-full animate-spin mb-6" />
+            <div className="w-16 h-16 shrink-0 border-4 border-slate-100 border-t-[#E11D2E] rounded-full animate-spin mb-6" />
             <h3 className="text-xl font-bold text-slate-900">Authenticating...</h3>
             <p className="text-slate-500 text-sm mt-2">Preparing your dashboard</p>
           </motion.div>
@@ -128,7 +129,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
         {showRegisterSuccess && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="absolute inset-0 bg-white z-50 flex flex-col items-center justify-center p-10 text-center"
+            className="absolute inset-0 bg-white/95 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6 md:p-10 text-center"
           >
             <div className="w-16 h-16 bg-[#3BA55D]/10 rounded-full flex items-center justify-center mb-6">
               <CheckCircle2 className="text-[#3BA55D] w-10 h-10" />
@@ -284,7 +285,8 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
               <div>
                 <div className="bg-[#A71D1D]/10 border border-[#ED4245]/30 rounded-xl p-5 mb-5">
                   <h2 className="font-bold text-[15px] text-[#FF8789] mb-1.5 tracking-tight">You aren&apos;t whitelisted</h2>
-                  <p className="text-[12.5px] text-slate-600 leading-relaxed">Your account isn&apos;t on the network whitelist yet. Ask a network admin to add your email, then try again.</p>
+                  <p className="text-[12.5px] text-[#FF8789]/80 font-medium mb-1 uppercase tracking-wider">Access Revoked</p>
+                  <p className="text-[12.5px] text-slate-600 leading-relaxed">Your account isn&apos;t on the network whitelist. Ask a network admin to add your credentials, then try again.</p>
                 </div>
                 
                 <Button 
@@ -339,6 +341,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </motion.div>
   );
 }
