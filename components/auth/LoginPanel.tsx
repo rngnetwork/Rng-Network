@@ -120,7 +120,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             className="absolute inset-0 bg-white/95 backdrop-blur-sm z-50 flex flex-col items-center justify-center"
           >
-            <div className="w-16 h-16 border-4 border-slate-100 border-t-[#E11D2E] rounded-full animate-spin mb-6" />
+            <div className="w-16 h-16 shrink-0 border-4 border-slate-100 border-t-[#E11D2E] rounded-full animate-spin mb-6" />
             <h3 className="text-xl font-bold text-slate-900">Authenticating...</h3>
             <p className="text-slate-500 text-sm mt-2">Preparing your dashboard</p>
           </motion.div>
