@@ -5,14 +5,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { mockAuthApi } from '@/lib/auth/mockApi';
+
 import { api } from '@/lib/api';
 
 interface UserData {
-  avatar: string;
-  username: string;
-  id: string;
+  email: string;
+  fullName: string;
+  provider: string;
+  discordId: string;
+  discordUsername: string;
+  discordLinked: boolean;
   role: string;
+  avatar: string;
 }
 
 export function UserProfileDropdown() {
@@ -30,11 +34,18 @@ export function UserProfileDropdown() {
   };
 
   useEffect(() => {
+    // Simulate backend DTO fetch
     const fetchUser = async () => {
-      const res = await mockAuthApi.simulateDiscordOAuth('staff');
-      if (res.success && res.data && typeof res.data !== 'string' && 'user' in res.data) {
-        setUser(res.data.user as UserData);
-      }
+      setUser({
+        email: "testuser@rng.com",
+        fullName: "Test User",
+        provider: "EMAIL",
+        discordId: "123456789012345678",
+        discordUsername: "discord_user#0",
+        discordLinked: true,
+        role: "ROLE_USER",
+        avatar: "/visuals/staff.png"
+      });
     };
     fetchUser();
   }, []);
@@ -77,16 +88,34 @@ export function UserProfileDropdown() {
                   <Image src={user.avatar} alt="Profile" fill unoptimized className="object-cover" />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-white font-bold text-sm truncate">{user.username}</span>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[#A0A0A0] text-xs font-mono truncate">{user.id}</span>
-                  </div>
+                  <span className="text-white font-bold text-sm truncate">{user.fullName}</span>
+                  <span className="text-[#A0A0A0] text-[11px] font-medium truncate">{user.email}</span>
                 </div>
               </div>
-              <div className="mt-3">
-                <span className="inline-flex items-center justify-center px-2 py-1 text-[10px] font-bold tracking-widest uppercase rounded-md bg-[#E11D2E]/20 text-[#E11D2E]">
-                  {user.role}
-                </span>
+              
+              <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-white/5">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-500 font-medium">Provider</span>
+                  <span className="text-slate-300 font-mono bg-white/5 px-2 py-0.5 rounded border border-white/5">{user.provider}</span>
+                </div>
+                {user.discordLinked && (
+                  <>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500 font-medium">Discord User</span>
+                      <span className="text-slate-300 font-mono bg-[#5865F2]/10 text-[#5865F2] px-2 py-0.5 rounded border border-[#5865F2]/20">{user.discordUsername}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500 font-medium">Discord ID</span>
+                      <span className="text-slate-300 font-mono bg-white/5 px-2 py-0.5 rounded border border-white/5">{user.discordId}</span>
+                    </div>
+                  </>
+                )}
+                <div className="flex justify-between items-center text-xs mt-1">
+                  <span className="text-slate-500 font-medium">Role</span>
+                  <span className="text-[#E11D2E] font-bold tracking-widest text-[10px] bg-[#E11D2E]/10 border border-[#E11D2E]/20 px-2 py-1 rounded-md uppercase">
+                    {user.role}
+                  </span>
+                </div>
               </div>
             </div>
             

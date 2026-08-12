@@ -2,25 +2,14 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
 import Image from 'next/image';
 import { UserProfileDropdown } from '@/components/ui/UserProfileDropdown';
 
-// Mock list of servers the user has access to
-const MOCK_SERVERS = [
-  { id: '112233', name: 'RNG Official Network', memberCount: 15420, icon: '/visuals/MAIN_LOGO.png' },
-  { id: '445566', name: 'RNG Staff Hideout', memberCount: 42, icon: '/visuals/LOGO_FOR_STAFFS.png' }
-];
+// User has no connected servers initially
 
 export default function ServersPage() {
   const [toastVisible, setToastVisible] = useState(false);
-
-  const handleServerClick = () => {
-    setToastVisible(true);
-    setTimeout(() => {
-      setToastVisible(false);
-    }, 3000);
-  };
 
   return (
     <div className="min-h-screen w-full bg-[#090909] text-white flex flex-col font-sans relative overflow-hidden">
@@ -45,34 +34,8 @@ export default function ServersPage() {
           <p className="text-[#A0A0A0] text-sm md:text-base">Select a Discord server to access its management dashboard.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {MOCK_SERVERS.map((server, idx) => (
-            <motion.button
-              key={server.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.1, duration: 0.5, type: 'spring' }}
-              onClick={handleServerClick}
-              className="group relative bg-[#111111] border border-white/5 rounded-[2rem] p-8 text-left transition-all duration-300 hover:border-[#E11D2E]/50 hover:bg-[#151515] hover:shadow-[0_10px_40px_-10px_rgba(225,29,46,0.15)] overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-[#E11D2E] opacity-0 blur-[50px] group-hover:opacity-[0.05] transition-opacity duration-500 rounded-bl-full" />
-              
-              <div className="flex items-center gap-5 mb-8 relative z-10">
-                <div className="w-16 h-16 rounded-2xl bg-[#1A1A1A] border border-white/10 p-2 shadow-inner overflow-hidden relative">
-                   <Image src={server.icon} alt={server.name} fill unoptimized className="object-contain p-2" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-xl mb-1 truncate max-w-[150px]">{server.name}</h3>
-                  <p className="text-[#A0A0A0] text-sm font-medium">{server.memberCount.toLocaleString()} Members</p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between text-[#777] group-hover:text-[#E11D2E] transition-colors relative z-10">
-                <span className="text-sm font-semibold tracking-wide uppercase">Connect</span>
-                <ArrowRight size={18} className="transform group-hover:translate-x-1 transition-transform" />
-              </div>
-            </motion.button>
-          ))}
+        <div className="flex flex-col items-center justify-center p-12 mt-4 border border-dashed border-white/10 rounded-3xl bg-[#111111]/30">
+          <p className="text-[#A0A0A0] text-center font-medium">No infrastructures linked yet.</p>
         </div>
       </main>
 

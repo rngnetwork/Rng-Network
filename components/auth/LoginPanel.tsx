@@ -231,14 +231,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
                 </button>
               </div>
 
-              {mode === 'login' && (
-                <div className="flex justify-end mb-1">
-                  <button type="button" className="text-[#E11D2E] text-[12px] font-bold hover:underline">
-                    Forgot Password?
-                  </button>
-                </div>
-              )}
-              
+
               <Button 
                 type="submit" 
                 isLoading={isLoading} 
