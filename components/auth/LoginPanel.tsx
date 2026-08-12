@@ -81,20 +81,6 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
     }
   };
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setErrorMessage('Please enter your network email first.');
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const res = await api.submitForgotPassword(email);
-      alert(res.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleBack = () => {
     setErrorMessage(null);
     if (step === 'discord') {
@@ -256,7 +242,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
               <div>
                 <div className="flex items-center gap-3 p-4 bg-[#3BA55D]/10 border border-[#3BA55D]/30 rounded-xl mb-6">
                   <div className="w-2 h-2 rounded-full bg-[#3BA55D] shadow-[0_0_8px_#3BA55D]" />
-                  <span className="text-[13px] text-[#3BA55D] font-bold">You&apos;re whitelisted — access granted</span>
+                  <span className="text-[13px] text-[#3BA55D] font-bold">You are whitelisted — access granted</span>
                 </div>
 
                 <Button

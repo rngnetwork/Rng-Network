@@ -16,6 +16,8 @@ export interface Pre2FaData {
 export interface UserProfileData {
   id: number;
   email: string;
+  fullName?: string;
+  provider?: string;
   role: string;
   discordId?: string;
   discordUsername?: string;

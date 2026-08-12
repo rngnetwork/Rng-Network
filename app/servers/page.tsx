@@ -9,7 +9,7 @@ import { UserProfileDropdown } from '@/components/ui/UserProfileDropdown';
 // User has no connected servers initially
 
 export default function ServersPage() {
-  const [toastVisible, setToastVisible] = useState(false);
+  const [toastVisible] = useState(false);
 
   return (
     <div className="min-h-screen w-full bg-[#090909] text-white flex flex-col font-sans relative overflow-hidden">

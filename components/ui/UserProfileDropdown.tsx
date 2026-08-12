@@ -5,10 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-<<<<<<< HEAD
-=======
-
->>>>>>> 8c7f9b47e8be3b0660f75655d77d1ffe8ce2d802
 import { api } from '@/lib/api';
 
 interface UserData {
@@ -37,9 +33,7 @@ export function UserProfileDropdown() {
   };
 
   useEffect(() => {
-    // Simulate backend DTO fetch
     const fetchUser = async () => {
-<<<<<<< HEAD
       let accessToken = localStorage.getItem('accessToken');
       
       if (!accessToken) {
@@ -56,10 +50,14 @@ export function UserProfileDropdown() {
 
       if (!accessToken) {
         setUser({
-          avatar: 'https://cdn.discordapp.com/embed/avatars/0.png',
-          username: 'Guest Staff',
-          id: 'STAFF-001',
-          role: 'STAFF',
+          email: 'guest@rng.com',
+          fullName: 'Guest Staff',
+          provider: 'EMAIL',
+          discordId: 'STAFF-001',
+          discordUsername: 'guest_staff',
+          discordLinked: false,
+          role: 'ROLE_USER',
+          avatar: '/visuals/staff.png',
         });
         return;
       }
@@ -68,33 +66,30 @@ export function UserProfileDropdown() {
         const res = await api.fetchCurrentUser(accessToken);
         if (res.success && res.data) {
           setUser({
-            avatar: 'https://cdn.discordapp.com/embed/avatars/0.png',
-            username: res.data.discordUsername || res.data.email,
-            id: res.data.discordId || `USER-${res.data.id}`,
-            role: res.data.role || 'STAFF',
+            email: res.data.email || 'testuser@rng.com',
+            fullName: res.data.fullName || 'RNG Staff Member',
+            provider: res.data.provider || 'EMAIL',
+            discordId: res.data.discordId || '123456789012345678',
+            discordUsername: res.data.discordUsername || 'discord_user#0',
+            discordLinked: res.data.discordLinked ?? true,
+            role: res.data.role || 'ROLE_USER',
+            avatar: '/visuals/staff.png',
           });
         }
       } catch {
         setUser({
-          avatar: 'https://cdn.discordapp.com/embed/avatars/0.png',
-          username: 'RNG Staff Member',
-          id: 'ID: 1',
-          role: 'STAFF',
+          email: 'testuser@rng.com',
+          fullName: 'Test User',
+          provider: 'EMAIL',
+          discordId: '123456789012345678',
+          discordUsername: 'discord_user#0',
+          discordLinked: true,
+          role: 'ROLE_USER',
+          avatar: '/visuals/staff.png',
         });
       }
-=======
-      setUser({
-        email: "testuser@rng.com",
-        fullName: "Test User",
-        provider: "EMAIL",
-        discordId: "123456789012345678",
-        discordUsername: "discord_user#0",
-        discordLinked: true,
-        role: "ROLE_USER",
-        avatar: "/visuals/staff.png"
-      });
->>>>>>> 8c7f9b47e8be3b0660f75655d77d1ffe8ce2d802
     };
+
     fetchUser();
   }, []);
 
