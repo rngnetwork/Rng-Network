@@ -59,3 +59,5 @@ jwt:
 app:
   frontend:
     2fa-redirect-url: ${FRONTEND_2FA_URL:http://localhost:3000/auth/2fa}
+  discord:
+    redirect-uri: ${DISCORD_REDIRECT_URI:${NEXT_PUBLIC_DISCORD_REDIRECT_URI:http://localhost:3000/auth/discord/callback}}

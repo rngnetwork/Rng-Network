@@ -27,7 +27,7 @@ public class DiscordClientImpl implements DiscordClient {
     @Value("${spring.security.oauth2.client.registration.discord.client-secret:discord-client-secret-placeholder}")
     private String clientSecret;
 
-    @Value("${spring.security.oauth2.client.registration.discord.redirect-uri:http://localhost:8080/login/oauth2/code/discord}")
+    @Value("${app.discord.redirect-uri:${NEXT_PUBLIC_DISCORD_REDIRECT_URI:http://localhost:3000/auth/discord/callback}}")
     private String redirectUri;
 
     @Override
