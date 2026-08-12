@@ -122,6 +122,7 @@
                     <password>${env.DB_PASSWORD:postgres}</password>
                     <locations>
                         <location>classpath:db/migration</location>
+                        <location>filesystem:src/main/resources/db/migration</location>
                     </locations>
                 </configuration>
             </plugin>

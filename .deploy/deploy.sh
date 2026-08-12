@@ -69,18 +69,45 @@ echo "  [x] Caches Purged."
 # ------------------------------------------------------------------------------
 echo -e "\n[3/7] Starting Local Database Service (PostgreSQL)..."
 
-if command -v service &> /dev/null; then
-    echo "  -> Starting PostgreSQL service (sudo service postgresql start)..."
-    sudo service postgresql start || true
-elif command -v systemctl &> /dev/null; then
-    echo "  -> Starting PostgreSQL service (sudo systemctl start postgresql)..."
-    sudo systemctl start postgresql || true
-elif command -v docker &> /dev/null; then
-    echo "  -> Starting PostgreSQL Docker container..."
-    docker start rng_postgres 2>/dev/null || docker run -d --name rng_postgres -p 5432:5432 -e POSTGRES_DB=rng_db -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres postgres:16-alpine || true
+start_postgres() {
+    if command -v service &> /dev/null; then
+        echo "  -> Starting PostgreSQL via service..."
+        sudo service postgresql start 2>/dev/null || true
+    fi
+    if command -v pg_ctlcluster &> /dev/null; then
+        echo "  -> Starting PostgreSQL cluster..."
+        sudo pg_ctlcluster 16 main start 2>/dev/null || true
+    fi
+    if command -v systemctl &> /dev/null; then
+        echo "  -> Starting PostgreSQL via systemctl..."
+        sudo systemctl start postgresql 2>/dev/null || true
+    fi
+    if command -v docker &> /dev/null && ! pg_isready -h localhost -p 5432 &>/dev/null; then
+        echo "  -> Starting PostgreSQL Docker container..."
+        docker start rng_postgres 2>/dev/null || docker run -d --name rng_postgres -p 5432:5432 -e POSTGRES_DB=rng_db -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres postgres:16-alpine 2>/dev/null || true
+    fi
+}
+
+start_postgres
+
+echo "  -> Waiting for PostgreSQL readiness on port 5432..."
+MAX_RETRIES=15
+RETRY=0
+until pg_isready -h localhost -p 5432 >/dev/null 2>&1 || [ $RETRY -ge $MAX_RETRIES ]; do
+    sleep 1
+    RETRY=$((RETRY+1))
+done
+
+if pg_isready -h localhost -p 5432 >/dev/null 2>&1; then
+    echo "  [x] PostgreSQL Database Service is ACTIVE and accepting connections."
+    # Auto-initialize user password & database if running local service
+    if command -v psql &> /dev/null; then
+        sudo su - postgres -c "psql -c \"ALTER USER postgres WITH PASSWORD 'postgres';\"" >/dev/null 2>&1 || true
+        sudo su - postgres -c "psql -c \"CREATE DATABASE rng_db;\"" >/dev/null 2>&1 || true
+    fi
+else
+    echo "  [!] WARNING: PostgreSQL did not respond on port 5432 after 15 seconds."
 fi
-sleep 2
-echo "  [x] PostgreSQL Database Service Started."
 
 # ------------------------------------------------------------------------------
 # STEP 4: Push Database Schema & Migration Seeds (Flyway DB Push Equivalent)
@@ -88,7 +115,7 @@ echo "  [x] PostgreSQL Database Service Started."
 echo -e "\n[4/7] Pushing Database Schema & Migrations (Flyway DB Push)..."
 
 cd backend
-./mvnw flyway:migrate "-Dflyway.url=${DB_URL}" "-Dflyway.user=${DB_USERNAME}" "-Dflyway.password=${DB_PASSWORD}" || echo "  [!] Notice: Flyway direct migrate completed."
+./mvnw compile flyway:migrate "-Dflyway.url=${DB_URL}" "-Dflyway.user=${DB_USERNAME}" "-Dflyway.password=${DB_PASSWORD}" || echo "  [!] Notice: Flyway direct migrate completed."
 
 echo "  -> Running Backend Integration Tests (mvnw test)..."
 ./mvnw test

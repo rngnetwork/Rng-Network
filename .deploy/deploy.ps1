@@ -125,7 +125,7 @@ if (-not $dbActive) {
 Write-Host "`n[4/7] Pushing Database Schema & Migrations (Flyway DB Push)..." -ForegroundColor Yellow
 
 Set-Location "backend"
-& ".\mvnw.cmd" flyway:migrate "-Dflyway.url=$env:DB_URL" "-Dflyway.user=$env:DB_USERNAME" "-Dflyway.password=$env:DB_PASSWORD"
+& ".\mvnw.cmd" compile flyway:migrate "-Dflyway.url=$env:DB_URL" "-Dflyway.user=$env:DB_USERNAME" "-Dflyway.password=$env:DB_PASSWORD"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "  [!] NOTICE: Direct PostgreSQL migration skipped. Using test DB mode..." -ForegroundColor Yellow
 } else {
