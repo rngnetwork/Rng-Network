@@ -115,7 +115,7 @@ fi
 echo -e "\n[4/7] Pushing Database Schema & Migrations (Flyway DB Push)..."
 
 cd backend
-./mvnw compile flyway:migrate "-Dflyway.url=${DB_URL}" "-Dflyway.user=${DB_USERNAME}" "-Dflyway.password=${DB_PASSWORD}" || echo "  [!] Notice: Flyway direct migrate completed."
+./mvnw compile flyway:repair flyway:migrate "-Dflyway.url=${DB_URL}" "-Dflyway.user=${DB_USERNAME}" "-Dflyway.password=${DB_PASSWORD}" || echo "  [!] Notice: Flyway direct migrate completed."
 
 echo "  -> Running Backend Integration Tests (mvnw test)..."
 ./mvnw test
