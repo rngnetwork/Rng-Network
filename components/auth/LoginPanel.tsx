@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, User, CheckCircle2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/lib/api';
 
@@ -13,17 +12,16 @@ const contentVariants = {
 };
 
 export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBack: () => void }) {
-  const router = useRouter();
   const [step, setStep] = useState<'email' | 'whitelist' | 'discord'>('email');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
-  // States for end of flow
-  const [showWelcome, setShowWelcome] = useState(false);
-  const [showRegisterSuccess, setShowRegisterSuccess] = useState(false);
+  const [showWelcome] = useState(false);
+  const [showRegisterSuccess] = useState(false);
   
   const [direction, setDirection] = useState(1);
   const [isWhitelisted, setIsWhitelisted] = useState<boolean | null>(null);
@@ -33,64 +31,42 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
     if (!email || !password || (mode === 'register' && !username)) return;
     
     setIsLoading(true);
-    let res;
-    if (mode === 'register') {
-      res = await api.submitRegister(email, username, password);
-    } else {
-      res = await api.submitEmailLogin(email, password);
-    }
-    setIsLoading(false);
-    
-    if (res.success) {
+    setErrorMessage(null);
+    try {
       if (mode === 'register') {
-        // Skip whitelist check for register
-        setDirection(1);
-        setStep('discord');
+        const res = await api.submitRegister(email, username, password);
+        if (res.success) {
+          setDirection(1);
+          setStep('discord');
+        }
       } else {
-        setIsWhitelisted(res.isWhitelisted ?? true);
-        setDirection(1);
-        setStep('whitelist');
+        const res = await api.submitEmailLogin(email, password);
+        if (res.success && res.data?.token) {
+          sessionStorage.setItem('pre2FaToken', res.data.token);
+          setIsWhitelisted(true);
+          setDirection(1);
+          setStep('whitelist');
+        }
       }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Authentication failed';
+      setErrorMessage(msg);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleGoogleSubmit = async () => {
-    setIsLoading(true);
-    let res;
-    if (mode === 'register') {
-      res = await api.submitRegister(email, username, password); // just simulating
-    } else {
-      res = await api.submitGoogleLogin();
-    }
-    setIsLoading(false);
-
-    if (res.success) {
-      if (mode === 'register') {
-        setDirection(1);
-        setStep('discord');
-      } else {
-        setIsWhitelisted(res.isWhitelisted ?? true);
-        setDirection(1);
-        setStep('whitelist');
-      }
-    }
+    api.redirectToGoogle();
   };
 
   const handleDiscordSubmit = async () => {
-    setIsLoading(true);
-    const res = await api.connectDiscord(mode);
-    setIsLoading(false);
-    
-    if (res.success) {
-      if (mode === 'register') {
-        setShowRegisterSuccess(true);
-      } else {
-        setShowWelcome(true);
-        setTimeout(() => {
-          router.push('/servers');
-        }, 1500);
-      }
-    }
+    const clientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || '1536703659734339634';
+    const redirectUri = encodeURIComponent(
+      process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI || 
+      (typeof window !== 'undefined' ? `${window.location.origin}/auth/discord/callback` : 'http://localhost:3000/auth/discord/callback')
+    );
+    window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=identify%20email`;
   };
 
   const handleBack = () => {
@@ -165,9 +141,15 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
             <h3 className="text-3xl font-extrabold text-slate-900 mb-1 tracking-tight mt-4">
               {mode === 'register' ? 'Request Access' : 'Sign In'}
             </h3>
-            <p className="text-slate-500 text-[14px] mb-6 leading-relaxed">
+            <p className="text-slate-500 text-[14px] mb-4 leading-relaxed">
               {mode === 'register' ? 'Apply for a network account with your details.' : 'Use your network email, or continue with Google.'}
             </p>
+
+            {errorMessage && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-xs font-medium">
+                {errorMessage}
+              </div>
+            )}
             
             <Button 
               type="button" 
