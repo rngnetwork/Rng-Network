@@ -153,10 +153,10 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
             
             <Button 
               type="button" 
-              variant="ghost"
+              variant="outline"
               onClick={handleGoogleSubmit}
               disabled={isLoading}
-              className="w-full h-11 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold ring-2 ring-[#E11D2E]/40 shadow-[0_0_12px_rgba(225,29,46,0.3)] hover:shadow-[0_0_18px_rgba(225,29,46,0.4)] transition-shadow"
+              className="w-full h-11 bg-white hover:bg-slate-50 border border-slate-200 !text-slate-800 hover:!text-slate-900 font-semibold ring-2 ring-[#E11D2E]/40 shadow-[0_0_12px_rgba(225,29,46,0.3)] hover:shadow-[0_0_18px_rgba(225,29,46,0.4)] transition-all"
               leftIcon={<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none"><path d="M21.8 12.2c0-.7-.06-1.4-.19-2H12v3.8h5.5a4.7 4.7 0 0 1-2 3.1v2.6h3.3c1.9-1.8 3-4.4 3-7.5Z" fill="#4285F4"/><path d="M12 22c2.7 0 5-.9 6.7-2.4l-3.3-2.6c-.9.6-2.1 1-3.4 1-2.6 0-4.8-1.7-5.6-4.1H3v2.6A10 10 0 0 0 12 22Z" fill="#34A853"/><path d="M6.4 13.9a6 6 0 0 1 0-3.8V7.5H3a10 10 0 0 0 0 9l3.4-2.6Z" fill="#FBBC05"/><path d="M12 6.2c1.5 0 2.8.5 3.8 1.5l2.9-2.9C16.9 3.1 14.6 2 12 2 8.1 2 4.7 4.2 3 7.5l3.4 2.6c.8-2.4 3-4 5.6-4Z" fill="#EA4335"/></svg>}
             >
               Continue with Google
