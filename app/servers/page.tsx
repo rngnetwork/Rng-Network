@@ -1,15 +1,84 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Info } from 'lucide-react';
+import { Info, ShieldAlert, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
 import { UserProfileDropdown } from '@/components/ui/UserProfileDropdown';
 
 // User has no connected servers initially
 
 export default function ServersPage() {
   const [toastVisible] = useState(false);
+  const [authState, setAuthState] = useState<'checking' | 'authenticated' | 'unauthenticated'>('checking');
+  const router = useRouter();
+
+  useEffect(() => {
+    const verifySession = async () => {
+      let token = localStorage.getItem('accessToken');
+
+      if (!token) {
+        try {
+          const refreshRes = await api.refreshToken();
+          if (refreshRes.success && refreshRes.data?.accessToken) {
+            token = refreshRes.data.accessToken;
+            localStorage.setItem('accessToken', token);
+          }
+        } catch {
+          // Token refresh unavailable
+        }
+      }
+
+      if (token) {
+        setAuthState('authenticated');
+      } else {
+        setAuthState('unauthenticated');
+        const timer = setTimeout(() => {
+          router.push('/');
+        }, 2500);
+        return () => clearTimeout(timer);
+      }
+    };
+
+    verifySession();
+  }, [router]);
+
+  if (authState === 'checking') {
+    return (
+      <div className="min-h-screen w-full bg-[#090909] flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-white/10 border-t-[#E11D2E] rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (authState === 'unauthenticated') {
+    return (
+      <div className="min-h-screen w-full bg-[#090909] text-white flex flex-col items-center justify-center p-6 relative overflow-hidden font-sans">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#E11D2E] opacity-[0.05] blur-[150px] rounded-full pointer-events-none" />
+        
+        <div className="max-w-md w-full bg-[#111111] border border-white/10 rounded-3xl p-8 shadow-2xl backdrop-blur-xl flex flex-col items-center text-center relative z-10">
+          <div className="w-16 h-16 rounded-2xl bg-[#E11D2E]/10 border border-[#E11D2E]/20 flex items-center justify-center mb-6">
+            <ShieldAlert className="text-[#E11D2E] w-8 h-8" />
+          </div>
+
+          <h2 className="text-2xl font-bold mb-2 tracking-tight">Authentication Required</h2>
+          <p className="text-[#A0A0A0] text-sm mb-6 leading-relaxed">
+            Your session has expired or you are signed out. You must sign in to access the RNG Control Center. Redirecting to sign in page...
+          </p>
+
+          <button
+            onClick={() => router.push('/')}
+            className="w-full py-3 px-6 rounded-xl bg-[#E11D2E] hover:bg-[#FF3B4D] text-white font-semibold flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(225,29,46,0.3)] transition-all"
+          >
+            <span>Return to Sign In</span>
+            <ArrowRight size={18} />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full bg-[#090909] text-white flex flex-col font-sans relative overflow-hidden">

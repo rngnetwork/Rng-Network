@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { InitialLoader } from '@/components/ui/InitialLoader';
 
@@ -72,6 +74,43 @@ const BackgroundEffects = () => {
 };
 
 export default function LandingAuthPage() {
+  const router = useRouter();
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      let token = localStorage.getItem('accessToken');
+
+      if (!token) {
+        try {
+          const refreshRes = await api.refreshToken();
+          if (refreshRes.success && refreshRes.data?.accessToken) {
+            token = refreshRes.data.accessToken;
+            localStorage.setItem('accessToken', token);
+          }
+        } catch {
+          // Token refresh unavailable
+        }
+      }
+
+      if (token) {
+        router.push('/servers');
+      } else {
+        setIsCheckingSession(false);
+      }
+    };
+
+    checkSession();
+  }, [router]);
+
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen w-full bg-black flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-white/10 border-t-[#E11D2E] rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <main className="min-h-screen w-full flex items-center justify-center bg-black relative overflow-hidden font-sans selection:bg-[#E11D2E]/30 selection:text-white">
       <InitialLoader />
