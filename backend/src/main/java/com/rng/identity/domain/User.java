@@ -45,6 +45,9 @@ public class User {
     @Column(name = "discord_username", length = 100)
     private String discordUsername;
 
+    @Column(name = "discord_avatar", length = 255)
+    private String discordAvatar;
+
     @Column(name = "discord_linked", nullable = false)
     @Builder.Default
     private boolean discordLinked = false;

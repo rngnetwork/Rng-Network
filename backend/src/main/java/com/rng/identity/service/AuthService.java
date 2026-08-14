@@ -82,11 +82,14 @@ public class AuthService {
                 throw new ConflictException("Discord account is already linked to another registered user.");
             }
             user.setDiscordId(discordId);
-            user.setDiscordUsername(discordUser.getUsername());
             user.setDiscordLinked(true);
-            userRepository.save(user);
             log.info("Linked Discord account {} ({}) to user {}", discordUser.getUsername(), discordId, user.getEmail());
         }
+
+        // Always sync latest Discord username and avatar on every successful 2FA verification
+        user.setDiscordUsername(discordUser.getUsername());
+        user.setDiscordAvatar(discordUser.getAvatar());
+        userRepository.save(user);
 
         // 5. Issue Full Access Token & Refresh Token
         String accessToken = tokenService.generateAccessToken(user.getId(), user.getEmail(), user.getRole());
@@ -141,6 +144,7 @@ public class AuthService {
                 .provider(user.getProvider().name())
                 .discordId(user.getDiscordId())
                 .discordUsername(user.getDiscordUsername())
+                .discordAvatar(user.getDiscordAvatar())
                 .discordLinked(user.isDiscordLinked())
                 .role(user.getRole())
                 .build();

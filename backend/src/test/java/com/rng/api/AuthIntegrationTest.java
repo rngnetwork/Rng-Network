@@ -140,6 +140,7 @@ class AuthIntegrationTest {
                 .id("discord_99887766")
                 .username("TestDiscordUser#1234")
                 .email("testuser@rng.com")
+                .avatar("mock_avatar_hash_123")
                 .build();
         when(discordClient.fetchDiscordUser(anyString())).thenReturn(mockDiscordUser);
 
@@ -190,6 +191,7 @@ class AuthIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.data.email", is("testuser@rng.com")))
+                .andExpect(jsonPath("$.data.discordAvatar", is("mock_avatar_hash_123")))
                 .andExpect(jsonPath("$.data.discordLinked", is(true)));
 
         // 5. Refresh Access Token using Refresh Cookie
@@ -219,5 +221,40 @@ class AuthIntegrationTest {
 
         assertThat(response.getRedirectedUrl()).startsWith("http://localhost:3000/auth/2fa?token=");
         assertThat(response.getRedirectedUrl()).contains("email=testuser@rng.com");
+    }
+
+    @Test
+    @DisplayName("Discord 2FA - Returning User Avatar & Username Auto-Sync")
+    void testReturningUserDiscord2FaUpdatesAvatar() throws Exception {
+        User user = userRepository.findByEmail("testuser@rng.com").orElseThrow();
+        user.setDiscordId("discord_99887766");
+        user.setDiscordUsername("OldUsername");
+        user.setDiscordAvatar("old_avatar_hash");
+        user.setDiscordLinked(true);
+        userRepository.save(user);
+
+        DiscordUserDto updatedDiscordUser = DiscordUserDto.builder()
+                .id("discord_99887766")
+                .username("NewUpdatedUsername")
+                .email("testuser@rng.com")
+                .avatar("a_new_animated_avatar_hash")
+                .build();
+        when(discordClient.fetchDiscordUser(anyString())).thenReturn(updatedDiscordUser);
+
+        String pre2FaToken = tokenService.generatePre2FaToken(user.getId(), user.getEmail());
+        Discord2FaRequest request = Discord2FaRequest.builder()
+                .code("mock_discord_code")
+                .build();
+
+        mockMvc.perform(post("/api/v1/auth/discord/2fa")
+                        .header(SecurityConstants.AUTHORIZATION_HEADER, "Bearer " + pre2FaToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)));
+
+        User updatedUser = userRepository.findByEmail("testuser@rng.com").orElseThrow();
+        assertThat(updatedUser.getDiscordUsername()).isEqualTo("NewUpdatedUsername");
+        assertThat(updatedUser.getDiscordAvatar()).isEqualTo("a_new_animated_avatar_hash");
     }
 }

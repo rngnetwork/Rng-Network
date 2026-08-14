@@ -21,7 +21,16 @@ export interface UserProfileData {
   role: string;
   discordId?: string;
   discordUsername?: string;
+  discordAvatar?: string;
   discordLinked: boolean;
+}
+
+export function getDiscordAvatarUrl(discordId?: string | null, avatarHash?: string | null): string {
+  if (!discordId || !avatarHash || discordId === 'UNLINKED') {
+    return '/visuals/staff.png';
+  }
+  const ext = avatarHash.startsWith('a_') ? 'gif' : 'png';
+  return `https://cdn.discordapp.com/avatars/${discordId}/${avatarHash}.${ext}`;
 }
 
 export interface FullAuthData {

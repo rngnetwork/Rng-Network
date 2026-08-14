@@ -29,7 +29,7 @@ public class DatabaseSeeder {
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void seedDefaultUserPasswords() {
-        List<String> defaultEmails = List.of("testuser@rng.com", "admin@rng.com");
+        List<String> defaultEmails = List.of("testuser@rng.com", "test@rng.com", "admin@rng.com", "rachit@rng.com");
 
         for (String email : defaultEmails) {
             userRepository.findByEmail(email).ifPresentOrElse(user -> {

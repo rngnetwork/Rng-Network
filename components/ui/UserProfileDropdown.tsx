@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
+import { api, getDiscordAvatarUrl } from '@/lib/api';
 
 interface UserData {
   email: string;
@@ -13,6 +13,7 @@ interface UserData {
   provider: string;
   discordId: string;
   discordUsername: string;
+  discordAvatar?: string;
   discordLinked: boolean;
   role: string;
   avatar: string;
@@ -65,15 +66,17 @@ export function UserProfileDropdown() {
       try {
         const res = await api.fetchCurrentUser(accessToken);
         if (res.success && res.data) {
+          const avatarUrl = getDiscordAvatarUrl(res.data.discordId, res.data.discordAvatar);
           setUser({
             email: res.data.email || 'testuser@rng.com',
             fullName: res.data.fullName || 'RNG Staff Member',
             provider: res.data.provider || 'EMAIL',
             discordId: res.data.discordId || 'UNLINKED',
             discordUsername: res.data.discordUsername || 'discord_user#0',
+            discordAvatar: res.data.discordAvatar,
             discordLinked: res.data.discordLinked ?? true,
             role: res.data.role || 'ROLE_USER',
-            avatar: '/visuals/staff.png',
+            avatar: avatarUrl,
           });
         }
       } catch {
@@ -107,13 +110,17 @@ export function UserProfileDropdown() {
     return <div className="w-10 h-10 rounded-full bg-white/5 animate-pulse" />;
   }
 
+  const handleImageError = () => {
+    setUser(prev => prev ? { ...prev, avatar: '/visuals/staff.png' } : null);
+  };
+
   return (
     <div className="relative z-50" ref={dropdownRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className="relative flex items-center justify-center w-10 h-10 rounded-full border border-white/10 overflow-hidden hover:border-[#E11D2E]/50 transition-colors focus:outline-none focus:ring-2 focus:ring-[#E11D2E]/50"
       >
-        <Image src={user.avatar} alt="Profile" fill unoptimized className="object-cover" />
+        <Image src={user.avatar} alt="Profile" fill unoptimized className="object-cover" onError={handleImageError} />
       </button>
 
       <AnimatePresence>
@@ -128,7 +135,7 @@ export function UserProfileDropdown() {
             <div className="p-4 border-b border-white/10 bg-white/[0.02]">
               <div className="flex items-center gap-3">
                 <div className="relative w-12 h-12 rounded-full overflow-hidden border border-white/10 flex-shrink-0">
-                  <Image src={user.avatar} alt="Profile" fill unoptimized className="object-cover" />
+                  <Image src={user.avatar} alt="Profile" fill unoptimized className="object-cover" onError={handleImageError} />
                 </div>
                 <div className="flex flex-col min-w-0">
                   <span className="text-white font-bold text-sm truncate">{user.fullName}</span>

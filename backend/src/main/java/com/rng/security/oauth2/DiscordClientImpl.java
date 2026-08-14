@@ -67,6 +67,7 @@ public class DiscordClientImpl implements DiscordClient {
             String id = (String) userBody.get("id");
             String username = (String) userBody.get("username");
             String email = (String) userBody.get("email");
+            String avatar = (String) userBody.get("avatar");
 
             log.info("Successfully fetched Discord user: {} ({})", username, id);
 
@@ -74,6 +75,7 @@ public class DiscordClientImpl implements DiscordClient {
                     .id(id)
                     .username(username)
                     .email(email)
+                    .avatar(avatar)
                     .build();
         } catch (Exception e) {
             log.error("Discord OAuth2 exchange failed: {}", e.getMessage());

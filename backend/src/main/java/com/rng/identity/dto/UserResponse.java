@@ -17,6 +17,7 @@ public class UserResponse {
     private String provider;
     private String discordId;
     private String discordUsername;
+    private String discordAvatar;
     private boolean discordLinked;
     private String role;
 }
