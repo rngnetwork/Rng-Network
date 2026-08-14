@@ -20,7 +20,7 @@ function Google2FaContent() {
   }, [token, userEmail]);
 
   const handleConnectDiscord = () => {
-    const clientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || '123456789';
+    const clientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || '1536703659734339634';
     const redirectUri = encodeURIComponent(
       process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI || 'http://localhost:3000/auth/discord/callback'
     );

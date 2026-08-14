@@ -110,7 +110,7 @@ export function Sidebar({ className }: { className?: string }) {
                 </div>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="bg-[#E11D2E]/20 text-[#E11D2E] text-[10px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded-md">Staff</span>
-                  <span className="text-[#555] text-[10px] truncate">ID: {user.discordId || '1234567890'}</span>
+                  <span className="text-[#555] text-[10px] truncate">ID: {user.discordId || 'N/A'}</span>
                 </div>
               </div>
             </div>
