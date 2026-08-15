@@ -27,10 +27,10 @@ export function BrandingPanel({ type }: { type: "main" | LoginRole }) {
           animation: bg-gradient-slow 8s linear infinite;
         }
         .neon-red-outline-glow {
-          filter: drop-shadow(0 0 8px #ff0033)
-                 drop-shadow(0 0 18px #ff0033)
-                 drop-shadow(0 0 32px rgba(255, 0, 51, 0.9))
-                 drop-shadow(0 0 50px rgba(255, 0, 51, 0.65));
+          filter: drop-shadow(0 0 2px #ff0033)
+                 drop-shadow(0 0 5px #ff0033)
+                 drop-shadow(0 0 8px rgba(255, 0, 51, 0.9))
+                 drop-shadow(0 0 12px rgba(255, 0, 51, 0.65));
         }
       `}} />
       <AnimatedGradient />
