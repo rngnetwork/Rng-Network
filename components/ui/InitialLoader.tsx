@@ -40,7 +40,7 @@ export function InitialLoader() {
                   transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.1 }}
                   className="w-full h-full relative"
                 >
-                  <Image priority src="/visuals/LOGO_FOR_STAFF.png" alt="Staff Logo" fill unoptimized className="object-cover rounded-full drop-shadow-[0_0_15px_rgba(225,29,46,0.6)]" />
+                  <Image priority src="/visuals/LOGO_FOR_STAFFS.png" alt="Staff Logo" fill unoptimized className="object-cover rounded-full drop-shadow-[0_0_15px_rgba(225,29,46,0.6)]" />
                 </motion.div>
               </div>
             </div>
