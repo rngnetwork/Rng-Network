@@ -24,7 +24,7 @@ export function AuthShell() {
       {/* DESKTOP LAYOUT: Box Swapping Animation */}
       <div className="hidden md:block w-full max-w-[850px] mx-auto z-20 px-4">
         <motion.div 
-          className="w-full h-[480px] bg-white rounded-3xl shadow-[0_30px_100px_-15px_rgba(0,0,0,0.12)] overflow-hidden relative flex flex-row border border-slate-200/60"
+          className="w-full h-[480px] bg-white rounded-3xl shadow-[0_40px_80px_-20px_rgba(0,0,0,0.8),0_0_40px_rgba(225,29,46,0.2)] overflow-hidden relative flex flex-row border border-slate-200/60"
         >
           {/* Dynamic Form Side (Left when default, Right when flipped) */}
           <motion.div
@@ -69,7 +69,7 @@ export function AuthShell() {
       </div>
 
       {/* MOBILE LAYOUT: Simple Login Card */}
-      <div className="flex md:hidden w-full rounded-3xl shadow-2xl relative overflow-hidden border border-slate-200/60 bg-white">
+      <div className="flex md:hidden w-full rounded-3xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8),0_0_35px_rgba(225,29,46,0.2)] relative overflow-hidden border border-slate-200/60 bg-white">
         <LoginPanel mode="login" onBack={() => {}} />
       </div>
     </>

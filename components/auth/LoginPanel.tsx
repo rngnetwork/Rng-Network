@@ -218,7 +218,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
               <Button 
                 type="submit" 
                 isLoading={isLoading} 
-                className={`w-full h-11 bg-slate-900 hover:bg-slate-800 border-none text-white font-semibold shadow-md hover:shadow-lg transition-shadow ${mode === 'register' ? 'mt-2' : 'mt-1'}`}
+                className={`w-full h-11 bg-slate-900 hover:bg-slate-800 border-none !text-white font-semibold !shadow-md hover:!shadow-[0_0_20px_rgba(225,29,46,0.5)] transition-all duration-300 ${mode === 'register' ? 'mt-2' : 'mt-1'}`}
               >
                 {!isLoading && "Continue"}
               </Button>
