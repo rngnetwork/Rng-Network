@@ -26,6 +26,12 @@ export function BrandingPanel({ type }: { type: "main" | LoginRole }) {
           background-size: 200% auto;
           animation: bg-gradient-slow 8s linear infinite;
         }
+        .neon-red-outline-glow {
+          filter: drop-shadow(0 0 8px #ff0033)
+                 drop-shadow(0 0 18px #ff0033)
+                 drop-shadow(0 0 32px rgba(255, 0, 51, 0.9))
+                 drop-shadow(0 0 50px rgba(255, 0, 51, 0.65));
+        }
       `}} />
       <AnimatedGradient />
 
@@ -35,11 +41,10 @@ export function BrandingPanel({ type }: { type: "main" | LoginRole }) {
              initial={{ scale: 0, opacity: 0 }}
              animate={{ scale: 1, opacity: 1 }}
              transition={{ type: "spring", stiffness: 200, damping: 15 }}
-             className="w-32 h-32 mb-8 bg-white rounded-[2rem] p-3 shadow-[0_25px_40px_-15px_rgba(225,29,46,0.6)] relative flex items-center justify-center"
+             className="w-36 h-36 mb-6 relative flex items-center justify-center neon-red-outline-glow"
            >
-             <div className="absolute inset-x-6 -bottom-4 h-8 bg-[#E11D2E] blur-2xl opacity-80 z-0 mix-blend-screen pointer-events-none"></div>
-             <div className="relative w-full h-full rounded-2xl overflow-hidden z-10">
-               <Image priority src="/visuals/RNG_MAIN_LOGO_TRANSPARENT.png" alt="RNG Logo" fill unoptimized className="object-cover" />
+             <div className="relative w-full h-full">
+               <Image priority src="/visuals/RNG_MAIN_LOGO_TRANSPARENT.png" alt="RNG Logo" fill unoptimized className="object-contain" />
              </div>
            </motion.div>
            
@@ -54,12 +59,11 @@ export function BrandingPanel({ type }: { type: "main" | LoginRole }) {
              initial={{ scale: 0, opacity: 0 }}
              animate={{ scale: 1, opacity: 1 }}
              transition={{ type: "spring", stiffness: 200, damping: 15 }}
-             className="w-28 h-28 mb-6 bg-white rounded-[2rem] p-3 shadow-[0_20px_35px_-12px_rgba(225,29,46,0.6)] relative flex items-center justify-center"
+             className="w-32 h-32 mb-6 relative flex items-center justify-center neon-red-outline-glow"
            >
-             <div className="absolute inset-x-4 -bottom-3 h-6 bg-[#E11D2E] blur-xl opacity-70 z-0 pointer-events-none mix-blend-screen"></div>
-             <div className="relative w-full h-full rounded-2xl overflow-hidden z-10">
-               {type === 'register' && <Image priority src="/visuals/owner.jpg" alt="Register Icon" fill unoptimized className="object-cover" />}
-               {type === 'login' && <Image priority src="/visuals/staff.png" alt="Login Icon" fill unoptimized className="object-cover" />}
+             <div className="relative w-full h-full">
+               {type === 'register' && <Image priority src="/visuals/owner.jpg" alt="Register Icon" fill unoptimized className="object-contain" />}
+               {type === 'login' && <Image priority src="/visuals/staff.png" alt="Login Icon" fill unoptimized className="object-contain" />}
              </div>
            </motion.div>
            
