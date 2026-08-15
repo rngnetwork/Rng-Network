@@ -34,7 +34,14 @@ export function InitialLoader() {
               <div className="absolute inset-0 rounded-full border-t-2 border-l-2 border-[#E11D2E] animate-spin" style={{ animationDuration: '1.5s' }} />
               <div className="absolute inset-2 rounded-full border-b-2 border-r-2 border-white/30 animate-spin" style={{ animationDuration: '2s', animationDirection: 'reverse' }} />
               <div className="absolute inset-2">
-                <Image src="/visuals/MAIN_LOGO.png" alt="RNG Network Logo" fill unoptimized className="object-cover rounded-full drop-shadow-[0_0_15px_rgba(225,29,46,0.6)]" />
+                <motion.div
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.1 }}
+                  className="w-full h-full relative"
+                >
+                  <Image priority src="/visuals/LOGO_FOR_STAFF.png" alt="Staff Logo" fill unoptimized className="object-cover rounded-full drop-shadow-[0_0_15px_rgba(225,29,46,0.6)]" />
+                </motion.div>
               </div>
             </div>
             <h2 className="text-white font-display font-bold tracking-widest text-lg uppercase mb-2">RNG Network</h2>
