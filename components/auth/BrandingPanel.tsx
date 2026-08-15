@@ -39,7 +39,7 @@ export function BrandingPanel({ type }: { type: "main" | LoginRole }) {
            >
              <div className="absolute inset-x-6 -bottom-4 h-8 bg-[#E11D2E] blur-2xl opacity-80 z-0 mix-blend-screen pointer-events-none"></div>
              <div className="relative w-full h-full rounded-2xl overflow-hidden z-10">
-               <Image priority src="/visuals/MAIN_LOGO.png" alt="RNG Logo" fill unoptimized className="object-cover" />
+               <Image priority src="/visuals/RNG_MAIN_LOGO_TRANSPARENT.png" alt="RNG Logo" fill unoptimized className="object-cover" />
              </div>
            </motion.div>
            
