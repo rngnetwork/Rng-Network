@@ -20,4 +20,9 @@ public class UserResponse {
     private String discordAvatar;
     private boolean discordLinked;
     private String role;
+    private String designations;
+    private String roles;
+    private java.util.List<String> designationList;
+    private java.util.List<String> roleList;
+    private String status;
 }
