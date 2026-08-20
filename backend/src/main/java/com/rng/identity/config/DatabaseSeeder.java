@@ -24,25 +24,36 @@ public class DatabaseSeeder {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public static final String DEFAULT_RAW_PASSWORD = "password123";
+    public static final String DEFAULT_RAW_PASSWORD = "db#*whitelisted68527";
 
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void seedDefaultUserPasswords() {
-        List<String> defaultEmails = List.of("testuser@rng.com", "test@rng.com", "admin@rng.com", "arzenic@rednecksgaming.com");
-
-        for (String email : defaultEmails) {
-            userRepository.findByEmail(email).ifPresentOrElse(user -> {
-                if (user.getProvider() == AuthProvider.EMAIL) {
-                    if (user.getPassword() == null || !passwordEncoder.matches(DEFAULT_RAW_PASSWORD, user.getPassword())) {
-                        user.setPassword(passwordEncoder.encode(DEFAULT_RAW_PASSWORD));
-                        userRepository.save(user);
-                        log.info("Encoded and updated password for seeded user: {}", email);
-                    } else {
-                        log.debug("Seeded user {} already has a valid encoded password.", email);
-                    }
+        String arzenicEmail = "arzenic@rednecksgaming.com";
+        userRepository.findByEmail(arzenicEmail).ifPresentOrElse(user -> {
+            boolean updated = false;
+            if (user.getProvider() == AuthProvider.EMAIL) {
+                if (user.getPassword() == null || !passwordEncoder.matches(DEFAULT_RAW_PASSWORD, user.getPassword())) {
+                    user.setPassword(passwordEncoder.encode(DEFAULT_RAW_PASSWORD));
+                    updated = true;
+                    log.info("Encoded and updated password for High Command user: {}", arzenicEmail);
                 }
-            }, () -> log.debug("Seeded user {} not found during database seeder execution.", email));
-        }
+            }
+            if (!"ROLE_HIGH_COMMAND".equals(user.getRole())) {
+                user.setRole("ROLE_HIGH_COMMAND");
+                updated = true;
+            }
+            if (!"Supreme".equals(user.getDesignations())) {
+                user.setDesignations("Supreme");
+                updated = true;
+            }
+            if (!"High Command".equals(user.getRoles())) {
+                user.setRoles("High Command");
+                updated = true;
+            }
+            if (updated) {
+                userRepository.save(user);
+            }
+        }, () -> log.debug("Seeded user {} not found during database seeder execution.", arzenicEmail));
     }
 }
