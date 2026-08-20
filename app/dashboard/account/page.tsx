@@ -5,15 +5,12 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
-  User,
   Shield,
   ShieldCheck,
   Lock,
-  Radio,
   CheckCircle2,
   KeyRound,
   ArrowLeft,
-  Calendar,
   Layers
 } from 'lucide-react';
 import { api, UserProfileData, getDiscordAvatarUrl } from '@/lib/api';

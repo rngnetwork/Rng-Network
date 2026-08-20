@@ -8,7 +8,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
   ShieldCheck,
-  UserCheck,
   User,
   LogOut,
   Menu,

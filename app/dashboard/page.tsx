@@ -8,7 +8,6 @@ import {
   Users,
   Server,
   KeyRound,
-  ExternalLink,
   ChevronRight,
   Sparkles,
   Lock,

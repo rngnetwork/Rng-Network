@@ -1,24 +1,19 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShieldCheck,
   UserPlus,
   Search,
-  Filter,
   Trash2,
   Edit3,
   CheckCircle2,
-  XCircle,
   AlertCircle,
-  KeyRound,
   Info,
   X,
-  Lock,
-  Layers,
-  Sparkles
+  Lock
 } from 'lucide-react';
 import {
   api,
@@ -90,54 +85,85 @@ export default function WhitelistPage() {
 
   const canManage = isHighCommand || isMinister;
 
-  // Load Data
-  const loadData = async () => {
-    if (!token) return;
-    setLoading(true);
+  // Re-fetch data on manual actions (Add / Edit / Delete)
+  const refreshData = useCallback(async () => {
+    const currentToken = localStorage.getItem('accessToken');
+    if (!currentToken) return;
 
     try {
-      // 1. Fetch current profile
-      const userRes = await api.fetchCurrentUser(token);
-      if (userRes.success && userRes.data) {
-        setCurrentUser(userRes.data);
-      }
+      const [userRes, hierRes, listRes] = await Promise.allSettled([
+        api.fetchCurrentUser(currentToken),
+        api.fetchPersonnelHierarchy(currentToken),
+        api.fetchWhitelistedUsers(currentToken)
+      ]);
 
-      // 2. Fetch hierarchy
-      try {
-        const hierRes = await api.fetchPersonnelHierarchy(token);
-        if (hierRes.success && hierRes.data) {
-          setHierarchy(hierRes.data);
-        }
-      } catch {
-        // Fallback default hierarchy if backend not responding
-        setHierarchy({
-          "Supreme": ["High Command"],
-          "Ministry of Internal affairs": ["Minister", "Secretary", "Senior agent", "agent"],
-          "Ministry of Personell": ["Minister", "Secretary", "Magister Officiorum", "Tribunus", "Legatus"],
-          "Ministry of Tech": ["Minister", "Secretary", "Tech Specialist", "Senior Dev", "Junior Dev"],
-          "Ministry of Finances": ["Minister", "Secretary", "Digital assets officer", "Regional treasurer", "PayPal treasurer"],
-          "Ministry of Culture": ["Minister", "Secretary"],
-          "Ministry of External affairs": ["Minister", "Secretary"],
-          "Chancellory": ["Chancellor of Roughnuts", "Chancellor of Rednecks Gaming", "Chancellor of Rivals"]
-        });
+      if (userRes.status === 'fulfilled' && userRes.value.success && userRes.value.data) {
+        setCurrentUser(userRes.value.data);
       }
-
-      // 3. Fetch Whitelist
-      const listRes = await api.fetchWhitelistedUsers(token);
-      if (listRes.success && listRes.data) {
-        setWhitelistedUsers(listRes.data);
+      if (hierRes.status === 'fulfilled' && hierRes.value.success && hierRes.value.data) {
+        setHierarchy(hierRes.value.data);
+      }
+      if (listRes.status === 'fulfilled' && listRes.value.success && listRes.value.data) {
+        setWhitelistedUsers(listRes.value.data);
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to load whitelist data';
-      console.error(msg);
-    } finally {
-      setLoading(false);
+      console.error('Failed to refresh data:', err);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let isMounted = true;
+
+    const initialize = async () => {
+      const currentToken = localStorage.getItem('accessToken');
+      if (!currentToken) {
+        if (isMounted) setLoading(false);
+        return;
+      }
+
+      try {
+        const [userRes, hierRes, listRes] = await Promise.allSettled([
+          api.fetchCurrentUser(currentToken),
+          api.fetchPersonnelHierarchy(currentToken),
+          api.fetchWhitelistedUsers(currentToken)
+        ]);
+
+        if (isMounted) {
+          if (userRes.status === 'fulfilled' && userRes.value.success && userRes.value.data) {
+            setCurrentUser(userRes.value.data);
+          }
+          if (hierRes.status === 'fulfilled' && hierRes.value.success && hierRes.value.data) {
+            setHierarchy(hierRes.value.data);
+          } else {
+            setHierarchy({
+              "Supreme": ["High Command"],
+              "Ministry of Internal affairs": ["Minister", "Secretary", "Senior agent", "agent"],
+              "Ministry of Personell": ["Minister", "Secretary", "Magister Officiorum", "Tribunus", "Legatus"],
+              "Ministry of Tech": ["Minister", "Secretary", "Tech Specialist", "Senior Dev", "Junior Dev"],
+              "Ministry of Finances": ["Minister", "Secretary", "Digital assets officer", "Regional treasurer", "PayPal treasurer"],
+              "Ministry of Culture": ["Minister", "Secretary"],
+              "Ministry of External affairs": ["Minister", "Secretary"],
+              "Chancellory": ["Chancellor of Roughnuts", "Chancellor of Rednecks Gaming", "Chancellor of Rivals"]
+            });
+          }
+          if (listRes.status === 'fulfilled' && listRes.value.success && listRes.value.data) {
+            setWhitelistedUsers(listRes.value.data);
+          }
+        }
+      } catch (err: unknown) {
+        console.error('Failed to initialize whitelist page:', err);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initialize();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const showToast = (msg: string) => {
@@ -276,7 +302,7 @@ export default function WhitelistPage() {
       if (res.success) {
         showToast(`User ${formData.email} successfully whitelisted!`);
         setAddModalOpen(false);
-        await loadData();
+        await refreshData();
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to whitelist user';
@@ -313,7 +339,7 @@ export default function WhitelistPage() {
       if (res.success) {
         showToast(`Whitelisted member ${userToEdit.email} updated successfully!`);
         setEditModalOpen(false);
-        await loadData();
+        await refreshData();
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to update user';
@@ -334,7 +360,7 @@ export default function WhitelistPage() {
         showToast(`Member ${userToDelete.email} removed from whitelist`);
         setDeleteModalOpen(false);
         setUserToDelete(null);
-        await loadData();
+        await refreshData();
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to remove user';
