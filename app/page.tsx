@@ -94,7 +94,7 @@ export default function LandingAuthPage() {
       }
 
       if (token) {
-        router.push('/servers');
+        router.push('/dashboard');
       } else {
         setIsCheckingSession(false);
       }

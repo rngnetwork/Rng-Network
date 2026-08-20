@@ -161,18 +161,26 @@ export function UserProfileDropdown() {
                   </>
                 )}
                 <div className="flex justify-between items-center text-xs mt-1">
-                  <span className="text-slate-500 font-medium">Role</span>
-                  <span className="text-[#E11D2E] font-bold tracking-widest text-[10px] bg-[#E11D2E]/10 border border-[#E11D2E]/20 px-2 py-1 rounded-md uppercase">
+                  <span className="text-zinc-400 font-medium">Role</span>
+                  <span className="text-red-400 font-bold tracking-widest text-[10px] bg-red-500/10 border border-red-500/20 px-2 py-1 rounded-md uppercase">
                     {user.role}
                   </span>
                 </div>
               </div>
             </div>
             
-            <div className="p-2 border-t border-white/10">
+            <div className="p-2 flex flex-col gap-1 border-t border-white/10">
+              <button
+                onClick={() => { setIsOpen(false); router.push('/dashboard/account'); }}
+                className="w-full flex items-center gap-3 px-3 py-2 text-sm text-zinc-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors font-medium"
+              >
+                <span className="w-2 h-2 rounded-full bg-red-500" />
+                <span>Account Profile</span>
+              </button>
+
               <button 
                 onMouseDown={(e) => { e.preventDefault(); handleLogout(); }}
-                className="w-full flex items-center gap-3 px-3 py-2 text-sm text-[#E11D2E] hover:bg-[#E11D2E]/10 rounded-lg transition-colors font-medium"
+                className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-colors font-medium"
               >
                 <LogOut size={16} />
                 <span>Sign Out</span>

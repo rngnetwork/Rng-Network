@@ -19,11 +19,49 @@ export interface UserProfileData {
   fullName?: string;
   provider?: string;
   role: string;
+  designations?: string;
+  roles?: string;
+  designationList?: string[];
+  roleList?: string[];
+  status?: string;
   discordId?: string;
   discordUsername?: string;
   discordAvatar?: string;
   discordLinked: boolean;
 }
+
+export interface WhitelistedUser {
+  id: number;
+  email: string;
+  userName: string;
+  provider: string;
+  role: string;
+  designations: string[];
+  roles: string[];
+  discordId?: string;
+  discordUsername?: string;
+  discordAvatar?: string;
+  discordLinked: boolean;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateWhitelistPayload {
+  email: string;
+  userName: string;
+  provider?: string;
+  designations: string[];
+  roles: string[];
+}
+
+export interface UpdateWhitelistPayload {
+  userName?: string;
+  designations: string[];
+  roles: string[];
+}
+
+export type PersonnelHierarchyMap = Record<string, string[]>;
 
 export function getDiscordAvatarUrl(discordId?: string | null, avatarHash?: string | null): string {
   if (!discordId || !avatarHash || discordId === 'UNLINKED') {
@@ -137,16 +175,110 @@ export const api = {
   },
 
   // ---------------------------------------------------------------------------
-  // Mock Fallbacks for Unbuilt APIs (Forgot Password & Registration Request)
+  // Whitelist Management APIs (GET, POST, PUT, DELETE /api/v1/whitelist)
+  // ---------------------------------------------------------------------------
+  async fetchWhitelistedUsers(accessToken: string): Promise<ApiResponseEnvelope<WhitelistedUser[]>> {
+    const response = await fetch(`${API_BASE}/api/v1/whitelist`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      credentials: 'include',
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to fetch whitelisted users.');
+    }
+    return data;
+  },
+
+  async createWhitelistedUser(
+    accessToken: string,
+    payload: CreateWhitelistPayload
+  ): Promise<ApiResponseEnvelope<WhitelistedUser>> {
+    const response = await fetch(`${API_BASE}/api/v1/whitelist`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to whitelist user.');
+    }
+    return data;
+  },
+
+  async updateWhitelistedUser(
+    accessToken: string,
+    id: number,
+    payload: UpdateWhitelistPayload
+  ): Promise<ApiResponseEnvelope<WhitelistedUser>> {
+    const response = await fetch(`${API_BASE}/api/v1/whitelist/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to update whitelisted user.');
+    }
+    return data;
+  },
+
+  async deleteWhitelistedUser(accessToken: string, id: number): Promise<ApiResponseEnvelope<null>> {
+    const response = await fetch(`${API_BASE}/api/v1/whitelist/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      credentials: 'include',
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to delete whitelisted user.');
+    }
+    return data;
+  },
+
+  async fetchPersonnelHierarchy(accessToken: string): Promise<ApiResponseEnvelope<PersonnelHierarchyMap>> {
+    const response = await fetch(`${API_BASE}/api/v1/whitelist/hierarchy`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      credentials: 'include',
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to fetch personnel hierarchy.');
+    }
+    return data;
+  },
+
+  // ---------------------------------------------------------------------------
+  // Fallbacks for Unbuilt APIs (Forgot Password & Registration Request)
   // ---------------------------------------------------------------------------
   async submitRegister(email: string, username: string, password?: string): Promise<{ success: boolean; message?: string }> {
-    console.log('Mock Registration Request:', email, username, !!password);
+    console.log('Registration Request:', email, username, !!password);
     await new Promise((r) => setTimeout(r, 600));
     return { success: true, message: 'Access request submitted for review.' };
   },
 
   async submitForgotPassword(email: string): Promise<{ success: boolean; message?: string }> {
-    console.log('Mock Forgot Password:', email);
+    console.log('Forgot Password:', email);
     await new Promise((r) => setTimeout(r, 600));
     return { success: true, message: `Password reset instructions sent to ${email}.` };
   },
