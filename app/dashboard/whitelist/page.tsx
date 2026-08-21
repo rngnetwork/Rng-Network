@@ -370,19 +370,6 @@ export default function WhitelistPage() {
     }
   };
 
-  // Available roles computed from selected designations
-  const availableRoles = useMemo(() => {
-    const rolesSet = new Set<string>();
-    formData.designations.forEach((d) => {
-      const rList = hierarchy[d] || [];
-      rList.forEach((r) => {
-        if (isMinister && (r === 'Minister' || r === 'High Command')) return;
-        rolesSet.add(r);
-      });
-    });
-    return Array.from(rolesSet);
-  }, [formData.designations, hierarchy, isMinister]);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -594,17 +581,36 @@ export default function WhitelistPage() {
                         </div>
                       </td>
 
-                      {/* Roles */}
+                      {/* Roles / Department-Paired Badges */}
                       <td className="py-4 px-6">
-                        <div className="flex flex-wrap gap-1 max-w-xs">
-                          {member.roles.map((r) => (
-                            <span
-                              key={r}
-                              className="text-[11px] px-2 py-0.5 rounded-md bg-white/5 text-zinc-300 border border-white/10 font-medium"
-                            >
-                              {r}
-                            </span>
-                          ))}
+                        <div className="flex flex-col gap-1 max-w-sm">
+                          {member.designations.map((d) => {
+                            const deptRoles = member.roles.filter((r) => (hierarchy[d] || []).includes(r));
+                            if (deptRoles.length === 0) return null;
+                            const deptShort = d.startsWith('Ministry of ') ? d.replace('Ministry of ', '') : d;
+                            return (
+                              <div
+                                key={d}
+                                className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-md bg-white/[0.03] border border-white/10 w-fit"
+                              >
+                                <span className="text-zinc-400 font-mono text-[10px]">{deptShort}:</span>
+                                <span className="text-white font-medium">{deptRoles.join(', ')}</span>
+                              </div>
+                            );
+                          })}
+                          {/* Fallback for unmatched roles */}
+                          {(() => {
+                            const allMatched = member.designations.flatMap((d) => hierarchy[d] || []);
+                            const extra = member.roles.filter((r) => !allMatched.includes(r));
+                            return extra.map((r) => (
+                              <span
+                                key={r}
+                                className="text-[11px] px-2 py-0.5 rounded-md bg-white/5 text-zinc-300 border border-white/10 font-medium w-fit"
+                              >
+                                {r}
+                              </span>
+                            ));
+                          })()}
                         </div>
                       </td>
 
@@ -699,30 +705,22 @@ export default function WhitelistPage() {
 
                 <div className="flex flex-col gap-2 pt-2 border-t border-white/5 text-xs">
                   <div>
-                    <span className="text-zinc-500 font-mono block mb-1">Designations:</span>
-                    <div className="flex flex-wrap gap-1">
-                      {member.designations.map((d) => (
-                        <span
-                          key={d}
-                          className="text-[11px] px-2 py-0.5 rounded-md bg-red-500/10 text-red-300 border border-red-500/20 font-medium"
-                        >
-                          {d}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-zinc-500 font-mono block mb-1">Roles:</span>
-                    <div className="flex flex-wrap gap-1">
-                      {member.roles.map((r) => (
-                        <span
-                          key={r}
-                          className="text-[11px] px-2 py-0.5 rounded-md bg-white/5 text-zinc-300 border border-white/10 font-medium"
-                        >
-                          {r}
-                        </span>
-                      ))}
+                    <span className="text-zinc-500 font-mono block mb-1.5">Department Roles & Assignments:</span>
+                    <div className="flex flex-col gap-1.5">
+                      {member.designations.map((d) => {
+                        const deptRoles = member.roles.filter((r) => (hierarchy[d] || []).includes(r));
+                        return (
+                          <div
+                            key={d}
+                            className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/5"
+                          >
+                            <span className="text-[11px] text-red-300 font-medium">{d}</span>
+                            <span className="text-[11px] text-zinc-200 font-semibold">
+                              {deptRoles.length > 0 ? deptRoles.join(', ') : 'Standard'}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -932,40 +930,74 @@ export default function WhitelistPage() {
                   </div>
                 </div>
 
-                {/* Roles Selector */}
-                <div className="flex flex-col gap-1.5">
+                {/* Roles Selector: Department-Grouped */}
+                <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-mono text-zinc-400 uppercase tracking-wider">
-                      Roles & Positions * {isHighCommand ? '(2+ Allowed)' : '(2+ Allowed under Ministry)'}
+                      Department Roles * {isHighCommand ? '(Configure Per Department)' : '(Ministry Roles)'}
                     </label>
                     <span className="text-[11px] text-zinc-500">{formData.roles.length} Selected</span>
                   </div>
 
-                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2 rounded-xl bg-white/[0.02] border border-white/5">
-                    {availableRoles.length === 0 ? (
-                      <span className="text-xs text-zinc-500 italic p-2">
-                        Select a designation above to view corresponding available roles.
-                      </span>
-                    ) : (
-                      availableRoles.map((role) => {
-                        const isSelected = formData.roles.includes(role);
+                  {formData.designations.length === 0 ? (
+                    <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 text-center text-xs text-zinc-500 italic">
+                      Please select at least one Designation above to configure department roles.
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3 max-h-56 overflow-y-auto pr-1">
+                      {formData.designations.map((des) => {
+                        const deptRoles = hierarchy[des] || [];
+                        const selectedInDept = formData.roles.filter((r) => deptRoles.includes(r));
+
                         return (
-                          <button
-                            key={role}
-                            type="button"
-                            onClick={() => handleToggleRole(role)}
-                            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
-                              isSelected
-                                ? 'bg-red-500/20 text-white border border-red-500/40 shadow-[0_0_8px_rgba(225,29,46,0.2)]'
-                                : 'bg-white/[0.03] text-zinc-400 hover:text-white border border-white/5'
-                            }`}
+                          <div
+                            key={des}
+                            className="p-3 rounded-xl bg-white/[0.02] border border-white/10 flex flex-col gap-2"
                           >
-                            {role}
-                          </button>
+                            <div className="flex items-center justify-between pb-1.5 border-b border-white/5">
+                              <span className="text-xs font-semibold text-red-300 flex items-center gap-1.5 font-mono">
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                {des}
+                              </span>
+                              <span className="text-[10px] text-zinc-500 font-mono">
+                                {selectedInDept.length} Selected
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap gap-1.5">
+                              {deptRoles.length === 0 ? (
+                                <span className="text-xs text-zinc-500 italic p-1">No roles available.</span>
+                              ) : (
+                                deptRoles.map((role) => {
+                                  const isLockedForMinister =
+                                    isMinister && (role === 'Minister' || role === 'High Command');
+                                  const isSelected = formData.roles.includes(role);
+
+                                  return (
+                                    <button
+                                      key={role}
+                                      type="button"
+                                      disabled={isLockedForMinister}
+                                      onClick={() => handleToggleRole(role)}
+                                      className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-all ${
+                                        isSelected
+                                          ? 'bg-red-500/20 text-white border border-red-500/40 shadow-[0_0_8px_rgba(225,29,46,0.2)]'
+                                          : isLockedForMinister
+                                          ? 'bg-white/[0.01] text-zinc-600 border border-white/5 cursor-not-allowed opacity-30'
+                                          : 'bg-white/[0.03] text-zinc-400 hover:text-white border border-white/5'
+                                      }`}
+                                    >
+                                      {role}
+                                    </button>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </div>
                         );
-                      })
-                    )}
-                  </div>
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 {/* Submit Actions */}
