@@ -412,6 +412,9 @@ export default function WhitelistPage() {
       showToast(msg);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
   const canEditMember = (member: WhitelistedUser) => {
     if (isHighCommand) {
       const isMemberHc =
@@ -986,7 +989,7 @@ export default function WhitelistPage() {
                       {formData.designations.map((des) => {
                         const deptRoles = hierarchy[des] || [];
                         const selectedInDept = deptRoles.filter((r) => isRoleSelectedInDept(des, r));
-                        const isEditingSelf = userToEdit && currentUser && userToEdit.id === currentUser.id;
+                        const isEditingSelf = Boolean(userToEdit && currentUser && userToEdit.id === currentUser.id);
 
                         return (
                           <div
@@ -1008,10 +1011,12 @@ export default function WhitelistPage() {
                                 <span className="text-xs text-zinc-500 italic p-1">No roles available.</span>
                               ) : (
                                 deptRoles.map((role) => {
-                                  const isMinisterSelfLock =
-                                    isMinister && isEditingSelf && role === 'Minister' && des === ministerMinistry;
-                                  const isMinisterSubordinateLock =
-                                    isMinister && !isEditingSelf && (role === 'Minister' || role === 'High Command');
+                                  const isMinisterSelfLock = Boolean(
+                                    isMinister && isEditingSelf && role === 'Minister' && des === ministerMinistry
+                                  );
+                                  const isMinisterSubordinateLock = Boolean(
+                                    isMinister && !isEditingSelf && (role === 'Minister' || role === 'High Command')
+                                  );
                                   const isLocked = isMinisterSubordinateLock || isMinisterSelfLock;
                                   const isSelected = isRoleSelectedInDept(des, role);
 
@@ -1019,7 +1024,7 @@ export default function WhitelistPage() {
                                     <button
                                       key={role}
                                       type="button"
-                                      disabled={isLocked && isMinisterSubordinateLock}
+                                      disabled={Boolean(isLocked && isMinisterSubordinateLock)}
                                       onClick={() => handleToggleRoleForDept(des, role)}
                                       title={isMinisterSelfLock ? 'Core Minister role cannot be removed' : undefined}
                                       className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-all ${
