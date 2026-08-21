@@ -13,30 +13,51 @@ import {
   ArrowLeft,
   Layers
 } from 'lucide-react';
-import { api, UserProfileData, getDiscordAvatarUrl } from '@/lib/api';
+import { api, UserProfileData, PersonnelHierarchyMap, getDiscordAvatarUrl } from '@/lib/api';
 
 export default function AccountPage() {
   const [user, setUser] = useState<UserProfileData | null>(null);
+  const [hierarchy, setHierarchy] = useState<PersonnelHierarchyMap>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadProfile = async () => {
       const token = localStorage.getItem('accessToken');
-      if (!token) return;
+      if (!token) {
+        if (isMounted) setLoading(false);
+        return;
+      }
 
       try {
-        const res = await api.fetchCurrentUser(token);
-        if (res.success && res.data) {
-          setUser(res.data);
+        const [profileRes, hierRes] = await Promise.allSettled([
+          api.fetchCurrentUser(token),
+          api.fetchPersonnelHierarchy(token),
+        ]);
+
+        if (isMounted) {
+          if (profileRes.status === 'fulfilled' && profileRes.value.success && profileRes.value.data) {
+            setUser(profileRes.value.data);
+          }
+          if (hierRes.status === 'fulfilled' && hierRes.value.success && hierRes.value.data) {
+            setHierarchy(hierRes.value.data);
+          }
         }
       } catch (err) {
         console.error('Failed to load user profile:', err);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   if (loading) {
@@ -167,44 +188,44 @@ export default function AccountPage() {
 
             <div className="flex flex-col gap-3">
               <div>
-                <span className="text-xs font-mono text-zinc-400 uppercase tracking-wider block mb-1.5">
-                  Designations
+                <span className="text-xs font-mono text-zinc-400 uppercase tracking-wider block mb-2">
+                  Department Roles & Assignments
                 </span>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-col gap-2">
                   {user.designationList && user.designationList.length > 0 ? (
-                    user.designationList.map((des) => (
-                      <span
-                        key={des}
-                        className="text-xs px-3 py-1 rounded-lg bg-red-500/10 text-red-300 border border-red-500/30 font-medium"
-                      >
-                        {des}
-                      </span>
-                    ))
+                    user.designationList.map((des) => {
+                      const roles = user.roleList
+                        ? user.roleList.filter((r) => (hierarchy[des] || []).includes(r))
+                        : [];
+                      return (
+                        <div
+                          key={des}
+                          className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5"
+                        >
+                          <span className="text-xs text-red-300 font-semibold flex items-center gap-1.5 font-mono">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            {des}
+                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            {roles.length > 0 ? (
+                              roles.map((r) => (
+                                <span
+                                  key={r}
+                                  className="text-[11px] px-2.5 py-0.5 rounded-md bg-white/5 text-zinc-200 border border-white/10 font-medium"
+                                >
+                                  {r}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-[11px] text-zinc-500 italic">Standard</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
                   ) : (
                     <span className="text-xs text-zinc-500 italic">
                       {user.designations || 'Standard Personnel'}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <span className="text-xs font-mono text-zinc-400 uppercase tracking-wider block mb-1.5">
-                  Roles & Positions
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {user.roleList && user.roleList.length > 0 ? (
-                    user.roleList.map((r) => (
-                      <span
-                        key={r}
-                        className="text-xs px-3 py-1 rounded-lg bg-white/5 text-zinc-200 border border-white/10 font-medium"
-                      >
-                        {r}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-zinc-500 italic">
-                      {user.roles || 'Member'}
                     </span>
                   )}
                 </div>
