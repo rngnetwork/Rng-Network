@@ -81,23 +81,36 @@ export default function LandingAuthPage() {
     const checkSession = async () => {
       let token = localStorage.getItem('accessToken');
 
+      if (token) {
+        try {
+          const userRes = await api.fetchCurrentUser(token);
+          if (userRes.success && userRes.data) {
+            router.push('/dashboard');
+            return;
+          }
+        } catch {
+          // Token is invalid/expired
+          localStorage.removeItem('accessToken');
+          token = null;
+        }
+      }
+
       if (!token) {
         try {
           const refreshRes = await api.refreshToken();
           if (refreshRes.success && refreshRes.data?.accessToken) {
             token = refreshRes.data.accessToken;
             localStorage.setItem('accessToken', token);
+            router.push('/dashboard');
+            return;
           }
         } catch {
-          // Token refresh unavailable
+          // Refresh unavailable or expired
         }
       }
 
-      if (token) {
-        router.push('/dashboard');
-      } else {
-        setIsCheckingSession(false);
-      }
+      localStorage.removeItem('accessToken');
+      setIsCheckingSession(false);
     };
 
     checkSession();

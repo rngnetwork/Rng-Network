@@ -20,38 +20,56 @@ export default function DashboardLayout({
     const loadSession = async () => {
       let token = localStorage.getItem('accessToken');
 
-      if (!token) {
+      if (token) {
         try {
-          const refreshRes = await api.refreshToken();
-          if (refreshRes.success && refreshRes.data?.accessToken) {
-            token = refreshRes.data.accessToken;
-            localStorage.setItem('accessToken', token);
+          const userRes = await api.fetchCurrentUser(token);
+          if (userRes.success && userRes.data) {
+            setUser(userRes.data);
+            setAuthState('authenticated');
+            return;
           }
         } catch {
-          // Token refresh failed
+          // Token is expired, clear local storage
+          localStorage.removeItem('accessToken');
+          token = null;
         }
       }
 
-      if (!token) {
-        setAuthState('unauthenticated');
-        return;
-      }
-
+      // Try cookie refresh if access token missing or expired
       try {
-        const userRes = await api.fetchCurrentUser(token);
-        if (userRes.success && userRes.data) {
-          setUser(userRes.data);
-          setAuthState('authenticated');
-        } else {
-          setAuthState('unauthenticated');
+        const refreshRes = await api.refreshToken();
+        if (refreshRes.success && refreshRes.data?.accessToken) {
+          token = refreshRes.data.accessToken;
+          localStorage.setItem('accessToken', token);
+          const userRes = await api.fetchCurrentUser(token);
+          if (userRes.success && userRes.data) {
+            setUser(userRes.data);
+            setAuthState('authenticated');
+            return;
+          }
         }
       } catch {
-        setAuthState('unauthenticated');
+        // Refresh unavailable
       }
+
+      localStorage.removeItem('accessToken');
+      setAuthState('unauthenticated');
     };
 
     loadSession();
   }, [router]);
+
+  const handleReturnToSignIn = async () => {
+    localStorage.removeItem('accessToken');
+    sessionStorage.clear();
+    try {
+      await api.logout();
+    } catch {
+      // Ignored
+    }
+    router.push('/');
+    router.refresh();
+  };
 
   if (authState === 'loading') {
     return (
@@ -82,7 +100,7 @@ export default function DashboardLayout({
           </p>
 
           <button
-            onClick={() => router.push('/')}
+            onClick={handleReturnToSignIn}
             className="w-full py-3 px-6 rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(225,29,46,0.3)] transition-all"
           >
             <span>Return to Sign In</span>
