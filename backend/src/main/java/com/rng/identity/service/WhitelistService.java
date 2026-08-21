@@ -76,7 +76,8 @@ public class WhitelistService {
             // Minister can only assign roles under their ministry (excluding Minister itself)
             List<String> validRoles = PersonnelHierarchy.getRolesForDesignation(ministry);
             for (String role : requestedRoles) {
-                if (!validRoles.contains(role) || role.equalsIgnoreCase("Minister") || role.equalsIgnoreCase("High Command")) {
+                String pureRole = role.contains(":") ? role.substring(role.indexOf(":") + 1).trim() : role.trim();
+                if (!validRoles.contains(pureRole) || pureRole.equalsIgnoreCase("Minister") || pureRole.equalsIgnoreCase("High Command")) {
                     throw new ForbiddenException("Cannot assign role '" + role + "' under ministry: " + ministry);
                 }
             }
@@ -114,6 +115,9 @@ public class WhitelistService {
         List<String> requestedRoles = request.getRoles().stream().map(String::trim).toList();
 
         if (PersonnelHierarchy.isHighCommand(operator)) {
+            if (PersonnelHierarchy.isHighCommand(target) && !operator.getId().equals(target.getId())) {
+                throw new ForbiddenException("High Command administrators cannot modify other High Command members");
+            }
             for (String des : requestedDesignations) {
                 if (!PersonnelHierarchy.isValidDesignation(des)) {
                     throw new IllegalArgumentException("Invalid designation: " + des);
@@ -126,17 +130,42 @@ public class WhitelistService {
             if (!target.getDesignationList().contains(ministry)) {
                 throw new ForbiddenException("Ministers can only edit users within their own Ministry");
             }
-            if (PersonnelHierarchy.isHighCommand(target) || PersonnelHierarchy.isMinister(target)) {
-                throw new ForbiddenException("Ministers cannot modify High Command or Minister accounts");
+            if (PersonnelHierarchy.isHighCommand(target)) {
+                throw new ForbiddenException("Ministers cannot modify High Command accounts");
+            }
+
+            boolean isSelf = operator.getId().equals(target.getId());
+            if (PersonnelHierarchy.isMinister(target) && !isSelf) {
+                throw new ForbiddenException("Ministers cannot modify other Minister accounts");
             }
             if (requestedDesignations.size() != 1 || !requestedDesignations.contains(ministry)) {
                 throw new ForbiddenException("Ministers cannot alter ministry designation to outside: " + ministry);
             }
 
             List<String> validRoles = PersonnelHierarchy.getRolesForDesignation(ministry);
-            for (String role : requestedRoles) {
-                if (!validRoles.contains(role) || role.equalsIgnoreCase("Minister") || role.equalsIgnoreCase("High Command")) {
-                    throw new ForbiddenException("Cannot assign role '" + role + "' under ministry: " + ministry);
+
+            if (isSelf) {
+                // Minister editing their own account: Must retain "Minister" role
+                boolean hasMinister = requestedRoles.stream().anyMatch(r -> {
+                    String pure = r.contains(":") ? r.substring(r.indexOf(":") + 1).trim() : r.trim();
+                    return pure.equalsIgnoreCase("Minister");
+                });
+                if (!hasMinister) {
+                    throw new ForbiddenException("Ministers cannot remove their own Minister role");
+                }
+                for (String role : requestedRoles) {
+                    String pure = role.contains(":") ? role.substring(role.indexOf(":") + 1).trim() : role.trim();
+                    if (!validRoles.contains(pure) || pure.equalsIgnoreCase("High Command")) {
+                        throw new ForbiddenException("Cannot assign role '" + role + "' under ministry: " + ministry);
+                    }
+                }
+            } else {
+                // Minister editing another subordinate account
+                for (String role : requestedRoles) {
+                    String pure = role.contains(":") ? role.substring(role.indexOf(":") + 1).trim() : role.trim();
+                    if (!validRoles.contains(pure) || pure.equalsIgnoreCase("Minister") || pure.equalsIgnoreCase("High Command")) {
+                        throw new ForbiddenException("Cannot assign role '" + role + "' under ministry: " + ministry);
+                    }
                 }
             }
         } else {

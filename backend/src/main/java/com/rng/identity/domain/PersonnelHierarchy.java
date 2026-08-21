@@ -60,23 +60,31 @@ public final class PersonnelHierarchy {
 
     public static boolean isValidRoleForDesignation(String designation, String role) {
         if (designation == null || role == null) return false;
-        List<String> roles = DESIGNATION_ROLES_MAP.get(designation.trim());
+        String pureRole = role.contains(":") ? role.substring(role.indexOf(":") + 1).trim() : role.trim();
+        String targetDes = role.contains(":") ? role.substring(0, role.indexOf(":")).trim() : designation.trim();
+        List<String> roles = DESIGNATION_ROLES_MAP.get(targetDes);
         if (roles == null) return false;
-        return roles.stream().anyMatch(r -> r.equalsIgnoreCase(role.trim()));
+        return roles.stream().anyMatch(r -> r.equalsIgnoreCase(pureRole));
     }
 
     public static boolean isHighCommand(User user) {
         if (user == null) return false;
         if ("ROLE_HIGH_COMMAND".equalsIgnoreCase(user.getRole())) return true;
         List<String> roles = user.getRoleList();
-        return roles.stream().anyMatch(r -> r.equalsIgnoreCase("High Command"));
+        return roles.stream().anyMatch(r -> {
+            String pure = r.contains(":") ? r.substring(r.indexOf(":") + 1).trim() : r.trim();
+            return pure.equalsIgnoreCase("High Command");
+        });
     }
 
     public static boolean isMinister(User user) {
         if (user == null) return false;
         if ("ROLE_MINISTER".equalsIgnoreCase(user.getRole())) return true;
         List<String> roles = user.getRoleList();
-        return roles.stream().anyMatch(r -> r.equalsIgnoreCase("Minister"));
+        return roles.stream().anyMatch(r -> {
+            String pure = r.contains(":") ? r.substring(r.indexOf(":") + 1).trim() : r.trim();
+            return pure.equalsIgnoreCase("Minister");
+        });
     }
 
     public static Optional<String> getMinisterMinistry(User user) {
@@ -91,11 +99,21 @@ public final class PersonnelHierarchy {
         if (roles == null) roles = List.of();
         if (designations == null) designations = List.of();
 
-        if (roles.stream().anyMatch(r -> r.equalsIgnoreCase("High Command")) ||
-            designations.stream().anyMatch(d -> d.equalsIgnoreCase(SUPREME))) {
+        boolean hasHc = roles.stream().anyMatch(r -> {
+            String pure = r.contains(":") ? r.substring(r.indexOf(":") + 1).trim() : r.trim();
+            return pure.equalsIgnoreCase("High Command");
+        }) || designations.stream().anyMatch(d -> d.equalsIgnoreCase(SUPREME));
+
+        if (hasHc) {
             return "ROLE_HIGH_COMMAND";
         }
-        if (roles.stream().anyMatch(r -> r.equalsIgnoreCase("Minister"))) {
+
+        boolean hasMinister = roles.stream().anyMatch(r -> {
+            String pure = r.contains(":") ? r.substring(r.indexOf(":") + 1).trim() : r.trim();
+            return pure.equalsIgnoreCase("Minister");
+        });
+
+        if (hasMinister) {
             return "ROLE_MINISTER";
         }
         return "ROLE_USER";
