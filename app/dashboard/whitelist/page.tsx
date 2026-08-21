@@ -215,12 +215,30 @@ export default function WhitelistPage() {
   const openEditModal = (target: WhitelistedUser) => {
     setFormError(null);
     setUserToEdit(target);
+
+    // Normalize roles to department-scoped tokens
+    const normalizedRoles: string[] = [];
+    target.roles.forEach((r) => {
+      if (r.includes(':')) {
+        normalizedRoles.push(r);
+      } else {
+        const matchingDes = target.designations.filter((d) => (hierarchy[d] || []).includes(r));
+        if (matchingDes.length === 1) {
+          normalizedRoles.push(`${matchingDes[0]}:${r}`);
+        } else if (matchingDes.length > 1) {
+          matchingDes.forEach((d) => normalizedRoles.push(`${d}:${r}`));
+        } else {
+          normalizedRoles.push(r);
+        }
+      }
+    });
+
     setFormData({
       email: target.email,
       userName: target.userName,
       provider: target.provider,
       designations: [...target.designations],
-      roles: [...target.roles],
+      roles: normalizedRoles,
     });
     setEditModalOpen(true);
   };
@@ -239,8 +257,14 @@ export default function WhitelistPage() {
       }
 
       // Filter out roles that belong to deselected designations
-      const validRolesForSelected = updatedDes.flatMap((d) => hierarchy[d] || []);
-      const updatedRoles = prev.roles.filter((r) => validRolesForSelected.includes(r));
+      const updatedRoles = prev.roles.filter((r) => {
+        if (r.includes(':')) {
+          const [dept] = r.split(':');
+          return updatedDes.includes(dept);
+        }
+        const validRolesForSelected = updatedDes.flatMap((d) => hierarchy[d] || []);
+        return validRolesForSelected.includes(r);
+      });
 
       return {
         ...prev,
@@ -250,23 +274,44 @@ export default function WhitelistPage() {
     });
   };
 
-  // Toggle role selection
-  const handleToggleRole = (role: string) => {
-    if (isMinister && (role === 'Minister' || role === 'High Command')) return;
+  // Toggle role selection for a specific department
+  const handleToggleRoleForDept = (des: string, role: string) => {
+    const scopedToken = `${des}:${role}`;
+    const isEditingSelf = userToEdit && currentUser && userToEdit.id === currentUser.id;
+
+    // Minister editing self: Cannot untoggle Minister role
+    if (isMinister && isEditingSelf && role === 'Minister' && des === ministerMinistry) {
+      return;
+    }
+
+    // Minister editing another account: Cannot assign Minister or High Command
+    if (isMinister && !isEditingSelf && (role === 'Minister' || role === 'High Command')) {
+      return;
+    }
 
     setFormData((prev) => {
-      const exists = prev.roles.includes(role);
+      const hasScoped = prev.roles.includes(scopedToken);
+      const hasRaw = prev.roles.includes(role);
+
       let updatedRoles: string[];
-      if (exists) {
-        updatedRoles = prev.roles.filter((r) => r !== role);
+      if (hasScoped || hasRaw) {
+        updatedRoles = prev.roles.filter((r) => r !== scopedToken && r !== role);
       } else {
-        updatedRoles = [...prev.roles, role];
+        updatedRoles = [...prev.roles, scopedToken];
       }
       return {
         ...prev,
         roles: updatedRoles,
       };
     });
+  };
+
+  // Check if role is selected under a specific department
+  const isRoleSelectedInDept = (des: string, role: string) => {
+    const scopedToken = `${des}:${role}`;
+    if (formData.roles.includes(scopedToken)) return true;
+    if (formData.designations.length === 1 && formData.roles.includes(role)) return true;
+    return false;
   };
 
   // Handle Add Submit
@@ -367,7 +412,50 @@ export default function WhitelistPage() {
       showToast(msg);
     } finally {
       setIsSubmitting(false);
+  const canEditMember = (member: WhitelistedUser) => {
+    if (isHighCommand) {
+      const isMemberHc =
+        member.role === 'ROLE_HIGH_COMMAND' ||
+        member.roles.includes('High Command') ||
+        member.roles.some((r) => r.endsWith(':High Command'));
+      if (isMemberHc && member.id !== currentUser?.id) {
+        return false;
+      }
+      return true;
     }
+    if (isMinister) {
+      if (member.id === currentUser?.id) return true; // Minister can edit self
+      const isMemberHc =
+        member.role === 'ROLE_HIGH_COMMAND' ||
+        member.roles.includes('High Command') ||
+        member.roles.some((r) => r.endsWith(':High Command'));
+      if (isMemberHc) return false;
+      const isMemberMinister =
+        member.role === 'ROLE_MINISTER' ||
+        member.roles.includes('Minister') ||
+        member.roles.some((r) => r.endsWith(':Minister'));
+      if (isMemberMinister) return false;
+      return member.designations.includes(ministerMinistry || '');
+    }
+    return false;
+  };
+
+  const canDeleteMember = (member: WhitelistedUser) => {
+    const isMemberHc =
+      member.role === 'ROLE_HIGH_COMMAND' ||
+      member.roles.includes('High Command') ||
+      member.roles.some((r) => r.endsWith(':High Command'));
+    if (isMemberHc || member.id === currentUser?.id) return false;
+    if (isHighCommand) return true;
+    if (isMinister) {
+      const isMemberMinister =
+        member.role === 'ROLE_MINISTER' ||
+        member.roles.includes('Minister') ||
+        member.roles.some((r) => r.endsWith(':Minister'));
+      if (isMemberMinister) return false;
+      return member.designations.includes(ministerMinistry || '');
+    }
+    return false;
   };
 
   if (loading) {
@@ -580,75 +668,60 @@ export default function WhitelistPage() {
                           ))}
                         </div>
                       </td>
-
-                      {/* Roles / Department-Paired Badges */}
                       <td className="py-4 px-6">
                         <div className="flex flex-col gap-1 max-w-sm">
                           {member.designations.map((d) => {
-                            const deptRoles = member.roles.filter((r) => (hierarchy[d] || []).includes(r));
+                            const deptRoles = member.roles
+                              .filter((r) => r.startsWith(`${d}:`) || (!r.includes(':') && (hierarchy[d] || []).includes(r)))
+                              .map((r) => (r.startsWith(`${d}:`) ? r.replace(`${d}:`, '') : r));
                             if (deptRoles.length === 0) return null;
                             const deptShort = d.startsWith('Ministry of ') ? d.replace('Ministry of ', '') : d;
                             return (
-                              <div
-                                key={d}
-                                className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-md bg-white/[0.03] border border-white/10 w-fit"
-                              >
+                              <div key={d} className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-md bg-white/[0.03] border border-white/10 w-fit">
                                 <span className="text-zinc-400 font-mono text-[10px]">{deptShort}:</span>
                                 <span className="text-white font-medium">{deptRoles.join(', ')}</span>
                               </div>
                             );
                           })}
-                          {/* Fallback for unmatched roles */}
                           {(() => {
-                            const allMatched = member.designations.flatMap((d) => hierarchy[d] || []);
-                            const extra = member.roles.filter((r) => !allMatched.includes(r));
+                            const extra = member.roles.filter((r) => {
+                              if (r.includes(':')) {
+                                const [roleDept] = r.split(':');
+                                return !member.designations.includes(roleDept);
+                              }
+                              const allMatched = member.designations.flatMap((d) => hierarchy[d] || []);
+                              return !allMatched.includes(r);
+                            });
                             return extra.map((r) => (
-                              <span
-                                key={r}
-                                className="text-[11px] px-2 py-0.5 rounded-md bg-white/5 text-zinc-300 border border-white/10 font-medium w-fit"
-                              >
+                              <span key={r} className="text-[11px] px-2 py-0.5 rounded-md bg-white/5 text-zinc-300 border border-white/10 font-medium w-fit">
                                 {r}
                               </span>
                             ));
                           })()}
                         </div>
                       </td>
-
-                      {/* Discord 2FA Status */}
                       <td className="py-4 px-6">
                         {member.discordLinked ? (
                           <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-mono">
                             <CheckCircle2 size={14} />
-                            <span>Linked ({member.discordUsername || 'Verified'})</span>
+                            <span>Linked</span>
                           </div>
                         ) : (
                           <div className="flex items-center gap-1.5 text-xs text-zinc-500 font-mono">
                             <AlertCircle size={14} />
-                            <span>Pending 2FA</span>
+                            <span>Pending</span>
                           </div>
                         )}
                       </td>
-
-                      {/* Actions */}
                       <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => openEditModal(member)}
-                            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white transition-colors"
-                            title="Edit Personnel"
-                          >
-                            <Edit3 size={15} />
-                          </button>
-
-                          {!isUserHighCommand && (
-                            <button
-                              onClick={() => {
-                                setUserToDelete(member);
-                                setDeleteModalOpen(true);
-                              }}
-                              className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-300 transition-colors"
-                              title="Revoke Whitelist"
-                            >
+                          {canEditMember(member) && (
+                            <button onClick={() => openEditModal(member)} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white transition-colors" title="Edit">
+                              <Edit3 size={15} />
+                            </button>
+                          )}
+                          {canDeleteMember(member) && (
+                            <button onClick={() => { setUserToDelete(member); setDeleteModalOpen(true); }} className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-300 transition-colors" title="Revoke">
                               <Trash2 size={15} />
                             </button>
                           )}
@@ -663,7 +736,7 @@ export default function WhitelistPage() {
         </div>
       </div>
 
-      {/* Mobile Card Stack View (Shown on mobile screens < md) */}
+      {/* Mobile Card Stack */}
       <div className="md:hidden flex flex-col gap-4">
         {filteredUsers.length === 0 ? (
           <div className="p-8 rounded-2xl bg-[#111111]/70 border border-white/10 text-center text-zinc-500 text-sm">
@@ -673,13 +746,11 @@ export default function WhitelistPage() {
           filteredUsers.map((member) => {
             const avatar = getDiscordAvatarUrl(member.discordId, member.discordAvatar);
             const isUserHighCommand =
-              member.role === 'ROLE_HIGH_COMMAND' || member.roles.includes('High Command');
-
+              member.role === 'ROLE_HIGH_COMMAND' ||
+              member.roles.includes('High Command') ||
+              member.roles.some((r) => r.endsWith(':High Command'));
             return (
-              <div
-                key={member.id}
-                className="p-5 rounded-2xl bg-[#111111]/80 border border-white/10 backdrop-blur-xl flex flex-col gap-4 shadow-lg"
-              >
+              <div key={member.id} className="p-5 rounded-2xl bg-[#111111]/80 border border-white/10 backdrop-blur-xl flex flex-col gap-4 shadow-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-white/10 bg-zinc-900 shrink-0">
@@ -688,75 +759,42 @@ export default function WhitelistPage() {
                     <div className="flex flex-col min-w-0">
                       <span className="font-bold text-white text-base truncate flex items-center gap-2">
                         {member.userName}
-                        {isUserHighCommand && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 font-mono">
-                            HC
-                          </span>
-                        )}
+                        {isUserHighCommand && <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 font-mono">HC</span>}
                       </span>
                       <span className="text-xs text-zinc-400 font-mono truncate">{member.email}</span>
                     </div>
                   </div>
-
-                  <span className="text-[11px] px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-zinc-300 font-mono">
+                  <span className="text-[11px] px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-zinc-300 font-mono">
                     {member.provider}
                   </span>
                 </div>
-
                 <div className="flex flex-col gap-2 pt-2 border-t border-white/5 text-xs">
                   <div>
                     <span className="text-zinc-500 font-mono block mb-1.5">Department Roles & Assignments:</span>
                     <div className="flex flex-col gap-1.5">
                       {member.designations.map((d) => {
-                        const deptRoles = member.roles.filter((r) => (hierarchy[d] || []).includes(r));
+                        const deptRoles = member.roles
+                          .filter((r) => r.startsWith(`${d}:`) || (!r.includes(':') && (hierarchy[d] || []).includes(r)))
+                          .map((r) => (r.startsWith(`${d}:`) ? r.replace(`${d}:`, '') : r));
                         return (
-                          <div
-                            key={d}
-                            className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/5"
-                          >
+                          <div key={d} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/5">
                             <span className="text-[11px] text-red-300 font-medium">{d}</span>
-                            <span className="text-[11px] text-zinc-200 font-semibold">
-                              {deptRoles.length > 0 ? deptRoles.join(', ') : 'Standard'}
-                            </span>
+                            <span className="text-[11px] text-zinc-200 font-semibold">{deptRoles.length > 0 ? deptRoles.join(', ') : 'Standard'}</span>
                           </div>
                         );
                       })}
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-between pt-2">
-                    <span className="text-zinc-500 font-mono">2FA Status:</span>
-                    {member.discordLinked ? (
-                      <span className="text-emerald-400 font-mono flex items-center gap-1">
-                        <CheckCircle2 size={13} /> Verified
-                      </span>
-                    ) : (
-                      <span className="text-zinc-400 font-mono flex items-center gap-1">
-                        <AlertCircle size={13} /> Pending
-                      </span>
-                    )}
-                  </div>
                 </div>
-
                 <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
-                  <button
-                    onClick={() => openEditModal(member)}
-                    className="flex-1 py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 text-xs font-semibold flex items-center justify-center gap-1.5"
-                  >
-                    <Edit3 size={14} />
-                    <span>Edit</span>
-                  </button>
-
-                  {!isUserHighCommand && (
-                    <button
-                      onClick={() => {
-                        setUserToDelete(member);
-                        setDeleteModalOpen(true);
-                      }}
-                      className="py-2 px-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs font-semibold flex items-center justify-center gap-1.5"
-                    >
-                      <Trash2 size={14} />
-                      <span>Revoke</span>
+                  {canEditMember(member) && (
+                    <button onClick={() => openEditModal(member)} className="flex-1 py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 text-xs font-semibold flex items-center justify-center gap-1.5">
+                      <Edit3 size={14} /> Edit
+                    </button>
+                  )}
+                  {canDeleteMember(member) && (
+                    <button onClick={() => { setUserToDelete(member); setDeleteModalOpen(true); }} className="py-2 px-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs font-semibold flex items-center justify-center gap-1.5">
+                      <Trash2 size={14} /> Revoke
                     </button>
                   )}
                 </div>
@@ -766,7 +804,7 @@ export default function WhitelistPage() {
         )}
       </div>
 
-      {/* Add / Edit Member Modal */}
+      {/* Add / Edit Modal */}
       <AnimatePresence>
         {(addModalOpen || editModalOpen) && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -947,7 +985,8 @@ export default function WhitelistPage() {
                     <div className="flex flex-col gap-3 max-h-56 overflow-y-auto pr-1">
                       {formData.designations.map((des) => {
                         const deptRoles = hierarchy[des] || [];
-                        const selectedInDept = formData.roles.filter((r) => deptRoles.includes(r));
+                        const selectedInDept = deptRoles.filter((r) => isRoleSelectedInDept(des, r));
+                        const isEditingSelf = userToEdit && currentUser && userToEdit.id === currentUser.id;
 
                         return (
                           <div
@@ -969,25 +1008,31 @@ export default function WhitelistPage() {
                                 <span className="text-xs text-zinc-500 italic p-1">No roles available.</span>
                               ) : (
                                 deptRoles.map((role) => {
-                                  const isLockedForMinister =
-                                    isMinister && (role === 'Minister' || role === 'High Command');
-                                  const isSelected = formData.roles.includes(role);
+                                  const isMinisterSelfLock =
+                                    isMinister && isEditingSelf && role === 'Minister' && des === ministerMinistry;
+                                  const isMinisterSubordinateLock =
+                                    isMinister && !isEditingSelf && (role === 'Minister' || role === 'High Command');
+                                  const isLocked = isMinisterSubordinateLock || isMinisterSelfLock;
+                                  const isSelected = isRoleSelectedInDept(des, role);
 
                                   return (
                                     <button
                                       key={role}
                                       type="button"
-                                      disabled={isLockedForMinister}
-                                      onClick={() => handleToggleRole(role)}
+                                      disabled={isLocked && isMinisterSubordinateLock}
+                                      onClick={() => handleToggleRoleForDept(des, role)}
+                                      title={isMinisterSelfLock ? 'Core Minister role cannot be removed' : undefined}
                                       className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-all ${
                                         isSelected
-                                          ? 'bg-red-500/20 text-white border border-red-500/40 shadow-[0_0_8px_rgba(225,29,46,0.2)]'
-                                          : isLockedForMinister
+                                          ? isMinisterSelfLock
+                                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-[0_0_8px_rgba(245,158,11,0.2)] cursor-not-allowed'
+                                            : 'bg-red-500/20 text-white border border-red-500/40 shadow-[0_0_8px_rgba(225,29,46,0.2)]'
+                                          : isMinisterSubordinateLock
                                           ? 'bg-white/[0.01] text-zinc-600 border border-white/5 cursor-not-allowed opacity-30'
                                           : 'bg-white/[0.03] text-zinc-400 hover:text-white border border-white/5'
                                       }`}
                                     >
-                                      {role}
+                                      {role} {isMinisterSelfLock && '(Locked)'}
                                     </button>
                                   );
                                 })

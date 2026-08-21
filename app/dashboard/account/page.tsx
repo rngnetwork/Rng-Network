@@ -195,7 +195,9 @@ export default function AccountPage() {
                   {user.designationList && user.designationList.length > 0 ? (
                     user.designationList.map((des) => {
                       const roles = user.roleList
-                        ? user.roleList.filter((r) => (hierarchy[des] || []).includes(r))
+                        ? user.roleList
+                            .filter((r) => r.startsWith(`${des}:`) || (!r.includes(':') && (hierarchy[des] || []).includes(r)))
+                            .map((r) => (r.startsWith(`${des}:`) ? r.replace(`${des}:`, '') : r))
                         : [];
                       return (
                         <div
