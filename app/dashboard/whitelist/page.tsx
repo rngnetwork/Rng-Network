@@ -492,7 +492,7 @@ export default function WhitelistPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5 w-full">
+    <div className="flex flex-col gap-6 w-full">
       {/* Toast Notification */}
       <AnimatePresence>
         {successToast && (
@@ -500,10 +500,10 @@ export default function WhitelistPage() {
             initial={{ opacity: 0, y: -20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            className="fixed top-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-[#141414] border border-emerald-500/30 text-white shadow-[0_10px_30px_rgba(0,0,0,0.8)] backdrop-blur-2xl"
+            className="fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-[#141414] border border-emerald-500/30 text-white shadow-[0_10px_30px_rgba(0,0,0,0.8)] backdrop-blur-2xl"
           >
-            <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
-            <span className="text-xs font-medium">{successToast}</span>
+            <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+            <span className="text-sm font-medium">{successToast}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -513,22 +513,22 @@ export default function WhitelistPage() {
         <div>
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
-              <ShieldCheck size={20} />
+              <ShieldCheck size={24} />
             </div>
             <div>
-              <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white flex items-center gap-2">
                 Personnel Whitelist
                 {isHighCommand ? (
-                  <span className="text-[11px] px-2.5 py-0.5 rounded-md bg-red-500/20 text-red-400 border border-red-500/40 font-mono">
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/40 font-mono">
                     High Command Master
                   </span>
                 ) : (
-                  <span className="text-[11px] px-2.5 py-0.5 rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/40 font-mono">
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 font-mono">
                     {ministerMinistries.length > 0 ? ministerMinistries.join(' & ') : 'Ministry Scoped'}
                   </span>
                 )}
               </h1>
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs md:text-sm text-zinc-400">
                 {isHighCommand
                   ? 'Manage system-wide personnel credentials, designations, and permissions.'
                   : `Scoped access: You may manage personnel strictly within ${ministerMinistries.length > 0 ? ministerMinistries.join(' & ') : 'your assigned ministries'}.`}
@@ -540,44 +540,44 @@ export default function WhitelistPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={openAddModal}
-            className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-semibold flex items-center gap-2 shadow-[0_0_15px_rgba(225,29,46,0.3)] transition-all"
+            className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-semibold flex items-center gap-2 shadow-[0_0_20px_rgba(225,29,46,0.35)] transition-all"
           >
-            <UserPlus size={15} />
+            <UserPlus size={16} />
             <span>Whitelist Member</span>
           </button>
         </div>
       </div>
 
       {/* Notice Banner: First-Login Password Auto-Registration */}
-      <div className="p-3.5 rounded-xl bg-gradient-to-r from-red-950/20 via-black/40 to-transparent border border-red-500/20 flex items-start gap-3 backdrop-blur-xl">
-        <Info size={18} className="text-red-400 shrink-0 mt-0.5" />
-        <div className="flex flex-col gap-0.5 text-xs">
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-red-950/20 via-black/40 to-transparent border border-red-500/20 flex items-start gap-3.5 backdrop-blur-xl">
+        <Info size={20} className="text-red-400 shrink-0 mt-0.5" />
+        <div className="flex flex-col gap-1 text-xs">
           <span className="font-semibold text-white">First-Time Login Password Provisioning:</span>
-          <p className="text-zinc-300 leading-relaxed text-[11px]">
+          <p className="text-zinc-300 leading-relaxed">
             Whitelisted members with <code className="text-red-300 bg-red-500/10 px-1 py-0.5 rounded">EMAIL</code> provider do not require a pre-set password. On their very first login attempt, entering a password will automatically register and BCrypt-hash it into PostgreSQL, then prompt for Discord OAuth2 2FA linking.
           </p>
         </div>
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3 rounded-xl bg-[#121212]/80 border border-white/[0.08] backdrop-blur-xl">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 rounded-2xl bg-[#111111]/70 border border-white/5 backdrop-blur-xl">
         {/* Search */}
         <div className="relative flex-1 max-w-md">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
           <input
             type="text"
             placeholder="Search by email, name, role, designation..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/10 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-red-500/50 transition-colors"
+            className="w-full pl-10 pr-4 py-2 rounded-xl bg-white/[0.03] border border-white/10 text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-red-500/50 transition-colors"
           />
         </div>
 
         {/* Designation Filter Pills */}
-        <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-0.5 max-w-2xl">
+        <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1 max-w-2xl">
           <button
             onClick={() => setSelectedDesignationFilter('ALL')}
-            className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-all ${
+            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
               selectedDesignationFilter === 'ALL'
                 ? 'bg-red-500/20 text-red-300 border border-red-500/40'
                 : 'bg-white/[0.02] text-zinc-400 hover:text-white border border-white/5'
@@ -589,7 +589,7 @@ export default function WhitelistPage() {
             <button
               key={des}
               onClick={() => setSelectedDesignationFilter(des)}
-              className={`text-xs px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-all ${
+              className={`text-xs px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
                 selectedDesignationFilter === des
                   ? 'bg-red-500/20 text-red-300 border border-red-500/40'
                   : 'bg-white/[0.02] text-zinc-400 hover:text-white border border-white/5'
@@ -602,17 +602,17 @@ export default function WhitelistPage() {
       </div>
 
       {/* Desktop Table View (Hidden on mobile) */}
-      <div className="hidden md:block overflow-hidden rounded-2xl bg-[#121212]/80 border border-white/[0.08] backdrop-blur-xl shadow-xl">
+      <div className="hidden md:block overflow-hidden rounded-2xl bg-[#111111]/70 border border-white/10 backdrop-blur-xl shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-zinc-300">
             <thead className="text-[11px] uppercase tracking-wider text-zinc-500 bg-white/[0.02] border-b border-white/5 font-mono">
               <tr>
-                <th className="py-3 px-4.5">Personnel Member</th>
-                <th className="py-3 px-4.5">Provider</th>
-                <th className="py-3 px-4.5">Designations</th>
-                <th className="py-3 px-4.5">Roles</th>
-                <th className="py-3 px-4.5">Discord 2FA</th>
-                <th className="py-3 px-4.5 text-right">Actions</th>
+                <th className="py-4 px-6">Personnel Member</th>
+                <th className="py-4 px-6">Provider</th>
+                <th className="py-4 px-6">Designations</th>
+                <th className="py-4 px-6">Roles</th>
+                <th className="py-4 px-6">Discord 2FA</th>
+                <th className="py-4 px-6 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -638,9 +638,9 @@ export default function WhitelistPage() {
                       className="hover:bg-white/[0.02] transition-colors group"
                     >
                       {/* Member Info */}
-                      <td className="py-3 px-4.5">
+                      <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
-                          <div className="relative w-9 h-9 rounded-xl overflow-hidden border border-white/10 bg-zinc-900 shrink-0">
+                          <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-white/10 bg-zinc-900 shrink-0">
                             <Image
                               src={avatar}
                               alt={member.userName}
@@ -650,7 +650,7 @@ export default function WhitelistPage() {
                             />
                           </div>
                           <div className="flex flex-col min-w-0">
-                            <span className="font-semibold text-white truncate flex items-center gap-2 text-xs">
+                            <span className="font-semibold text-white truncate flex items-center gap-2">
                               {member.userName}
                               {isUserHighCommand && (
                                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 font-mono">
@@ -658,32 +658,32 @@ export default function WhitelistPage() {
                                 </span>
                               )}
                             </span>
-                            <span className="text-[11px] text-zinc-400 font-mono truncate">{member.email}</span>
+                            <span className="text-xs text-zinc-400 font-mono truncate">{member.email}</span>
                           </div>
                         </div>
                       </td>
 
                       {/* Provider */}
-                      <td className="py-3 px-4.5">
-                        <span className="text-[11px] px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-zinc-300 font-mono">
+                      <td className="py-4 px-6">
+                        <span className="text-xs px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-zinc-300 font-mono">
                           {member.provider}
                         </span>
                       </td>
 
                       {/* Designations */}
-                      <td className="py-3 px-4.5">
+                      <td className="py-4 px-6">
                         <div className="flex flex-wrap gap-1 max-w-xs">
                           {member.designations.map((d) => (
                             <span
                               key={d}
-                              className="text-[10px] px-2 py-0.5 rounded-md bg-red-500/10 text-red-300 border border-red-500/20 font-medium"
+                              className="text-[11px] px-2 py-0.5 rounded-md bg-red-500/10 text-red-300 border border-red-500/20 font-medium"
                             >
                               {d}
                             </span>
                           ))}
                         </div>
                       </td>
-                      <td className="py-3 px-4.5">
+                      <td className="py-4 px-6">
                         <div className="flex flex-col gap-1 max-w-sm">
                           {member.designations.map((d) => {
                             const deptRoles = member.roles
@@ -692,8 +692,8 @@ export default function WhitelistPage() {
                             if (deptRoles.length === 0) return null;
                             const deptShort = d.startsWith('Ministry of ') ? d.replace('Ministry of ', '') : d;
                             return (
-                              <div key={d} className="inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-md bg-white/[0.03] border border-white/10 w-fit">
-                                <span className="text-zinc-400 font-mono text-[9px]">{deptShort}:</span>
+                              <div key={d} className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-md bg-white/[0.03] border border-white/10 w-fit">
+                                <span className="text-zinc-400 font-mono text-[10px]">{deptShort}:</span>
                                 <span className="text-white font-medium">{deptRoles.join(', ')}</span>
                               </div>
                             );
@@ -708,27 +708,27 @@ export default function WhitelistPage() {
                               return !allMatched.includes(r);
                             });
                             return extra.map((r) => (
-                              <span key={r} className="text-[10px] px-2 py-0.5 rounded-md bg-white/5 text-zinc-300 border border-white/10 font-medium w-fit">
+                              <span key={r} className="text-[11px] px-2 py-0.5 rounded-md bg-white/5 text-zinc-300 border border-white/10 font-medium w-fit">
                                 {r}
                               </span>
                             ));
                           })()}
                         </div>
                       </td>
-                      <td className="py-3 px-4.5">
+                      <td className="py-4 px-6">
                         {member.discordLinked ? (
-                          <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-mono">
-                            <CheckCircle2 size={13} />
+                          <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-mono">
+                            <CheckCircle2 size={14} />
                             <span>Linked</span>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-1.5 text-[11px] text-zinc-500 font-mono">
-                            <AlertCircle size={13} />
+                          <div className="flex items-center gap-1.5 text-xs text-zinc-500 font-mono">
+                            <AlertCircle size={14} />
                             <span>Pending</span>
                           </div>
                         )}
                       </td>
-                      <td className="py-3 px-4.5 text-right">
+                      <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
                           {canEditMember(member) && (
                             <button onClick={() => openEditModal(member)} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white transition-colors" title="Edit">

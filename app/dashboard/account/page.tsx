@@ -86,20 +86,20 @@ export default function AccountPage() {
     user.designations?.includes('Ministry');
 
   return (
-    <div className="flex flex-col gap-5 w-full">
+    <div className="flex flex-col gap-6 w-full">
       {/* Top Header & Session Status */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link
             href="/dashboard/whitelist"
-            className="p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-zinc-400 hover:text-white transition-colors"
+            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-400 hover:text-white transition-colors"
             title="Return to Whitelist"
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={18} />
           </Link>
           <div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white">Account Profile</h1>
-            <p className="text-xs text-zinc-400">Manage identity, permissions, and 2FA credentials</p>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">Account Profile</h1>
+            <p className="text-xs md:text-sm text-zinc-400">Manage identity, permissions, and 2FA credentials</p>
           </div>
         </div>
 
@@ -113,15 +113,15 @@ export default function AccountPage() {
 
       {/* Main Identity Card */}
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-2xl bg-[#121212]/80 border border-white/[0.08] p-5 md:p-6 backdrop-blur-xl shadow-xl"
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#141414] via-[#101010] to-[#0d0d0d] border border-white/10 p-6 md:p-8 backdrop-blur-xl shadow-2xl"
       >
-        <div className="absolute top-0 right-0 w-64 h-64 bg-red-600/10 blur-[90px] rounded-full pointer-events-none" />
+        <div className="absolute top-0 right-0 w-72 h-72 bg-red-600/10 blur-[100px] rounded-full pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
-          <div className="flex items-center gap-4">
-            <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-red-500/30 shadow-[0_0_20px_rgba(225,29,46,0.2)] shrink-0">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-5">
+            <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-2xl overflow-hidden border-2 border-red-500/30 shadow-[0_0_25px_rgba(225,29,46,0.25)] shrink-0">
               <Image
                 src={avatarUrl}
                 alt="Avatar"
@@ -131,15 +131,15 @@ export default function AccountPage() {
               />
             </div>
 
-            <div className="flex flex-col gap-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-lg md:text-xl font-bold text-white">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h2 className="text-xl md:text-2xl font-bold text-white">
                   {user.fullName || user.email.split('@')[0]}
                 </h2>
                 <span
-                  className={`text-[11px] px-2.5 py-0.5 rounded-md font-mono font-semibold tracking-wider uppercase border ${
+                  className={`text-xs px-2.5 py-0.5 rounded-full font-mono font-semibold tracking-wider uppercase border ${
                     isHighCommand
-                      ? 'bg-red-500/20 text-red-400 border-red-500/40 shadow-[0_0_10px_rgba(225,29,46,0.25)]'
+                      ? 'bg-red-500/20 text-red-400 border-red-500/40 shadow-[0_0_10px_rgba(225,29,46,0.3)]'
                       : isMinister
                       ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
                       : 'bg-zinc-800 text-zinc-300 border-white/10'
@@ -149,15 +149,15 @@ export default function AccountPage() {
                 </span>
               </div>
 
-              <span className="text-xs text-zinc-400 font-mono">{user.email}</span>
+              <span className="text-sm text-zinc-400 font-mono">{user.email}</span>
 
               <div className="flex flex-wrap items-center gap-2 mt-1">
-                <span className="text-[11px] px-2 py-0.5 rounded-md bg-white/[0.03] border border-white/[0.06] text-zinc-300 font-mono flex items-center gap-1">
-                  <KeyRound size={11} className="text-red-400" />
+                <span className="text-[11px] px-2.5 py-0.5 rounded-md bg-white/5 border border-white/10 text-zinc-300 font-mono flex items-center gap-1">
+                  <KeyRound size={12} className="text-red-400" />
                   Provider: {user.provider || 'EMAIL'}
                 </span>
-                <span className="text-[11px] px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono flex items-center gap-1">
-                  <CheckCircle2 size={11} />
+                <span className="text-[11px] px-2.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono flex items-center gap-1">
+                  <CheckCircle2 size={12} />
                   Status: {user.status || 'ACTIVE'}
                 </span>
               </div>
@@ -167,27 +167,27 @@ export default function AccountPage() {
       </motion.div>
 
       {/* 2-Column Grid: Personnel Assignments & Discord 2FA */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Personnel Hierarchy Card */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="rounded-2xl bg-[#121212]/80 border border-white/[0.08] p-5 backdrop-blur-xl flex flex-col justify-between"
+          className="rounded-2xl bg-[#111111]/70 border border-white/10 p-6 backdrop-blur-xl flex flex-col justify-between"
         >
           <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-3 pb-3 border-b border-white/[0.06]">
-              <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400">
-                <Layers size={18} />
+            <div className="flex items-center gap-3 pb-3 border-b border-white/5">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400">
+                <Layers size={20} />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white">Personnel Hierarchy</h3>
-                <p className="text-[11px] text-zinc-400">Assigned Designations & Roles</p>
+                <h3 className="text-base font-bold text-white">Personnel Hierarchy</h3>
+                <p className="text-xs text-zinc-400">Assigned Designations & Roles</p>
               </div>
             </div>
 
-            <div className="flex flex-col gap-2.5">
-              <span className="text-[11px] font-mono text-zinc-400 uppercase tracking-wider block">
+            <div className="flex flex-col gap-3">
+              <span className="text-xs font-mono text-zinc-400 uppercase tracking-wider block">
                 Department Roles & Assignments
               </span>
               <div className="flex flex-col gap-2">
@@ -201,7 +201,7 @@ export default function AccountPage() {
                     return (
                       <div
                         key={des}
-                        className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.05]"
+                        className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5"
                       >
                         <span className="text-xs text-red-300 font-semibold flex items-center gap-1.5 font-mono">
                           <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
@@ -212,13 +212,13 @@ export default function AccountPage() {
                             roles.map((r) => (
                               <span
                                 key={r}
-                                className="text-[10px] px-2 py-0.5 rounded-md bg-white/5 text-zinc-200 border border-white/10 font-medium"
+                                className="text-[11px] px-2.5 py-0.5 rounded-md bg-white/5 text-zinc-200 border border-white/10 font-medium"
                               >
                                 {r}
                               </span>
                             ))
                           ) : (
-                            <span className="text-[10px] text-zinc-500 italic">Standard</span>
+                            <span className="text-[11px] text-zinc-500 italic">Standard</span>
                           )}
                         </div>
                       </div>
@@ -233,54 +233,54 @@ export default function AccountPage() {
             </div>
           </div>
 
-          <div className="mt-5 pt-3.5 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-zinc-500 font-mono">
+          <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between text-xs text-zinc-500 font-mono">
             <span>Security Clearances Enforced</span>
-            <Shield size={13} className="text-red-400" />
+            <Shield size={14} className="text-red-400" />
           </div>
         </motion.div>
 
         {/* Discord 2FA Card */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="rounded-2xl bg-[#121212]/80 border border-white/[0.08] p-5 backdrop-blur-xl flex flex-col justify-between"
+          className="rounded-2xl bg-[#111111]/70 border border-white/10 p-6 backdrop-blur-xl flex flex-col justify-between"
         >
           <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-3 pb-3 border-b border-white/[0.06]">
-              <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-                <Lock size={18} />
+            <div className="flex items-center gap-3 pb-3 border-b border-white/5">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                <Lock size={20} />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white">Discord 2FA Integration</h3>
-                <p className="text-[11px] text-zinc-400">Mandatory hardware / OAuth2 guard</p>
+                <h3 className="text-base font-bold text-white">Discord 2FA Integration</h3>
+                <p className="text-xs text-zinc-400">Mandatory hardware / OAuth2 guard</p>
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.05] text-xs">
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5 text-xs">
                 <span className="text-zinc-400">2FA Status</span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono font-semibold flex items-center gap-1 text-[11px]">
-                  <CheckCircle2 size={11} />
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono font-semibold flex items-center gap-1">
+                  <CheckCircle2 size={12} />
                   LINKED & VERIFIED
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.05] text-xs">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5 text-xs">
                 <span className="text-zinc-400">Discord User</span>
-                <span className="text-indigo-300 font-mono text-xs">
+                <span className="text-indigo-300 font-mono">
                   {user.discordUsername ? `@${user.discordUsername}` : 'Authenticated'}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.05] text-xs">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5 text-xs">
                 <span className="text-zinc-400">Discord Snowflake ID</span>
-                <span className="text-zinc-300 font-mono text-xs">{user.discordId || 'N/A'}</span>
+                <span className="text-zinc-300 font-mono">{user.discordId || 'N/A'}</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-5 pt-3.5 border-t border-white/[0.06] text-[11px] text-zinc-500 font-mono">
+          <div className="mt-6 pt-4 border-t border-white/5 text-xs text-zinc-500 font-mono">
             <span>Single-use Pre-2FA tokens revoked on 2FA upgrade.</span>
           </div>
         </motion.div>
