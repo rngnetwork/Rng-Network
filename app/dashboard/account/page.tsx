@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
   Shield,
-  ShieldCheck,
   Lock,
   CheckCircle2,
   KeyRound,
@@ -287,39 +286,6 @@ export default function AccountPage() {
           </div>
         </motion.div>
       </div>
-
-      {/* Security & Token Architecture */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-        className="rounded-3xl bg-[#111111]/50 border border-white/10 p-6 md:p-8 backdrop-blur-xl"
-      >
-        <h3 className="text-base font-bold text-white mb-2 flex items-center gap-2">
-          <ShieldCheck size={18} className="text-red-400" />
-          <span>Security Protocol Specifications</span>
-        </h3>
-        <p className="text-xs md:text-sm text-zinc-400 leading-relaxed mb-4">
-          All requests are verified through Spring Security 6 stateless JWT inspection. Whitelisted accounts
-          benefit from immediate BCrypt hashing, strict domain-level authorization boundaries, and
-          automatic session cookie renewals via the backend token service.
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex flex-col gap-1">
-            <span className="text-zinc-500 font-mono">Access Token</span>
-            <span className="text-zinc-200 font-medium">JJWT HMAC-SHA256 (15m)</span>
-          </div>
-          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex flex-col gap-1">
-            <span className="text-zinc-500 font-mono">Refresh Cookie</span>
-            <span className="text-zinc-200 font-medium">HttpOnly Strict (7d)</span>
-          </div>
-          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex flex-col gap-1">
-            <span className="text-zinc-500 font-mono">Database Guard</span>
-            <span className="text-zinc-200 font-medium">PostgreSQL 16 Whitelist</span>
-          </div>
-        </div>
-      </motion.div>
     </div>
   );
 }

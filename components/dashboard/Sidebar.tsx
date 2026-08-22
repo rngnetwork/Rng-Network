@@ -6,13 +6,11 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  LayoutDashboard,
   ShieldCheck,
   User,
   LogOut,
   Menu,
   X,
-  Radio,
   ChevronRight
 } from 'lucide-react';
 import { api, UserProfileData } from '@/lib/api';
@@ -31,13 +29,6 @@ export function Sidebar({ user }: SidebarProps) {
   const canAccessWhitelist = isHighCommand || isMinister;
 
   const navItems = [
-    {
-      label: 'Overview',
-      href: '/dashboard',
-      icon: LayoutDashboard,
-      show: true,
-      badge: 'Live',
-    },
     {
       label: 'Whitelist',
       href: '/dashboard/whitelist',
@@ -81,17 +72,6 @@ export function Sidebar({ user }: SidebarProps) {
             </span>
             <span className="text-[11px] text-zinc-400 font-medium">Control Center</span>
           </div>
-        </div>
-
-        {/* Live System Status Pill */}
-        <div className="mt-4 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Radio size={14} className="text-emerald-400 animate-pulse" />
-            <span className="text-xs text-zinc-300 font-medium">Network 2FA</span>
-          </div>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
-            SECURED
-          </span>
         </div>
 
         {/* Navigation Items */}
