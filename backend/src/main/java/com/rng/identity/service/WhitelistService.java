@@ -34,11 +34,13 @@ public class WhitelistService {
         }
 
         if (PersonnelHierarchy.isMinister(operator)) {
-            String ministry = PersonnelHierarchy.getMinisterMinistry(operator)
-                    .orElseThrow(() -> new ForbiddenException("Minister account is not assigned to a valid Ministry designation"));
+            List<String> operatorMinistries = PersonnelHierarchy.getMinisterMinistries(operator);
+            if (operatorMinistries.isEmpty()) {
+                throw new ForbiddenException("Minister account is not assigned to a valid Ministry designation");
+            }
 
             return userRepository.findAll().stream()
-                    .filter(user -> user.getDesignationList().contains(ministry))
+                    .filter(user -> user.getDesignationList().stream().anyMatch(operatorMinistries::contains))
                     .map(this::mapToDto)
                     .toList();
         }
@@ -65,20 +67,26 @@ public class WhitelistService {
                 }
             }
         } else if (PersonnelHierarchy.isMinister(operator)) {
-            String ministry = PersonnelHierarchy.getMinisterMinistry(operator)
-                    .orElseThrow(() -> new ForbiddenException("Minister is not assigned to a valid Ministry"));
-
-            // Minister can only assign their own ministry
-            if (requestedDesignations.size() != 1 || !requestedDesignations.contains(ministry)) {
-                throw new ForbiddenException("Ministers may only assign their own Ministry: " + ministry);
+            List<String> operatorMinistries = PersonnelHierarchy.getMinisterMinistries(operator);
+            if (operatorMinistries.isEmpty()) {
+                throw new ForbiddenException("Minister is not assigned to a valid Ministry");
             }
 
-            // Minister can only assign roles under their ministry (excluding Minister itself)
-            List<String> validRoles = PersonnelHierarchy.getRolesForDesignation(ministry);
+            // Minister can only assign designations within their assigned ministries
+            if (requestedDesignations.isEmpty() || !operatorMinistries.containsAll(requestedDesignations)) {
+                throw new ForbiddenException("Ministers may only assign their own assigned ministries: " + operatorMinistries);
+            }
+
+            // Minister can only assign roles under their assigned ministries (excluding Minister itself for subordinates)
             for (String role : requestedRoles) {
                 String pureRole = role.contains(":") ? role.substring(role.indexOf(":") + 1).trim() : role.trim();
+                String targetDes = role.contains(":") ? role.substring(0, role.indexOf(":")).trim() : requestedDesignations.get(0);
+                if (!operatorMinistries.contains(targetDes)) {
+                    throw new ForbiddenException("Cannot assign role for unassigned ministry: " + targetDes);
+                }
+                List<String> validRoles = PersonnelHierarchy.getRolesForDesignation(targetDes);
                 if (!validRoles.contains(pureRole) || pureRole.equalsIgnoreCase("Minister") || pureRole.equalsIgnoreCase("High Command")) {
-                    throw new ForbiddenException("Cannot assign role '" + role + "' under ministry: " + ministry);
+                    throw new ForbiddenException("Cannot assign role '" + role + "' under ministry: " + targetDes);
                 }
             }
         } else {
@@ -124,47 +132,66 @@ public class WhitelistService {
                 }
             }
         } else if (PersonnelHierarchy.isMinister(operator)) {
-            String ministry = PersonnelHierarchy.getMinisterMinistry(operator)
-                    .orElseThrow(() -> new ForbiddenException("Minister is not assigned to a valid Ministry"));
-
-            if (!target.getDesignationList().contains(ministry)) {
-                throw new ForbiddenException("Ministers can only edit users within their own Ministry");
-            }
-            if (PersonnelHierarchy.isHighCommand(target)) {
-                throw new ForbiddenException("Ministers cannot modify High Command accounts");
+            List<String> operatorMinistries = PersonnelHierarchy.getMinisterMinistries(operator);
+            if (operatorMinistries.isEmpty()) {
+                throw new ForbiddenException("Minister is not assigned to a valid Ministry");
             }
 
             boolean isSelf = operator.getId().equals(target.getId());
-            if (PersonnelHierarchy.isMinister(target) && !isSelf) {
-                throw new ForbiddenException("Ministers cannot modify other Minister accounts");
-            }
-            if (requestedDesignations.size() != 1 || !requestedDesignations.contains(ministry)) {
-                throw new ForbiddenException("Ministers cannot alter ministry designation to outside: " + ministry);
-            }
 
-            List<String> validRoles = PersonnelHierarchy.getRolesForDesignation(ministry);
-
-            if (isSelf) {
-                // Minister editing their own account: Must retain "Minister" role
-                boolean hasMinister = requestedRoles.stream().anyMatch(r -> {
-                    String pure = r.contains(":") ? r.substring(r.indexOf(":") + 1).trim() : r.trim();
-                    return pure.equalsIgnoreCase("Minister");
-                });
-                if (!hasMinister) {
-                    throw new ForbiddenException("Ministers cannot remove their own Minister role");
+            if (!isSelf) {
+                boolean sharesMinistry = target.getDesignationList().stream().anyMatch(operatorMinistries::contains);
+                if (!sharesMinistry) {
+                    throw new ForbiddenException("Ministers can only edit users within their own assigned Ministries");
                 }
+                if (PersonnelHierarchy.isHighCommand(target)) {
+                    throw new ForbiddenException("Ministers cannot modify High Command accounts");
+                }
+                if (PersonnelHierarchy.isMinister(target)) {
+                    throw new ForbiddenException("Ministers cannot modify other Minister accounts");
+                }
+                if (requestedDesignations.isEmpty() || !operatorMinistries.containsAll(requestedDesignations)) {
+                    throw new ForbiddenException("Ministers cannot alter designations to outside their assigned ministries: " + operatorMinistries);
+                }
+
                 for (String role : requestedRoles) {
-                    String pure = role.contains(":") ? role.substring(role.indexOf(":") + 1).trim() : role.trim();
-                    if (!validRoles.contains(pure) || pure.equalsIgnoreCase("High Command")) {
-                        throw new ForbiddenException("Cannot assign role '" + role + "' under ministry: " + ministry);
+                    String pureRole = role.contains(":") ? role.substring(role.indexOf(":") + 1).trim() : role.trim();
+                    String targetDes = role.contains(":") ? role.substring(0, role.indexOf(":")).trim() : requestedDesignations.get(0);
+                    if (!operatorMinistries.contains(targetDes)) {
+                        throw new ForbiddenException("Cannot assign role for unassigned ministry: " + targetDes);
+                    }
+                    List<String> validRoles = PersonnelHierarchy.getRolesForDesignation(targetDes);
+                    if (!validRoles.contains(pureRole) || pureRole.equalsIgnoreCase("Minister") || pureRole.equalsIgnoreCase("High Command")) {
+                        throw new ForbiddenException("Cannot assign role '" + role + "' under ministry: " + targetDes);
                     }
                 }
             } else {
-                // Minister editing another subordinate account
+                // Minister editing their own account
+                if (requestedDesignations.isEmpty() || !operatorMinistries.containsAll(requestedDesignations)) {
+                    throw new ForbiddenException("Ministers cannot alter designations to outside their assigned ministries: " + operatorMinistries);
+                }
+
+                // Must retain "Minister" role for each of their assigned ministries in requestedDesignations
+                for (String minDes : requestedDesignations) {
+                    boolean hasMinisterRoleForDept = requestedRoles.stream().anyMatch(r -> {
+                        String pure = r.contains(":") ? r.substring(r.indexOf(":") + 1).trim() : r.trim();
+                        String dept = r.contains(":") ? r.substring(0, r.indexOf(":")).trim() : minDes;
+                        return pure.equalsIgnoreCase("Minister") && dept.equalsIgnoreCase(minDes);
+                    });
+                    if (!hasMinisterRoleForDept) {
+                        throw new ForbiddenException("Ministers cannot remove their own Minister role in " + minDes);
+                    }
+                }
+
                 for (String role : requestedRoles) {
-                    String pure = role.contains(":") ? role.substring(role.indexOf(":") + 1).trim() : role.trim();
-                    if (!validRoles.contains(pure) || pure.equalsIgnoreCase("Minister") || pure.equalsIgnoreCase("High Command")) {
-                        throw new ForbiddenException("Cannot assign role '" + role + "' under ministry: " + ministry);
+                    String pureRole = role.contains(":") ? role.substring(role.indexOf(":") + 1).trim() : role.trim();
+                    String targetDes = role.contains(":") ? role.substring(0, role.indexOf(":")).trim() : requestedDesignations.get(0);
+                    if (!operatorMinistries.contains(targetDes)) {
+                        throw new ForbiddenException("Cannot assign role for unassigned ministry: " + targetDes);
+                    }
+                    List<String> validRoles = PersonnelHierarchy.getRolesForDesignation(targetDes);
+                    if (!validRoles.contains(pureRole) || pureRole.equalsIgnoreCase("High Command")) {
+                        throw new ForbiddenException("Cannot assign role '" + role + "' under ministry: " + targetDes);
                     }
                 }
             }
@@ -202,11 +229,14 @@ public class WhitelistService {
         }
 
         if (PersonnelHierarchy.isMinister(operator)) {
-            String ministry = PersonnelHierarchy.getMinisterMinistry(operator)
-                    .orElseThrow(() -> new ForbiddenException("Minister is not assigned to a valid Ministry"));
+            List<String> operatorMinistries = PersonnelHierarchy.getMinisterMinistries(operator);
+            if (operatorMinistries.isEmpty()) {
+                throw new ForbiddenException("Minister is not assigned to a valid Ministry");
+            }
 
-            if (!target.getDesignationList().contains(ministry)) {
-                throw new ForbiddenException("Ministers can only delete users within their own Ministry");
+            boolean sharesMinistry = target.getDesignationList().stream().anyMatch(operatorMinistries::contains);
+            if (!sharesMinistry) {
+                throw new ForbiddenException("Ministers can only delete users within their own assigned Ministries");
             }
             if (PersonnelHierarchy.isMinister(target)) {
                 throw new ForbiddenException("Ministers cannot delete other Minister accounts");

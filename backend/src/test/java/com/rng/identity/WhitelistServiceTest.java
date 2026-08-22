@@ -147,7 +147,7 @@ class WhitelistServiceTest {
 
         assertThatThrownBy(() -> whitelistService.createWhitelistedUser(2L, request))
                 .isInstanceOf(ForbiddenException.class)
-                .hasMessageContaining("Ministers may only assign their own Ministry");
+                .hasMessageContaining("Ministers may only assign their own assigned ministries");
     }
 
     @Test
@@ -167,6 +167,50 @@ class WhitelistServiceTest {
         assertThatThrownBy(() -> whitelistService.createWhitelistedUser(2L, request))
                 .isInstanceOf(ForbiddenException.class)
                 .hasMessageContaining("Cannot assign role 'Minister'");
+    }
+
+    @Test
+    @DisplayName("Multi-ministry minister can view personnel across all assigned ministries")
+    void testMultiMinistryGetWhitelistedUsers() {
+        User multiMinister = User.builder()
+                .id(5L)
+                .email("dual.minister@rng.com")
+                .fullName("Dual Minister")
+                .provider(AuthProvider.EMAIL)
+                .role("ROLE_MINISTER")
+                .designations("Ministry of Tech, Ministry of Finances")
+                .roles("Ministry of Tech:Minister, Ministry of Finances:Minister")
+                .build();
+
+        User financeUser = User.builder()
+                .id(6L)
+                .email("finance@rng.com")
+                .fullName("Finance Officer")
+                .provider(AuthProvider.EMAIL)
+                .role("ROLE_USER")
+                .designations("Ministry of Finances")
+                .roles("Regional treasurer")
+                .build();
+
+        User internalUser = User.builder()
+                .id(7L)
+                .email("internal@rng.com")
+                .fullName("Internal Agent")
+                .provider(AuthProvider.EMAIL)
+                .role("ROLE_USER")
+                .designations("Ministry of Internal affairs")
+                .roles("agent")
+                .build();
+
+        when(userRepository.findById(5L)).thenReturn(Optional.of(multiMinister));
+        when(userRepository.findAll()).thenReturn(List.of(highCommandUser, multiMinister, regularDevUser, financeUser, internalUser));
+
+        List<WhitelistedUserDto> result = whitelistService.getWhitelistedUsers(5L);
+
+        // Should see dual minister self, regular dev (tech), and finance user (finances) - exactly 3
+        assertThat(result).hasSize(3);
+        assertThat(result).extracting(WhitelistedUserDto::getEmail)
+                .containsExactlyInAnyOrder("dual.minister@rng.com", "dev@rng.com", "finance@rng.com");
     }
 
     @Test

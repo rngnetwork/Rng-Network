@@ -173,7 +173,7 @@ class WhitelistIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message", containsString("Ministers may only assign their own Ministry")));
+                .andExpect(jsonPath("$.message", containsString("Ministers may only assign their own assigned ministries")));
     }
 
     @Test
@@ -190,7 +190,7 @@ class WhitelistIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message", containsString("Ministers can only edit users within their own Ministry")));
+                .andExpect(jsonPath("$.message", containsString("Ministers can only edit users within their own assigned Ministries")));
     }
 
     @Test

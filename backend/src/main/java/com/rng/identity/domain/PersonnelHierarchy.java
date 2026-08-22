@@ -87,12 +87,17 @@ public final class PersonnelHierarchy {
         });
     }
 
-    public static Optional<String> getMinisterMinistry(User user) {
-        if (user == null || !isMinister(user)) return Optional.empty();
+    public static List<String> getMinisterMinistries(User user) {
+        if (user == null || !isMinister(user)) return List.of();
         List<String> designations = user.getDesignationList();
         return designations.stream()
                 .filter(d -> d.startsWith("Ministry of"))
-                .findFirst();
+                .toList();
+    }
+
+    public static boolean isMinisterOf(User user, String ministry) {
+        if (user == null || ministry == null) return false;
+        return getMinisterMinistries(user).contains(ministry.trim());
     }
 
     public static String computePrimaryRole(List<String> roles, List<String> designations) {
