@@ -931,8 +931,8 @@ export default function WhitelistPage() {
                     <label className="text-xs font-mono text-zinc-400 uppercase tracking-wider">
                       Authentication Provider
                     </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {['EMAIL', 'GOOGLE', 'DISCORD'].map((p) => (
+                    <div className="grid grid-cols-2 gap-2">
+                      {['EMAIL', 'GOOGLE'].map((p) => (
                         <button
                           key={p}
                           type="button"
