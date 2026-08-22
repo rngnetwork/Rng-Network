@@ -62,20 +62,23 @@ export default function WhitelistPage() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
 
   const isHighCommand = useMemo(() => {
-    return (
-      currentUser?.role === 'ROLE_HIGH_COMMAND' ||
-      currentUser?.roles?.includes('High Command') ||
-      currentUser?.designations?.includes('Supreme')
-    );
+    const hasHcRole =
+      currentUser?.roleList?.some((r) => {
+        const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
+        return pure.toLowerCase() === 'high command';
+      }) || currentUser?.roles?.toLowerCase().includes('high command');
+    return Boolean(currentUser?.role === 'ROLE_HIGH_COMMAND' || hasHcRole);
   }, [currentUser]);
 
   const isMinister = useMemo(() => {
-    return (
-      currentUser?.role === 'ROLE_MINISTER' ||
-      currentUser?.roles?.includes('Minister') ||
-      currentUser?.designations?.includes('Ministry')
-    );
-  }, [currentUser]);
+    if (isHighCommand) return false; // High Command strictly overrides Minister privileges
+    const hasMinisterRole =
+      currentUser?.roleList?.some((r) => {
+        const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
+        return pure.toLowerCase() === 'minister';
+      }) || currentUser?.roles?.toLowerCase().includes('minister');
+    return Boolean(currentUser?.role === 'ROLE_MINISTER' || hasMinisterRole);
+  }, [currentUser, isHighCommand]);
 
   const ministerMinistry = useMemo(() => {
     if (!isMinister || !currentUser) return null;
@@ -416,11 +419,14 @@ export default function WhitelistPage() {
   };
 
   const canEditMember = (member: WhitelistedUser) => {
+    const isMemberHc =
+      member.role === 'ROLE_HIGH_COMMAND' ||
+      member.roles.some((r) => {
+        const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
+        return pure.toLowerCase() === 'high command';
+      });
+
     if (isHighCommand) {
-      const isMemberHc =
-        member.role === 'ROLE_HIGH_COMMAND' ||
-        member.roles.includes('High Command') ||
-        member.roles.some((r) => r.endsWith(':High Command'));
       if (isMemberHc && member.id !== currentUser?.id) {
         return false;
       }
@@ -428,15 +434,13 @@ export default function WhitelistPage() {
     }
     if (isMinister) {
       if (member.id === currentUser?.id) return true; // Minister can edit self
-      const isMemberHc =
-        member.role === 'ROLE_HIGH_COMMAND' ||
-        member.roles.includes('High Command') ||
-        member.roles.some((r) => r.endsWith(':High Command'));
       if (isMemberHc) return false;
       const isMemberMinister =
         member.role === 'ROLE_MINISTER' ||
-        member.roles.includes('Minister') ||
-        member.roles.some((r) => r.endsWith(':Minister'));
+        member.roles.some((r) => {
+          const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
+          return pure.toLowerCase() === 'minister';
+        });
       if (isMemberMinister) return false;
       return member.designations.includes(ministerMinistry || '');
     }
@@ -446,15 +450,19 @@ export default function WhitelistPage() {
   const canDeleteMember = (member: WhitelistedUser) => {
     const isMemberHc =
       member.role === 'ROLE_HIGH_COMMAND' ||
-      member.roles.includes('High Command') ||
-      member.roles.some((r) => r.endsWith(':High Command'));
+      member.roles.some((r) => {
+        const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
+        return pure.toLowerCase() === 'high command';
+      });
     if (isMemberHc || member.id === currentUser?.id) return false;
     if (isHighCommand) return true;
     if (isMinister) {
       const isMemberMinister =
         member.role === 'ROLE_MINISTER' ||
-        member.roles.includes('Minister') ||
-        member.roles.some((r) => r.endsWith(':Minister'));
+        member.roles.some((r) => {
+          const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
+          return pure.toLowerCase() === 'minister';
+        });
       if (isMemberMinister) return false;
       return member.designations.includes(ministerMinistry || '');
     }
@@ -618,7 +626,11 @@ export default function WhitelistPage() {
                 filteredUsers.map((member) => {
                   const avatar = getDiscordAvatarUrl(member.discordId, member.discordAvatar);
                   const isUserHighCommand =
-                    member.role === 'ROLE_HIGH_COMMAND' || member.roles.includes('High Command');
+                    member.role === 'ROLE_HIGH_COMMAND' ||
+                    member.roles.some((r) => {
+                      const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
+                      return pure.toLowerCase() === 'high command';
+                    });
 
                   return (
                     <tr
@@ -750,8 +762,10 @@ export default function WhitelistPage() {
             const avatar = getDiscordAvatarUrl(member.discordId, member.discordAvatar);
             const isUserHighCommand =
               member.role === 'ROLE_HIGH_COMMAND' ||
-              member.roles.includes('High Command') ||
-              member.roles.some((r) => r.endsWith(':High Command'));
+              member.roles.some((r) => {
+                const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
+                return pure.toLowerCase() === 'high command';
+              });
             return (
               <div key={member.id} className="p-5 rounded-2xl bg-[#111111]/80 border border-white/10 backdrop-blur-xl flex flex-col gap-4 shadow-lg">
                 <div className="flex items-center justify-between">
