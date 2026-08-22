@@ -123,7 +123,7 @@ export default function DashboardLayout({
       {/* Main App Container */}
       <div className="flex-1 flex flex-col md:pl-64 min-w-0">
         {/* Top Header Bar */}
-        <header className="sticky top-0 z-30 h-16 md:h-20 px-6 md:px-10 border-b border-white/5 bg-[#080808]/70 backdrop-blur-xl flex items-center justify-between">
+        <header className="sticky top-0 z-30 h-14 md:h-16 px-6 md:px-8 border-b border-white/[0.06] bg-[#0c0c0c]/80 backdrop-blur-xl flex items-center justify-between">
           <div className="hidden md:flex items-center gap-2">
             <span className="text-xs font-mono text-zinc-500 uppercase tracking-wider">Workspace:</span>
             <span className="text-xs font-mono font-semibold text-zinc-300 px-2 py-0.5 rounded-md bg-white/5 border border-white/10">
@@ -137,7 +137,7 @@ export default function DashboardLayout({
         </header>
 
         {/* Dynamic Page Content */}
-        <main className="flex-1 p-6 md:p-10 max-w-7xl w-full mx-auto">
+        <main className="flex-1 px-5 py-5 md:px-8 md:py-7 max-w-6xl w-full mx-auto">
           {children}
         </main>
       </div>
