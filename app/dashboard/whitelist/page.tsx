@@ -80,10 +80,10 @@ export default function WhitelistPage() {
     return Boolean(currentUser?.role === 'ROLE_MINISTER' || hasMinisterRole);
   }, [currentUser, isHighCommand]);
 
-  const ministerMinistry = useMemo(() => {
-    if (!isMinister || !currentUser) return null;
+  const ministerMinistries = useMemo(() => {
+    if (!isMinister || !currentUser) return [];
     const list = currentUser.designationList || [];
-    return list.find((d) => d.startsWith('Ministry of')) || (currentUser.designations?.startsWith('Ministry of') ? currentUser.designations : null);
+    return list.filter((d) => d.startsWith('Ministry of'));
   }, [isMinister, currentUser]);
 
   const canManage = isHighCommand || isMinister;
@@ -194,12 +194,12 @@ export default function WhitelistPage() {
   // Open Add Modal
   const openAddModal = () => {
     setFormError(null);
-    if (isMinister && ministerMinistry) {
+    if (isMinister && ministerMinistries.length > 0) {
       setFormData({
         email: '',
         userName: '',
         provider: 'EMAIL',
-        designations: [ministerMinistry],
+        designations: [...ministerMinistries],
         roles: [],
       });
     } else {
@@ -248,7 +248,7 @@ export default function WhitelistPage() {
 
   // Toggle designation selection
   const handleToggleDesignation = (des: string) => {
-    if (isMinister) return; // Minister cannot change designation
+    if (isMinister && !ministerMinistries.includes(des)) return; // Minister cannot select unassigned ministries
 
     setFormData((prev) => {
       const exists = prev.designations.includes(des);
@@ -280,10 +280,10 @@ export default function WhitelistPage() {
   // Toggle role selection for a specific department
   const handleToggleRoleForDept = (des: string, role: string) => {
     const scopedToken = `${des}:${role}`;
-    const isEditingSelf = userToEdit && currentUser && userToEdit.id === currentUser.id;
+    const isEditingSelf = Boolean(userToEdit && currentUser && userToEdit.id === currentUser.id);
 
-    // Minister editing self: Cannot untoggle Minister role
-    if (isMinister && isEditingSelf && role === 'Minister' && des === ministerMinistry) {
+    // Minister editing self: Cannot untoggle Minister role in any of their assigned minister ministries
+    if (isMinister && isEditingSelf && role === 'Minister' && ministerMinistries.includes(des)) {
       return;
     }
 
@@ -442,7 +442,7 @@ export default function WhitelistPage() {
           return pure.toLowerCase() === 'minister';
         });
       if (isMemberMinister) return false;
-      return member.designations.includes(ministerMinistry || '');
+      return member.designations.some((d) => ministerMinistries.includes(d));
     }
     return false;
   };
@@ -464,7 +464,7 @@ export default function WhitelistPage() {
           return pure.toLowerCase() === 'minister';
         });
       if (isMemberMinister) return false;
-      return member.designations.includes(ministerMinistry || '');
+      return member.designations.some((d) => ministerMinistries.includes(d));
     }
     return false;
   };
@@ -524,14 +524,14 @@ export default function WhitelistPage() {
                   </span>
                 ) : (
                   <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 font-mono">
-                    {ministerMinistry || 'Ministry Scoped'}
+                    {ministerMinistries.length > 0 ? ministerMinistries.join(' & ') : 'Ministry Scoped'}
                   </span>
                 )}
               </h1>
               <p className="text-xs md:text-sm text-zinc-400">
                 {isHighCommand
                   ? 'Manage system-wide personnel credentials, designations, and permissions.'
-                  : `Scoped access: You may manage personnel strictly within ${ministerMinistry || 'your Ministry'}.`}
+                  : `Scoped access: You may manage personnel strictly within ${ministerMinistries.length > 0 ? ministerMinistries.join(' & ') : 'your assigned ministries'}.`}
               </p>
             </div>
           </div>
@@ -852,7 +852,9 @@ export default function WhitelistPage() {
                       {addModalOpen ? 'Whitelist New Member' : 'Edit Personnel Credentials'}
                     </h3>
                     <p className="text-xs text-zinc-400">
-                      {isHighCommand ? 'High Command Full Privileges' : `Ministry Scoped: ${ministerMinistry}`}
+                      {isHighCommand
+                        ? 'High Command Full Privileges'
+                        : `Ministry Scoped: ${ministerMinistries.join(' & ')}`}
                     </p>
                   </div>
                 </div>
@@ -962,7 +964,7 @@ export default function WhitelistPage() {
                   <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 rounded-xl bg-white/[0.02] border border-white/5">
                     {Object.keys(hierarchy).map((des) => {
                       const isSelected = formData.designations.includes(des);
-                      const isLockedForMinister = isMinister && des !== ministerMinistry;
+                      const isLockedForMinister = isMinister && !ministerMinistries.includes(des);
 
                       return (
                         <button
@@ -1026,7 +1028,7 @@ export default function WhitelistPage() {
                               ) : (
                                 deptRoles.map((role) => {
                                   const isMinisterSelfLock = Boolean(
-                                    isMinister && isEditingSelf && role === 'Minister' && des === ministerMinistry
+                                    isMinister && isEditingSelf && role === 'Minister' && ministerMinistries.includes(des)
                                   );
                                   const isMinisterSubordinateLock = Boolean(
                                     isMinister && !isEditingSelf && (role === 'Minister' || role === 'High Command')
