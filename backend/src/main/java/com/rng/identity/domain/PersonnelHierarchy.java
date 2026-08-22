@@ -69,16 +69,16 @@ public final class PersonnelHierarchy {
 
     public static boolean isHighCommand(User user) {
         if (user == null) return false;
-        if ("ROLE_HIGH_COMMAND".equalsIgnoreCase(user.getRole())) return true;
         List<String> roles = user.getRoleList();
-        return roles.stream().anyMatch(r -> {
+        boolean hasHcRole = roles.stream().anyMatch(r -> {
             String pure = r.contains(":") ? r.substring(r.indexOf(":") + 1).trim() : r.trim();
             return pure.equalsIgnoreCase("High Command");
         });
+        return hasHcRole || "ROLE_HIGH_COMMAND".equalsIgnoreCase(user.getRole());
     }
 
     public static boolean isMinister(User user) {
-        if (user == null) return false;
+        if (user == null || isHighCommand(user)) return false;
         if ("ROLE_MINISTER".equalsIgnoreCase(user.getRole())) return true;
         List<String> roles = user.getRoleList();
         return roles.stream().anyMatch(r -> {
@@ -97,12 +97,11 @@ public final class PersonnelHierarchy {
 
     public static String computePrimaryRole(List<String> roles, List<String> designations) {
         if (roles == null) roles = List.of();
-        if (designations == null) designations = List.of();
 
         boolean hasHc = roles.stream().anyMatch(r -> {
             String pure = r.contains(":") ? r.substring(r.indexOf(":") + 1).trim() : r.trim();
             return pure.equalsIgnoreCase("High Command");
-        }) || designations.stream().anyMatch(d -> d.equalsIgnoreCase(SUPREME));
+        });
 
         if (hasHc) {
             return "ROLE_HIGH_COMMAND";
