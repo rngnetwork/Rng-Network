@@ -61,14 +61,24 @@ export default function WhitelistPage() {
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
 
+  const isChiefHighCommand = useMemo(() => {
+    const hasChiefRole =
+      currentUser?.roleList?.some((r) => {
+        const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
+        return pure.toLowerCase() === 'chief high command';
+      }) || currentUser?.roles?.toLowerCase().includes('chief high command');
+    return Boolean(currentUser?.role === 'ROLE_CHIEF_HIGH_COMMAND' || hasChiefRole);
+  }, [currentUser]);
+
   const isHighCommand = useMemo(() => {
+    if (isChiefHighCommand) return true;
     const hasHcRole =
       currentUser?.roleList?.some((r) => {
         const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
-        return pure.toLowerCase() === 'high command';
+        return pure.toLowerCase() === 'high command' || pure.toLowerCase() === 'chief high command';
       }) || currentUser?.roles?.toLowerCase().includes('high command');
-    return Boolean(currentUser?.role === 'ROLE_HIGH_COMMAND' || hasHcRole);
-  }, [currentUser]);
+    return Boolean(currentUser?.role === 'ROLE_HIGH_COMMAND' || currentUser?.role === 'ROLE_CHIEF_HIGH_COMMAND' || hasHcRole);
+  }, [currentUser, isChiefHighCommand]);
 
   const isMinister = useMemo(() => {
     if (isHighCommand) return false; // High Command strictly overrides Minister privileges
@@ -139,7 +149,7 @@ export default function WhitelistPage() {
             setHierarchy(hierRes.value.data);
           } else {
             setHierarchy({
-              "Supreme": ["High Command"],
+              "Supreme": ["Chief High Command", "High Command"],
               "Ministry of Internal affairs": ["Minister", "Secretary", "Senior Agent", "Agent"],
               "Ministry of Personell": ["Minister", "Secretary", "Magister Officiorum", "Tribunus", "Legatus"],
               "Ministry of Tech": ["Minister", "Secretary", "Tech Specialist", "Senior Dev", "Junior Dev"],
@@ -282,13 +292,18 @@ export default function WhitelistPage() {
     const scopedToken = `${des}:${role}`;
     const isEditingSelf = Boolean(userToEdit && currentUser && userToEdit.id === currentUser.id);
 
+    // Only Chief High Command can assign Chief High Command
+    if (!isChiefHighCommand && role === 'Chief High Command') {
+      return;
+    }
+
     // Minister editing self: Cannot untoggle Minister role in any of their assigned minister ministries
     if (isMinister && isEditingSelf && role === 'Minister' && ministerMinistries.includes(des)) {
       return;
     }
 
-    // Minister editing another account: Cannot assign Minister or High Command
-    if (isMinister && !isEditingSelf && (role === 'Minister' || role === 'High Command')) {
+    // Minister editing another account: Cannot assign Minister, High Command, or Chief High Command
+    if (isMinister && !isEditingSelf && (role === 'Minister' || role === 'High Command' || role === 'Chief High Command')) {
       return;
     }
 
@@ -419,19 +434,37 @@ export default function WhitelistPage() {
   };
 
   const canEditMember = (member: WhitelistedUser) => {
+    const isMemberChiefHc =
+      member.role === 'ROLE_CHIEF_HIGH_COMMAND' ||
+      member.roles.some((r) => {
+        const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
+        return pure.toLowerCase() === 'chief high command';
+      });
+
     const isMemberHc =
+      isMemberChiefHc ||
       member.role === 'ROLE_HIGH_COMMAND' ||
       member.roles.some((r) => {
         const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
         return pure.toLowerCase() === 'high command';
       });
 
+    if (isChiefHighCommand) {
+      // Chief High Command can edit all regular High Command, Ministers, and Users seamlessly
+      if (isMemberChiefHc && member.id !== currentUser?.id) {
+        return false; // Peer protection against other Chief High Command members
+      }
+      return true;
+    }
+
     if (isHighCommand) {
+      // Regular High Command cannot edit other High Command or Chief High Command accounts
       if (isMemberHc && member.id !== currentUser?.id) {
         return false;
       }
       return true;
     }
+
     if (isMinister) {
       if (member.id === currentUser?.id) return true; // Minister can edit self
       if (isMemberHc) return false;
@@ -448,15 +481,37 @@ export default function WhitelistPage() {
   };
 
   const canDeleteMember = (member: WhitelistedUser) => {
+    const isMemberChiefHc =
+      member.role === 'ROLE_CHIEF_HIGH_COMMAND' ||
+      member.roles.some((r) => {
+        const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
+        return pure.toLowerCase() === 'chief high command';
+      });
+
     const isMemberHc =
+      isMemberChiefHc ||
       member.role === 'ROLE_HIGH_COMMAND' ||
       member.roles.some((r) => {
         const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
         return pure.toLowerCase() === 'high command';
       });
-    if (isMemberHc || member.id === currentUser?.id) return false;
-    if (isHighCommand) return true;
+
+    if (member.id === currentUser?.id) return false;
+    if (isMemberChiefHc) return false; // Chief High Command accounts can NEVER be deleted
+
+    if (isChiefHighCommand) {
+      // Chief High Command can delete regular High Command members seamlessly!
+      return true;
+    }
+
+    if (isHighCommand) {
+      // Regular High Command cannot delete other High Command accounts
+      if (isMemberHc) return false;
+      return true;
+    }
+
     if (isMinister) {
+      if (isMemberHc) return false;
       const isMemberMinister =
         member.role === 'ROLE_MINISTER' ||
         member.roles.some((r) => {
@@ -518,7 +573,11 @@ export default function WhitelistPage() {
             <div>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white flex items-center gap-2">
                 Personnel Whitelist
-                {isHighCommand ? (
+                {isChiefHighCommand ? (
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-red-500/30 text-red-300 border border-red-500/50 font-mono shadow-[0_0_10px_rgba(239,68,68,0.3)]">
+                    Chief High Command Master
+                  </span>
+                ) : isHighCommand ? (
                   <span className="text-xs px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/40 font-mono">
                     High Command Master
                   </span>
@@ -625,7 +684,15 @@ export default function WhitelistPage() {
               ) : (
                 filteredUsers.map((member) => {
                   const avatar = getDiscordAvatarUrl(member.discordId, member.discordAvatar);
+                  const isUserChiefHighCommand =
+                    member.role === 'ROLE_CHIEF_HIGH_COMMAND' ||
+                    member.roles.some((r) => {
+                      const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
+                      return pure.toLowerCase() === 'chief high command';
+                    });
+
                   const isUserHighCommand =
+                    isUserChiefHighCommand ||
                     member.role === 'ROLE_HIGH_COMMAND' ||
                     member.roles.some((r) => {
                       const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
@@ -652,11 +719,15 @@ export default function WhitelistPage() {
                           <div className="flex flex-col min-w-0">
                             <span className="font-semibold text-white truncate flex items-center gap-2">
                               {member.userName}
-                              {isUserHighCommand && (
+                              {isUserChiefHighCommand ? (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/30 text-red-300 border border-red-500/50 font-mono font-bold shadow-[0_0_8px_rgba(239,68,68,0.3)]">
+                                  CHC
+                                </span>
+                              ) : isUserHighCommand ? (
                                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 font-mono">
                                   HC
                                 </span>
-                              )}
+                              ) : null}
                             </span>
                             <span className="text-xs text-zinc-400 font-mono truncate">{member.email}</span>
                           </div>
@@ -760,7 +831,15 @@ export default function WhitelistPage() {
         ) : (
           filteredUsers.map((member) => {
             const avatar = getDiscordAvatarUrl(member.discordId, member.discordAvatar);
+            const isUserChiefHighCommand =
+              member.role === 'ROLE_CHIEF_HIGH_COMMAND' ||
+              member.roles.some((r) => {
+                const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
+                return pure.toLowerCase() === 'chief high command';
+              });
+
             const isUserHighCommand =
+              isUserChiefHighCommand ||
               member.role === 'ROLE_HIGH_COMMAND' ||
               member.roles.some((r) => {
                 const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
@@ -776,7 +855,15 @@ export default function WhitelistPage() {
                     <div className="flex flex-col min-w-0">
                       <span className="font-bold text-white text-base truncate flex items-center gap-2">
                         {member.userName}
-                        {isUserHighCommand && <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 font-mono">HC</span>}
+                        {isUserChiefHighCommand ? (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/30 text-red-300 border border-red-500/50 font-mono font-bold shadow-[0_0_8px_rgba(239,68,68,0.3)]">
+                            CHC
+                          </span>
+                        ) : isUserHighCommand ? (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 font-mono">
+                            HC
+                          </span>
+                        ) : null}
                       </span>
                       <span className="text-xs text-zinc-400 font-mono truncate">{member.email}</span>
                     </div>

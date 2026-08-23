@@ -26,7 +26,7 @@ public final class PersonnelHierarchy {
         Map<String, List<String>> map = new LinkedHashMap<>();
 
         // 1. Supreme
-        map.put(SUPREME, List.of("High Command"));
+        map.put(SUPREME, List.of("Chief High Command", "High Command"));
 
         // 2. Ministries
         map.put(MINISTRY_INTERNAL_AFFAIRS, List.of("Minister", "Secretary", "Senior Agent", "Agent"));
@@ -67,14 +67,25 @@ public final class PersonnelHierarchy {
         return roles.stream().anyMatch(r -> r.equalsIgnoreCase(pureRole));
     }
 
+    public static boolean isChiefHighCommand(User user) {
+        if (user == null) return false;
+        List<String> roles = user.getRoleList();
+        boolean hasChiefRole = roles.stream().anyMatch(r -> {
+            String pure = r.contains(":") ? r.substring(r.indexOf(":") + 1).trim() : r.trim();
+            return pure.equalsIgnoreCase("Chief High Command");
+        });
+        return hasChiefRole || "ROLE_CHIEF_HIGH_COMMAND".equalsIgnoreCase(user.getRole());
+    }
+
     public static boolean isHighCommand(User user) {
         if (user == null) return false;
+        if (isChiefHighCommand(user)) return true;
         List<String> roles = user.getRoleList();
         boolean hasHcRole = roles.stream().anyMatch(r -> {
             String pure = r.contains(":") ? r.substring(r.indexOf(":") + 1).trim() : r.trim();
-            return pure.equalsIgnoreCase("High Command");
+            return pure.equalsIgnoreCase("High Command") || pure.equalsIgnoreCase("Chief High Command");
         });
-        return hasHcRole || "ROLE_HIGH_COMMAND".equalsIgnoreCase(user.getRole());
+        return hasHcRole || "ROLE_HIGH_COMMAND".equalsIgnoreCase(user.getRole()) || "ROLE_CHIEF_HIGH_COMMAND".equalsIgnoreCase(user.getRole());
     }
 
     public static boolean isMinister(User user) {
@@ -102,6 +113,15 @@ public final class PersonnelHierarchy {
 
     public static String computePrimaryRole(List<String> roles, List<String> designations) {
         if (roles == null) roles = List.of();
+
+        boolean hasChiefHc = roles.stream().anyMatch(r -> {
+            String pure = r.contains(":") ? r.substring(r.indexOf(":") + 1).trim() : r.trim();
+            return pure.equalsIgnoreCase("Chief High Command");
+        });
+
+        if (hasChiefHc) {
+            return "ROLE_HIGH_COMMAND";
+        }
 
         boolean hasHc = roles.stream().anyMatch(r -> {
             String pure = r.contains(":") ? r.substring(r.indexOf(":") + 1).trim() : r.trim();

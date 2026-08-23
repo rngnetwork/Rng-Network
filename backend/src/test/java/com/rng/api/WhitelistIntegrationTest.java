@@ -42,12 +42,14 @@ class WhitelistIntegrationTest {
     @Autowired
     private TokenService tokenService;
 
-    private User highCommand;
+    private User chiefHighCommand;
+    private User regularHighCommand;
     private User ministerTech;
     private User regularDev;
     private User internalAgent;
 
-    private String highCommandToken;
+    private String chiefHighCommandToken;
+    private String regularHighCommandToken;
     private String ministerTechToken;
     private String regularDevToken;
 
@@ -55,9 +57,19 @@ class WhitelistIntegrationTest {
     void setUp() {
         userRepository.deleteAll();
 
-        highCommand = userRepository.save(User.builder()
+        chiefHighCommand = userRepository.save(User.builder()
                 .email("arzenic@rednecksgaming.com")
                 .fullName("Arzenic")
+                .provider(AuthProvider.EMAIL)
+                .role("ROLE_HIGH_COMMAND")
+                .designations("Supreme")
+                .roles("High Command, Chief High Command")
+                .status("ACTIVE")
+                .build());
+
+        regularHighCommand = userRepository.save(User.builder()
+                .email("peer.hc@rng.com")
+                .fullName("Peer HC")
                 .provider(AuthProvider.EMAIL)
                 .role("ROLE_HIGH_COMMAND")
                 .designations("Supreme")
@@ -95,7 +107,8 @@ class WhitelistIntegrationTest {
                 .status("ACTIVE")
                 .build());
 
-        highCommandToken = tokenService.generateAccessToken(highCommand.getId(), highCommand.getEmail(), highCommand.getRole());
+        chiefHighCommandToken = tokenService.generateAccessToken(chiefHighCommand.getId(), chiefHighCommand.getEmail(), chiefHighCommand.getRole());
+        regularHighCommandToken = tokenService.generateAccessToken(regularHighCommand.getId(), regularHighCommand.getEmail(), regularHighCommand.getRole());
         ministerTechToken = tokenService.generateAccessToken(ministerTech.getId(), ministerTech.getEmail(), ministerTech.getRole());
         regularDevToken = tokenService.generateAccessToken(regularDev.getId(), regularDev.getEmail(), regularDev.getRole());
     }
@@ -104,12 +117,13 @@ class WhitelistIntegrationTest {
     @DisplayName("GET /api/v1/whitelist - High Command views all whitelisted users")
     void testHighCommandViewsAllWhitelistedUsers() throws Exception {
         mockMvc.perform(get("/api/v1/whitelist")
-                        .header(SecurityConstants.AUTHORIZATION_HEADER, "Bearer " + highCommandToken))
+                        .header(SecurityConstants.AUTHORIZATION_HEADER, "Bearer " + chiefHighCommandToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
-                .andExpect(jsonPath("$.data", hasSize(4)))
+                .andExpect(jsonPath("$.data", hasSize(5)))
                 .andExpect(jsonPath("$.data[*].email", hasItems(
                         "arzenic@rednecksgaming.com",
+                        "peer.hc@rng.com",
                         "minister.tech@rng.com",
                         "dev@rng.com",
                         "agent@rng.com"
@@ -147,7 +161,7 @@ class WhitelistIntegrationTest {
                 .build();
 
         mockMvc.perform(post("/api/v1/whitelist")
-                        .header(SecurityConstants.AUTHORIZATION_HEADER, "Bearer " + highCommandToken)
+                        .header(SecurityConstants.AUTHORIZATION_HEADER, "Bearer " + chiefHighCommandToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -194,22 +208,66 @@ class WhitelistIntegrationTest {
     }
 
     @Test
-    @DisplayName("DELETE /api/v1/whitelist/{id} - Cannot delete High Command")
-    void testCannotDeleteHighCommand() throws Exception {
-        mockMvc.perform(delete("/api/v1/whitelist/" + highCommand.getId())
-                        .header(SecurityConstants.AUTHORIZATION_HEADER, "Bearer " + highCommandToken))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message", containsString("High Command administrator accounts cannot be deleted")));
+    @DisplayName("PUT /api/v1/whitelist/{id} - Chief High Command can edit regular High Command")
+    void testChiefHighCommandCanEditRegularHighCommand() throws Exception {
+        UpdateWhitelistedUserRequest request = UpdateWhitelistedUserRequest.builder()
+                .userName("Updated Peer HC")
+                .designations(List.of("Supreme", "Chancellory"))
+                .roles(List.of("High Command", "Chancellor of Rivals"))
+                .build();
+
+        mockMvc.perform(put("/api/v1/whitelist/" + regularHighCommand.getId())
+                        .header(SecurityConstants.AUTHORIZATION_HEADER, "Bearer " + chiefHighCommandToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.userName", is("Updated Peer HC")));
     }
 
     @Test
-    @DisplayName("GET /api/v1/whitelist/hierarchy - Returns canonical hierarchy map")
+    @DisplayName("PUT /api/v1/whitelist/{id} - Regular High Command cannot edit other High Command")
+    void testRegularHighCommandCannotEditOtherHighCommand() throws Exception {
+        UpdateWhitelistedUserRequest request = UpdateWhitelistedUserRequest.builder()
+                .userName("Tampered Chief")
+                .designations(List.of("Supreme"))
+                .roles(List.of("High Command"))
+                .build();
+
+        mockMvc.perform(put("/api/v1/whitelist/" + chiefHighCommand.getId())
+                        .header(SecurityConstants.AUTHORIZATION_HEADER, "Bearer " + regularHighCommandToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message", containsString("High Command administrators cannot modify other High Command members")));
+    }
+
+    @Test
+    @DisplayName("DELETE /api/v1/whitelist/{id} - Chief High Command can delete regular High Command")
+    void testChiefHighCommandCanDeleteRegularHighCommand() throws Exception {
+        mockMvc.perform(delete("/api/v1/whitelist/" + regularHighCommand.getId())
+                        .header(SecurityConstants.AUTHORIZATION_HEADER, "Bearer " + chiefHighCommandToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)));
+    }
+
+    @Test
+    @DisplayName("DELETE /api/v1/whitelist/{id} - Regular High Command cannot delete other High Command")
+    void testRegularHighCommandCannotDeleteOtherHighCommand() throws Exception {
+        mockMvc.perform(delete("/api/v1/whitelist/" + chiefHighCommand.getId())
+                        .header(SecurityConstants.AUTHORIZATION_HEADER, "Bearer " + regularHighCommandToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message", containsString("Chief High Command administrator accounts cannot be deleted")));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/whitelist/hierarchy - Returns canonical hierarchy map including Chief High Command")
     void testGetPersonnelHierarchy() throws Exception {
         mockMvc.perform(get("/api/v1/whitelist/hierarchy")
-                        .header(SecurityConstants.AUTHORIZATION_HEADER, "Bearer " + highCommandToken))
+                        .header(SecurityConstants.AUTHORIZATION_HEADER, "Bearer " + chiefHighCommandToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
-                .andExpect(jsonPath("$.data.Supreme", hasItem("High Command")))
+                .andExpect(jsonPath("$.data.Supreme", hasItems("Chief High Command", "High Command")))
                 .andExpect(jsonPath("$.data['Ministry of Tech']", hasItems("Minister", "Secretary", "Tech Specialist", "Senior Dev", "Junior Dev")));
     }
 }

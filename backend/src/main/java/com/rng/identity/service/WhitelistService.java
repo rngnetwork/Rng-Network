@@ -66,6 +66,16 @@ public class WhitelistService {
                     throw new IllegalArgumentException("Invalid designation: " + des);
                 }
             }
+
+            // Only Chief High Command can assign Chief High Command role
+            if (!PersonnelHierarchy.isChiefHighCommand(operator)) {
+                for (String role : requestedRoles) {
+                    String pureRole = role.contains(":") ? role.substring(role.indexOf(":") + 1).trim() : role.trim();
+                    if (pureRole.equalsIgnoreCase("Chief High Command")) {
+                        throw new ForbiddenException("Only Chief High Command can assign the Chief High Command role");
+                    }
+                }
+            }
         } else if (PersonnelHierarchy.isMinister(operator)) {
             List<String> operatorMinistries = PersonnelHierarchy.getMinisterMinistries(operator);
             if (operatorMinistries.isEmpty()) {
@@ -85,7 +95,7 @@ public class WhitelistService {
                     throw new ForbiddenException("Cannot assign role for unassigned ministry: " + targetDes);
                 }
                 List<String> validRoles = PersonnelHierarchy.getRolesForDesignation(targetDes);
-                if (!validRoles.contains(pureRole) || pureRole.equalsIgnoreCase("Minister") || pureRole.equalsIgnoreCase("High Command")) {
+                if (!validRoles.contains(pureRole) || pureRole.equalsIgnoreCase("Minister") || pureRole.equalsIgnoreCase("High Command") || pureRole.equalsIgnoreCase("Chief High Command")) {
                     throw new ForbiddenException("Cannot assign role '" + role + "' under ministry: " + targetDes);
                 }
             }
@@ -122,9 +132,28 @@ public class WhitelistService {
         List<String> requestedDesignations = request.getDesignations().stream().map(String::trim).toList();
         List<String> requestedRoles = request.getRoles().stream().map(String::trim).toList();
 
-        if (PersonnelHierarchy.isHighCommand(operator)) {
+        if (PersonnelHierarchy.isChiefHighCommand(operator)) {
+            // Chief High Command can modify regular High Command, Ministers, and Users
+            // Peer protection: Chief HC cannot modify other Chief HC members (unless editing self)
+            if (PersonnelHierarchy.isChiefHighCommand(target) && !operator.getId().equals(target.getId())) {
+                throw new ForbiddenException("Chief High Command administrators cannot modify other Chief High Command members");
+            }
+            for (String des : requestedDesignations) {
+                if (!PersonnelHierarchy.isValidDesignation(des)) {
+                    throw new IllegalArgumentException("Invalid designation: " + des);
+                }
+            }
+        } else if (PersonnelHierarchy.isHighCommand(operator)) {
+            // Regular High Command cannot modify other High Command or Chief High Command members
             if (PersonnelHierarchy.isHighCommand(target) && !operator.getId().equals(target.getId())) {
                 throw new ForbiddenException("High Command administrators cannot modify other High Command members");
+            }
+            // Regular High Command cannot assign Chief High Command role
+            for (String role : requestedRoles) {
+                String pureRole = role.contains(":") ? role.substring(role.indexOf(":") + 1).trim() : role.trim();
+                if (pureRole.equalsIgnoreCase("Chief High Command")) {
+                    throw new ForbiddenException("Only Chief High Command can assign the Chief High Command role");
+                }
             }
             for (String des : requestedDesignations) {
                 if (!PersonnelHierarchy.isValidDesignation(des)) {
@@ -161,7 +190,7 @@ public class WhitelistService {
                         throw new ForbiddenException("Cannot assign role for unassigned ministry: " + targetDes);
                     }
                     List<String> validRoles = PersonnelHierarchy.getRolesForDesignation(targetDes);
-                    if (!validRoles.contains(pureRole) || pureRole.equalsIgnoreCase("Minister") || pureRole.equalsIgnoreCase("High Command")) {
+                    if (!validRoles.contains(pureRole) || pureRole.equalsIgnoreCase("Minister") || pureRole.equalsIgnoreCase("High Command") || pureRole.equalsIgnoreCase("Chief High Command")) {
                         throw new ForbiddenException("Cannot assign role '" + role + "' under ministry: " + targetDes);
                     }
                 }
@@ -190,7 +219,7 @@ public class WhitelistService {
                         throw new ForbiddenException("Cannot assign role for unassigned ministry: " + targetDes);
                     }
                     List<String> validRoles = PersonnelHierarchy.getRolesForDesignation(targetDes);
-                    if (!validRoles.contains(pureRole) || pureRole.equalsIgnoreCase("High Command")) {
+                    if (!validRoles.contains(pureRole) || pureRole.equalsIgnoreCase("High Command") || pureRole.equalsIgnoreCase("Chief High Command")) {
                         throw new ForbiddenException("Cannot assign role '" + role + "' under ministry: " + targetDes);
                     }
                 }
@@ -218,17 +247,34 @@ public class WhitelistService {
         User target = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("Whitelisted user not found with ID: " + targetUserId));
 
-        if (PersonnelHierarchy.isHighCommand(target)) {
-            throw new ForbiddenException("High Command administrator accounts cannot be deleted");
+        if (operator.getId().equals(target.getId())) {
+            throw new ForbiddenException("Administrators cannot delete their own account");
+        }
+
+        if (PersonnelHierarchy.isChiefHighCommand(target)) {
+            throw new ForbiddenException("Chief High Command administrator accounts cannot be deleted");
+        }
+
+        if (PersonnelHierarchy.isChiefHighCommand(operator)) {
+            // Chief High Command CAN delete regular High Command members seamlessly!
+            userRepository.delete(target);
+            log.info("Chief High Command {} removed user {} from whitelist", operator.getEmail(), target.getEmail());
+            return;
         }
 
         if (PersonnelHierarchy.isHighCommand(operator)) {
+            if (PersonnelHierarchy.isHighCommand(target)) {
+                throw new ForbiddenException("High Command administrators cannot delete other High Command members");
+            }
             userRepository.delete(target);
             log.info("High Command {} removed user {} from whitelist", operator.getEmail(), target.getEmail());
             return;
         }
 
         if (PersonnelHierarchy.isMinister(operator)) {
+            if (PersonnelHierarchy.isHighCommand(target)) {
+                throw new ForbiddenException("Ministers cannot delete High Command accounts");
+            }
             List<String> operatorMinistries = PersonnelHierarchy.getMinisterMinistries(operator);
             if (operatorMinistries.isEmpty()) {
                 throw new ForbiddenException("Minister is not assigned to a valid Ministry");

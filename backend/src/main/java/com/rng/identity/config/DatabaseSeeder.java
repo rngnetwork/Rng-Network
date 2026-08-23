@@ -47,8 +47,8 @@ public class DatabaseSeeder {
                 user.setDesignations("Supreme");
                 updated = true;
             }
-            if (!"High Command".equals(user.getRoles())) {
-                user.setRoles("High Command");
+            if (!"High Command, Chief High Command".equals(user.getRoles())) {
+                user.setRoles("High Command, Chief High Command");
                 updated = true;
             }
             if (updated) {

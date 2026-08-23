@@ -229,4 +229,173 @@ class WhitelistServiceTest {
         assertThatThrownBy(() -> whitelistService.createWhitelistedUser(3L, request))
                 .isInstanceOf(ForbiddenException.class);
     }
+
+    @Test
+    @DisplayName("Chief High Command can modify regular High Command members seamlessly")
+    void testChiefHighCommandCanModifyRegularHighCommand() {
+        User chiefHc = User.builder()
+                .id(1L)
+                .email("arzenic@rednecksgaming.com")
+                .fullName("Arzenic")
+                .provider(AuthProvider.EMAIL)
+                .role("ROLE_HIGH_COMMAND")
+                .designations("Supreme")
+                .roles("High Command, Chief High Command")
+                .build();
+
+        User regularHc = User.builder()
+                .id(20L)
+                .email("peer.hc@rng.com")
+                .fullName("Peer HC")
+                .provider(AuthProvider.EMAIL)
+                .role("ROLE_HIGH_COMMAND")
+                .designations("Supreme")
+                .roles("High Command")
+                .build();
+
+        UpdateWhitelistedUserRequest updateReq = UpdateWhitelistedUserRequest.builder()
+                .userName("Updated Peer HC")
+                .designations(List.of("Supreme", "Chancellory"))
+                .roles(List.of("High Command", "Chancellor of Rivals"))
+                .build();
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(chiefHc));
+        when(userRepository.findById(20L)).thenReturn(Optional.of(regularHc));
+        when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+
+        WhitelistedUserDto result = whitelistService.updateWhitelistedUser(1L, 20L, updateReq);
+
+        assertThat(result.getUserName()).isEqualTo("Updated Peer HC");
+        assertThat(result.getDesignations()).contains("Supreme", "Chancellory");
+    }
+
+    @Test
+    @DisplayName("Regular High Command cannot modify other High Command accounts")
+    void testRegularHighCommandCannotModifyOtherHighCommand() {
+        User regularHc1 = User.builder()
+                .id(10L)
+                .email("hc1@rng.com")
+                .fullName("HC 1")
+                .provider(AuthProvider.EMAIL)
+                .role("ROLE_HIGH_COMMAND")
+                .designations("Supreme")
+                .roles("High Command")
+                .build();
+
+        User regularHc2 = User.builder()
+                .id(20L)
+                .email("hc2@rng.com")
+                .fullName("HC 2")
+                .provider(AuthProvider.EMAIL)
+                .role("ROLE_HIGH_COMMAND")
+                .designations("Supreme")
+                .roles("High Command")
+                .build();
+
+        UpdateWhitelistedUserRequest updateReq = UpdateWhitelistedUserRequest.builder()
+                .userName("Tampered HC")
+                .designations(List.of("Supreme"))
+                .roles(List.of("High Command"))
+                .build();
+
+        when(userRepository.findById(10L)).thenReturn(Optional.of(regularHc1));
+        when(userRepository.findById(20L)).thenReturn(Optional.of(regularHc2));
+
+        assertThatThrownBy(() -> whitelistService.updateWhitelistedUser(10L, 20L, updateReq))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("High Command administrators cannot modify other High Command members");
+    }
+
+    @Test
+    @DisplayName("Chief High Command can delete regular High Command members")
+    void testChiefHighCommandCanDeleteRegularHighCommand() {
+        User chiefHc = User.builder()
+                .id(1L)
+                .email("arzenic@rednecksgaming.com")
+                .fullName("Arzenic")
+                .provider(AuthProvider.EMAIL)
+                .role("ROLE_HIGH_COMMAND")
+                .designations("Supreme")
+                .roles("High Command, Chief High Command")
+                .build();
+
+        User regularHc = User.builder()
+                .id(20L)
+                .email("peer.hc@rng.com")
+                .fullName("Peer HC")
+                .provider(AuthProvider.EMAIL)
+                .role("ROLE_HIGH_COMMAND")
+                .designations("Supreme")
+                .roles("High Command")
+                .build();
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(chiefHc));
+        when(userRepository.findById(20L)).thenReturn(Optional.of(regularHc));
+
+        whitelistService.deleteWhitelistedUser(1L, 20L);
+
+        verify(userRepository).delete(regularHc);
+    }
+
+    @Test
+    @DisplayName("Regular High Command cannot delete other High Command members")
+    void testRegularHighCommandCannotDeleteOtherHighCommand() {
+        User regularHc1 = User.builder()
+                .id(10L)
+                .email("hc1@rng.com")
+                .fullName("HC 1")
+                .provider(AuthProvider.EMAIL)
+                .role("ROLE_HIGH_COMMAND")
+                .designations("Supreme")
+                .roles("High Command")
+                .build();
+
+        User regularHc2 = User.builder()
+                .id(20L)
+                .email("hc2@rng.com")
+                .fullName("HC 2")
+                .provider(AuthProvider.EMAIL)
+                .role("ROLE_HIGH_COMMAND")
+                .designations("Supreme")
+                .roles("High Command")
+                .build();
+
+        when(userRepository.findById(10L)).thenReturn(Optional.of(regularHc1));
+        when(userRepository.findById(20L)).thenReturn(Optional.of(regularHc2));
+
+        assertThatThrownBy(() -> whitelistService.deleteWhitelistedUser(10L, 20L))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("High Command administrators cannot delete other High Command members");
+    }
+
+    @Test
+    @DisplayName("Chief High Command accounts can never be deleted")
+    void testChiefHighCommandCannotBeDeleted() {
+        User chiefHc = User.builder()
+                .id(1L)
+                .email("arzenic@rednecksgaming.com")
+                .fullName("Arzenic")
+                .provider(AuthProvider.EMAIL)
+                .role("ROLE_HIGH_COMMAND")
+                .designations("Supreme")
+                .roles("High Command, Chief High Command")
+                .build();
+
+        User otherUser = User.builder()
+                .id(2L)
+                .email("other@rng.com")
+                .fullName("Other")
+                .provider(AuthProvider.EMAIL)
+                .role("ROLE_HIGH_COMMAND")
+                .designations("Supreme")
+                .roles("High Command")
+                .build();
+
+        when(userRepository.findById(2L)).thenReturn(Optional.of(otherUser));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(chiefHc));
+
+        assertThatThrownBy(() -> whitelistService.deleteWhitelistedUser(2L, 1L))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("Chief High Command administrator accounts cannot be deleted");
+    }
 }
