@@ -129,7 +129,8 @@ export function Sidebar({ user }: SidebarProps) {
                   {isActive && (
                     <motion.div
                       layoutId="activeIndicator"
-                      className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1 h-5 bg-red-500 rounded-full shadow-[0_0_8px_#ef4444]"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      className="absolute left-1.5 top-2.5 bottom-2.5 w-1 bg-red-500 rounded-full shadow-[0_0_8px_#ef4444]"
                     />
                   )}
                 </Link>
