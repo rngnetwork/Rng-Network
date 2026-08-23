@@ -140,7 +140,7 @@ export default function WhitelistPage() {
           } else {
             setHierarchy({
               "Supreme": ["High Command"],
-              "Ministry of Internal affairs": ["Minister", "Secretary", "Senior agent", "agent"],
+              "Ministry of Internal affairs": ["Minister", "Secretary", "Senior Agent", "Agent"],
               "Ministry of Personell": ["Minister", "Secretary", "Magister Officiorum", "Tribunus", "Legatus"],
               "Ministry of Tech": ["Minister", "Secretary", "Tech Specialist", "Senior Dev", "Junior Dev"],
               "Ministry of Finances": ["Minister", "Secretary", "Digital assets officer", "Regional treasurer", "PayPal treasurer"],

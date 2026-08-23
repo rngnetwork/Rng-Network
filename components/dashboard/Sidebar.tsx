@@ -90,7 +90,7 @@ export function Sidebar({ user }: SidebarProps) {
                   key={item.href}
                   href={item.href}
                   onClick={() => setMobileOpen(false)}
-                  className={`group relative flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  className={`group relative flex items-center justify-between pl-4 pr-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                     isActive
                       ? 'bg-red-500/10 text-white border border-red-500/30 shadow-[0_0_15px_rgba(225,29,46,0.15)]'
                       : 'text-zinc-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
@@ -129,7 +129,7 @@ export function Sidebar({ user }: SidebarProps) {
                   {isActive && (
                     <motion.div
                       layoutId="activeIndicator"
-                      className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-red-500 rounded-r-full shadow-[0_0_8px_#ef4444]"
+                      className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1 h-5 bg-red-500 rounded-full shadow-[0_0_8px_#ef4444]"
                     />
                   )}
                 </Link>

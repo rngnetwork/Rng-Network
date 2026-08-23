@@ -91,7 +91,7 @@ class WhitelistIntegrationTest {
                 .provider(AuthProvider.EMAIL)
                 .role("ROLE_USER")
                 .designations("Ministry of Internal affairs")
-                .roles("agent")
+                .roles("Agent")
                 .status("ACTIVE")
                 .build());
 
@@ -165,7 +165,7 @@ class WhitelistIntegrationTest {
                 .userName("Imposter")
                 .provider(AuthProvider.EMAIL)
                 .designations(List.of("Ministry of Internal affairs"))
-                .roles(List.of("agent"))
+                .roles(List.of("Agent"))
                 .build();
 
         mockMvc.perform(post("/api/v1/whitelist")

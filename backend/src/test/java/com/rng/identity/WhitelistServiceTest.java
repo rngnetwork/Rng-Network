@@ -92,7 +92,7 @@ class WhitelistServiceTest {
                 .provider(AuthProvider.EMAIL)
                 .role("ROLE_USER")
                 .designations("Ministry of Internal affairs")
-                .roles("agent")
+                .roles("Agent")
                 .build();
 
         when(userRepository.findById(2L)).thenReturn(Optional.of(ministerTechUser));
@@ -139,7 +139,7 @@ class WhitelistServiceTest {
                 .userName("Test User")
                 .provider(AuthProvider.EMAIL)
                 .designations(List.of("Ministry of Internal affairs"))
-                .roles(List.of("agent"))
+                .roles(List.of("Agent"))
                 .build();
 
         when(userRepository.findById(2L)).thenReturn(Optional.of(ministerTechUser));
@@ -199,7 +199,7 @@ class WhitelistServiceTest {
                 .provider(AuthProvider.EMAIL)
                 .role("ROLE_USER")
                 .designations("Ministry of Internal affairs")
-                .roles("agent")
+                .roles("Agent")
                 .build();
 
         when(userRepository.findById(5L)).thenReturn(Optional.of(multiMinister));

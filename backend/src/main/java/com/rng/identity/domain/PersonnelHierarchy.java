@@ -29,7 +29,7 @@ public final class PersonnelHierarchy {
         map.put(SUPREME, List.of("High Command"));
 
         // 2. Ministries
-        map.put(MINISTRY_INTERNAL_AFFAIRS, List.of("Minister", "Secretary", "Senior agent", "agent"));
+        map.put(MINISTRY_INTERNAL_AFFAIRS, List.of("Minister", "Secretary", "Senior Agent", "Agent"));
         map.put(MINISTRY_PERSONELL, List.of("Minister", "Secretary", "Magister Officiorum", "Tribunus", "Legatus"));
         map.put(MINISTRY_TECH, List.of("Minister", "Secretary", "Tech Specialist", "Senior Dev", "Junior Dev"));
         map.put(MINISTRY_FINANCES, List.of("Minister", "Secretary", "Digital assets officer", "Regional treasurer", "PayPal treasurer"));
