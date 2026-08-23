@@ -334,4 +334,31 @@ class AuthIntegrationTest {
                 .andExpect(jsonPath("$.data.token", notNullValue()))
                 .andExpect(jsonPath("$.data.userEmail", is("arzenic@rednecksgaming.com")));
     }
+
+    @Test
+    @DisplayName("Provider Security: Account whitelisted with GOOGLE provider is rejected on Email/Password login")
+    void testGoogleProviderUserCannotLoginWithEmailPassword() throws Exception {
+        userRepository.save(User.builder()
+                .email("googleonly@rng.com")
+                .fullName("Google Only User")
+                .provider(com.rng.identity.domain.AuthProvider.GOOGLE)
+                .password(null)
+                .role("ROLE_USER")
+                .designations("Ministry of Tech")
+                .roles("Junior Dev")
+                .status("ACTIVE")
+                .build());
+
+        LoginRequest loginRequest = LoginRequest.builder()
+                .email("googleonly@rng.com")
+                .password("anyPasswordAttempt123!")
+                .build();
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", containsString("This account is configured for Google Sign-In")));
+    }
 }

@@ -8,6 +8,7 @@ import com.rng.common.exception.UnauthorizedException;
 import com.rng.common.security.DiscordClient;
 import com.rng.common.security.SecurityConstants;
 import com.rng.common.security.TokenService;
+import com.rng.identity.domain.AuthProvider;
 import com.rng.identity.domain.User;
 import com.rng.identity.dto.*;
 import com.rng.identity.repository.UserRepository;
@@ -37,6 +38,11 @@ public class AuthService {
                     log.warn("Login attempt failed: Email {} not found in whitelist", request.getEmail());
                     return new BadCredentialsException("Invalid email or password");
                 });
+
+        if (user.getProvider() == AuthProvider.GOOGLE) {
+            log.warn("Login attempt rejected: User {} is configured with Google provider", request.getEmail());
+            throw new BadCredentialsException("This account is configured for Google Sign-In. Please sign in with 'Continue with Google'.");
+        }
 
         if (user.getPassword() == null || user.getPassword().isBlank()) {
             // First login attempt: automatically register password into PostgreSQL
