@@ -17,7 +17,8 @@ import {
   Link2,
   MessageSquare,
   Volume2,
-  Palette
+  Palette,
+  Ban
 } from 'lucide-react';
 import { mockServersApi, ServerData } from '@/lib/mockServersApi';
 import { Toggle } from '@/components/ui/Toggle';
@@ -45,16 +46,17 @@ interface ServerSettingsState {
 }
 
 const PRESET_BANNER_COLORS = [
-  { label: 'RNG Crimson Red', hex: '#E11D2E' },
-  { label: 'Deep Burgundy', hex: '#7F1D1D' },
-  { label: 'Dark Ruby', hex: '#991B1B' },
-  { label: 'Discord Blurple', hex: '#5865F2' },
-  { label: 'Emerald Green', hex: '#57F287' },
-  { label: 'Amber Gold', hex: '#FEE75C' },
-  { label: 'Fuchsia Pink', hex: '#EB459E' },
-  { label: 'Dark Obsidian', hex: '#1E1F22' },
-  { label: 'Teal Cyan', hex: '#1ABC9C' },
-  { label: 'Navy Slate', hex: '#4E5D94' }
+  { id: 'none', label: 'Default / Banner Image', hex: 'none' },
+  { id: 'crimson', label: 'RNG Crimson Red', hex: '#E11D2E' },
+  { id: 'burgundy', label: 'Deep Burgundy', hex: '#7F1D1D' },
+  { id: 'ruby', label: 'Dark Ruby', hex: '#991B1B' },
+  { id: 'blurple', label: 'Discord Blurple', hex: '#5865F2' },
+  { id: 'emerald', label: 'Emerald Green', hex: '#57F287' },
+  { id: 'gold', label: 'Amber Gold', hex: '#FEE75C' },
+  { id: 'pink', label: 'Fuchsia Pink', hex: '#EB459E' },
+  { id: 'obsidian', label: 'Dark Obsidian', hex: '#1E1F22' },
+  { id: 'teal', label: 'Teal Cyan', hex: '#1ABC9C' },
+  { id: 'navy', label: 'Navy Slate', hex: '#4E5D94' }
 ];
 
 export default function ServerSettingsPage() {
@@ -109,7 +111,7 @@ export default function ServerSettingsPage() {
             description: found.description || '',
             logoPreview: found.icon || '',
             bannerPreview: found.banner || '',
-            bannerColor: found.bannerColor || '#E11D2E',
+            bannerColor: found.bannerColor || (found.banner ? 'none' : '#E11D2E'),
             afkChannel: found.afkChannel || '🔊 #afk-lounge',
             afkTimeout: found.afkTimeout || '15 minutes',
             systemChannel: found.welcomeChannel || '#welcome',
@@ -374,9 +376,11 @@ export default function ServerSettingsPage() {
             {/* Banner Preview (Cleanly renders either custom image or chosen static color) */}
             <div
               className="relative w-full h-28 md:h-32 rounded-2xl overflow-hidden border-2 border-red-500/30 flex items-center justify-center transition-colors duration-200"
-              style={{ backgroundColor: formData.bannerColor }}
+              style={{
+                backgroundColor: formData.bannerColor !== 'none' ? formData.bannerColor : '#0a0a0a'
+              }}
             >
-              {!isBannerLocked && formData.bannerPreview ? (
+              {!isBannerLocked && formData.bannerPreview && formData.bannerColor === 'none' ? (
                 <Image
                   src={formData.bannerPreview}
                   alt="Server Banner Preview"
@@ -389,7 +393,10 @@ export default function ServerSettingsPage() {
                 <div
                   className="w-full h-full flex items-center justify-between p-4"
                   style={{
-                    background: `linear-gradient(135deg, ${formData.bannerColor} 0%, rgba(10,10,10,0.85) 100%)`
+                    background:
+                      formData.bannerColor !== 'none'
+                        ? `linear-gradient(135deg, ${formData.bannerColor} 0%, rgba(10,10,10,0.85) 100%)`
+                        : 'linear-gradient(135deg, #18181b 0%, #09090b 100%)'
                   }}
                 >
                   <div className="flex items-center gap-3">
@@ -398,7 +405,9 @@ export default function ServerSettingsPage() {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-xs font-bold text-white tracking-tight">{formData.serverName || server.name}</span>
-                      <span className="text-[10px] text-zinc-300 font-mono">Static Banner Color</span>
+                      <span className="text-[10px] text-zinc-300 font-mono">
+                        {formData.bannerColor !== 'none' ? 'Static Banner Color' : 'Default Theme'}
+                      </span>
                     </div>
                   </div>
 
@@ -412,12 +421,12 @@ export default function ServerSettingsPage() {
               )}
             </div>
 
-            {/* Static Banner Color Chooser (Predefined static swatches only) */}
+            {/* Static Banner Color Chooser (Block button + Predefined static swatches) */}
             <div className="flex flex-col gap-2.5 p-3.5 rounded-2xl bg-white/[0.02] border border-white/5">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-semibold text-zinc-300 flex items-center gap-1.5 font-mono">
                   <Palette size={13} className="text-red-400" />
-                  Default Banner Color Swatches
+                  Banner Color Swatches
                 </span>
                 <span className="text-[11px] font-mono text-zinc-400">
                   {PRESET_BANNER_COLORS.find(
@@ -426,13 +435,33 @@ export default function ServerSettingsPage() {
                 </span>
               </div>
 
-              {/* Predefined Discord Static Color Swatches */}
+              {/* Block Icon Button + Predefined Discord Static Color Swatches */}
               <div className="flex items-center gap-2 flex-wrap">
                 {PRESET_BANNER_COLORS.map((col) => {
                   const isSelected = formData.bannerColor.toLowerCase() === col.hex.toLowerCase();
+                  const isNone = col.hex === 'none';
+
+                  if (isNone) {
+                    return (
+                      <button
+                        key={col.id}
+                        type="button"
+                        title={col.label}
+                        onClick={() => setFormData((prev) => ({ ...prev, bannerColor: 'none' }))}
+                        className={`w-7 h-7 rounded-xl transition-all duration-150 relative flex items-center justify-center bg-white/5 border ${
+                          isSelected
+                            ? 'scale-110 border-red-500 ring-2 ring-white shadow-[0_0_12px_rgba(255,255,255,0.6)] z-10 text-red-400'
+                            : 'border-white/10 hover:scale-105 opacity-75 hover:opacity-100 text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        <Ban size={14} />
+                      </button>
+                    );
+                  }
+
                   return (
                     <button
-                      key={col.hex}
+                      key={col.id}
                       type="button"
                       title={col.label}
                       onClick={() => setFormData((prev) => ({ ...prev, bannerColor: col.hex }))}
@@ -452,37 +481,25 @@ export default function ServerSettingsPage() {
               </div>
             </div>
 
-            {/* Banner Image Upload & Remove Buttons */}
+            {/* Banner Image Upload Button */}
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11px] text-zinc-400 font-mono">
-                {isBannerLocked ? 'Requires Level 2 Boost for Image' : '1920x1080 (PNG, JPG, GIF)'}
+                {isBannerLocked ? 'Requires Level 2 Boost for Custom Image' : '16:9 Aspect Ratio (1920x1080)'}
               </span>
 
-              <div className="flex items-center gap-2">
-                {!isBannerLocked && formData.bannerPreview && (
-                  <button
-                    type="button"
-                    onClick={() => setFormData((prev) => ({ ...prev, bannerPreview: '' }))}
-                    className="px-3 py-2 rounded-xl text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/20 transition-all"
-                  >
-                    Remove Banner
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  disabled={isBannerLocked}
-                  onClick={() => bannerInputRef.current?.click()}
-                  className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
-                    isBannerLocked
-                      ? 'bg-zinc-800/50 text-zinc-500 border border-white/5 cursor-not-allowed'
-                      : 'bg-white/5 hover:bg-white/10 border border-white/10 hover:border-red-500/40 text-zinc-200 hover:text-white shadow-[0_0_15px_rgba(225,29,46,0.15)]'
-                  }`}
-                >
-                  {isBannerLocked ? <Lock size={13} /> : <Upload size={13} className="text-red-400" />}
-                  <span>{formData.bannerPreview && !isBannerLocked ? 'Change Banner' : 'Upload Banner'}</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                disabled={isBannerLocked}
+                onClick={() => bannerInputRef.current?.click()}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+                  isBannerLocked
+                    ? 'bg-zinc-800/50 text-zinc-500 border border-white/5 cursor-not-allowed'
+                    : 'bg-white/5 hover:bg-white/10 border border-white/10 hover:border-red-500/40 text-zinc-200 hover:text-white shadow-[0_0_15px_rgba(225,29,46,0.15)]'
+                }`}
+              >
+                {isBannerLocked ? <Lock size={13} /> : <Upload size={13} className="text-red-400" />}
+                <span>{formData.bannerPreview && !isBannerLocked ? 'Change Banner' : 'Upload Banner'}</span>
+              </button>
             </div>
           </div>
         </div>

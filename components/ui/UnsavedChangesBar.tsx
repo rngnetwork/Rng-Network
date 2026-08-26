@@ -1,6 +1,7 @@
 "use client";
 
-import React from 'react';
+import React, { useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, Check, RotateCcw } from 'lucide-react';
 
@@ -12,6 +13,8 @@ interface UnsavedChangesBarProps {
   message?: string;
 }
 
+const emptySubscribe = () => () => {};
+
 export function UnsavedChangesBar({
   isDirty,
   isSaving,
@@ -19,7 +22,15 @@ export function UnsavedChangesBar({
   onReset,
   message = "Careful — you have unsaved changes!"
 }: UnsavedChangesBarProps) {
-  return (
+  const isClient = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+
+  if (!isClient) return null;
+
+  return createPortal(
     <AnimatePresence>
       {isDirty && (
         <motion.div
@@ -27,7 +38,7 @@ export function UnsavedChangesBar({
           animate={{ y: 0, x: "-50%", opacity: 1, scale: 1 }}
           exit={{ y: 100, x: "-50%", opacity: 0, scale: 0.95 }}
           transition={{ type: "spring", stiffness: 350, damping: 28 }}
-          className="fixed bottom-5 left-1/2 z-[99999] w-[92%] max-w-3xl px-5 py-3.5 md:px-7 md:py-4 rounded-2xl md:rounded-3xl bg-[#111214]/95 border border-red-500/40 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.95),0_0_35px_rgba(225,29,46,0.35)] flex flex-col sm:flex-row items-center justify-between gap-4"
+          className="fixed bottom-6 left-1/2 z-[999999] w-[92%] max-w-3xl px-5 py-3.5 md:px-7 md:py-4 rounded-2xl md:rounded-3xl bg-[#111214]/95 border border-red-500/40 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.95),0_0_35px_rgba(225,29,46,0.35)] flex flex-col sm:flex-row items-center justify-between gap-4"
         >
           {/* Status Text with Alert Icon */}
           <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -38,7 +49,7 @@ export function UnsavedChangesBar({
               <span className="text-xs md:text-sm font-bold text-white tracking-tight">
                 {message}
               </span>
-              <span className="text-[11px] text-zinc-400">
+              <span className="text-[11px] text-zinc-400 font-mono">
                 Don&apos;t forget to save before leaving.
               </span>
             </div>
@@ -72,6 +83,7 @@ export function UnsavedChangesBar({
           </div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
