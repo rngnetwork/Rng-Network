@@ -25,13 +25,6 @@ export interface ServerData {
   boostCount: number;
 
   /**
-   * Discord Server Games ("What does your server play?")
-   * Array of game titles associated with the Discord guild for discovery & rich presence.
-   * e.g. ["Valorant", "Minecraft", "Grand Theft Auto V", "Call of Duty: Warzone"]
-   */
-  games: string[];
-
-  /**
    * Discord Server Traits (Up to 5 server tags / traits with custom emoji & text)
    * e.g. [{ emoji: "🎮", name: "Gaming" }, { emoji: "🏆", name: "Competitive" }]
    */
@@ -65,7 +58,6 @@ export const MOCK_SERVERS: ServerData[] = [
     bannerColor: "#E11D2E",
     boostLevel: 2,
     boostCount: 14,
-    games: ["Valorant", "Grand Theft Auto V", "Counter-Strike 2", "Call of Duty: Warzone"],
     traits: [
       { emoji: "🎮", name: "Gaming" },
       { emoji: "🏆", name: "Competitive" },
@@ -95,7 +87,6 @@ export const MOCK_SERVERS: ServerData[] = [
     bannerColor: "#991B1B",
     boostLevel: 1,
     boostCount: 7,
-    games: ["Valorant", "Apex Legends", "Overwatch 2", "Rocket League"],
     traits: [
       { emoji: "⚡", name: "Esports" },
       { emoji: "🏆", name: "Competitive" },
@@ -124,7 +115,6 @@ export const MOCK_SERVERS: ServerData[] = [
     bannerColor: "#7F1D1D",
     boostLevel: 0,
     boostCount: 1,
-    games: ["Minecraft", "Roblox", "Rust", "Genshin Impact"],
     traits: [
       { emoji: "☕", name: "Casual" },
       { emoji: "🤝", name: "Community" },

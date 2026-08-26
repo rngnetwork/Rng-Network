@@ -19,10 +19,8 @@ import {
   Volume2,
   Palette,
   Ban,
-  Gamepad2,
   Tag,
   Radio,
-  Plus,
   X,
   Trash2,
   Smile,
@@ -51,7 +49,6 @@ interface ServerSettingsState {
   verificationLevel: string;
   mediaFilter: string;
   vanityUrl: string;
-  games: string[];
   traits: ServerTrait[];
   activityFeedEnabled: boolean;
 }
@@ -68,43 +65,6 @@ const PRESET_BANNER_COLORS = [
   { id: 'orange', label: 'Discord Orange', hex: '#E67E22' },
   { id: 'purple', label: 'Discord Purple', hex: '#9B59B6' },
   { id: 'navy', label: 'Discord Navy', hex: '#4E5D94' }
-];
-
-const DISCORD_POPULAR_GAMES = [
-  'Valorant',
-  'Minecraft',
-  'Grand Theft Auto V',
-  'Call of Duty: Warzone',
-  'Fortnite',
-  'League of Legends',
-  'Counter-Strike 2',
-  'Roblox',
-  'Apex Legends',
-  'Overwatch 2',
-  'Rust',
-  'Rocket League',
-  'Rainbow Six Siege',
-  'Dead by Daylight',
-  'Genshin Impact',
-  'Dota 2',
-  'World of Warcraft',
-  'Escape from Tarkov',
-  'Cyberpunk 2077',
-  'Elden Ring',
-  'Helldivers 2',
-  'EA SPORTS FC 25',
-  'PUBG: BATTLEGROUNDS',
-  'Among Us',
-  'Destiny 2',
-  'Terraria',
-  'Palworld',
-  'Monster Hunter: World',
-  'Phasmophobia',
-  'Team Fortress 2',
-  'Sea of Thieves',
-  'Warframe',
-  'Brawlhalla',
-  'Deadlock'
 ];
 
 const EMOJI_CATEGORIES = [
@@ -158,7 +118,6 @@ export default function ServerSettingsPage() {
     verificationLevel: 'High — Must be a member of this server for longer than 10 minutes',
     mediaFilter: 'Scan media content from all members (Recommended)',
     vanityUrl: 'rng-network',
-    games: [],
     traits: [
       { emoji: '', name: '' },
       { emoji: '', name: '' },
@@ -168,11 +127,6 @@ export default function ServerSettingsPage() {
     ],
     activityFeedEnabled: true
   });
-
-  // Game Search & Dropdown states
-  const [gameSearch, setGameSearch] = useState('');
-  const [isGameDropdownOpen, setIsGameDropdownOpen] = useState(false);
-  const gameDropdownRef = useRef<HTMLDivElement>(null);
 
   // Emoji Picker Popover state for 5 Traits
   const [activeEmojiSlot, setActiveEmojiSlot] = useState<number | null>(null);
@@ -224,7 +178,6 @@ export default function ServerSettingsPage() {
             verificationLevel: 'High — Must be a member of this server for longer than 10 minutes',
             mediaFilter: 'Scan media content from all members (Recommended)',
             vanityUrl: found.shortName.toLowerCase() || 'rng-network',
-            games: found.games || [],
             traits: normalizedTraits,
             activityFeedEnabled: found.activityFeedEnabled ?? true
           };
@@ -340,12 +293,6 @@ export default function ServerSettingsPage() {
       ) {
         setActiveEmojiSlot(null);
       }
-      if (
-        gameDropdownRef.current &&
-        !gameDropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsGameDropdownOpen(false);
-      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -381,7 +328,6 @@ export default function ServerSettingsPage() {
         welcomeChannel: formData.systemChannel,
         afkChannel: formData.afkChannel,
         afkTimeout: formData.afkTimeout,
-        games: formData.games,
         traits: cleanedTraits,
         activityFeedEnabled: formData.activityFeedEnabled
       });
@@ -736,123 +682,7 @@ export default function ServerSettingsPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* SECTION 2: What Games Does Your Server Play?                              */}
-      {/* ========================================================================= */}
-      <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
-        <div>
-          <h3 className="text-base md:text-lg font-bold text-white flex items-center gap-2">
-            <Gamepad2 size={18} className="text-red-400" />
-            What games does your server play?
-          </h3>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            Select games your community actively plays. Helps members discover events and find squads.
-          </p>
-        </div>
-
-        {/* Selected Games Tags */}
-        <div className="flex flex-wrap items-center gap-2 min-h-[36px]">
-          {formData.games.length === 0 ? (
-            <span className="text-xs text-zinc-500 font-mono italic">No games selected yet. Choose from the list below.</span>
-          ) : (
-            formData.games.map((game) => (
-              <span
-                key={game}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 border border-red-500/30 text-white text-xs font-semibold shadow-[0_0_12px_rgba(225,29,46,0.15)] group"
-              >
-                <span>{game}</span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      games: prev.games.filter((g) => g !== game)
-                    }))
-                  }
-                  className="w-4 h-4 rounded-full hover:bg-red-500/30 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
-                >
-                  <X size={11} />
-                </button>
-              </span>
-            ))
-          )}
-        </div>
-
-        {/* Game Selector Dropdown & Quick Add */}
-        <div ref={gameDropdownRef} className="relative max-w-md">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <input
-                type="text"
-                placeholder="Search or add a game (e.g. Valorant, GTA V)..."
-                value={gameSearch}
-                onFocus={() => setIsGameDropdownOpen(true)}
-                onChange={(e) => {
-                  setGameSearch(e.target.value);
-                  setIsGameDropdownOpen(true);
-                }}
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-red-500/50 transition-colors"
-              />
-              <Gamepad2 size={15} className="absolute left-3 top-3 text-zinc-500" />
-            </div>
-
-            {gameSearch.trim() && !formData.games.includes(gameSearch.trim()) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    games: [...prev.games, gameSearch.trim()]
-                  }));
-                  setGameSearch('');
-                  setIsGameDropdownOpen(false);
-                }}
-                className="px-3.5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-all shadow-[0_0_12px_rgba(225,29,46,0.3)] flex items-center gap-1 shrink-0"
-              >
-                <Plus size={14} />
-                <span>Add</span>
-              </button>
-            )}
-          </div>
-
-          {/* Autocomplete Dropdown */}
-          <AnimatePresence>
-            {isGameDropdownOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 5 }}
-                className="absolute left-0 right-0 top-full mt-2 p-2 rounded-2xl bg-[#141416] border border-white/10 shadow-2xl z-30 max-h-56 overflow-y-auto flex flex-col gap-1 backdrop-blur-xl"
-              >
-                {DISCORD_POPULAR_GAMES.filter(
-                  (g) =>
-                    g.toLowerCase().includes(gameSearch.toLowerCase()) &&
-                    !formData.games.includes(g)
-                ).map((game) => (
-                  <button
-                    key={game}
-                    type="button"
-                    onClick={() => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        games: [...prev.games, game]
-                      }));
-                      setGameSearch('');
-                      setIsGameDropdownOpen(false);
-                    }}
-                    className="w-full px-3 py-2 rounded-xl text-left text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 transition-colors flex items-center justify-between"
-                  >
-                    <span>{game}</span>
-                    <Plus size={13} className="text-red-400" />
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* SECTION 3: Traits (5 Customizable Slots with Emoji Picker)                */}
+      {/* SECTION 2: Traits (5 Customizable Slots with Emoji Picker)                */}
       {/* ========================================================================= */}
       <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -1017,7 +847,7 @@ export default function ServerSettingsPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* SECTION 4: Activity Feed Settings                                         */}
+      {/* SECTION 3: Activity Feed Settings                                         */}
       {/* ========================================================================= */}
       <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
         <div>
@@ -1041,7 +871,7 @@ export default function ServerSettingsPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* SECTION 5: Inactive Channel & AFK Timeout                                 */}
+      {/* SECTION 4: Inactive Channel & AFK Timeout                                 */}
       {/* ========================================================================= */}
       <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
         <div>
@@ -1087,7 +917,7 @@ export default function ServerSettingsPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* SECTION 3: System Messages Channel & Event Messages                       */}
+      {/* SECTION 5: System Messages Channel & Event Messages                       */}
       {/* ========================================================================= */}
       <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
         <div>
