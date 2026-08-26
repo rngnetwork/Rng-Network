@@ -23,7 +23,8 @@ import {
   Tag,
   Radio,
   Plus,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 import { mockServersApi, ServerData } from '@/lib/mockServersApi';
 import { Toggle } from '@/components/ui/Toggle';
@@ -203,6 +204,15 @@ export default function ServerSettingsPage() {
     return JSON.stringify(formData) !== JSON.stringify(initialState);
   }, [formData, initialState]);
 
+  // Compute server acronym/initials from first words for icon placeholder
+  const serverInitials = useMemo(() => {
+    const name = formData.serverName || server?.name || '';
+    const words = name.trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) return server?.shortName || 'RG';
+    if (words.length === 1) return words[0].slice(0, 3).toUpperCase();
+    return words.map((w) => w[0]).join('').slice(0, 4).toUpperCase();
+  }, [formData.serverName, server]);
+
   const showToast = (type: 'error' | 'success', message: string) => {
     setToast({ type, message });
     setTimeout(() => {
@@ -375,7 +385,7 @@ export default function ServerSettingsPage() {
             </span>
 
             <div className="flex items-center gap-5">
-              <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-3xl overflow-hidden border-2 border-red-500/40 bg-black/80 shadow-[0_0_20px_rgba(225,29,46,0.25)] shrink-0 flex items-center justify-center">
+              <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-3xl overflow-hidden border-2 border-red-500/40 bg-gradient-to-br from-[#18181b] via-[#101012] to-black shadow-[0_0_20px_rgba(225,29,46,0.25)] shrink-0 flex items-center justify-center">
                 {formData.logoPreview ? (
                   <Image
                     src={formData.logoPreview}
@@ -385,8 +395,8 @@ export default function ServerSettingsPage() {
                     className="object-cover"
                   />
                 ) : (
-                  <span className="text-lg font-bold text-zinc-500 font-mono">
-                    {server.shortName}
+                  <span className="text-xl md:text-2xl font-bold text-white font-mono tracking-wider drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
+                    {serverInitials}
                   </span>
                 )}
               </div>
@@ -397,14 +407,30 @@ export default function ServerSettingsPage() {
                   Supported formats: PNG, JPG, WEBP, GIF (Level 2 Boost required for GIF).
                 </p>
 
-                <button
-                  type="button"
-                  onClick={() => logoInputRef.current?.click()}
-                  className="w-fit px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-red-500/40 text-xs font-semibold text-zinc-200 hover:text-white flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(225,29,46,0.15)]"
-                >
-                  <Upload size={13} className="text-red-400" />
-                  <span>Upload Image</span>
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    className="w-fit px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-red-500/40 text-xs font-semibold text-zinc-200 hover:text-white flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(225,29,46,0.15)]"
+                  >
+                    <Upload size={13} className="text-red-400" />
+                    <span>Upload Image</span>
+                  </button>
+
+                  {formData.logoPreview && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData((prev) => ({ ...prev, logoPreview: '' }));
+                        if (logoInputRef.current) logoInputRef.current.value = '';
+                      }}
+                      className="w-fit px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-xs font-semibold text-red-300 hover:text-red-200 flex items-center gap-1.5 transition-all"
+                    >
+                      <Trash2 size={13} className="text-red-400" />
+                      <span>Remove Icon</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

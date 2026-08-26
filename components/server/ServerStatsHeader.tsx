@@ -32,8 +32,8 @@ export function ServerStatsHeader({ server }: ServerStatsHeaderProps) {
                 className="object-cover"
               />
             ) : (
-              <span className="text-xl font-bold text-zinc-500 font-mono">
-                {server.shortName}
+              <span className="text-xl md:text-2xl font-bold text-white font-mono tracking-wider drop-shadow-md">
+                {server.shortName || server.name.split(/\s+/).map((w) => w[0]).join('').slice(0, 3).toUpperCase()}
               </span>
             )}
           </div>
