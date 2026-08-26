@@ -23,22 +23,22 @@ export function UnsavedChangesBar({
     <AnimatePresence>
       {isDirty && (
         <motion.div
-          initial={{ y: 90, opacity: 0, scale: 0.95 }}
-          animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: 90, opacity: 0, scale: 0.95 }}
+          initial={{ y: 100, x: "-50%", opacity: 0, scale: 0.95 }}
+          animate={{ y: 0, x: "-50%", opacity: 1, scale: 1 }}
+          exit={{ y: 100, x: "-50%", opacity: 0, scale: 0.95 }}
           transition={{ type: "spring", stiffness: 350, damping: 28 }}
-          className="fixed bottom-6 left-4 right-4 md:left-auto md:right-8 md:max-w-xl z-50 p-4 md:px-6 md:py-4 rounded-3xl bg-[#0e0e0e]/95 border border-red-500/40 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.9),0_0_30px_rgba(225,29,46,0.35)] flex flex-col sm:flex-row items-center justify-between gap-4"
+          className="fixed bottom-5 left-1/2 z-[99999] w-[92%] max-w-3xl px-5 py-3.5 md:px-7 md:py-4 rounded-2xl md:rounded-3xl bg-[#111214]/95 border border-red-500/40 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.95),0_0_35px_rgba(225,29,46,0.35)] flex flex-col sm:flex-row items-center justify-between gap-4"
         >
-          {/* Status Text with pulsing red dot */}
+          {/* Status Text with Alert Icon */}
           <div className="flex items-center gap-3 w-full sm:w-auto">
-            <div className="w-8 h-8 rounded-xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0 shadow-[0_0_10px_rgba(225,29,46,0.3)]">
-              <AlertCircle size={17} />
+            <div className="w-8 h-8 rounded-xl bg-red-500/20 border border-red-500/35 flex items-center justify-center text-red-400 shrink-0 shadow-[0_0_12px_rgba(225,29,46,0.35)]">
+              <AlertCircle size={18} />
             </div>
             <div className="flex flex-col">
               <span className="text-xs md:text-sm font-bold text-white tracking-tight">
                 {message}
               </span>
-              <span className="text-[11px] text-zinc-400 font-mono">
+              <span className="text-[11px] text-zinc-400">
                 Don&apos;t forget to save before leaving.
               </span>
             </div>

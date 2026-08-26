@@ -371,36 +371,43 @@ export default function ServerSettingsPage() {
               </span>
             </div>
 
-            {/* Banner Preview (Supports Image and Selected Banner Static Color) */}
+            {/* Banner Preview (Cleanly renders either custom image or chosen static color) */}
             <div
-              className="relative w-full h-24 md:h-28 rounded-2xl overflow-hidden border-2 border-red-500/30 flex items-center justify-center transition-colors duration-300"
+              className="relative w-full h-28 md:h-32 rounded-2xl overflow-hidden border-2 border-red-500/30 flex items-center justify-center transition-colors duration-200"
               style={{ backgroundColor: formData.bannerColor }}
             >
-              {formData.bannerPreview ? (
+              {!isBannerLocked && formData.bannerPreview ? (
                 <Image
                   src={formData.bannerPreview}
                   alt="Server Banner Preview"
                   fill
                   unoptimized
-                  className={`object-cover ${isBannerLocked ? 'blur-md opacity-25' : 'opacity-90'}`}
+                  className="object-cover"
                 />
               ) : (
+                /* Static Solid Color Banner with Monogram */
                 <div
-                  className="w-full h-full opacity-70"
+                  className="w-full h-full flex items-center justify-between p-4"
                   style={{
-                    background: `linear-gradient(135deg, ${formData.bannerColor}, #050505)`
+                    background: `linear-gradient(135deg, ${formData.bannerColor} 0%, rgba(10,10,10,0.85) 100%)`
                   }}
-                />
-              )}
-
-              {/* Locked Overlay for Custom Image if Server lacks Boost Level 2 */}
-              {isBannerLocked && (
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-2 text-center z-20">
-                  <div className="w-7 h-7 rounded-lg bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 shadow-[0_0_15px_rgba(225,29,46,0.4)] mb-1">
-                    <Lock size={14} />
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-black/40 border border-white/20 flex items-center justify-center text-white font-bold text-sm font-mono">
+                      {server.shortName}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-white tracking-tight">{formData.serverName || server.name}</span>
+                      <span className="text-[10px] text-zinc-300 font-mono">Static Banner Color</span>
+                    </div>
                   </div>
-                  <span className="text-xs font-bold text-white font-mono">Custom Banner Image Locked</span>
-                  <span className="text-[10px] text-zinc-300">Choose a static solid color below</span>
+
+                  {isBannerLocked && (
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-black/50 text-zinc-300 border border-white/10 font-mono flex items-center gap-1">
+                      <Lock size={10} className="text-red-400" />
+                      Image Locked
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -415,7 +422,7 @@ export default function ServerSettingsPage() {
                 <span className="text-[11px] font-mono text-zinc-400">
                   {PRESET_BANNER_COLORS.find(
                     (c) => c.hex.toLowerCase() === formData.bannerColor.toLowerCase()
-                  )?.label || 'Custom'}
+                  )?.label || 'RNG Crimson Red'}
                 </span>
               </div>
 
@@ -445,25 +452,37 @@ export default function ServerSettingsPage() {
               </div>
             </div>
 
-            {/* Banner Image Upload Button */}
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] text-zinc-400">
-                16:9 Aspect Ratio (1920x1080)
+            {/* Banner Image Upload & Remove Buttons */}
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[11px] text-zinc-400 font-mono">
+                {isBannerLocked ? 'Requires Level 2 Boost for Image' : '1920x1080 (PNG, JPG, GIF)'}
               </span>
 
-              <button
-                type="button"
-                disabled={isBannerLocked}
-                onClick={() => bannerInputRef.current?.click()}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
-                  isBannerLocked
-                    ? 'bg-zinc-800/50 text-zinc-500 border border-white/5 cursor-not-allowed'
-                    : 'bg-white/5 hover:bg-white/10 border border-white/10 hover:border-red-500/40 text-zinc-200 hover:text-white shadow-[0_0_15px_rgba(225,29,46,0.15)]'
-                }`}
-              >
-                {isBannerLocked ? <Lock size={13} /> : <Upload size={13} className="text-red-400" />}
-                <span>Upload Banner Image</span>
-              </button>
+              <div className="flex items-center gap-2">
+                {!isBannerLocked && formData.bannerPreview && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, bannerPreview: '' }))}
+                    className="px-3 py-2 rounded-xl text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/20 transition-all"
+                  >
+                    Remove Banner
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  disabled={isBannerLocked}
+                  onClick={() => bannerInputRef.current?.click()}
+                  className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+                    isBannerLocked
+                      ? 'bg-zinc-800/50 text-zinc-500 border border-white/5 cursor-not-allowed'
+                      : 'bg-white/5 hover:bg-white/10 border border-white/10 hover:border-red-500/40 text-zinc-200 hover:text-white shadow-[0_0_15px_rgba(225,29,46,0.15)]'
+                  }`}
+                >
+                  {isBannerLocked ? <Lock size={13} /> : <Upload size={13} className="text-red-400" />}
+                  <span>{formData.bannerPreview && !isBannerLocked ? 'Change Banner' : 'Upload Banner'}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
