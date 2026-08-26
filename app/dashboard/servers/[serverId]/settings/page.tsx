@@ -45,14 +45,16 @@ interface ServerSettingsState {
 }
 
 const PRESET_BANNER_COLORS = [
-  { label: 'Crimson Red', hex: '#E11D2E' },
+  { label: 'RNG Crimson Red', hex: '#E11D2E' },
   { label: 'Deep Burgundy', hex: '#7F1D1D' },
   { label: 'Dark Ruby', hex: '#991B1B' },
-  { label: 'Blood Orange', hex: '#EA580C' },
-  { label: 'Obsidian Black', hex: '#18181B' },
-  { label: 'Royal Purple', hex: '#6B21A8' },
-  { label: 'Emerald Pine', hex: '#047857' },
-  { label: 'Midnight Blue', hex: '#1E3A8A' }
+  { label: 'Discord Blurple', hex: '#5865F2' },
+  { label: 'Emerald Green', hex: '#57F287' },
+  { label: 'Amber Gold', hex: '#FEE75C' },
+  { label: 'Fuchsia Pink', hex: '#EB459E' },
+  { label: 'Dark Obsidian', hex: '#1E1F22' },
+  { label: 'Teal Cyan', hex: '#1ABC9C' },
+  { label: 'Navy Slate', hex: '#4E5D94' }
 ];
 
 export default function ServerSettingsPage() {
@@ -403,45 +405,43 @@ export default function ServerSettingsPage() {
               )}
             </div>
 
-            {/* Static Banner Color Chooser (Active for ALL servers) */}
-            <div className="flex flex-col gap-2 p-3 rounded-2xl bg-white/[0.02] border border-white/5">
+            {/* Static Banner Color Chooser (Predefined static swatches only) */}
+            <div className="flex flex-col gap-2.5 p-3.5 rounded-2xl bg-white/[0.02] border border-white/5">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-semibold text-zinc-300 flex items-center gap-1.5 font-mono">
                   <Palette size={13} className="text-red-400" />
-                  Banner Static Color
+                  Default Banner Color Swatches
                 </span>
-                <span className="text-[11px] font-mono text-zinc-400 uppercase">
-                  {formData.bannerColor}
+                <span className="text-[11px] font-mono text-zinc-400">
+                  {PRESET_BANNER_COLORS.find(
+                    (c) => c.hex.toLowerCase() === formData.bannerColor.toLowerCase()
+                  )?.label || 'Custom'}
                 </span>
               </div>
 
-              {/* Preset Palette Chips + Color Picker */}
+              {/* Predefined Discord Static Color Swatches */}
               <div className="flex items-center gap-2 flex-wrap">
-                {PRESET_BANNER_COLORS.map((col) => (
-                  <button
-                    key={col.hex}
-                    type="button"
-                    title={col.label}
-                    onClick={() => setFormData((prev) => ({ ...prev, bannerColor: col.hex }))}
-                    className={`w-6 h-6 rounded-lg transition-transform duration-150 relative ${
-                      formData.bannerColor.toLowerCase() === col.hex.toLowerCase()
-                        ? 'scale-125 ring-2 ring-white shadow-[0_0_10px_rgba(255,255,255,0.5)] z-10'
-                        : 'hover:scale-110 opacity-80 hover:opacity-100'
-                    }`}
-                    style={{ backgroundColor: col.hex }}
-                  />
-                ))}
-
-                {/* Custom Native Color Picker */}
-                <div className="relative flex items-center gap-1.5 ml-auto">
-                  <input
-                    type="color"
-                    value={formData.bannerColor}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, bannerColor: e.target.value }))}
-                    className="w-7 h-7 rounded-lg bg-transparent border border-white/20 cursor-pointer"
-                    title="Choose custom HEX color"
-                  />
-                </div>
+                {PRESET_BANNER_COLORS.map((col) => {
+                  const isSelected = formData.bannerColor.toLowerCase() === col.hex.toLowerCase();
+                  return (
+                    <button
+                      key={col.hex}
+                      type="button"
+                      title={col.label}
+                      onClick={() => setFormData((prev) => ({ ...prev, bannerColor: col.hex }))}
+                      className={`w-7 h-7 rounded-xl transition-all duration-150 relative flex items-center justify-center ${
+                        isSelected
+                          ? 'scale-110 ring-2 ring-white shadow-[0_0_12px_rgba(255,255,255,0.6)] z-10'
+                          : 'hover:scale-105 opacity-75 hover:opacity-100'
+                      }`}
+                      style={{ backgroundColor: col.hex }}
+                    >
+                      {isSelected && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-white shadow-sm" />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
