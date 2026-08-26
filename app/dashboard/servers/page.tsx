@@ -44,8 +44,7 @@ export default function ServersPage() {
   }, []);
 
   const handleManageServer = (serverId: string) => {
-    // Route transitions to /dashboard/servers/[serverId]
-    router.push(`/dashboard/servers/${serverId}`);
+    router.push(`/dashboard/servers/${serverId}/settings`);
   };
 
   if (loading) {
@@ -72,7 +71,7 @@ export default function ServersPage() {
               </span>
             </h1>
             <p className="text-xs md:text-sm text-zinc-400">
-              Manage Discord guilds and bot infrastructures where RNG Network Bot is active.
+              Manage Discord guilds and bot configurations across RNG Network.
             </p>
           </div>
         </div>
@@ -80,7 +79,7 @@ export default function ServersPage() {
         <div className="flex items-center gap-2">
           <span className="text-xs px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />
-            Bot Cluster Operational
+            Bot Cluster Active
           </span>
         </div>
       </div>
@@ -102,7 +101,7 @@ export default function ServersPage() {
               whileHover={{ scale: 1.018 }}
               className="group relative rounded-3xl p-6 md:p-7 transition-all duration-300 overflow-hidden border border-red-500/20 hover:border-red-500/50 bg-gradient-to-tl from-[#220306]/90 via-[#0e0e0e] to-[#080808] shadow-[0_20px_50px_-15px_rgba(0,0,0,0.8),0_0_25px_rgba(225,29,46,0.12)] hover:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95),0_0_45px_rgba(225,29,46,0.35)] flex flex-col justify-between"
             >
-              {/* Subtle background red glow accent in bottom right */}
+              {/* Red glow accent in bottom right */}
               <div className="absolute -bottom-10 -right-10 w-44 h-44 bg-red-600/15 blur-3xl rounded-full pointer-events-none group-hover:bg-red-600/25 transition-all duration-500" />
 
               <div>
@@ -135,7 +134,7 @@ export default function ServersPage() {
                   {/* Status Indicator */}
                   <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono text-[11px] font-semibold shrink-0">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
-                    <span className="capitalize">{server.status}</span>
+                    <span>Bot Active</span>
                   </div>
                 </div>
 
