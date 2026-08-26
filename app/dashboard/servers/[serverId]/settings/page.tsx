@@ -23,12 +23,23 @@ import {
   Radio,
   X,
   Trash2,
-  Smile,
-  Search
+  Smile
 } from 'lucide-react';
 import { mockServersApi, ServerData, ServerTrait } from '@/lib/mockServersApi';
 import { Toggle } from '@/components/ui/Toggle';
 import { UnsavedChangesBar } from '@/components/ui/UnsavedChangesBar';
+import dynamic from 'next/dynamic';
+import { Theme, EmojiStyle, EmojiClickData } from 'emoji-picker-react';
+
+const EmojiPicker = dynamic(() => import('emoji-picker-react'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-[340px] h-[380px] flex flex-col items-center justify-center bg-[#141416] rounded-2xl gap-2 border border-white/10">
+      <div className="w-6 h-6 border-2 border-white/10 border-t-red-500 rounded-full animate-spin" />
+      <span className="text-xs text-zinc-400 font-mono">Loading emoji library...</span>
+    </div>
+  )
+});
 
 interface ServerSettingsState {
   serverName: string;
@@ -65,154 +76,6 @@ const PRESET_BANNER_COLORS = [
   { id: 'orange', label: 'Discord Orange', hex: '#E67E22' },
   { id: 'purple', label: 'Discord Purple', hex: '#9B59B6' },
   { id: 'navy', label: 'Discord Navy', hex: '#4E5D94' }
-];
-
-const EMOJI_CATEGORIES = [
-  {
-    id: 'custom',
-    name: 'Custom Server Emojis',
-    icon: '👑',
-    emojis: [
-      '👑', '🔥', '⚔️', '🛡️', '💎', '🚀', '👾', '🏆', '⚡', '🎯',
-      '💀', '🍿', '🔴', '🤖', '✨', '🗡️', '🧿', '🪐', '🩸', '💥',
-      '🧨', '🎖️', '🥇', '🔮', '🛸', '🔱', '☣️', '☢️', '💯', '🗿'
-    ]
-  },
-  {
-    id: 'smileys',
-    name: 'Smileys & Emotion',
-    icon: '😀',
-    emojis: [
-      '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃',
-      '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😋',
-      '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐',
-      '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥', '😌',
-      '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮', '🤧',
-      '🥵', '🥶', '🥴', '😵', '🤯', '🤠', '🥳', '🥸', '😎', '🤓',
-      '🧐', '😕', '😟', '🙁', '😮', '😯', '😲', '😳', '🥺', '😦',
-      '😧', '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣', '😞',
-      '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈', '👿',
-      '💀', '☠️', '💩', '🤡', '👹', '👺', '👻', '👽', '👾', '🤖',
-      '🎃', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾'
-    ]
-  },
-  {
-    id: 'people',
-    name: 'People & Body',
-    icon: '👋',
-    emojis: [
-      '👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤌', '🤏', '✌️', '🤞',
-      '🫰', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️',
-      '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲',
-      '🤝', '🙏', '✍️', '💅', '🤳', '💪', '🦾', '🦿', '🦵', '🦶',
-      '👂', '🦻', '👃', '🧠', '🫀', '🫁', '🦷', '🦴', '👀', '👁️',
-      '👅', '👄', '🫦', '👶', '🧒', '👦', '👧', '🧑', '👱', '👨',
-      '🧔', '👩', '🧓', '👴', '👵', '👮', '🕵️', '💂', '🥷', '👷',
-      '🤴', '👸', '👳', '👲', '🧕', '🤵', '👰', '🦸', '🦹', '🧙',
-      '🧚', '🧛', '🧜', '🧝', '🧞', '🧟', '🕺', '💃', '🏃', '🚶'
-    ]
-  },
-  {
-    id: 'animals',
-    name: 'Animals & Nature',
-    icon: '🐶',
-    emojis: [
-      '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐻‍❄️', '🐨',
-      '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🐤',
-      '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🪱',
-      '🐛', '🦋', '🐌', '🐞', '🐜', '🪰', '🪲', '🪳', '🦟', '🦗',
-      '🕷️', '🦂', '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑', '🦐',
-      '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🦈', '🐊', '🐅',
-      '🐆', '🦓', '🦍', '🦧', '🐘', '🦛', '🦏', '🐪', '🐫', '🦒',
-      '🦘', '🦬', '🐃', '🐂', '🐄', '🐎', '🐖', '🐏', '🐑', '🦙',
-      '🐐', '🦌', '🐕', '🐩', '🦮', '🐕‍🦺', '🐈', '🐈‍⬛', '🐓', '🦃',
-      '🌲', '🌳', '🌴', '🌵', '🌾', '🌿', '☘️', '🍀', '🍁', '🍂',
-      '🍃', '🍄', '🌸', '🌹', '🌺', '🌻', '🌼', '🌷', '🌱', '🪴'
-    ]
-  },
-  {
-    id: 'food',
-    name: 'Food & Drink',
-    icon: '🍔',
-    emojis: [
-      '🍇', '🍈', '🍉', '🍊', '🍋', '🍌', '🍍', '🥭', '🍎', '🍏',
-      '🍐', '🍑', '🍒', '🍓', '🫐', '🥝', '🍅', '🫒', '🥥', '🥑',
-      '🍆', '🥔', '🥕', '🌽', '🌶️', '🫑', '🥒', '🥬', '🥦', '🧄',
-      '🧅', '🥜', '🌰', '🍞', '🥐', '🥖', '🫓', '🥨', '🥯', '🥞',
-      '🧇', '🧀', '🍖', '🍗', '🥩', '🥓', '🍔', '🍟', '🍕', '🌭',
-      '🥪', '🌮', '🌯', '🫔', '🥙', '🧆', '🍳', '🥘', '🍲', '🫕',
-      '🥣', '🥗', '🍿', '🧈', '🧂', '🥫', '🍱', '🍘', '🍙', '🍚',
-      '🍛', '🍜', '🍝', '🍠', '🍢', '🍣', '🍤', '🍥', '🥮', '🍡',
-      '🥟', '🥠', '🥡', '🍦', '🍧', '🍨', '🍩', '🍪', '🎂', '🍰',
-      '🧁', '🥧', '🍫', '🍬', '🍭', '🍮', '🍯', '🍼', '🥛', '☕',
-      '🫖', '🍵', '🍶', '🍾', '🍷', '🍸', '🍹', '🍺', '🍻', '🥂'
-    ]
-  },
-  {
-    id: 'activities',
-    name: 'Activities & Gaming',
-    icon: '🎮',
-    emojis: [
-      '🎮', '🕹️', '👾', '🎲', '🎰', '🎳', '🎯', '🎪', '🎨', '🎬',
-      '🎤', '🎧', '🎼', '🎹', '🥁', '🎷', '🎺', '🎸', '🪕', '🎻',
-      '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱',
-      '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🪃', '🥅', '⛳',
-      '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽', '🛹', '🛼', '🛷',
-      '⛸️', '🥌', '🎿', '⛷️', '🏂', '🪂', '🏋️', '🤼', '🤸', '🤺',
-      '🏆', '🥇', '🥈', '🥉', '🏅', '🎖️', '🎗️', '🎫', '🎟️', '🧩'
-    ]
-  },
-  {
-    id: 'travel',
-    name: 'Travel & Places',
-    icon: '🚗',
-    emojis: [
-      '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐',
-      '🛻', '🚚', '🚛', '🚜', '🛵', '🏍️', '🛺', '🚲', '🛴', '🚏',
-      '🛣️', '🛤️', '⛽', '🚨', '🚥', '🚦', '🛑', '🚧', '⚓', '⛵',
-      '🛶', '🚤', '🛳️', '⛴️', '🛥️', '🚢', '✈️', '🛫', '🛬', '🪂',
-      '💺', '🚁', '🚟', '🚠', '🚡', '🛰️', '🚀', '🛸', '🪐', '🌠',
-      '🌌', '🎆', '🎇', '🎑', '🗾', '🗿', '🗽', '🗼', '🏰', '🏯',
-      '🏟️', '🎡', '🎢', '🎠', '⛲', '⛺', '🏕️', '🏠', '🏡', '🏢'
-    ]
-  },
-  {
-    id: 'objects',
-    name: 'Objects',
-    icon: '💡',
-    emojis: [
-      '💡', '🔦', '🏮', '🪔', '📱', '📲', '💻', '🖥️', '🖨️', '⌨️',
-      '🖱️', '💽', '💾', '💿', '📀', '📼', '📷', '📸', '📹', '🎥',
-      '📽️', '🎞️', '📞', '☎️', '📟', '📠', '📺', '📻', '🎙️', '🎚️',
-      '🎛️', '⏱️', '⏲️', '⏰', '🕰️', '⌛', '⏳', '📡', '🔋', '🔌',
-      '🧯', '🛢️', '💸', '💵', '💴', '💶', '💷', '🪙', '💰', '💳',
-      '💎', '⚖️', '🪜', '🧰', '🪛', '🔧', '🔨', '⚒️', '🛠️', '⛏️',
-      '🪚', '🔩', '⚙️', '🧱', '⛓️', '🧲', '🔫', '💣', '🧨', '🪓',
-      '🔪', '🗡️', '⚔️', '🛡️', '🚬', '⚰️', '🪦', '🏺', '🔮', '🧿',
-      '🔭', '🔬', '🩹', '🩺', '💊', '💉', '🩸', '🧬', '🧪', '🌡️',
-      '🔑', '🗝️', '🚪', '🪑', '🛋️', '🛏️', '📦', '🏷️', '📜', '📁',
-      '🔒', '🔓', '🔏', '🔐', '🎁', '🎈', '🎉', '🎊', '🏮', '✉️'
-    ]
-  },
-  {
-    id: 'symbols',
-    name: 'Symbols & Flags',
-    icon: '❤️',
-    emojis: [
-      '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔',
-      '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️',
-      '✝️', '☪️', '🕉️', '☸️', '✡️', '🔯', '🕎', '☯️', '☦️', '🛐',
-      '🆔', '⚛️', '🉑', '☢️', '☣️', '📴', '📳', '🈶', '🈚', '🈸',
-      '🛑', '⚠️', '🚸', '⛔', '🚫', '🔞', '⬆️', '↗️', '➡️', '↘️',
-      '⬇️', '↙️', '⬅️', '↖️', '↕️', '↔️', '↩️', '↪️', '⤴️', '⤵️',
-      '🔃', '🔄', '🔙', '🔚', '🔛', '🔜', '🔝', '▶️', '⏩', '⏭️',
-      '◀️', '⏪', '⏮️', '🔼', '⏫', '🔽', '⏬', '⏸️', '⏹️', '⏺️',
-      '📶', '📳', '📴', '✖️', '➕', '➖', '➗', '♾️', '‼️', '⁉️',
-      '❓', '❔', '❕', '❗', '〰️', '💲', '⚕️', '♻️', '⚜️', '🔱',
-      '⭕', '✅', '☑️', '✔️', '❌', '❎', '➰', '➿', '🏁', '🚩',
-      '🎌', '🏴', '🏳️', '🏳️‍🌈', '🏳️‍⚧️', '🏴‍☠️'
-    ]
-  }
 ];
 
 const TRAIT_PLACEHOLDERS = [
@@ -263,8 +126,6 @@ export default function ServerSettingsPage() {
 
   // Emoji Picker Popover state for 5 Traits
   const [activeEmojiSlot, setActiveEmojiSlot] = useState<number | null>(null);
-  const [emojiSearch, setEmojiSearch] = useState('');
-  const [activeEmojiCategory, setActiveEmojiCategory] = useState<string>('all');
   const emojiPickerRef = useRef<HTMLDivElement>(null);
 
   // Toast & Saving states
@@ -856,10 +717,7 @@ export default function ServerSettingsPage() {
                 {/* Emoji Trigger Button */}
                 <button
                   type="button"
-                  onClick={() => {
-                    setActiveEmojiSlot(isPickerOpen ? null : index);
-                    setEmojiSearch('');
-                  }}
+                  onClick={() => setActiveEmojiSlot(isPickerOpen ? null : index)}
                   className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-red-500/40 flex items-center justify-center text-lg shrink-0 transition-all active:scale-95 shadow-[0_0_10px_rgba(0,0,0,0.3)]"
                   title="Choose Emoji"
                 >
@@ -901,116 +759,27 @@ export default function ServerSettingsPage() {
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: 5 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute left-0 top-full mt-2 w-[340px] sm:w-[380px] p-3.5 rounded-2xl bg-[#141416] border border-red-500/30 shadow-[0_20px_50px_rgba(0,0,0,0.95),0_0_30px_rgba(225,29,46,0.25)] z-50 flex flex-col gap-3 backdrop-blur-2xl"
+                      className="absolute left-0 top-full mt-2 z-50 rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.95),0_0_30px_rgba(225,29,46,0.25)] border border-red-500/30"
                     >
-                      {/* Search Bar */}
-                      <div className="relative">
-                        <input
-                          type="text"
-                          placeholder="Search 600+ emojis..."
-                          value={emojiSearch}
-                          onChange={(e) => {
-                            setEmojiSearch(e.target.value);
-                            if (e.target.value.trim()) {
-                              setActiveEmojiCategory('all');
-                            }
-                          }}
-                          className="w-full pl-8 pr-7 py-1.5 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-red-500/50 transition-colors"
-                        />
-                        <Search size={13} className="absolute left-2.5 top-2.5 text-zinc-400" />
-                        {emojiSearch && (
-                          <button
-                            type="button"
-                            onClick={() => setEmojiSearch('')}
-                            className="absolute right-2.5 top-2 text-zinc-400 hover:text-white text-xs"
-                          >
-                            <X size={13} />
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Category Quick Tabs */}
-                      <div className="flex items-center gap-1 overflow-x-auto pb-1 border-b border-white/5 scrollbar-none">
-                        <button
-                          type="button"
-                          onClick={() => setActiveEmojiCategory('all')}
-                          className={`px-2 py-1 rounded-lg text-[10px] font-bold font-mono transition-colors shrink-0 ${
-                            activeEmojiCategory === 'all'
-                              ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(225,29,46,0.4)]'
-                              : 'bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10'
-                          }`}
-                        >
-                          All
-                        </button>
-                        {EMOJI_CATEGORIES.map((cat) => (
-                          <button
-                            key={cat.id}
-                            type="button"
-                            onClick={() => setActiveEmojiCategory(cat.id)}
-                            className={`w-7 h-7 rounded-lg text-xs flex items-center justify-center transition-all shrink-0 ${
-                              activeEmojiCategory === cat.id
-                                ? 'bg-red-500/30 border border-red-500/60 scale-110'
-                                : 'bg-white/5 hover:bg-white/10 opacity-70 hover:opacity-100'
-                            }`}
-                            title={cat.name}
-                          >
-                            {cat.icon}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Emoji Categories & Grids */}
-                      <div className="flex flex-col gap-3.5 max-h-64 overflow-y-auto pr-1">
-                        {EMOJI_CATEGORIES.filter((cat) =>
-                          activeEmojiCategory === 'all' ? true : cat.id === activeEmojiCategory
-                        ).map((cat) => {
-                          const filtered = cat.emojis.filter((em) =>
-                            emojiSearch.trim()
-                              ? em.includes(emojiSearch.trim()) ||
-                                cat.name.toLowerCase().includes(emojiSearch.toLowerCase())
-                              : true
-                          );
-                          if (filtered.length === 0) return null;
-
-                          return (
-                            <div key={cat.id} className="flex flex-col gap-1.5">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10.5px] font-bold text-zinc-400 font-mono uppercase tracking-wider flex items-center gap-1.5">
-                                  <span>{cat.icon}</span>
-                                  <span>{cat.name}</span>
-                                </span>
-                                <span className="text-[10px] text-zinc-600 font-mono">
-                                  {filtered.length}
-                                </span>
-                              </div>
-                              <div className="grid grid-cols-9 gap-1">
-                                {filtered.map((emoji, eIdx) => (
-                                  <button
-                                    key={eIdx}
-                                    type="button"
-                                    onClick={() => {
-                                      handleTraitChange(index, 'emoji', emoji);
-                                      setActiveEmojiSlot(null);
-                                    }}
-                                    className={`w-8 h-8 rounded-lg hover:bg-red-500/20 hover:scale-125 flex items-center justify-center text-base transition-all ${
-                                      trait.emoji === emoji
-                                        ? 'bg-red-500/30 border border-red-500/50'
-                                        : 'bg-white/[0.02]'
-                                    }`}
-                                    title={emoji}
-                                  >
-                                    {emoji}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      <EmojiPicker
+                        theme={Theme.DARK}
+                        emojiStyle={EmojiStyle.NATIVE}
+                        lazyLoadEmojis={true}
+                        searchPlaceHolder="Search 1,800+ emojis..."
+                        width={350}
+                        height={420}
+                        previewConfig={{
+                          showPreview: true
+                        }}
+                        onEmojiClick={(emojiData: EmojiClickData) => {
+                          handleTraitChange(index, 'emoji', emojiData.emoji);
+                          setActiveEmojiSlot(null);
+                        }}
+                      />
 
                       {/* Clear Emoji Action */}
-                      <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[11px]">
-                        <span className="text-zinc-400 font-mono">Slot {index + 1}</span>
+                      <div className="flex items-center justify-between p-2.5 bg-[#141416] border-t border-white/5 text-[11px]">
+                        <span className="text-zinc-400 font-mono">Trait Slot {index + 1}</span>
                         {trait.emoji && (
                           <button
                             type="button"
@@ -1018,7 +787,7 @@ export default function ServerSettingsPage() {
                               handleTraitChange(index, 'emoji', '');
                               setActiveEmojiSlot(null);
                             }}
-                            className="text-red-400 hover:text-red-300 font-semibold"
+                            className="text-red-400 hover:text-red-300 font-semibold transition-colors"
                           >
                             Remove Emoji
                           </button>
