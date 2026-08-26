@@ -5,6 +5,7 @@ export interface ServerData {
   description: string;
   icon: string;
   banner: string;
+  bannerColor?: string;
   color: string;
   onlineCount: string;
   totalCount: string;
@@ -13,6 +14,8 @@ export interface ServerData {
   prefix: string;
   locale: string;
   welcomeChannel: string;
+  afkChannel?: string;
+  afkTimeout?: string;
   boostLevel: number; // 0, 1, 2, 3
   boostCount: number;
 }
@@ -33,6 +36,9 @@ export const MOCK_SERVERS: ServerData[] = [
     prefix: "!",
     locale: "English (US)",
     welcomeChannel: "#welcome",
+    afkChannel: "🔊 #afk-lounge",
+    afkTimeout: "15 minutes",
+    bannerColor: "#E11D2E",
     boostLevel: 2,
     boostCount: 14
   },
@@ -51,6 +57,9 @@ export const MOCK_SERVERS: ServerData[] = [
     prefix: "?",
     locale: "English (US)",
     welcomeChannel: "#announcements",
+    afkChannel: "No Inactive Channel",
+    afkTimeout: "5 minutes",
+    bannerColor: "#991B1B",
     boostLevel: 1,
     boostCount: 7
   },
@@ -69,6 +78,9 @@ export const MOCK_SERVERS: ServerData[] = [
     prefix: ".",
     locale: "English (US)",
     welcomeChannel: "#lounge",
+    afkChannel: "🔊 #voice-inactive",
+    afkTimeout: "30 minutes",
+    bannerColor: "#7F1D1D",
     boostLevel: 0,
     boostCount: 1
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -15,10 +15,45 @@ import {
   Bell,
   ShieldAlert,
   Link2,
-  MessageSquare
+  MessageSquare,
+  Volume2,
+  Palette
 } from 'lucide-react';
 import { mockServersApi, ServerData } from '@/lib/mockServersApi';
 import { Toggle } from '@/components/ui/Toggle';
+import { UnsavedChangesBar } from '@/components/ui/UnsavedChangesBar';
+
+interface ServerSettingsState {
+  serverName: string;
+  prefix: string;
+  locale: string;
+  description: string;
+  logoPreview: string;
+  bannerPreview: string;
+  bannerColor: string;
+  afkChannel: string;
+  afkTimeout: string;
+  systemChannel: string;
+  sendWelcome: boolean;
+  stickerPrompt: boolean;
+  boostMessage: boolean;
+  setupTips: boolean;
+  notificationLevel: string;
+  verificationLevel: string;
+  mediaFilter: string;
+  vanityUrl: string;
+}
+
+const PRESET_BANNER_COLORS = [
+  { label: 'Crimson Red', hex: '#E11D2E' },
+  { label: 'Deep Burgundy', hex: '#7F1D1D' },
+  { label: 'Dark Ruby', hex: '#991B1B' },
+  { label: 'Blood Orange', hex: '#EA580C' },
+  { label: 'Obsidian Black', hex: '#18181B' },
+  { label: 'Royal Purple', hex: '#6B21A8' },
+  { label: 'Emerald Pine', hex: '#047857' },
+  { label: 'Midnight Blue', hex: '#1E3A8A' }
+];
 
 export default function ServerSettingsPage() {
   const params = useParams();
@@ -27,30 +62,28 @@ export default function ServerSettingsPage() {
   const [server, setServer] = useState<ServerData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Section 1: Server Identity & Branding
-  const [serverName, setServerName] = useState<string>('');
-  const [prefix, setPrefix] = useState<string>('!');
-  const [locale, setLocale] = useState<string>('English (US) — en-US');
-  const [description, setDescription] = useState<string>('');
-  const [logoPreview, setLogoPreview] = useState<string>('');
-  const [bannerPreview, setBannerPreview] = useState<string>('');
-
-  // Section 2: System Messages Channel & Event Messages
-  const [systemChannel, setSystemChannel] = useState<string>('#welcome');
-  const [sendWelcome, setSendWelcome] = useState<boolean>(true);
-  const [stickerPrompt, setStickerPrompt] = useState<boolean>(true);
-  const [boostMessage, setBoostMessage] = useState<boolean>(true);
-  const [setupTips, setSetupTips] = useState<boolean>(false);
-
-  // Section 3: Default Notification Settings
-  const [notificationLevel, setNotificationLevel] = useState<string>('Only @mentions (Recommended for large communities)');
-
-  // Section 4: Safety & Verification Levels
-  const [verificationLevel, setVerificationLevel] = useState<string>('High — Must be a member of this server for longer than 10 minutes');
-  const [mediaFilter, setMediaFilter] = useState<string>('Scan media content from all members (Recommended)');
-
-  // Section 5: Custom Invite Link (Vanity URL)
-  const [vanityUrl, setVanityUrl] = useState<string>('rng-network');
+  // Initial and current states for dirty checking
+  const [initialState, setInitialState] = useState<ServerSettingsState | null>(null);
+  const [formData, setFormData] = useState<ServerSettingsState>({
+    serverName: '',
+    prefix: '!',
+    locale: 'English (US) — en-US',
+    description: '',
+    logoPreview: '',
+    bannerPreview: '',
+    bannerColor: '#E11D2E',
+    afkChannel: '🔊 #afk-lounge',
+    afkTimeout: '15 minutes',
+    systemChannel: '#welcome',
+    sendWelcome: true,
+    stickerPrompt: true,
+    boostMessage: true,
+    setupTips: false,
+    notificationLevel: 'Only @mentions (Recommended for large communities)',
+    verificationLevel: 'High — Must be a member of this server for longer than 10 minutes',
+    mediaFilter: 'Scan media content from all members (Recommended)',
+    vanityUrl: 'rng-network'
+  });
 
   // Toast & Saving states
   const [toast, setToast] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
@@ -67,12 +100,28 @@ export default function ServerSettingsPage() {
         const found = await mockServersApi.getServerById(serverId);
         if (isMounted && found) {
           setServer(found);
-          setServerName(found.name);
-          setPrefix(found.prefix);
-          setDescription(found.description);
-          setLogoPreview(found.icon);
-          setBannerPreview(found.banner);
-          setSystemChannel(found.welcomeChannel || '#welcome');
+          const state: ServerSettingsState = {
+            serverName: found.name,
+            prefix: found.prefix || '!',
+            locale: found.locale || 'English (US) — en-US',
+            description: found.description || '',
+            logoPreview: found.icon || '',
+            bannerPreview: found.banner || '',
+            bannerColor: found.bannerColor || '#E11D2E',
+            afkChannel: found.afkChannel || '🔊 #afk-lounge',
+            afkTimeout: found.afkTimeout || '15 minutes',
+            systemChannel: found.welcomeChannel || '#welcome',
+            sendWelcome: true,
+            stickerPrompt: true,
+            boostMessage: true,
+            setupTips: false,
+            notificationLevel: 'Only @mentions (Recommended for large communities)',
+            verificationLevel: 'High — Must be a member of this server for longer than 10 minutes',
+            mediaFilter: 'Scan media content from all members (Recommended)',
+            vanityUrl: found.shortName.toLowerCase() || 'rng-network'
+          };
+          setFormData(state);
+          setInitialState(state);
         }
       } catch (err) {
         console.error('Failed to load server settings:', err);
@@ -89,6 +138,12 @@ export default function ServerSettingsPage() {
       isMounted = false;
     };
   }, [serverId]);
+
+  // Compute if any field is dirty (changed from initial server data)
+  const isDirty = useMemo(() => {
+    if (!initialState) return false;
+    return JSON.stringify(formData) !== JSON.stringify(initialState);
+  }, [formData, initialState]);
 
   const showToast = (type: 'error' | 'success', message: string) => {
     setToast({ type, message });
@@ -115,7 +170,7 @@ export default function ServerSettingsPage() {
     }
 
     const objectUrl = URL.createObjectURL(file);
-    setLogoPreview(objectUrl);
+    setFormData((prev) => ({ ...prev, logoPreview: objectUrl }));
     showToast('success', `Server logo updated to ${file.name}!`);
   };
 
@@ -140,23 +195,36 @@ export default function ServerSettingsPage() {
     }
 
     const objectUrl = URL.createObjectURL(file);
-    setBannerPreview(objectUrl);
+    setFormData((prev) => ({ ...prev, bannerPreview: objectUrl }));
     showToast('success', `Server banner updated to ${file.name}!`);
   };
 
+  // Reset Changes
+  const handleReset = () => {
+    if (initialState) {
+      setFormData({ ...initialState });
+      showToast('success', 'Changes reverted back to original settings.');
+    }
+  };
+
+  // Save Changes
   const handleSave = async () => {
     if (!server) return;
     setIsSaving(true);
     try {
       await mockServersApi.updateServerSettings(server.id, {
-        name: serverName,
-        icon: logoPreview,
-        banner: bannerPreview,
-        description,
-        prefix,
-        locale,
-        welcomeChannel: systemChannel
+        name: formData.serverName,
+        icon: formData.logoPreview,
+        banner: formData.bannerPreview,
+        bannerColor: formData.bannerColor,
+        description: formData.description,
+        prefix: formData.prefix,
+        locale: formData.locale,
+        welcomeChannel: formData.systemChannel,
+        afkChannel: formData.afkChannel,
+        afkTimeout: formData.afkTimeout
       });
+      setInitialState({ ...formData });
       showToast('success', 'Server settings saved and synchronized with Discord Bot!');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save settings';
@@ -183,7 +251,7 @@ export default function ServerSettingsPage() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="flex flex-col gap-8 w-full"
+      className="flex flex-col gap-8 w-full pb-20"
     >
       {/* Toast Notification */}
       <AnimatePresence>
@@ -227,7 +295,7 @@ export default function ServerSettingsPage() {
       />
 
       {/* ========================================================================= */}
-      {/* SECTION 1: Server Overview & Identity                                     */}
+      {/* SECTION 1: Server Overview & Identity (Logo, Banner & Color Chooser)      */}
       {/* ========================================================================= */}
       <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
         <div>
@@ -235,13 +303,13 @@ export default function ServerSettingsPage() {
             Server Overview & Identity
           </h3>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Basic server profile details, icon, banner, and locale.
+            Basic server profile details, icon, banner image, static accent color, and locale.
           </p>
         </div>
 
-        {/* Branding Row: Logo Uploader + Banner Uploader */}
+        {/* Branding Row: Logo Uploader + Banner Image & Color Chooser */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-6 border-b border-white/5">
-          {/* Logo Upload */}
+          {/* 1. Logo Upload */}
           <div className="flex flex-col gap-4">
             <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider font-mono flex items-center gap-2">
               <Sparkles size={14} className="text-red-400" />
@@ -250,9 +318,9 @@ export default function ServerSettingsPage() {
 
             <div className="flex items-center gap-5">
               <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-3xl overflow-hidden border-2 border-red-500/40 bg-black/80 shadow-[0_0_20px_rgba(225,29,46,0.25)] shrink-0 flex items-center justify-center">
-                {logoPreview ? (
+                {formData.logoPreview ? (
                   <Image
-                    src={logoPreview}
+                    src={formData.logoPreview}
                     alt="Server Logo"
                     fill
                     unoptimized
@@ -283,12 +351,12 @@ export default function ServerSettingsPage() {
             </div>
           </div>
 
-          {/* Banner Upload with Level 2 Boost Check */}
+          {/* 2. Banner Background (Image + Static Colour Chooser) */}
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider font-mono flex items-center gap-2">
                 <Sparkles size={14} className="text-red-400" />
-                Server Banner Background
+                Server Banner & Accent Color
               </span>
               <span
                 className={`text-[10.5px] px-2 py-0.5 rounded-md font-mono ${
@@ -297,35 +365,87 @@ export default function ServerSettingsPage() {
                     : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                 }`}
               >
-                {isBannerLocked ? 'Requires Level 2' : 'Level 2 Active'}
+                {isBannerLocked ? 'Image: Level 2 Required' : 'Level 2 Image Active'}
               </span>
             </div>
 
-            <div className="relative w-full h-24 md:h-28 rounded-2xl overflow-hidden border-2 border-red-500/30 bg-black/80 flex items-center justify-center">
-              {bannerPreview ? (
+            {/* Banner Preview (Supports Image and Selected Banner Static Color) */}
+            <div
+              className="relative w-full h-24 md:h-28 rounded-2xl overflow-hidden border-2 border-red-500/30 flex items-center justify-center transition-colors duration-300"
+              style={{ backgroundColor: formData.bannerColor }}
+            >
+              {formData.bannerPreview ? (
                 <Image
-                  src={bannerPreview}
+                  src={formData.bannerPreview}
                   alt="Server Banner Preview"
                   fill
                   unoptimized
-                  className={`object-cover ${isBannerLocked ? 'blur-md opacity-30' : ''}`}
+                  className={`object-cover ${isBannerLocked ? 'blur-md opacity-25' : 'opacity-90'}`}
                 />
               ) : (
-                <div className={`w-full h-full bg-gradient-to-r from-red-950/40 via-black to-zinc-950 ${isBannerLocked ? 'blur-md opacity-30' : ''}`} />
+                <div
+                  className="w-full h-full opacity-70"
+                  style={{
+                    background: `linear-gradient(135deg, ${formData.bannerColor}, #050505)`
+                  }}
+                />
               )}
 
-              {/* Locked Overlay if Server lacks Boost Level 2 */}
+              {/* Locked Overlay for Custom Image if Server lacks Boost Level 2 */}
               {isBannerLocked && (
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-3 text-center z-20">
-                  <div className="w-8 h-8 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 shadow-[0_0_15px_rgba(225,29,46,0.4)] mb-1">
-                    <Lock size={16} />
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-2 text-center z-20">
+                  <div className="w-7 h-7 rounded-lg bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 shadow-[0_0_15px_rgba(225,29,46,0.4)] mb-1">
+                    <Lock size={14} />
                   </div>
-                  <span className="text-xs font-bold text-white font-mono">Banner Feature Locked</span>
-                  <span className="text-[10px] text-red-300 font-mono">Lacks Boost Level 2</span>
+                  <span className="text-xs font-bold text-white font-mono">Custom Banner Image Locked</span>
+                  <span className="text-[10px] text-zinc-300">Choose a static solid color below</span>
                 </div>
               )}
             </div>
 
+            {/* Static Banner Color Chooser (Active for ALL servers) */}
+            <div className="flex flex-col gap-2 p-3 rounded-2xl bg-white/[0.02] border border-white/5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-zinc-300 flex items-center gap-1.5 font-mono">
+                  <Palette size={13} className="text-red-400" />
+                  Banner Static Color
+                </span>
+                <span className="text-[11px] font-mono text-zinc-400 uppercase">
+                  {formData.bannerColor}
+                </span>
+              </div>
+
+              {/* Preset Palette Chips + Color Picker */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {PRESET_BANNER_COLORS.map((col) => (
+                  <button
+                    key={col.hex}
+                    type="button"
+                    title={col.label}
+                    onClick={() => setFormData((prev) => ({ ...prev, bannerColor: col.hex }))}
+                    className={`w-6 h-6 rounded-lg transition-transform duration-150 relative ${
+                      formData.bannerColor.toLowerCase() === col.hex.toLowerCase()
+                        ? 'scale-125 ring-2 ring-white shadow-[0_0_10px_rgba(255,255,255,0.5)] z-10'
+                        : 'hover:scale-110 opacity-80 hover:opacity-100'
+                    }`}
+                    style={{ backgroundColor: col.hex }}
+                  />
+                ))}
+
+                {/* Custom Native Color Picker */}
+                <div className="relative flex items-center gap-1.5 ml-auto">
+                  <input
+                    type="color"
+                    value={formData.bannerColor}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, bannerColor: e.target.value }))}
+                    className="w-7 h-7 rounded-lg bg-transparent border border-white/20 cursor-pointer"
+                    title="Choose custom HEX color"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Banner Image Upload Button */}
             <div className="flex items-center justify-between">
               <span className="text-[11px] text-zinc-400">
                 16:9 Aspect Ratio (1920x1080)
@@ -342,7 +462,7 @@ export default function ServerSettingsPage() {
                 }`}
               >
                 {isBannerLocked ? <Lock size={13} /> : <Upload size={13} className="text-red-400" />}
-                <span>Upload Banner</span>
+                <span>Upload Banner Image</span>
               </button>
             </div>
           </div>
@@ -354,8 +474,8 @@ export default function ServerSettingsPage() {
             <label className="text-xs font-semibold text-zinc-300">Server Name</label>
             <input
               type="text"
-              value={serverName}
-              onChange={(e) => setServerName(e.target.value)}
+              value={formData.serverName}
+              onChange={(e) => setFormData((prev) => ({ ...prev, serverName: e.target.value }))}
               className="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors"
             />
           </div>
@@ -368,8 +488,8 @@ export default function ServerSettingsPage() {
             <input
               type="text"
               maxLength={3}
-              value={prefix}
-              onChange={(e) => setPrefix(e.target.value)}
+              value={formData.prefix}
+              onChange={(e) => setFormData((prev) => ({ ...prev, prefix: e.target.value }))}
               className="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white font-mono text-sm focus:outline-none focus:border-red-500/50 transition-colors"
             />
           </div>
@@ -377,8 +497,8 @@ export default function ServerSettingsPage() {
           <div className="flex flex-col gap-2">
             <label className="text-xs font-semibold text-zinc-300">Server Preferred Locale</label>
             <select
-              value={locale}
-              onChange={(e) => setLocale(e.target.value)}
+              value={formData.locale}
+              onChange={(e) => setFormData((prev) => ({ ...prev, locale: e.target.value }))}
               className="w-full px-4 py-2.5 rounded-xl bg-[#141414] border border-white/10 text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors"
             >
               <option value="English (US) — en-US">English (US) — en-US</option>
@@ -399,15 +519,61 @@ export default function ServerSettingsPage() {
           </label>
           <textarea
             rows={2}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            value={formData.description}
+            onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
             className="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-red-500/50 transition-colors resize-none"
           />
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* SECTION 2: System Messages Channel & Event Messages                       */}
+      {/* SECTION 2: Inactive Channel & AFK Timeout                                 */}
+      {/* ========================================================================= */}
+      <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
+        <div>
+          <h3 className="text-base md:text-lg font-bold text-white flex items-center gap-2">
+            <Volume2 size={18} className="text-red-400" />
+            Inactive Channel & AFK Timeout
+          </h3>
+          <p className="text-xs text-zinc-400 mt-0.5">
+            Automatically move inactive voice members to a specific channel after a period of time.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-semibold text-zinc-300">Inactive Channel (AFK)</label>
+            <select
+              value={formData.afkChannel}
+              onChange={(e) => setFormData((prev) => ({ ...prev, afkChannel: e.target.value }))}
+              className="w-full px-4 py-2.5 rounded-xl bg-[#141414] border border-white/10 text-white text-sm font-mono focus:outline-none focus:border-red-500/50 transition-colors"
+            >
+              <option value="No Inactive Channel">No Inactive Channel</option>
+              <option value="🔊 #afk-lounge">🔊 #afk-lounge</option>
+              <option value="🔊 #voice-inactive">🔊 #voice-inactive</option>
+              <option value="🔊 #lounge">🔊 #lounge</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-semibold text-zinc-300">Inactive Timeout</label>
+            <select
+              value={formData.afkTimeout}
+              onChange={(e) => setFormData((prev) => ({ ...prev, afkTimeout: e.target.value }))}
+              className="w-full px-4 py-2.5 rounded-xl bg-[#141414] border border-white/10 text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors"
+            >
+              <option value="1 minute">1 minute</option>
+              <option value="5 minutes">5 minutes</option>
+              <option value="15 minutes">15 minutes</option>
+              <option value="30 minutes">30 minutes</option>
+              <option value="1 hour">1 hour</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* SECTION 3: System Messages Channel & Event Messages                       */}
       {/* ========================================================================= */}
       <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
         <div>
@@ -423,8 +589,8 @@ export default function ServerSettingsPage() {
         <div className="flex flex-col gap-2 max-w-md">
           <label className="text-xs font-semibold text-zinc-300">System Messages Channel</label>
           <select
-            value={systemChannel}
-            onChange={(e) => setSystemChannel(e.target.value)}
+            value={formData.systemChannel}
+            onChange={(e) => setFormData((prev) => ({ ...prev, systemChannel: e.target.value }))}
             className="w-full px-4 py-2.5 rounded-xl bg-[#141414] border border-white/10 text-white text-sm font-mono focus:outline-none focus:border-red-500/50 transition-colors"
           >
             <option value="#welcome">#welcome</option>
@@ -438,8 +604,8 @@ export default function ServerSettingsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
             <Toggle
-              checked={sendWelcome}
-              onChange={setSendWelcome}
+              checked={formData.sendWelcome}
+              onChange={(val) => setFormData((prev) => ({ ...prev, sendWelcome: val }))}
               label="Random Welcome Messages"
               description="Send a welcome message when someone joins this server"
             />
@@ -447,8 +613,8 @@ export default function ServerSettingsPage() {
 
           <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
             <Toggle
-              checked={stickerPrompt}
-              onChange={setStickerPrompt}
+              checked={formData.stickerPrompt}
+              onChange={(val) => setFormData((prev) => ({ ...prev, stickerPrompt: val }))}
               label="Sticker Reply Prompt"
               description="Prompt members to reply to welcome messages with a sticker"
             />
@@ -456,8 +622,8 @@ export default function ServerSettingsPage() {
 
           <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
             <Toggle
-              checked={boostMessage}
-              onChange={setBoostMessage}
+              checked={formData.boostMessage}
+              onChange={(val) => setFormData((prev) => ({ ...prev, boostMessage: val }))}
               label="Server Boost Announcements"
               description="Send a message when someone boosts this server"
             />
@@ -465,8 +631,8 @@ export default function ServerSettingsPage() {
 
           <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
             <Toggle
-              checked={setupTips}
-              onChange={setSetupTips}
+              checked={formData.setupTips}
+              onChange={(val) => setFormData((prev) => ({ ...prev, setupTips: val }))}
               label="Helpful Setup Tips"
               description="Send helpful tips for server configuration and bot usage"
             />
@@ -475,7 +641,7 @@ export default function ServerSettingsPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* SECTION 3: Default Notification Settings                                  */}
+      {/* SECTION 4: Default Notification Settings                                  */}
       {/* ========================================================================= */}
       <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-4">
         <div>
@@ -491,8 +657,8 @@ export default function ServerSettingsPage() {
         <div className="flex flex-col gap-2 max-w-lg">
           <label className="text-xs font-semibold text-zinc-300">Notification Level</label>
           <select
-            value={notificationLevel}
-            onChange={(e) => setNotificationLevel(e.target.value)}
+            value={formData.notificationLevel}
+            onChange={(e) => setFormData((prev) => ({ ...prev, notificationLevel: e.target.value }))}
             className="w-full px-4 py-2.5 rounded-xl bg-[#141414] border border-white/10 text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors"
           >
             <option value="All Messages (Recommended for small servers)">All Messages (Recommended for small servers)</option>
@@ -502,7 +668,7 @@ export default function ServerSettingsPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* SECTION 4: Safety & Verification Levels                                   */}
+      {/* SECTION 5: Safety & Verification Levels                                   */}
       {/* ========================================================================= */}
       <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
         <div>
@@ -519,8 +685,8 @@ export default function ServerSettingsPage() {
           <div className="flex flex-col gap-2">
             <label className="text-xs font-semibold text-zinc-300">Verification Level</label>
             <select
-              value={verificationLevel}
-              onChange={(e) => setVerificationLevel(e.target.value)}
+              value={formData.verificationLevel}
+              onChange={(e) => setFormData((prev) => ({ ...prev, verificationLevel: e.target.value }))}
               className="w-full px-4 py-2.5 rounded-xl bg-[#141414] border border-white/10 text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors"
             >
               <option value="None — Unrestricted">None — Unrestricted</option>
@@ -534,8 +700,8 @@ export default function ServerSettingsPage() {
           <div className="flex flex-col gap-2">
             <label className="text-xs font-semibold text-zinc-300">Explicit Media Content Filter</label>
             <select
-              value={mediaFilter}
-              onChange={(e) => setMediaFilter(e.target.value)}
+              value={formData.mediaFilter}
+              onChange={(e) => setFormData((prev) => ({ ...prev, mediaFilter: e.target.value }))}
               className="w-full px-4 py-2.5 rounded-xl bg-[#141414] border border-white/10 text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors"
             >
               <option value="Don't scan any media content">Do not scan any media content</option>
@@ -547,7 +713,7 @@ export default function ServerSettingsPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* SECTION 5: Custom Vanity URL                                              */}
+      {/* SECTION 6: Custom Vanity URL                                              */}
       {/* ========================================================================= */}
       <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-4">
         <div className="flex items-center justify-between">
@@ -571,29 +737,22 @@ export default function ServerSettingsPage() {
           </span>
           <input
             type="text"
-            value={vanityUrl}
-            onChange={(e) => setVanityUrl(e.target.value)}
+            value={formData.vanityUrl}
+            onChange={(e) => setFormData((prev) => ({ ...prev, vanityUrl: e.target.value }))}
             className="flex-1 px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white font-mono text-sm focus:outline-none focus:border-red-500/50 transition-colors"
           />
         </div>
       </div>
 
-      {/* Save Button */}
-      <div className="flex items-center justify-end pt-2">
-        <button
-          type="button"
-          disabled={isSaving}
-          onClick={handleSave}
-          className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-[#E11D2E] to-[#8A0F1A] hover:from-[#FF3B4D] hover:to-[#B91C1C] text-white font-bold text-sm shadow-[0_0_20px_rgba(225,29,46,0.35)] hover:shadow-[0_0_35px_rgba(225,29,46,0.7)] border border-red-400/30 transition-all duration-300 flex items-center justify-center gap-2"
-        >
-          {isSaving ? (
-            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          ) : (
-            <CheckCircle2 size={16} />
-          )}
-          <span>{isSaving ? 'Saving Changes...' : 'Save Server Settings'}</span>
-        </button>
-      </div>
+      {/* ========================================================================= */}
+      {/* FLOATING POPUP SAVE BAR (Triggered automatically when isDirty is true)    */}
+      {/* ========================================================================= */}
+      <UnsavedChangesBar
+        isDirty={isDirty}
+        isSaving={isSaving}
+        onSave={handleSave}
+        onReset={handleReset}
+      />
     </motion.div>
   );
 }
