@@ -7,26 +7,18 @@ import { Info } from 'lucide-react';
 export default function BotConfigPage() {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
-      className="flex flex-col items-center justify-center py-16 px-4 text-center max-w-md mx-auto"
+      transition={{ duration: 0.2 }}
+      className="flex flex-col items-center justify-center py-20 px-4 text-center"
     >
-      <div className="w-12 h-12 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 mb-4 shadow-[0_0_20px_rgba(225,29,46,0.3)]">
-        <Info size={24} />
+      <div className="w-12 h-12 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 mb-3 shadow-[0_0_20px_rgba(225,29,46,0.3)]">
+        <Info size={22} />
       </div>
 
-      <span className="text-xs px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 font-mono font-semibold mb-2">
-        Next Feature
-      </span>
-
-      <h2 className="text-lg font-bold text-white mb-1">
-        Bot Modules
+      <h2 className="text-base font-bold text-white tracking-wide">
+        Next feature
       </h2>
-
-      <p className="text-xs text-zinc-400">
-        Part of next build phase.
-      </p>
     </motion.div>
   );
 }
