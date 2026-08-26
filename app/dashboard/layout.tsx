@@ -124,10 +124,9 @@ export default function DashboardLayout({
       <div className="flex-1 flex flex-col md:pl-64 min-w-0">
         {/* Top Header Bar */}
         <header className="sticky top-0 z-30 h-16 px-6 md:px-8 border-b border-white/10 bg-[#080808]/70 backdrop-blur-xl flex items-center justify-between">
-          <div className="hidden md:flex items-center gap-2">
-            <span className="text-xs font-mono text-zinc-500 uppercase tracking-wider">Workspace:</span>
-            <span className="text-xs font-mono font-semibold text-zinc-300 px-2 py-0.5 rounded-md bg-white/5 border border-white/10">
-              RNG Mainframe
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono font-bold text-white tracking-wide">
+              RNG Administrative Centre
             </span>
           </div>
 
