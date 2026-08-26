@@ -18,7 +18,12 @@ import {
   MessageSquare,
   Volume2,
   Palette,
-  Ban
+  Ban,
+  Gamepad2,
+  Tag,
+  Radio,
+  Plus,
+  X
 } from 'lucide-react';
 import { mockServersApi, ServerData } from '@/lib/mockServersApi';
 import { Toggle } from '@/components/ui/Toggle';
@@ -43,20 +48,58 @@ interface ServerSettingsState {
   verificationLevel: string;
   mediaFilter: string;
   vanityUrl: string;
+  games: string[];
+  traits: string[];
+  activityFeedEnabled: boolean;
 }
 
 const PRESET_BANNER_COLORS = [
   { id: 'none', label: 'Default / Banner Image', hex: 'none' },
-  { id: 'crimson', label: 'RNG Crimson Red', hex: '#E11D2E' },
-  { id: 'burgundy', label: 'Deep Burgundy', hex: '#7F1D1D' },
-  { id: 'ruby', label: 'Dark Ruby', hex: '#991B1B' },
   { id: 'blurple', label: 'Discord Blurple', hex: '#5865F2' },
-  { id: 'emerald', label: 'Emerald Green', hex: '#57F287' },
-  { id: 'gold', label: 'Amber Gold', hex: '#FEE75C' },
-  { id: 'pink', label: 'Fuchsia Pink', hex: '#EB459E' },
-  { id: 'obsidian', label: 'Dark Obsidian', hex: '#1E1F22' },
-  { id: 'teal', label: 'Teal Cyan', hex: '#1ABC9C' },
-  { id: 'navy', label: 'Navy Slate', hex: '#4E5D94' }
+  { id: 'green', label: 'Discord Green', hex: '#57F287' },
+  { id: 'yellow', label: 'Discord Yellow', hex: '#FEE75C' },
+  { id: 'pink', label: 'Discord Fuchsia', hex: '#EB459E' },
+  { id: 'red', label: 'Discord Red', hex: '#ED4245' },
+  { id: 'dark', label: 'Discord Dark', hex: '#2B2D31' },
+  { id: 'teal', label: 'Discord Teal', hex: '#1ABC9C' },
+  { id: 'orange', label: 'Discord Orange', hex: '#E67E22' },
+  { id: 'purple', label: 'Discord Purple', hex: '#9B59B6' },
+  { id: 'navy', label: 'Discord Navy', hex: '#4E5D94' }
+];
+
+const DISCORD_POPULAR_GAMES = [
+  'Valorant',
+  'Minecraft',
+  'Grand Theft Auto V',
+  'Call of Duty: Warzone',
+  'Fortnite',
+  'League of Legends',
+  'Counter-Strike 2',
+  'Roblox',
+  'Apex Legends',
+  'Overwatch 2',
+  'Rust',
+  'Rocket League',
+  'Rainbow Six Siege',
+  'Dead by Daylight',
+  'Genshin Impact',
+  'Dota 2'
+];
+
+const DISCORD_SERVER_TRAITS = [
+  'Gaming',
+  'Esports',
+  'Competitive',
+  'Casual',
+  'Community',
+  'Tournaments',
+  'Content Creation',
+  'Clans / Guilds',
+  'Events',
+  'Social',
+  'Anime & Manga',
+  'Music',
+  'Technology'
 ];
 
 export default function ServerSettingsPage() {
@@ -75,7 +118,7 @@ export default function ServerSettingsPage() {
     description: '',
     logoPreview: '',
     bannerPreview: '',
-    bannerColor: '#E11D2E',
+    bannerColor: 'none',
     afkChannel: '🔊 #afk-lounge',
     afkTimeout: '15 minutes',
     systemChannel: '#welcome',
@@ -86,8 +129,16 @@ export default function ServerSettingsPage() {
     notificationLevel: 'Only @mentions (Recommended for large communities)',
     verificationLevel: 'High — Must be a member of this server for longer than 10 minutes',
     mediaFilter: 'Scan media content from all members (Recommended)',
-    vanityUrl: 'rng-network'
+    vanityUrl: 'rng-network',
+    games: [],
+    traits: [],
+    activityFeedEnabled: true
   });
+
+  // Game Search & Trait states
+  const [gameSearch, setGameSearch] = useState('');
+  const [isGameDropdownOpen, setIsGameDropdownOpen] = useState(false);
+  const gameDropdownRef = useRef<HTMLDivElement>(null);
 
   // Toast & Saving states
   const [toast, setToast] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
@@ -111,7 +162,7 @@ export default function ServerSettingsPage() {
             description: found.description || '',
             logoPreview: found.icon || '',
             bannerPreview: found.banner || '',
-            bannerColor: found.bannerColor || (found.banner ? 'none' : '#E11D2E'),
+            bannerColor: found.bannerColor || (found.banner ? 'none' : 'none'),
             afkChannel: found.afkChannel || '🔊 #afk-lounge',
             afkTimeout: found.afkTimeout || '15 minutes',
             systemChannel: found.welcomeChannel || '#welcome',
@@ -122,7 +173,10 @@ export default function ServerSettingsPage() {
             notificationLevel: 'Only @mentions (Recommended for large communities)',
             verificationLevel: 'High — Must be a member of this server for longer than 10 minutes',
             mediaFilter: 'Scan media content from all members (Recommended)',
-            vanityUrl: found.shortName.toLowerCase() || 'rng-network'
+            vanityUrl: found.shortName.toLowerCase() || 'rng-network',
+            games: found.games || [],
+            traits: found.traits || [],
+            activityFeedEnabled: found.activityFeedEnabled ?? true
           };
           setFormData(state);
           setInitialState(state);
@@ -223,7 +277,10 @@ export default function ServerSettingsPage() {
         locale: formData.locale,
         welcomeChannel: formData.systemChannel,
         afkChannel: formData.afkChannel,
-        afkTimeout: formData.afkTimeout
+        afkTimeout: formData.afkTimeout,
+        games: formData.games,
+        traits: formData.traits,
+        activityFeedEnabled: formData.activityFeedEnabled
       });
       setInitialState({ ...formData });
       showToast('success', 'Server settings saved and synchronized with Discord Bot!');
@@ -560,7 +617,210 @@ export default function ServerSettingsPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* SECTION 2: Inactive Channel & AFK Timeout                                 */}
+      {/* SECTION 2: What Games Does Your Server Play?                              */}
+      {/* ========================================================================= */}
+      <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
+        <div>
+          <h3 className="text-base md:text-lg font-bold text-white flex items-center gap-2">
+            <Gamepad2 size={18} className="text-red-400" />
+            What games does your server play?
+          </h3>
+          <p className="text-xs text-zinc-400 mt-0.5">
+            Select games your community actively plays. Helps members discover events and find squads.
+          </p>
+        </div>
+
+        {/* Selected Games Tags */}
+        <div className="flex flex-wrap items-center gap-2 min-h-[36px]">
+          {formData.games.length === 0 ? (
+            <span className="text-xs text-zinc-500 font-mono italic">No games selected yet. Choose from the list below.</span>
+          ) : (
+            formData.games.map((game) => (
+              <span
+                key={game}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 border border-red-500/30 text-white text-xs font-semibold shadow-[0_0_12px_rgba(225,29,46,0.15)] group"
+              >
+                <span>{game}</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      games: prev.games.filter((g) => g !== game)
+                    }))
+                  }
+                  className="w-4 h-4 rounded-full hover:bg-red-500/30 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+                >
+                  <X size={11} />
+                </button>
+              </span>
+            ))
+          )}
+        </div>
+
+        {/* Game Selector Dropdown & Quick Add */}
+        <div ref={gameDropdownRef} className="relative max-w-md">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Search or add a game (e.g. Valorant, GTA V)..."
+                value={gameSearch}
+                onFocus={() => setIsGameDropdownOpen(true)}
+                onChange={(e) => {
+                  setGameSearch(e.target.value);
+                  setIsGameDropdownOpen(true);
+                }}
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-red-500/50 transition-colors"
+              />
+              <Gamepad2 size={15} className="absolute left-3 top-3 text-zinc-500" />
+            </div>
+
+            {gameSearch.trim() && !formData.games.includes(gameSearch.trim()) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    games: [...prev.games, gameSearch.trim()]
+                  }));
+                  setGameSearch('');
+                  setIsGameDropdownOpen(false);
+                }}
+                className="px-3.5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-all shadow-[0_0_12px_rgba(225,29,46,0.3)] flex items-center gap-1 shrink-0"
+              >
+                <Plus size={14} />
+                <span>Add</span>
+              </button>
+            )}
+          </div>
+
+          {/* Autocomplete Dropdown */}
+          <AnimatePresence>
+            {isGameDropdownOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 5 }}
+                className="absolute left-0 right-0 top-full mt-2 p-2 rounded-2xl bg-[#141416] border border-white/10 shadow-2xl z-30 max-h-56 overflow-y-auto flex flex-col gap-1 backdrop-blur-xl"
+              >
+                {DISCORD_POPULAR_GAMES.filter(
+                  (g) =>
+                    g.toLowerCase().includes(gameSearch.toLowerCase()) &&
+                    !formData.games.includes(g)
+                ).map((game) => (
+                  <button
+                    key={game}
+                    type="button"
+                    onClick={() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        games: [...prev.games, game]
+                      }));
+                      setGameSearch('');
+                      setIsGameDropdownOpen(false);
+                    }}
+                    className="w-full px-3 py-2 rounded-xl text-left text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 transition-colors flex items-center justify-between"
+                  >
+                    <span>{game}</span>
+                    <Plus size={13} className="text-red-400" />
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* SECTION 3: Server Traits (Max 5)                                          */}
+      {/* ========================================================================= */}
+      <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="text-base md:text-lg font-bold text-white flex items-center gap-2">
+              <Tag size={18} className="text-red-400" />
+              Server Traits
+            </h3>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Choose up to 5 traits that describe the vibe and identity of your community.
+            </p>
+          </div>
+
+          <span className="text-xs font-mono px-3 py-1 rounded-full bg-white/5 border border-white/10 text-zinc-300 w-fit">
+            <span className={formData.traits.length === 5 ? 'text-red-400 font-bold' : 'text-white font-bold'}>
+              {formData.traits.length}
+            </span>{' '}
+            / 5 Selected
+          </span>
+        </div>
+
+        {/* Traits Chips Selection */}
+        <div className="flex flex-wrap gap-2.5">
+          {DISCORD_SERVER_TRAITS.map((trait) => {
+            const isSelected = formData.traits.includes(trait);
+            const isMaxReached = formData.traits.length >= 5 && !isSelected;
+
+            return (
+              <button
+                key={trait}
+                type="button"
+                disabled={isMaxReached}
+                onClick={() => {
+                  if (isSelected) {
+                    setFormData((prev) => ({
+                      ...prev,
+                      traits: prev.traits.filter((t) => t !== trait)
+                    }));
+                  } else if (formData.traits.length < 5) {
+                    setFormData((prev) => ({
+                      ...prev,
+                      traits: [...prev.traits, trait]
+                    }));
+                  }
+                }}
+                className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-150 flex items-center gap-1.5 ${
+                  isSelected
+                    ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(225,29,46,0.4)] border border-red-400/40'
+                    : isMaxReached
+                    ? 'bg-white/[0.02] text-zinc-600 border border-white/5 cursor-not-allowed'
+                    : 'bg-white/5 text-zinc-300 hover:text-white hover:bg-white/10 border border-white/10'
+                }`}
+              >
+                <span>{trait}</span>
+                {isSelected && <CheckCircle2 size={13} className="text-white" />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* SECTION 4: Activity Feed Settings                                         */}
+      {/* ========================================================================= */}
+      <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
+        <div>
+          <h3 className="text-base md:text-lg font-bold text-white flex items-center gap-2">
+            <Radio size={18} className="text-red-400" />
+            Activity Feed Settings
+          </h3>
+          <p className="text-xs text-zinc-400 mt-0.5">
+            Shows a feed of activity from games and connected apps in this server.
+          </p>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 max-w-2xl">
+          <Toggle
+            checked={formData.activityFeedEnabled}
+            onChange={(val) => setFormData((prev) => ({ ...prev, activityFeedEnabled: val }))}
+            label="Display activity feed in this server"
+            description="Allow members to view recent games and rich presence activity happening in this server."
+          />
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* SECTION 5: Inactive Channel & AFK Timeout                                 */}
       {/* ========================================================================= */}
       <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
         <div>

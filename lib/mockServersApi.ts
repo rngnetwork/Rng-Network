@@ -18,6 +18,25 @@ export interface ServerData {
   afkTimeout?: string;
   boostLevel: number; // 0, 1, 2, 3
   boostCount: number;
+
+  /**
+   * Discord Server Games ("What does your server play?")
+   * Array of game titles associated with the Discord guild for discovery & rich presence.
+   * e.g. ["Valorant", "Minecraft", "Grand Theft Auto V", "Call of Duty: Warzone"]
+   */
+  games: string[];
+
+  /**
+   * Discord Server Traits (Up to 5 server tags / traits)
+   * e.g. ["Gaming", "Esports", "Competitive", "Community", "Tournaments"]
+   */
+  traits: string[];
+
+  /**
+   * Discord Activity Feed Settings
+   * Shows a feed of activity from games and connected apps in this server.
+   */
+  activityFeedEnabled: boolean;
 }
 
 export const MOCK_SERVERS: ServerData[] = [
@@ -40,7 +59,10 @@ export const MOCK_SERVERS: ServerData[] = [
     afkTimeout: "15 minutes",
     bannerColor: "#E11D2E",
     boostLevel: 2,
-    boostCount: 14
+    boostCount: 14,
+    games: ["Valorant", "Grand Theft Auto V", "Counter-Strike 2", "Call of Duty: Warzone"],
+    traits: ["Gaming", "Competitive", "Esports", "Tournaments", "Community"],
+    activityFeedEnabled: true
   },
   {
     id: "rng-rivals",
@@ -61,7 +83,10 @@ export const MOCK_SERVERS: ServerData[] = [
     afkTimeout: "5 minutes",
     bannerColor: "#991B1B",
     boostLevel: 1,
-    boostCount: 7
+    boostCount: 7,
+    games: ["Valorant", "Apex Legends", "Overwatch 2", "Rocket League"],
+    traits: ["Esports", "Competitive", "Tournaments", "Clans / Guilds"],
+    activityFeedEnabled: true
   },
   {
     id: "rng-roughnuts",
@@ -82,7 +107,10 @@ export const MOCK_SERVERS: ServerData[] = [
     afkTimeout: "30 minutes",
     bannerColor: "#7F1D1D",
     boostLevel: 0,
-    boostCount: 1
+    boostCount: 1,
+    games: ["Minecraft", "Roblox", "Rust", "Genshin Impact"],
+    traits: ["Casual", "Community", "Events", "Social", "Gaming"],
+    activityFeedEnabled: false
   }
 ];
 
