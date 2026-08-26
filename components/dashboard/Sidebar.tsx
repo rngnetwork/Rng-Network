@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShieldCheck,
+  Server,
   User,
   LogOut,
   Menu,
@@ -29,6 +30,13 @@ export function Sidebar({ user }: SidebarProps) {
   const canAccessWhitelist = isHighCommand || isMinister;
 
   const navItems = [
+    {
+      label: 'Servers',
+      href: '/dashboard/servers',
+      icon: Server,
+      show: true,
+      badge: '3 Online',
+    },
     {
       label: 'Whitelist',
       href: '/dashboard/whitelist',
