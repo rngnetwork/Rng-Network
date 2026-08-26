@@ -1,3 +1,8 @@
+export interface ServerTrait {
+  emoji?: string;
+  name: string;
+}
+
 export interface ServerData {
   id: string;
   name: string;
@@ -27,10 +32,10 @@ export interface ServerData {
   games: string[];
 
   /**
-   * Discord Server Traits (Up to 5 server tags / traits)
-   * e.g. ["Gaming", "Esports", "Competitive", "Community", "Tournaments"]
+   * Discord Server Traits (Up to 5 server tags / traits with custom emoji & text)
+   * e.g. [{ emoji: "🎮", name: "Gaming" }, { emoji: "🏆", name: "Competitive" }]
    */
-  traits: string[];
+  traits: ServerTrait[];
 
   /**
    * Discord Activity Feed Settings
@@ -61,7 +66,13 @@ export const MOCK_SERVERS: ServerData[] = [
     boostLevel: 2,
     boostCount: 14,
     games: ["Valorant", "Grand Theft Auto V", "Counter-Strike 2", "Call of Duty: Warzone"],
-    traits: ["Gaming", "Competitive", "Esports", "Tournaments", "Community"],
+    traits: [
+      { emoji: "🎮", name: "Gaming" },
+      { emoji: "🏆", name: "Competitive" },
+      { emoji: "⚡", name: "Esports" },
+      { emoji: "⚔️", name: "Tournaments" },
+      { emoji: "🤝", name: "Community" }
+    ],
     activityFeedEnabled: true
   },
   {
@@ -85,7 +96,12 @@ export const MOCK_SERVERS: ServerData[] = [
     boostLevel: 1,
     boostCount: 7,
     games: ["Valorant", "Apex Legends", "Overwatch 2", "Rocket League"],
-    traits: ["Esports", "Competitive", "Tournaments", "Clans / Guilds"],
+    traits: [
+      { emoji: "⚡", name: "Esports" },
+      { emoji: "🏆", name: "Competitive" },
+      { emoji: "⚔️", name: "Tournaments" },
+      { emoji: "🛡️", name: "Clans / Guilds" }
+    ],
     activityFeedEnabled: true
   },
   {
@@ -109,7 +125,13 @@ export const MOCK_SERVERS: ServerData[] = [
     boostLevel: 0,
     boostCount: 1,
     games: ["Minecraft", "Roblox", "Rust", "Genshin Impact"],
-    traits: ["Casual", "Community", "Events", "Social", "Gaming"],
+    traits: [
+      { emoji: "☕", name: "Casual" },
+      { emoji: "🤝", name: "Community" },
+      { emoji: "🎉", name: "Events" },
+      { emoji: "💬", name: "Social" },
+      { emoji: "🎮", name: "Gaming" }
+    ],
     activityFeedEnabled: false
   }
 ];

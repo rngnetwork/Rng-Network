@@ -24,9 +24,11 @@ import {
   Radio,
   Plus,
   X,
-  Trash2
+  Trash2,
+  Smile,
+  Search
 } from 'lucide-react';
-import { mockServersApi, ServerData } from '@/lib/mockServersApi';
+import { mockServersApi, ServerData, ServerTrait } from '@/lib/mockServersApi';
 import { Toggle } from '@/components/ui/Toggle';
 import { UnsavedChangesBar } from '@/components/ui/UnsavedChangesBar';
 
@@ -50,7 +52,7 @@ interface ServerSettingsState {
   mediaFilter: string;
   vanityUrl: string;
   games: string[];
-  traits: string[];
+  traits: ServerTrait[];
   activityFeedEnabled: boolean;
 }
 
@@ -84,23 +86,48 @@ const DISCORD_POPULAR_GAMES = [
   'Rainbow Six Siege',
   'Dead by Daylight',
   'Genshin Impact',
-  'Dota 2'
+  'Dota 2',
+  'World of Warcraft',
+  'Escape from Tarkov',
+  'Cyberpunk 2077',
+  'Elden Ring',
+  'Helldivers 2',
+  'EA SPORTS FC 25',
+  'PUBG: BATTLEGROUNDS',
+  'Among Us',
+  'Destiny 2',
+  'Terraria',
+  'Palworld',
+  'Monster Hunter: World',
+  'Phasmophobia',
+  'Team Fortress 2',
+  'Sea of Thieves',
+  'Warframe',
+  'Brawlhalla',
+  'Deadlock'
 ];
 
-const DISCORD_SERVER_TRAITS = [
-  'Gaming',
-  'Esports',
-  'Competitive',
-  'Casual',
-  'Community',
-  'Tournaments',
-  'Content Creation',
-  'Clans / Guilds',
-  'Events',
-  'Social',
-  'Anime & Manga',
-  'Music',
-  'Technology'
+const EMOJI_CATEGORIES = [
+  {
+    name: 'Custom Server Emojis',
+    emojis: ['👑', '🔥', '⚔️', '🛡️', '💎', '🚀', '👾', '🏆', '⚡', '🎯', '💀', '🍿', '🔴', '🤖', '✨', '🗡️']
+  },
+  {
+    name: 'Gaming & Activities',
+    emojis: ['🎮', '🕹️', '🎲', '🎧', '💻', '🥊', '🏹', '🥇', '🎪', '🎤', '🎳', '🏎️', '⚽', '🏀', '🎱', '🧩']
+  },
+  {
+    name: 'Smileys & Community',
+    emojis: ['😊', '😎', '🤝', '💬', '☕', '🎉', '🌟', '❤️', '🍕', '💡', '👀', '🤙', '💯', '👋', '🥳', '🔥']
+  }
+];
+
+const TRAIT_PLACEHOLDERS = [
+  'Gaming Hub',
+  'Esports & Tournaments',
+  'Casual Hangouts',
+  'Voice Chats',
+  'Events & Giveaways'
 ];
 
 export default function ServerSettingsPage() {
@@ -132,14 +159,25 @@ export default function ServerSettingsPage() {
     mediaFilter: 'Scan media content from all members (Recommended)',
     vanityUrl: 'rng-network',
     games: [],
-    traits: [],
+    traits: [
+      { emoji: '', name: '' },
+      { emoji: '', name: '' },
+      { emoji: '', name: '' },
+      { emoji: '', name: '' },
+      { emoji: '', name: '' }
+    ],
     activityFeedEnabled: true
   });
 
-  // Game Search & Trait states
+  // Game Search & Dropdown states
   const [gameSearch, setGameSearch] = useState('');
   const [isGameDropdownOpen, setIsGameDropdownOpen] = useState(false);
   const gameDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Emoji Picker Popover state for 5 Traits
+  const [activeEmojiSlot, setActiveEmojiSlot] = useState<number | null>(null);
+  const [emojiSearch, setEmojiSearch] = useState('');
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
 
   // Toast & Saving states
   const [toast, setToast] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
@@ -156,6 +194,17 @@ export default function ServerSettingsPage() {
         const found = await mockServersApi.getServerById(serverId);
         if (isMounted && found) {
           setServer(found);
+          const rawTraits = found.traits || [];
+          const normalizedTraits: ServerTrait[] = Array.from({ length: 5 }, (_, i) => {
+            if (rawTraits[i]) {
+              return {
+                emoji: rawTraits[i].emoji || '😊',
+                name: rawTraits[i].name || ''
+              };
+            }
+            return { emoji: '', name: '' };
+          });
+
           const state: ServerSettingsState = {
             serverName: found.name,
             prefix: found.prefix || '!',
@@ -176,7 +225,7 @@ export default function ServerSettingsPage() {
             mediaFilter: 'Scan media content from all members (Recommended)',
             vanityUrl: found.shortName.toLowerCase() || 'rng-network',
             games: found.games || [],
-            traits: found.traits || [],
+            traits: normalizedTraits,
             activityFeedEnabled: found.activityFeedEnabled ?? true
           };
           setFormData(state);
@@ -265,10 +314,51 @@ export default function ServerSettingsPage() {
     setFormData((prev) => ({ ...prev, bannerPreview: objectUrl }));
   };
 
+  // Trait field handlers
+  const handleTraitChange = (index: number, field: 'emoji' | 'name', value: string) => {
+    setFormData((prev) => {
+      const updated = [...prev.traits];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, traits: updated };
+    });
+  };
+
+  const handleClearTrait = (index: number) => {
+    setFormData((prev) => {
+      const updated = [...prev.traits];
+      updated[index] = { emoji: '', name: '' };
+      return { ...prev, traits: updated };
+    });
+  };
+
+  // Close dropdowns on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        emojiPickerRef.current &&
+        !emojiPickerRef.current.contains(event.target as Node)
+      ) {
+        setActiveEmojiSlot(null);
+      }
+      if (
+        gameDropdownRef.current &&
+        !gameDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsGameDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   // Reset Changes (Silently reverts without toast)
   const handleReset = () => {
     if (initialState) {
       setFormData({ ...initialState });
+      setActiveEmojiSlot(null);
     }
   };
 
@@ -277,6 +367,9 @@ export default function ServerSettingsPage() {
     if (!server) return;
     setIsSaving(true);
     try {
+      const cleanedTraits = formData.traits.filter(
+        (t) => t.name.trim() !== '' || (t.emoji && t.emoji.trim() !== '')
+      );
       await mockServersApi.updateServerSettings(server.id, {
         name: formData.serverName,
         icon: formData.logoPreview,
@@ -289,7 +382,7 @@ export default function ServerSettingsPage() {
         afkChannel: formData.afkChannel,
         afkTimeout: formData.afkTimeout,
         games: formData.games,
-        traits: formData.traits,
+        traits: cleanedTraits,
         activityFeedEnabled: formData.activityFeedEnabled
       });
       setInitialState({ ...formData });
@@ -759,63 +852,165 @@ export default function ServerSettingsPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* SECTION 3: Server Traits (Max 5)                                          */}
+      {/* SECTION 3: Traits (5 Customizable Slots with Emoji Picker)                */}
       {/* ========================================================================= */}
       <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h3 className="text-base md:text-lg font-bold text-white flex items-center gap-2">
               <Tag size={18} className="text-red-400" />
-              Server Traits
+              Traits
             </h3>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Choose up to 5 traits that describe the vibe and identity of your community.
+              Add up to 5 traits to show off your server&apos;s interests and personality.
             </p>
           </div>
 
           <span className="text-xs font-mono px-3 py-1 rounded-full bg-white/5 border border-white/10 text-zinc-300 w-fit">
-            <span className={formData.traits.length === 5 ? 'text-red-400 font-bold' : 'text-white font-bold'}>
-              {formData.traits.length}
+            <span className="text-red-400 font-bold">
+              {formData.traits.filter((t) => t.name.trim() !== '').length}
             </span>{' '}
             / 5 Selected
           </span>
         </div>
 
-        {/* Traits Chips Selection */}
-        <div className="flex flex-wrap gap-2.5">
-          {DISCORD_SERVER_TRAITS.map((trait) => {
-            const isSelected = formData.traits.includes(trait);
-            const isMaxReached = formData.traits.length >= 5 && !isSelected;
+        {/* 5 Trait Slots Grid Matching Discord's exact layout from test.jpg */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Array.from({ length: 5 }).map((_, index) => {
+            const trait = formData.traits[index] || { emoji: '', name: '' };
+            const isPickerOpen = activeEmojiSlot === index;
 
             return (
-              <button
-                key={trait}
-                type="button"
-                disabled={isMaxReached}
-                onClick={() => {
-                  if (isSelected) {
-                    setFormData((prev) => ({
-                      ...prev,
-                      traits: prev.traits.filter((t) => t !== trait)
-                    }));
-                  } else if (formData.traits.length < 5) {
-                    setFormData((prev) => ({
-                      ...prev,
-                      traits: [...prev.traits, trait]
-                    }));
-                  }
-                }}
-                className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-150 flex items-center gap-1.5 ${
-                  isSelected
-                    ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(225,29,46,0.4)] border border-red-400/40'
-                    : isMaxReached
-                    ? 'bg-white/[0.02] text-zinc-600 border border-white/5 cursor-not-allowed'
-                    : 'bg-white/5 text-zinc-300 hover:text-white hover:bg-white/10 border border-white/10'
+              <div
+                key={index}
+                className={`relative flex items-center bg-white/[0.03] hover:bg-white/[0.05] border ${
+                  isPickerOpen ? 'border-red-500 shadow-[0_0_15px_rgba(225,29,46,0.25)]' : 'border-white/10'
+                } rounded-2xl p-2 transition-all duration-150 ${
+                  index === 4 ? 'md:col-span-2 md:max-w-[calc(50%-0.5rem)]' : ''
                 }`}
               >
-                <span>{trait}</span>
-                {isSelected && <CheckCircle2 size={13} className="text-white" />}
-              </button>
+                {/* Emoji Trigger Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveEmojiSlot(isPickerOpen ? null : index);
+                    setEmojiSearch('');
+                  }}
+                  className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-red-500/40 flex items-center justify-center text-lg shrink-0 transition-all active:scale-95 shadow-[0_0_10px_rgba(0,0,0,0.3)]"
+                  title="Choose Emoji"
+                >
+                  {trait.emoji ? (
+                    <span className="text-lg leading-none">{trait.emoji}</span>
+                  ) : (
+                    <Smile size={18} className="text-zinc-400 hover:text-red-400 transition-colors" />
+                  )}
+                </button>
+
+                {/* Trait Text Input */}
+                <input
+                  type="text"
+                  maxLength={32}
+                  placeholder={TRAIT_PLACEHOLDERS[index] || `Trait ${index + 1}`}
+                  value={trait.name}
+                  onChange={(e) => handleTraitChange(index, 'name', e.target.value)}
+                  className="flex-1 bg-transparent px-3 text-sm text-white placeholder-zinc-500 focus:outline-none"
+                />
+
+                {/* Clear Button if filled */}
+                {(trait.name || trait.emoji) && (
+                  <button
+                    type="button"
+                    onClick={() => handleClearTrait(index)}
+                    className="w-7 h-7 rounded-lg hover:bg-white/10 flex items-center justify-center text-zinc-500 hover:text-zinc-300 transition-colors shrink-0"
+                    title="Clear slot"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+
+                {/* Floating Emoji Picker Popover */}
+                <AnimatePresence>
+                  {isPickerOpen && (
+                    <motion.div
+                      ref={emojiPickerRef}
+                      initial={{ opacity: 0, scale: 0.95, y: 5 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: 5 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute left-0 top-full mt-2 w-80 p-3.5 rounded-2xl bg-[#141416] border border-red-500/30 shadow-[0_20px_50px_rgba(0,0,0,0.9),0_0_30px_rgba(225,29,46,0.2)] z-50 flex flex-col gap-3 backdrop-blur-2xl"
+                    >
+                      {/* Search Bar */}
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Search emoji..."
+                          value={emojiSearch}
+                          onChange={(e) => setEmojiSearch(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-red-500/50 transition-colors"
+                        />
+                        <Search size={13} className="absolute left-2.5 top-2.5 text-zinc-400" />
+                      </div>
+
+                      {/* Emoji Categories & Grids */}
+                      <div className="flex flex-col gap-3 max-h-56 overflow-y-auto pr-1">
+                        {EMOJI_CATEGORIES.map((cat) => {
+                          const filtered = cat.emojis.filter((em) =>
+                            emojiSearch.trim()
+                              ? em.includes(emojiSearch.trim()) ||
+                                cat.name.toLowerCase().includes(emojiSearch.toLowerCase())
+                              : true
+                          );
+                          if (filtered.length === 0) return null;
+
+                          return (
+                            <div key={cat.name} className="flex flex-col gap-1.5">
+                              <span className="text-[10px] font-bold text-zinc-400 font-mono uppercase tracking-wider">
+                                {cat.name}
+                              </span>
+                              <div className="grid grid-cols-8 gap-1">
+                                {filtered.map((emoji, eIdx) => (
+                                  <button
+                                    key={eIdx}
+                                    type="button"
+                                    onClick={() => {
+                                      handleTraitChange(index, 'emoji', emoji);
+                                      setActiveEmojiSlot(null);
+                                    }}
+                                    className={`w-8 h-8 rounded-lg hover:bg-red-500/20 hover:scale-110 flex items-center justify-center text-base transition-all ${
+                                      trait.emoji === emoji
+                                        ? 'bg-red-500/30 border border-red-500/50'
+                                        : 'bg-white/[0.02]'
+                                    }`}
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Clear Emoji Action */}
+                      <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[11px]">
+                        <span className="text-zinc-400 font-mono">Slot {index + 1}</span>
+                        {trait.emoji && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleTraitChange(index, 'emoji', '');
+                              setActiveEmojiSlot(null);
+                            }}
+                            className="text-red-400 hover:text-red-300 font-semibold"
+                          >
+                            Remove Emoji
+                          </button>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             );
           })}
         </div>
