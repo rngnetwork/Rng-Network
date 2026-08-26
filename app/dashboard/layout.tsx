@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, UserProfileData } from '@/lib/api';
 import { Sidebar } from '@/components/dashboard/Sidebar';
-import { UserProfileDropdown } from '@/components/ui/UserProfileDropdown';
+import { Navbar } from '@/components/dashboard/Navbar';
 import { ShieldAlert, ArrowRight } from 'lucide-react';
 
 export default function DashboardLayout({
@@ -122,18 +122,8 @@ export default function DashboardLayout({
 
       {/* Main App Container */}
       <div className="flex-1 flex flex-col md:pl-64 min-w-0">
-        {/* Top Header Bar */}
-        <header className="sticky top-0 z-30 h-16 px-6 md:px-8 border-b border-white/10 bg-[#080808]/70 backdrop-blur-xl flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-mono font-bold text-white tracking-wide">
-              RNG Administrative Centre
-            </span>
-          </div>
-
-          <div className="flex items-center gap-4 ml-auto">
-            <UserProfileDropdown />
-          </div>
-        </header>
+        {/* Top Navbar Bar Component */}
+        <Navbar user={user} />
 
         {/* Dynamic Page Content */}
         <main className="flex-1 p-6 md:p-8 w-full">

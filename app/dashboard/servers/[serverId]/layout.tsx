@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { mockServersApi, ServerData } from '@/lib/mockServersApi';
 import { ServerStatsHeader } from '@/components/server/ServerStatsHeader';
-import { ServerNavbar } from '@/components/server/ServerNavbar';
+import { Navbar } from '@/components/server/Navbar';
 
 export default function ServerDetailLayout({
   children,
@@ -87,10 +87,10 @@ export default function ServerDetailLayout({
       {/* BOX 1: Top Server Stats Header Component */}
       <ServerStatsHeader server={server} />
 
-      {/* BOX 2: Bottom Box containing ServerNavbar + Children */}
+      {/* BOX 2: Bottom Box containing Navbar + Children */}
       <div className="rounded-3xl bg-[#0e0e0e]/90 border border-red-500/20 p-6 md:p-8 backdrop-blur-xl shadow-[0_20px_50px_-15px_rgba(0,0,0,0.8),0_0_30px_rgba(225,29,46,0.12)] flex flex-col gap-6">
         {/* Horizontal Navigation Bar Component */}
-        <ServerNavbar serverId={serverId} />
+        <Navbar serverId={serverId} />
 
         {/* Child Pages (Settings, Bot Modules, Embeds, Analytics) */}
         <div className="w-full">
