@@ -175,7 +175,6 @@ export default function ServerSettingsPage() {
 
     const objectUrl = URL.createObjectURL(file);
     setFormData((prev) => ({ ...prev, logoPreview: objectUrl }));
-    showToast('success', `Server logo updated to ${file.name}!`);
   };
 
   // Handle Banner Upload with GIF Boost Level Check
@@ -200,14 +199,12 @@ export default function ServerSettingsPage() {
 
     const objectUrl = URL.createObjectURL(file);
     setFormData((prev) => ({ ...prev, bannerPreview: objectUrl }));
-    showToast('success', `Server banner updated to ${file.name}!`);
   };
 
-  // Reset Changes
+  // Reset Changes (Silently reverts without toast)
   const handleReset = () => {
     if (initialState) {
       setFormData({ ...initialState });
-      showToast('success', 'Changes reverted back to original settings.');
     }
   };
 
