@@ -10,10 +10,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Sparkles,
-  Terminal,
   FileText,
-  Bell,
-  ShieldAlert,
   Link2,
   MessageSquare,
   Volume2,
@@ -32,8 +29,6 @@ import { DiscordEmojiPicker } from '@/components/ui/DiscordEmojiPicker';
 
 interface ServerSettingsState {
   serverName: string;
-  prefix: string;
-  locale: string;
   description: string;
   logoPreview: string;
   bannerPreview: string;
@@ -45,12 +40,10 @@ interface ServerSettingsState {
   stickerPrompt: boolean;
   boostMessage: boolean;
   setupTips: boolean;
-  notificationLevel: string;
-  verificationLevel: string;
-  mediaFilter: string;
   vanityUrl: string;
   traits: ServerTrait[];
   activityFeedEnabled: boolean;
+  privateProfile: boolean;
 }
 
 const PRESET_BANNER_COLORS = [
@@ -86,8 +79,6 @@ export default function ServerSettingsPage() {
   const [initialState, setInitialState] = useState<ServerSettingsState | null>(null);
   const [formData, setFormData] = useState<ServerSettingsState>({
     serverName: '',
-    prefix: '!',
-    locale: 'English (US) — en-US',
     description: '',
     logoPreview: '',
     bannerPreview: '',
@@ -99,9 +90,6 @@ export default function ServerSettingsPage() {
     stickerPrompt: true,
     boostMessage: true,
     setupTips: false,
-    notificationLevel: 'Only @mentions (Recommended for large communities)',
-    verificationLevel: 'High — Must be a member of this server for longer than 10 minutes',
-    mediaFilter: 'Scan media content from all members (Recommended)',
     vanityUrl: 'rng-network',
     traits: [
       { emoji: '', name: '' },
@@ -110,7 +98,8 @@ export default function ServerSettingsPage() {
       { emoji: '', name: '' },
       { emoji: '', name: '' }
     ],
-    activityFeedEnabled: true
+    activityFeedEnabled: true,
+    privateProfile: false
   });
 
   // Emoji Picker Popover state for 5 Traits
@@ -145,8 +134,6 @@ export default function ServerSettingsPage() {
 
           const state: ServerSettingsState = {
             serverName: found.name,
-            prefix: found.prefix || '!',
-            locale: found.locale || 'English (US) — en-US',
             description: found.description || '',
             logoPreview: found.icon || '',
             bannerPreview: found.banner || '',
@@ -158,12 +145,10 @@ export default function ServerSettingsPage() {
             stickerPrompt: true,
             boostMessage: true,
             setupTips: false,
-            notificationLevel: 'Only @mentions (Recommended for large communities)',
-            verificationLevel: 'High — Must be a member of this server for longer than 10 minutes',
-            mediaFilter: 'Scan media content from all members (Recommended)',
             vanityUrl: found.shortName.toLowerCase() || 'rng-network',
             traits: normalizedTraits,
-            activityFeedEnabled: found.activityFeedEnabled ?? true
+            activityFeedEnabled: found.activityFeedEnabled ?? true,
+            privateProfile: found.privateProfile ?? false
           };
           setFormData(state);
           setInitialState(state);
@@ -307,13 +292,12 @@ export default function ServerSettingsPage() {
         banner: formData.bannerPreview,
         bannerColor: formData.bannerColor,
         description: formData.description,
-        prefix: formData.prefix,
-        locale: formData.locale,
         welcomeChannel: formData.systemChannel,
         afkChannel: formData.afkChannel,
         afkTimeout: formData.afkTimeout,
         traits: cleanedTraits,
-        activityFeedEnabled: formData.activityFeedEnabled
+        activityFeedEnabled: formData.activityFeedEnabled,
+        privateProfile: formData.privateProfile
       });
       setInitialState({ ...formData });
       showToast('success', 'Server settings saved and synchronized with Discord Bot!');
@@ -394,7 +378,7 @@ export default function ServerSettingsPage() {
             Server Overview & Identity
           </h3>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Basic server profile details, icon, banner image, static accent color, and locale.
+            Basic server profile details, icon, banner image, and static accent color.
           </p>
         </div>
 
@@ -607,47 +591,15 @@ export default function ServerSettingsPage() {
           </div>
         </div>
 
-        {/* Inputs: Name, Prefix, Locale */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-semibold text-zinc-300">Server Name</label>
-            <input
-              type="text"
-              value={formData.serverName}
-              onChange={(e) => setFormData((prev) => ({ ...prev, serverName: e.target.value }))}
-              className="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors"
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
-              <Terminal size={13} className="text-red-400" />
-              Bot Command Prefix
-            </label>
-            <input
-              type="text"
-              maxLength={3}
-              value={formData.prefix}
-              onChange={(e) => setFormData((prev) => ({ ...prev, prefix: e.target.value }))}
-              className="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white font-mono text-sm focus:outline-none focus:border-red-500/50 transition-colors"
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-semibold text-zinc-300">Server Preferred Locale</label>
-            <select
-              value={formData.locale}
-              onChange={(e) => setFormData((prev) => ({ ...prev, locale: e.target.value }))}
-              className="w-full px-4 py-2.5 rounded-xl bg-[#141414] border border-white/10 text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors"
-            >
-              <option value="English (US) — en-US">English (US) — en-US</option>
-              <option value="English (UK) — en-GB">English (UK) — en-GB</option>
-              <option value="Español — es-ES">Español — es-ES</option>
-              <option value="Français — fr-FR">Français — fr-FR</option>
-              <option value="Deutsch — de-DE">Deutsch — de-DE</option>
-              <option value="日本語 — ja-JP">日本語 — ja-JP</option>
-            </select>
-          </div>
+        {/* Input: Server Name */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-semibold text-zinc-300">Server Name</label>
+          <input
+            type="text"
+            value={formData.serverName}
+            onChange={(e) => setFormData((prev) => ({ ...prev, serverName: e.target.value }))}
+            className="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors"
+          />
         </div>
 
         {/* Server Description */}
@@ -908,73 +860,36 @@ export default function ServerSettingsPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* SECTION 4: Default Notification Settings                                  */}
-      {/* ========================================================================= */}
-      <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-4">
-        <div>
-          <h3 className="text-base md:text-lg font-bold text-white flex items-center gap-2">
-            <Bell size={18} className="text-red-400" />
-            Default Notification Settings
-          </h3>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            Default notification frequency applied to newly joined members.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-2 max-w-lg">
-          <label className="text-xs font-semibold text-zinc-300">Notification Level</label>
-          <select
-            value={formData.notificationLevel}
-            onChange={(e) => setFormData((prev) => ({ ...prev, notificationLevel: e.target.value }))}
-            className="w-full px-4 py-2.5 rounded-xl bg-[#141414] border border-white/10 text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors"
-          >
-            <option value="All Messages (Recommended for small servers)">All Messages (Recommended for small servers)</option>
-            <option value="Only @mentions (Recommended for large communities)">Only @mentions (Recommended for large communities)</option>
-          </select>
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* SECTION 5: Safety & Verification Levels                                   */}
+      {/* SECTION 4: Privacy & Activity Feed Settings                               */}
       {/* ========================================================================= */}
       <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
         <div>
           <h3 className="text-base md:text-lg font-bold text-white flex items-center gap-2">
-            <ShieldAlert size={18} className="text-red-400" />
-            Safety & Verification Levels
+            <Radio size={18} className="text-red-400" />
+            Privacy & Activity Feed Settings
           </h3>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Verification criteria required before members can send messages or react.
+            Configure server visibility, private profile status, and connected game feeds.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-semibold text-zinc-300">Verification Level</label>
-            <select
-              value={formData.verificationLevel}
-              onChange={(e) => setFormData((prev) => ({ ...prev, verificationLevel: e.target.value }))}
-              className="w-full px-4 py-2.5 rounded-xl bg-[#141414] border border-white/10 text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors"
-            >
-              <option value="None — Unrestricted">None — Unrestricted</option>
-              <option value="Low — Must have a verified email on their Discord account">Low — Must have a verified email on their Discord account</option>
-              <option value="Medium — Must be registered on Discord for longer than 5 minutes">Medium — Must be registered on Discord for longer than 5 minutes</option>
-              <option value="High — Must be a member of this server for longer than 10 minutes">High — Must be a member of this server for longer than 10 minutes</option>
-              <option value="Highest — Must have a verified phone number on their Discord account">Highest — Must have a verified phone number on their Discord account</option>
-            </select>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+            <Toggle
+              checked={formData.privateProfile}
+              onChange={(val) => setFormData((prev) => ({ ...prev, privateProfile: val }))}
+              label="Private Server Profile"
+              description="Hide this server from public discovery, member search, and public feeds. Only invited members can view."
+            />
           </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-semibold text-zinc-300">Explicit Media Content Filter</label>
-            <select
-              value={formData.mediaFilter}
-              onChange={(e) => setFormData((prev) => ({ ...prev, mediaFilter: e.target.value }))}
-              className="w-full px-4 py-2.5 rounded-xl bg-[#141414] border border-white/10 text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors"
-            >
-              <option value="Don't scan any media content">Do not scan any media content</option>
-              <option value="Scan media content from members without roles">Scan media content from members without roles</option>
-              <option value="Scan media content from all members (Recommended)">Scan media content from all members (Recommended)</option>
-            </select>
+          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+            <Toggle
+              checked={formData.activityFeedEnabled}
+              onChange={(val) => setFormData((prev) => ({ ...prev, activityFeedEnabled: val }))}
+              label="Display Activity Feed"
+              description="Shows a feed of live activity from games and connected apps in this server."
+            />
           </div>
         </div>
       </div>

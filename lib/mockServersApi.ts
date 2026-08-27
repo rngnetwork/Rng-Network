@@ -16,8 +16,6 @@ export interface ServerData {
   totalCount: string;
   status: 'operational' | 'degraded' | 'offline';
   botConnected: boolean;
-  prefix: string;
-  locale: string;
   welcomeChannel: string;
   afkChannel?: string;
   afkTimeout?: string;
@@ -35,6 +33,12 @@ export interface ServerData {
    * Shows a feed of activity from games and connected apps in this server.
    */
   activityFeedEnabled: boolean;
+
+  /**
+   * Discord Server Privacy Settings
+   * When enabled, hides this server from public discovery, member lists, and discovery feeds.
+   */
+  privateProfile: boolean;
 }
 
 export const MOCK_SERVERS: ServerData[] = [
@@ -50,8 +54,6 @@ export const MOCK_SERVERS: ServerData[] = [
     totalCount: "4,850",
     status: "operational",
     botConnected: true,
-    prefix: "!",
-    locale: "English (US)",
     welcomeChannel: "#welcome",
     afkChannel: "🔊 #afk-lounge",
     afkTimeout: "15 minutes",
@@ -65,7 +67,8 @@ export const MOCK_SERVERS: ServerData[] = [
       { emoji: "⚔️", name: "Tournaments" },
       { emoji: "🤝", name: "Community" }
     ],
-    activityFeedEnabled: true
+    activityFeedEnabled: true,
+    privateProfile: false
   },
   {
     id: "rng-rivals",
@@ -79,8 +82,6 @@ export const MOCK_SERVERS: ServerData[] = [
     totalCount: "2,640",
     status: "operational",
     botConnected: true,
-    prefix: "?",
-    locale: "English (US)",
     welcomeChannel: "#announcements",
     afkChannel: "No Inactive Channel",
     afkTimeout: "5 minutes",
@@ -93,7 +94,8 @@ export const MOCK_SERVERS: ServerData[] = [
       { emoji: "⚔️", name: "Tournaments" },
       { emoji: "🛡️", name: "Clans / Guilds" }
     ],
-    activityFeedEnabled: true
+    activityFeedEnabled: true,
+    privateProfile: false
   },
   {
     id: "rng-roughnuts",
@@ -107,8 +109,6 @@ export const MOCK_SERVERS: ServerData[] = [
     totalCount: "1,920",
     status: "operational",
     botConnected: true,
-    prefix: ".",
-    locale: "English (US)",
     welcomeChannel: "#lounge",
     afkChannel: "🔊 #voice-inactive",
     afkTimeout: "30 minutes",
@@ -122,7 +122,8 @@ export const MOCK_SERVERS: ServerData[] = [
       { emoji: "💬", name: "Social" },
       { emoji: "🎮", name: "Gaming" }
     ],
-    activityFeedEnabled: false
+    activityFeedEnabled: false,
+    privateProfile: true
   }
 ];
 
