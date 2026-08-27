@@ -643,10 +643,28 @@ export function DiscordEmojiPicker({
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [hoveredEmoji, setHoveredEmoji] = useState<EmojiItem | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const desktopPickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     searchInputRef.current?.focus();
   }, []);
+
+  // Desktop click outside listener (safe for mobile since mobile uses portal backdrop)
+  useEffect(() => {
+    const handleDesktopClickOutside = (e: MouseEvent) => {
+      if (
+        desktopPickerRef.current &&
+        !desktopPickerRef.current.contains(e.target as Node)
+      ) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleDesktopClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleDesktopClickOutside);
+    };
+  }, [onClose]);
 
   // Smart Search Ranking
   const filteredEmojis = useMemo(() => {
@@ -740,7 +758,11 @@ export function DiscordEmojiPicker({
                 <button
                   key={cat.id}
                   type="button"
-                  onClick={() => setActiveCategory(cat.id)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setActiveCategory(cat.id);
+                  }}
                   className={`px-2.5 py-1.5 sm:py-1 rounded-lg text-xs sm:text-[11px] font-semibold flex items-center gap-1.5 transition-all shrink-0 ${
                     isActive
                       ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(225,29,46,0.4)]'
@@ -772,7 +794,9 @@ export function DiscordEmojiPicker({
                 key={`${item.shortcode}-${idx}`}
                 type="button"
                 onMouseEnter={() => setHoveredEmoji(item)}
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   onSelect(item.emoji);
                   onClose();
                 }}
@@ -813,11 +837,13 @@ export function DiscordEmojiPicker({
         {currentEmoji && onClear && (
           <button
             type="button"
-            onClick={() => {
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
               onClear();
               onClose();
             }}
-            className="text-red-400 hover:text-red-300 text-xs sm:text-[11px] font-semibold transition-colors shrink-0 ml-2 px-2 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20"
+            className="text-red-400 hover:text-red-300 text-xs sm:text-[11px] font-semibold transition-colors shrink-0 ml-2 px-2.5 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20"
           >
             Remove Emoji
           </button>
@@ -831,28 +857,34 @@ export function DiscordEmojiPicker({
       {/* 1. Mobile Bottom Sheet Modal (rendered via portal for full touch immersion) */}
       {isClient &&
         createPortal(
-          <div className="sm:hidden fixed inset-0 z-[999999] bg-black/80 backdrop-blur-md flex flex-col justify-end animate-in fade-in duration-200">
-            {/* Backdrop Dismiss Area */}
-            <div className="flex-1 w-full" onClick={onClose} />
-
+          <div
+            className="sm:hidden fixed inset-0 z-[999999] bg-black/80 backdrop-blur-md flex flex-col justify-end animate-in fade-in duration-200"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+          >
             {/* Bottom Sheet Drawer */}
-            <div className="w-full bg-[#111214] border-t border-white/15 rounded-t-3xl shadow-[0_-15px_40px_rgba(0,0,0,0.95)] max-h-[85vh] flex flex-col overflow-hidden text-white select-none pb-safe animate-in slide-in-from-bottom duration-250">
-              {/* Drawer Handle & Header */}
-              <div className="pt-3 pb-2 px-4 flex flex-col items-center gap-2 border-b border-white/5 relative">
-                <div className="w-12 h-1.5 rounded-full bg-white/20" />
-                <div className="flex items-center justify-between w-full mt-1">
-                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                    <Sparkles size={14} className="text-red-400" />
-                    Select Trait #{slotIndex + 1} Emoji
-                  </span>
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
-                  >
-                    <X size={15} />
-                  </button>
-                </div>
+            <div
+              className="w-full bg-[#111214] border-t border-white/15 rounded-t-3xl shadow-[0_-15px_40px_rgba(0,0,0,0.95)] max-h-[85vh] flex flex-col overflow-hidden text-white select-none pb-safe animate-in slide-in-from-bottom duration-250"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header with Title and Cross Icon Only */}
+              <div className="py-3 px-4 flex items-center justify-between border-b border-white/10 relative">
+                <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-red-400" />
+                  Select Trait #{slotIndex + 1} Emoji
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onClose();
+                  }}
+                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+                >
+                  <X size={16} />
+                </button>
               </div>
 
               {/* Emoji Content for Mobile */}
@@ -863,7 +895,10 @@ export function DiscordEmojiPicker({
         )}
 
       {/* 2. Desktop Popover Dropdown */}
-      <div className="hidden sm:flex w-[360px] bg-[#111214] border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.95),0_0_30px_rgba(225,29,46,0.25)] flex-col overflow-hidden text-white select-none backdrop-blur-xl">
+      <div
+        ref={desktopPickerRef}
+        className="hidden sm:flex w-[360px] bg-[#111214] border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.95),0_0_30px_rgba(225,29,46,0.25)] flex-col overflow-hidden text-white select-none backdrop-blur-xl"
+      >
         {emojiListContent(false)}
       </div>
     </>

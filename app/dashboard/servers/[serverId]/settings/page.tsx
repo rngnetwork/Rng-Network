@@ -253,23 +253,6 @@ export default function ServerSettingsPage() {
     });
   };
 
-  // Close dropdowns on click outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        emojiPickerRef.current &&
-        !emojiPickerRef.current.contains(event.target as Node)
-      ) {
-        setActiveEmojiSlot(null);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
   // Reset Changes (Silently reverts without toast)
   const handleReset = () => {
     if (initialState) {
@@ -898,7 +881,7 @@ export default function ServerSettingsPage() {
       {/* SECTION 6: Custom Vanity URL                                              */}
       {/* ========================================================================= */}
       <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h3 className="text-base md:text-lg font-bold text-white flex items-center gap-2">
               <Link2 size={18} className="text-red-400" />
@@ -908,20 +891,20 @@ export default function ServerSettingsPage() {
               Custom invite URL for your server.
             </p>
           </div>
-          <span className="text-[10.5px] px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 font-mono">
+          <span className="text-[10.5px] px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 font-mono w-fit">
             Level 3 Boost Perk
           </span>
         </div>
 
-        <div className="flex items-center gap-3 max-w-md">
-          <span className="text-xs font-mono text-zinc-400 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 max-w-md w-full">
+          <span className="text-xs font-mono text-zinc-400 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 shrink-0 w-fit sm:w-auto">
             discord.gg/
           </span>
           <input
             type="text"
             value={formData.vanityUrl}
             onChange={(e) => setFormData((prev) => ({ ...prev, vanityUrl: e.target.value }))}
-            className="flex-1 px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white font-mono text-sm focus:outline-none focus:border-red-500/50 transition-colors"
+            className="min-w-0 flex-1 w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white font-mono text-sm focus:outline-none focus:border-red-500/50 transition-colors"
           />
         </div>
       </div>
