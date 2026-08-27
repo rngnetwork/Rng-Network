@@ -700,7 +700,7 @@ export default function ServerSettingsPage() {
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: 5 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute left-0 top-full mt-2 z-50"
+                      className="absolute left-0 top-full mt-2 z-50 max-w-[calc(100vw-32px)]"
                     >
                       <DiscordEmojiPicker
                         currentEmoji={trait.emoji}

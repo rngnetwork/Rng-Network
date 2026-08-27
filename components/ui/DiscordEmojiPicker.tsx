@@ -696,7 +696,7 @@ export function DiscordEmojiPicker({
   }, [search, activeCategory]);
 
   return (
-    <div className="w-[330px] sm:w-[360px] bg-[#111214] border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.95),0_0_30px_rgba(225,29,46,0.25)] flex flex-col overflow-hidden text-white select-none backdrop-blur-xl">
+    <div className="w-[calc(100vw-40px)] sm:w-[360px] max-w-[360px] bg-[#111214] border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.95),0_0_30px_rgba(225,29,46,0.25)] flex flex-col overflow-hidden text-white select-none backdrop-blur-xl">
       {/* Search Header */}
       <div className="p-3 pb-2 border-b border-white/5 flex flex-col gap-2.5">
         <div className="relative">
@@ -759,7 +759,7 @@ export function DiscordEmojiPicker({
             <span className="text-[10.5px] text-zinc-600">Try searching for &quot;fire&quot;, &quot;sword&quot;, or &quot;crown&quot;</span>
           </div>
         ) : (
-          <div className="grid grid-cols-8 gap-1">
+          <div className="grid grid-cols-7 sm:grid-cols-8 gap-1 place-items-center">
             {filteredEmojis.map((item, idx) => (
               <button
                 key={`${item.shortcode}-${idx}`}
@@ -769,7 +769,7 @@ export function DiscordEmojiPicker({
                   onSelect(item.emoji);
                   onClose();
                 }}
-                className={`w-9 h-9 rounded-xl hover:bg-red-500/20 hover:scale-125 flex items-center justify-center text-lg transition-all active:scale-95 ${
+                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl hover:bg-red-500/20 hover:scale-125 flex items-center justify-center text-base sm:text-lg transition-all active:scale-95 ${
                   currentEmoji === item.emoji
                     ? 'bg-red-500/30 border border-red-500/50 shadow-[0_0_12px_rgba(225,29,46,0.4)]'
                     : 'bg-white/[0.02]'
