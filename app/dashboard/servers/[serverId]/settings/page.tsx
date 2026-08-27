@@ -28,18 +28,7 @@ import {
 import { mockServersApi, ServerData, ServerTrait } from '@/lib/mockServersApi';
 import { Toggle } from '@/components/ui/Toggle';
 import { UnsavedChangesBar } from '@/components/ui/UnsavedChangesBar';
-import dynamic from 'next/dynamic';
-import { Theme, EmojiStyle, EmojiClickData } from 'emoji-picker-react';
-
-const EmojiPicker = dynamic(() => import('emoji-picker-react'), {
-  ssr: false,
-  loading: () => (
-    <div className="w-[340px] h-[380px] flex flex-col items-center justify-center bg-[#141416] rounded-2xl gap-2 border border-white/10">
-      <div className="w-6 h-6 border-2 border-white/10 border-t-red-500 rounded-full animate-spin" />
-      <span className="text-xs text-zinc-400 font-mono">Loading emoji library...</span>
-    </div>
-  )
-});
+import { DiscordEmojiPicker } from '@/components/ui/DiscordEmojiPicker';
 
 interface ServerSettingsState {
   serverName: string;
@@ -759,40 +748,18 @@ export default function ServerSettingsPage() {
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: 5 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute left-0 top-full mt-2 z-50 rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.95),0_0_30px_rgba(225,29,46,0.25)] border border-red-500/30"
+                      className="absolute left-0 top-full mt-2 z-50"
                     >
-                      <EmojiPicker
-                        theme={Theme.DARK}
-                        emojiStyle={EmojiStyle.NATIVE}
-                        lazyLoadEmojis={true}
-                        searchPlaceHolder="Search 1,800+ emojis..."
-                        width={350}
-                        height={420}
-                        previewConfig={{
-                          showPreview: true
-                        }}
-                        onEmojiClick={(emojiData: EmojiClickData) => {
-                          handleTraitChange(index, 'emoji', emojiData.emoji);
+                      <DiscordEmojiPicker
+                        currentEmoji={trait.emoji}
+                        slotIndex={index}
+                        onSelect={(chosenEmoji) => {
+                          handleTraitChange(index, 'emoji', chosenEmoji);
                           setActiveEmojiSlot(null);
                         }}
+                        onClear={() => handleTraitChange(index, 'emoji', '')}
+                        onClose={() => setActiveEmojiSlot(null)}
                       />
-
-                      {/* Clear Emoji Action */}
-                      <div className="flex items-center justify-between p-2.5 bg-[#141416] border-t border-white/5 text-[11px]">
-                        <span className="text-zinc-400 font-mono">Trait Slot {index + 1}</span>
-                        {trait.emoji && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleTraitChange(index, 'emoji', '');
-                              setActiveEmojiSlot(null);
-                            }}
-                            className="text-red-400 hover:text-red-300 font-semibold transition-colors"
-                          >
-                            Remove Emoji
-                          </button>
-                        )}
-                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
