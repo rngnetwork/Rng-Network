@@ -652,6 +652,9 @@ export function DiscordEmojiPicker({
   // Desktop click outside listener (safe for mobile since mobile uses portal backdrop)
   useEffect(() => {
     const handleDesktopClickOutside = (e: MouseEvent) => {
+      if (typeof window !== 'undefined' && window.innerWidth < 640) {
+        return;
+      }
       if (
         desktopPickerRef.current &&
         !desktopPickerRef.current.contains(e.target as Node)
@@ -868,6 +871,8 @@ export function DiscordEmojiPicker({
             <div
               className="w-full bg-[#111214] border-t border-white/15 rounded-t-3xl shadow-[0_-15px_40px_rgba(0,0,0,0.95)] max-h-[85vh] flex flex-col overflow-hidden text-white select-none pb-safe animate-in slide-in-from-bottom duration-250"
               onClick={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
             >
               {/* Header with Title and Cross Icon Only */}
               <div className="py-3 px-4 flex items-center justify-between border-b border-white/10 relative">
