@@ -3,6 +3,7 @@ docs
 .agents
 GEMINI.md
 apache-maven-3.9.6
+.vscode
 target
 # dependencies
 /node_modules
