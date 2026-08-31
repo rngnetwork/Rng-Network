@@ -76,6 +76,40 @@ public class JwtTokenProvider implements TokenService {
     }
 
     @Override
+    public String generateResetRequestToken(Long userId, String email) {
+        String jti = UUID.randomUUID().toString();
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + SecurityConstants.RESET_REQUEST_TOKEN_EXPIRATION_MS);
+
+        return Jwts.builder()
+                .subject(String.valueOf(userId))
+                .claim("email", email)
+                .claim("scope", SecurityConstants.SCOPE_RESET_REQUEST)
+                .id(jti)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(key)
+                .compact();
+    }
+
+    @Override
+    public String generateResetPasswordToken(Long userId, String email) {
+        String jti = UUID.randomUUID().toString();
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + SecurityConstants.RESET_PASSWORD_TOKEN_EXPIRATION_MS);
+
+        return Jwts.builder()
+                .subject(String.valueOf(userId))
+                .claim("email", email)
+                .claim("scope", SecurityConstants.SCOPE_RESET_PASSWORD)
+                .id(jti)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(key)
+                .compact();
+    }
+
+    @Override
     public boolean validateToken(String token) {
         try {
             Claims claims = getClaims(token);
@@ -95,7 +129,7 @@ public class JwtTokenProvider implements TokenService {
     public void revokeJti(String jti) {
         if (jti != null) {
             revokedJtis.add(jti);
-            log.info("Revoked pre-2FA JWT jti: {}", jti);
+            log.info("Revoked single-use JWT jti: {}", jti);
         }
     }
 
@@ -121,6 +155,12 @@ public class JwtTokenProvider implements TokenService {
     public String getJtiFromToken(String token) {
         Claims claims = getClaims(token);
         return claims.getId();
+    }
+
+    @Override
+    public String getEmailFromToken(String token) {
+        Claims claims = getClaims(token);
+        return claims.get("email", String.class);
     }
 
     private Claims getClaims(String token) {
