@@ -148,6 +148,98 @@ public class AuthService {
     @org.springframework.beans.factory.annotation.Value("${app.security.cookie-secure:false}")
     private boolean cookieSecure;
 
+    @org.springframework.beans.factory.annotation.Value("${spring.security.oauth2.client.registration.discord.client-id:discord-client-id-placeholder}")
+    private String discordClientId;
+
+    @org.springframework.beans.factory.annotation.Value("${app.discord.redirect-uri:${NEXT_PUBLIC_DISCORD_REDIRECT_URI:http://localhost:3000/auth/discord/callback}}")
+    private String discordRedirectUri;
+
+    @Transactional(readOnly = true)
+    public ForgotPasswordInitiateResponse initiateForgotPassword(ForgotPasswordInitiateRequest request) {
+        String email = request.getEmail().trim().toLowerCase();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("No account found with the provided email address."));
+
+        if (user.getProvider() == AuthProvider.GOOGLE) {
+            log.warn("Forgot password rejected: User {} is configured with Google provider", email);
+            throw new BadCredentialsException("This account is configured for Google Sign-In. Please sign in with 'Continue with Google'.");
+        }
+
+        if (user.getDiscordId() == null || user.getDiscordId().isBlank() || "UNLINKED".equalsIgnoreCase(user.getDiscordId())) {
+            log.warn("Forgot password rejected: User {} has no linked Discord account", email);
+            throw new BadCredentialsException("Account cannot be recovered via Discord because no Discord account is linked. Please contact High Command.");
+        }
+
+        String stateToken = tokenService.generateResetRequestToken(user.getId(), user.getEmail());
+        String encodedRedirect = java.net.URLEncoder.encode(discordRedirectUri, java.nio.charset.StandardCharsets.UTF_8);
+        String discordAuthUrl = String.format(
+                "https://discord.com/oauth2/authorize?client_id=%s&response_type=code&scope=identify&state=%s&redirect_uri=%s",
+                discordClientId,
+                stateToken,
+                encodedRedirect
+        );
+
+        log.info("Initiated Discord-verified forgot password recovery for user {}", email);
+        return ForgotPasswordInitiateResponse.builder()
+                .discordAuthUrl(discordAuthUrl)
+                .build();
+    }
+
+    @Transactional
+    public ForgotPasswordVerifyResponse verifyForgotPasswordDiscord(ForgotPasswordVerifyRequest request) {
+        String stateToken = request.getState();
+        if (!tokenService.validateToken(stateToken)) {
+            throw new UnauthorizedException("Invalid or expired password reset state token.");
+        }
+
+        String scope = tokenService.getScopeFromToken(stateToken);
+        if (!SecurityConstants.SCOPE_RESET_REQUEST.equals(scope)) {
+            throw new com.rng.common.exception.ForbiddenException("Invalid token scope for password reset verification.");
+        }
+
+        Long userId = tokenService.getUserIdFromToken(stateToken);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        String jti = tokenService.getJtiFromToken(stateToken);
+        tokenService.revokeJti(jti);
+
+        DiscordUserDto discordUser = discordClient.fetchDiscordUser(request.getCode());
+        if (!discordUser.getId().equals(user.getDiscordId())) {
+            log.warn("Password reset verification failed: Authenticated Discord ID {} does not match linked ID {} for user {}",
+                    discordUser.getId(), user.getDiscordId(), user.getEmail());
+            throw new com.rng.common.exception.ForbiddenException("Authenticated Discord account does not match the linked account.");
+        }
+
+        String resetToken = tokenService.generateResetPasswordToken(user.getId(), user.getEmail());
+        log.info("Successfully verified Discord identity for user {}. Issued reset password token.", user.getEmail());
+
+        return ForgotPasswordVerifyResponse.builder()
+                .resetToken(resetToken)
+                .email(user.getEmail())
+                .build();
+    }
+
+    @Transactional
+    public void resetPassword(Long userId, String token, ResetPasswordRequest request) {
+        if (request.getNewPassword() == null || request.getNewPassword().length() < 8) {
+            throw new BadCredentialsException("Password must be at least 8 characters long");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        if (token != null) {
+            String jti = tokenService.getJtiFromToken(token);
+            tokenService.revokeJti(jti);
+        }
+
+        log.info("Successfully reset password for user {}", user.getEmail());
+    }
+
     @Transactional(readOnly = true)
     public UserResponse getCurrentUser(Long userId) {
         User user = userRepository.findById(userId)

@@ -361,4 +361,125 @@ class AuthIntegrationTest {
                 .andExpect(jsonPath("$.success", is(false)))
                 .andExpect(jsonPath("$.message", containsString("This account is configured for Google Sign-In")));
     }
+
+    @Test
+    @DisplayName("Forgot Password: Initiate returns Discord auth URL for eligible email user")
+    void testInitiateForgotPasswordSuccess() throws Exception {
+        User linkedUser = userRepository.save(User.builder()
+                .email("recover@rng.com")
+                .fullName("Recover User")
+                .provider(com.rng.identity.domain.AuthProvider.EMAIL)
+                .password(passwordEncoder.encode("oldpass123"))
+                .role("ROLE_USER")
+                .status("ACTIVE")
+                .discordId("987654321098765432")
+                .discordLinked(true)
+                .build());
+
+        com.rng.identity.dto.ForgotPasswordInitiateRequest request =
+                com.rng.identity.dto.ForgotPasswordInitiateRequest.builder()
+                        .email("recover@rng.com")
+                        .build();
+
+        mockMvc.perform(post("/api/v1/auth/forgot-password/initiate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.discordAuthUrl", containsString("discord.com/oauth2/authorize")))
+                .andExpect(jsonPath("$.data.discordAuthUrl", containsString("scope=identify")));
+    }
+
+    @Test
+    @DisplayName("Forgot Password: Initiate fails when Discord account is not linked")
+    void testInitiateForgotPasswordUnlinkedFails() throws Exception {
+        userRepository.save(User.builder()
+                .email("unlinked_recovery@rng.com")
+                .fullName("Unlinked User")
+                .provider(com.rng.identity.domain.AuthProvider.EMAIL)
+                .password(passwordEncoder.encode("oldpass123"))
+                .role("ROLE_USER")
+                .status("ACTIVE")
+                .discordId("UNLINKED")
+                .discordLinked(false)
+                .build());
+
+        com.rng.identity.dto.ForgotPasswordInitiateRequest request =
+                com.rng.identity.dto.ForgotPasswordInitiateRequest.builder()
+                        .email("unlinked_recovery@rng.com")
+                        .build();
+
+        mockMvc.perform(post("/api/v1/auth/forgot-password/initiate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", containsString("Account cannot be recovered via Discord because no Discord account is linked")));
+    }
+
+    @Test
+    @DisplayName("Forgot Password: Full Verification and Password Reset Flow")
+    void testVerifyAndResetPasswordFlow() throws Exception {
+        User recoverUser = userRepository.save(User.builder()
+                .email("fullflow@rng.com")
+                .fullName("Full Flow User")
+                .provider(com.rng.identity.domain.AuthProvider.EMAIL)
+                .password(passwordEncoder.encode("OldPassword123!"))
+                .role("ROLE_USER")
+                .status("ACTIVE")
+                .discordId("555444333222111000")
+                .discordLinked(true)
+                .build());
+
+        // 1. Generate valid reset request state token
+        String stateToken = tokenService.generateResetRequestToken(recoverUser.getId(), recoverUser.getEmail());
+
+        // 2. Mock Discord OAuth2 exchange returning matching Discord Snowflake ID
+        when(discordClient.fetchDiscordUser("valid-code"))
+                .thenReturn(new DiscordUserDto("555444333222111000", "FullFlowDiscord", "avatar_hash", null));
+
+        com.rng.identity.dto.ForgotPasswordVerifyRequest verifyRequest =
+                com.rng.identity.dto.ForgotPasswordVerifyRequest.builder()
+                        .code("valid-code")
+                        .state(stateToken)
+                        .build();
+
+        MvcResult verifyResult = mockMvc.perform(post("/api/v1/auth/forgot-password/verify-discord")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(verifyRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.resetToken", notNullValue()))
+                .andExpect(jsonPath("$.data.email", is("fullflow@rng.com")))
+                .andReturn();
+
+        Map responseMap = objectMapper.readValue(verifyResult.getResponse().getContentAsString(), Map.class);
+        Map dataMap = (Map) responseMap.get("data");
+        String resetToken = (String) dataMap.get("resetToken");
+
+        // 3. Reset password using reset token
+        com.rng.identity.dto.ResetPasswordRequest resetRequest =
+                com.rng.identity.dto.ResetPasswordRequest.builder()
+                        .newPassword("BrandNewPassword999!")
+                        .build();
+
+        mockMvc.perform(post("/api/v1/auth/forgot-password/reset")
+                        .header(SecurityConstants.AUTHORIZATION_HEADER, SecurityConstants.TOKEN_TYPE_HEADER + resetToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(resetRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.message", containsString("Password has been reset successfully")));
+
+        // 4. Verify password was updated in database and can be used to log in
+        User updatedUser = userRepository.findByEmail("fullflow@rng.com").orElseThrow();
+        assertThat(passwordEncoder.matches("BrandNewPassword999!", updatedUser.getPassword())).isTrue();
+
+        // 5. Verify single-use reset token was revoked (replay attempt fails)
+        mockMvc.perform(post("/api/v1/auth/forgot-password/reset")
+                        .header(SecurityConstants.AUTHORIZATION_HEADER, SecurityConstants.TOKEN_TYPE_HEADER + resetToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(resetRequest)))
+                .andExpect(status().isUnauthorized());
+    }
 }

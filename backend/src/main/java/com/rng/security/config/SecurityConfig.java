@@ -60,11 +60,14 @@ public class SecurityConfig {
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/refresh",
                                 "/api/v1/auth/logout",
+                                "/api/v1/auth/forgot-password/initiate",
+                                "/api/v1/auth/forgot-password/verify-discord",
                                 "/oauth2/**",
                                 "/login/oauth2/**",
                                 "/error"
                         ).permitAll()
                         .requestMatchers("/api/v1/auth/discord/2fa").hasAuthority(SecurityConstants.SCOPE_PRE_2FA)
+                        .requestMatchers("/api/v1/auth/forgot-password/reset").hasAuthority(SecurityConstants.SCOPE_RESET_PASSWORD)
                         .requestMatchers("/api/v1/**").hasAnyAuthority(SecurityConstants.SCOPE_FULLY_AUTHENTICATED, "ROLE_USER")
                         .anyRequest().authenticated()
                 )
