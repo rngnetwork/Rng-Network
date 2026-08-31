@@ -9,152 +9,123 @@ import {
   Lock,
   CheckCircle2,
   AlertCircle,
-  Sparkles,
   FileText,
   Link2,
   MessageSquare,
   Volume2,
-  Palette,
-  Ban,
-  Tag,
-  Radio,
-  X,
   Trash2,
-  Smile
+  Radio
 } from 'lucide-react';
-import { mockServersApi, ServerData, ServerTrait } from '@/lib/mockServersApi';
+import { api, ServerDetail, ChannelItem, UpdateServerSettingsPayload } from '@/lib/api';
 import { Toggle } from '@/components/ui/Toggle';
 import { UnsavedChangesBar } from '@/components/ui/UnsavedChangesBar';
-import { DiscordEmojiPicker } from '@/components/ui/DiscordEmojiPicker';
 
-interface ServerSettingsState {
-  serverName: string;
+interface ServerSettingsForm {
+  name: string;
   description: string;
-  logoPreview: string;
-  bannerPreview: string;
-  bannerColor: string;
-  afkChannel: string;
-  afkTimeout: string;
-  systemChannel: string;
+  icon: string | null;
+  banner: string | null;
+  afkChannelId: string;
+  afkTimeout: number;
+  systemChannelId: string;
   sendWelcome: boolean;
   stickerPrompt: boolean;
   boostMessage: boolean;
   setupTips: boolean;
+  defaultMessageNotifications: number;
   vanityUrl: string;
-  traits: ServerTrait[];
-  activityFeedEnabled: boolean;
-  privateProfile: boolean;
 }
 
-const PRESET_BANNER_COLORS = [
-  { id: 'none', label: 'Default / Banner Image', hex: 'none' },
-  { id: 'blurple', label: 'Discord Blurple', hex: '#5865F2' },
-  { id: 'green', label: 'Discord Green', hex: '#57F287' },
-  { id: 'yellow', label: 'Discord Yellow', hex: '#FEE75C' },
-  { id: 'pink', label: 'Discord Fuchsia', hex: '#EB459E' },
-  { id: 'red', label: 'Discord Red', hex: '#ED4245' },
-  { id: 'dark', label: 'Discord Dark', hex: '#2B2D31' },
-  { id: 'teal', label: 'Discord Teal', hex: '#1ABC9C' },
-  { id: 'orange', label: 'Discord Orange', hex: '#E67E22' },
-  { id: 'purple', label: 'Discord Purple', hex: '#9B59B6' },
-  { id: 'navy', label: 'Discord Navy', hex: '#4E5D94' }
-];
-
-const TRAIT_PLACEHOLDERS = [
-  'Gaming Hub',
-  'Esports & Tournaments',
-  'Casual Hangouts',
-  'Voice Chats',
-  'Events & Giveaways'
+const AFK_TIMEOUT_OPTIONS = [
+  { value: 60, label: '1 minute' },
+  { value: 300, label: '5 minutes' },
+  { value: 900, label: '15 minutes' },
+  { value: 1800, label: '30 minutes' },
+  { value: 3600, label: '1 hour' }
 ];
 
 export default function ServerSettingsPage() {
   const params = useParams();
   const serverId = params?.serverId as string;
 
-  const [server, setServer] = useState<ServerData | null>(null);
+  const [server, setServer] = useState<ServerDetail | null>(null);
+  const [channels, setChannels] = useState<ChannelItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [vanityConflictError, setVanityConflictError] = useState<string | null>(null);
 
-  // Initial and current states for dirty checking
-  const [initialState, setInitialState] = useState<ServerSettingsState | null>(null);
-  const [formData, setFormData] = useState<ServerSettingsState>({
-    serverName: '',
+  const [initialForm, setInitialForm] = useState<ServerSettingsForm | null>(null);
+  const [formData, setFormData] = useState<ServerSettingsForm>({
+    name: '',
     description: '',
-    logoPreview: '',
-    bannerPreview: '',
-    bannerColor: 'none',
-    afkChannel: '🔊 #afk-lounge',
-    afkTimeout: '15 minutes',
-    systemChannel: '#welcome',
+    icon: null,
+    banner: null,
+    afkChannelId: '',
+    afkTimeout: 900,
+    systemChannelId: '',
     sendWelcome: true,
     stickerPrompt: true,
     boostMessage: true,
     setupTips: false,
-    vanityUrl: 'rng-network',
-    traits: [
-      { emoji: '', name: '' },
-      { emoji: '', name: '' },
-      { emoji: '', name: '' },
-      { emoji: '', name: '' },
-      { emoji: '', name: '' }
-    ],
-    activityFeedEnabled: true,
-    privateProfile: false
+    defaultMessageNotifications: 1,
+    vanityUrl: ''
   });
 
-  // Emoji Picker Popover state for 5 Traits
-  const [activeEmojiSlot, setActiveEmojiSlot] = useState<number | null>(null);
-  const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const [iconUploadError, setIconUploadError] = useState<string | null>(null);
+  const [bannerUploadError, setBannerUploadError] = useState<string | null>(null);
 
-  // Toast & Saving states
-  const [toast, setToast] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-
-  const logoInputRef = useRef<HTMLInputElement>(null);
+  const iconInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let isMounted = true;
 
-    const loadServer = async () => {
-      try {
-        const found = await mockServersApi.getServerById(serverId);
-        if (isMounted && found) {
-          setServer(found);
-          const rawTraits = found.traits || [];
-          const normalizedTraits: ServerTrait[] = Array.from({ length: 5 }, (_, i) => {
-            if (rawTraits[i]) {
-              return {
-                emoji: rawTraits[i].emoji || '😊',
-                name: rawTraits[i].name || ''
-              };
-            }
-            return { emoji: '', name: '' };
-          });
+    const loadData = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setLoading(false);
+        return;
+      }
 
-          const state: ServerSettingsState = {
-            serverName: found.name,
-            description: found.description || '',
-            logoPreview: found.icon || '',
-            bannerPreview: found.banner || '',
-            bannerColor: found.bannerColor || (found.banner ? 'none' : 'none'),
-            afkChannel: found.afkChannel || '🔊 #afk-lounge',
-            afkTimeout: found.afkTimeout || '15 minutes',
-            systemChannel: found.welcomeChannel || '#welcome',
-            sendWelcome: true,
-            stickerPrompt: true,
-            boostMessage: true,
-            setupTips: false,
-            vanityUrl: found.shortName.toLowerCase() || 'rng-network',
-            traits: normalizedTraits,
-            activityFeedEnabled: found.activityFeedEnabled ?? true,
-            privateProfile: found.privateProfile ?? false
-          };
-          setFormData(state);
-          setInitialState(state);
+      try {
+        const [serverRes, channelsRes] = await Promise.allSettled([
+          api.fetchServerDetails(token, serverId),
+          api.fetchServerChannels(token, serverId)
+        ]);
+
+        if (isMounted) {
+          if (serverRes.status === 'fulfilled' && serverRes.value.success && serverRes.value.data) {
+            const s = serverRes.value.data;
+            setServer(s);
+
+            const initial: ServerSettingsForm = {
+              name: s.name || '',
+              description: s.description || '',
+              icon: s.iconUrl || null,
+              banner: s.bannerUrl || null,
+              afkChannelId: s.afkChannelId || '',
+              afkTimeout: s.afkTimeout != null ? s.afkTimeout : 900,
+              systemChannelId: s.systemChannelId || '',
+              sendWelcome: s.sendWelcome ?? true,
+              stickerPrompt: s.stickerPrompt ?? true,
+              boostMessage: s.boostMessage ?? true,
+              setupTips: s.setupTips ?? false,
+              defaultMessageNotifications: s.defaultMessageNotifications != null ? s.defaultMessageNotifications : 1,
+              vanityUrl: s.vanityUrl || ''
+            };
+
+            setFormData(initial);
+            setInitialForm(initial);
+          }
+
+          if (channelsRes.status === 'fulfilled' && channelsRes.value.success && channelsRes.value.data) {
+            setChannels(channelsRes.value.data);
+          }
         }
       } catch (err) {
-        console.error('Failed to load server settings:', err);
+        console.error('Failed to load server data:', err);
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -162,131 +133,179 @@ export default function ServerSettingsPage() {
       }
     };
 
-    loadServer();
+    loadData();
 
     return () => {
       isMounted = false;
     };
   }, [serverId]);
 
-  // Compute if any field is dirty (changed from initial server data)
+  const voiceChannels = useMemo(() => {
+    return channels.filter(c => c.type === 2).sort((a, b) => a.position - b.position);
+  }, [channels]);
+
+  const textChannels = useMemo(() => {
+    return channels.filter(c => c.type === 0).sort((a, b) => a.position - b.position);
+  }, [channels]);
+
+  // Dirty checking
   const isDirty = useMemo(() => {
-    if (!initialState) return false;
-    return JSON.stringify(formData) !== JSON.stringify(initialState);
-  }, [formData, initialState]);
+    if (!initialForm) return false;
+    return (
+      formData.name !== initialForm.name ||
+      formData.description !== initialForm.description ||
+      formData.icon !== initialForm.icon ||
+      formData.banner !== initialForm.banner ||
+      formData.afkChannelId !== initialForm.afkChannelId ||
+      formData.afkTimeout !== initialForm.afkTimeout ||
+      formData.systemChannelId !== initialForm.systemChannelId ||
+      formData.sendWelcome !== initialForm.sendWelcome ||
+      formData.stickerPrompt !== initialForm.stickerPrompt ||
+      formData.boostMessage !== initialForm.boostMessage ||
+      formData.setupTips !== initialForm.setupTips ||
+      formData.defaultMessageNotifications !== initialForm.defaultMessageNotifications ||
+      formData.vanityUrl !== initialForm.vanityUrl
+    );
+  }, [formData, initialForm]);
 
-  // Compute server acronym/initials from first words for icon placeholder
-  const serverInitials = useMemo(() => {
-    const name = formData.serverName || server?.name || '';
-    const words = name.trim().split(/\s+/).filter(Boolean);
-    if (words.length === 0) return server?.shortName || 'RG';
-    if (words.length === 1) return words[0].slice(0, 3).toUpperCase();
-    return words.map((w) => w[0]).join('').slice(0, 4).toUpperCase();
-  }, [formData.serverName, server]);
+  // Boost levels & feature perks
+  const boostLevel = server?.boostLevel ?? 0;
+  const features = useMemo(() => new Set(server?.features || []), [server]);
 
-  const showToast = (type: 'error' | 'success', message: string) => {
-    setToast({ type, message });
-    setTimeout(() => {
-      setToast(null);
-    }, 4500);
-  };
+  const canUploadAnimatedIcon = boostLevel >= 1 || features.has('ANIMATED_ICON');
+  const canUploadBanner = boostLevel >= 2 || features.has('BANNER');
+  const canUploadAnimatedBanner = boostLevel >= 3 || features.has('ANIMATED_BANNER');
+  const canUseVanityUrl = boostLevel >= 3 || features.has('VANITY_URL');
 
-  // Handle Logo Upload with GIF Boost Level Check
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle Logo Upload
+  const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setIconUploadError(null);
     const file = e.target.files?.[0];
-    if (!file || !server) return;
+    if (!file) return;
 
     const isGif = file.type === 'image/gif' || file.name.toLowerCase().endsWith('.gif');
-
-    // GIF requires Boost Level 2+
-    if (isGif && server.boostLevel < 2) {
-      showToast(
-        'error',
-        `Animated GIF icons require Server Boost Level 2. Your server is currently at Level ${server.boostLevel} (${server.boostCount} Boosts).`
-      );
-      if (logoInputRef.current) logoInputRef.current.value = '';
+    if (isGif && !canUploadAnimatedIcon) {
+      setIconUploadError('Animated GIF icons require Server Boost Level 1.');
+      if (iconInputRef.current) iconInputRef.current.value = '';
       return;
     }
 
-    const objectUrl = URL.createObjectURL(file);
-    setFormData((prev) => ({ ...prev, logoPreview: objectUrl }));
+    if (file.size > 10 * 1024 * 1024) {
+      setIconUploadError('Icon must be under 10MB.');
+      if (iconInputRef.current) iconInputRef.current.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (loadEvent) => {
+      const result = loadEvent.target?.result as string;
+      setFormData(prev => ({ ...prev, icon: result }));
+    };
+    reader.readAsDataURL(file);
   };
 
-  // Handle Banner Upload with GIF Boost Level Check
+  // Handle Banner Upload
   const handleBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setBannerUploadError(null);
     const file = e.target.files?.[0];
-    if (!file || !server) return;
+    if (!file) return;
 
-    if (server.boostLevel < 2) {
-      showToast('error', `Server Banner requires Server Boost Level 2. Current: Level ${server.boostLevel}.`);
-      return;
-    }
-
-    const isGif = file.type === 'image/gif' || file.name.toLowerCase().endsWith('.gif');
-    if (isGif && server.boostLevel < 3) {
-      showToast(
-        'error',
-        `Animated GIF banners require Server Boost Level 3. Your server is currently at Level ${server.boostLevel}.`
-      );
+    if (!canUploadBanner) {
+      setBannerUploadError('Server banners require Server Boost Level 2.');
       if (bannerInputRef.current) bannerInputRef.current.value = '';
       return;
     }
 
-    const objectUrl = URL.createObjectURL(file);
-    setFormData((prev) => ({ ...prev, bannerPreview: objectUrl }));
-  };
-
-  // Trait field handlers
-  const handleTraitChange = (index: number, field: 'emoji' | 'name', value: string) => {
-    setFormData((prev) => {
-      const updated = [...prev.traits];
-      updated[index] = { ...updated[index], [field]: value };
-      return { ...prev, traits: updated };
-    });
-  };
-
-  const handleClearTrait = (index: number) => {
-    setFormData((prev) => {
-      const updated = [...prev.traits];
-      updated[index] = { emoji: '', name: '' };
-      return { ...prev, traits: updated };
-    });
-  };
-
-  // Reset Changes (Silently reverts without toast)
-  const handleReset = () => {
-    if (initialState) {
-      setFormData({ ...initialState });
-      setActiveEmojiSlot(null);
+    const isGif = file.type === 'image/gif' || file.name.toLowerCase().endsWith('.gif');
+    if (isGif && !canUploadAnimatedBanner) {
+      setBannerUploadError('Animated GIF banners require Server Boost Level 3.');
+      if (bannerInputRef.current) bannerInputRef.current.value = '';
+      return;
     }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setBannerUploadError('Banner must be under 10MB.');
+      if (bannerInputRef.current) bannerInputRef.current.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (loadEvent) => {
+      const result = loadEvent.target?.result as string;
+      setFormData(prev => ({ ...prev, banner: result }));
+    };
+    reader.readAsDataURL(file);
   };
 
-  // Save Changes
+  const handleReset = () => {
+    if (!initialForm) return;
+    setFormData(initialForm);
+    setIconUploadError(null);
+    setBannerUploadError(null);
+    setVanityConflictError(null);
+    setSaveError(null);
+  };
+
   const handleSave = async () => {
-    if (!server) return;
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
     setIsSaving(true);
+    setSaveError(null);
+    setVanityConflictError(null);
+
+    const payload: UpdateServerSettingsPayload = {
+      name: formData.name.trim(),
+      description: formData.description.trim() || null,
+      icon: formData.icon?.startsWith('data:') ? formData.icon : (formData.icon === null ? null : undefined),
+      banner: formData.banner?.startsWith('data:') ? formData.banner : (formData.banner === null ? null : undefined),
+      afkChannelId: formData.afkChannelId || null,
+      afkTimeout: formData.afkTimeout,
+      systemChannelId: formData.systemChannelId || null,
+      sendWelcome: formData.sendWelcome,
+      stickerPrompt: formData.stickerPrompt,
+      boostMessage: formData.boostMessage,
+      setupTips: formData.setupTips,
+      defaultMessageNotifications: formData.defaultMessageNotifications,
+      vanityUrl: canUseVanityUrl && formData.vanityUrl.trim() ? formData.vanityUrl.trim() : null
+    };
+
     try {
-      const cleanedTraits = formData.traits.filter(
-        (t) => t.name.trim() !== '' || (t.emoji && t.emoji.trim() !== '')
-      );
-      await mockServersApi.updateServerSettings(server.id, {
-        name: formData.serverName,
-        icon: formData.logoPreview,
-        banner: formData.bannerPreview,
-        bannerColor: formData.bannerColor,
-        description: formData.description,
-        welcomeChannel: formData.systemChannel,
-        afkChannel: formData.afkChannel,
-        afkTimeout: formData.afkTimeout,
-        traits: cleanedTraits,
-        activityFeedEnabled: formData.activityFeedEnabled,
-        privateProfile: formData.privateProfile
-      });
-      setInitialState({ ...formData });
-      showToast('success', 'Server settings saved and synchronized with Discord Bot!');
+      const res = await api.updateServerSettings(token, serverId, payload);
+      if (res.success && res.data) {
+        const s = res.data;
+        setServer(s);
+
+        const newInitial: ServerSettingsForm = {
+          name: s.name || '',
+          description: s.description || '',
+          icon: s.iconUrl || null,
+          banner: s.bannerUrl || null,
+          afkChannelId: s.afkChannelId || '',
+          afkTimeout: s.afkTimeout != null ? s.afkTimeout : 900,
+          systemChannelId: s.systemChannelId || '',
+          sendWelcome: s.sendWelcome ?? true,
+          stickerPrompt: s.stickerPrompt ?? true,
+          boostMessage: s.boostMessage ?? true,
+          setupTips: s.setupTips ?? false,
+          defaultMessageNotifications: s.defaultMessageNotifications != null ? s.defaultMessageNotifications : 1,
+          vanityUrl: s.vanityUrl || ''
+        };
+
+        setFormData(newInitial);
+        setInitialForm(newInitial);
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 4000);
+      } else {
+        setSaveError(res.message || 'Failed to update server settings.');
+      }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to save settings';
-      showToast('error', msg);
+      const errMsg = err instanceof Error ? err.message : 'Error saving settings.';
+      if (errMsg.toLowerCase().includes('vanity') || errMsg.toLowerCase().includes('already in use') || errMsg.toLowerCase().includes('conflict')) {
+        setVanityConflictError(errMsg);
+      } else {
+        setSaveError(errMsg);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -294,630 +313,544 @@ export default function ServerSettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh]">
-        <div className="w-8 h-8 border-3 border-white/10 border-t-red-500 rounded-full animate-spin" />
+      <div className="flex items-center justify-center py-24">
+        <div className="w-10 h-10 border-4 border-white/10 border-t-red-500 rounded-full animate-spin shadow-[0_0_15px_rgba(239,68,68,0.3)]" />
       </div>
     );
   }
 
-  if (!server) return null;
-
-  const isBannerLocked = server.boostLevel < 2;
+  const isAfkActive = Boolean(formData.afkChannelId);
+  const isSystemActive = Boolean(formData.systemChannelId);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="flex flex-col gap-8 w-full pb-20"
-    >
-      {/* Toast Notification */}
+    <div className="flex flex-col gap-8">
+      {/* Toast Alert Feedback */}
       <AnimatePresence>
-        {toast && (
+        {saveSuccess && (
           <motion.div
-            initial={{ opacity: 0, y: -20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl text-white shadow-[0_10px_35px_rgba(0,0,0,0.85)] backdrop-blur-2xl border ${
-              toast.type === 'error'
-                ? 'bg-[#18080a]/95 border-red-500/40 shadow-[0_0_25px_rgba(225,29,46,0.35)]'
-                : 'bg-[#0a180f]/95 border-emerald-500/40 shadow-[0_0_25px_rgba(52,211,153,0.25)]'
-            }`}
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="p-4 rounded-2xl bg-emerald-950/80 border border-emerald-500/30 text-emerald-300 text-sm flex items-center gap-3 shadow-[0_0_20px_rgba(16,185,129,0.2)]"
           >
-            {toast.type === 'error' ? (
-              <AlertCircle size={20} className="text-red-400 shrink-0" />
-            ) : (
-              <CheckCircle2 size={20} className="text-emerald-400 shrink-0" />
-            )}
-            <span className="text-xs md:text-sm font-medium leading-relaxed max-w-md">
-              {toast.message}
-            </span>
+            <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+            <span>Server settings saved and synchronized with Discord successfully.</span>
+          </motion.div>
+        )}
+
+        {saveError && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="p-4 rounded-2xl bg-red-950/80 border border-red-500/40 text-red-300 text-sm flex items-center gap-3 shadow-[0_0_20px_rgba(239,68,68,0.25)]"
+          >
+            <AlertCircle size={18} className="text-red-400 shrink-0" />
+            <span>{saveError}</span>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Hidden File Inputs */}
-      <input
-        ref={logoInputRef}
-        type="file"
-        accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
-        className="hidden"
-        onChange={handleLogoUpload}
-      />
-      <input
-        ref={bannerInputRef}
-        type="file"
-        accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
-        className="hidden"
-        onChange={handleBannerUpload}
-      />
-
-      {/* ========================================================================= */}
-      {/* SECTION 1: Server Overview & Identity (Logo, Banner & Color Chooser)      */}
-      {/* ========================================================================= */}
-      <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
+      {/* SECTION 1: SERVER OVERVIEW */}
+      <div className="flex flex-col gap-6">
         <div>
-          <h3 className="text-base md:text-lg font-bold text-white flex items-center gap-2">
-            Server Overview & Identity
-          </h3>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            Basic server profile details, icon, banner image, and static accent color.
+          <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+            <FileText size={22} className="text-red-400" />
+            Server Overview
+          </h2>
+          <p className="text-xs md:text-sm text-zinc-400 mt-1">
+            General Discord server profile, branding assets, and community details.
           </p>
         </div>
 
-        {/* Branding Row: Logo Uploader + Banner Image & Color Chooser */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-6 border-b border-white/5">
-          {/* 1. Logo Upload */}
-          <div className="flex flex-col gap-4">
-            <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider font-mono flex items-center gap-2">
-              <Sparkles size={14} className="text-red-400" />
-              Server Icon
-            </span>
+        {/* Server Name Input */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-300">
+            Server Name <span className="text-red-400">*</span>
+          </label>
+          <input
+            type="text"
+            value={formData.name}
+            maxLength={100}
+            onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
+            placeholder="Enter server name..."
+            className="w-full px-4 py-3 rounded-2xl bg-black/40 border border-white/10 focus:border-red-500 text-white text-sm outline-none transition-all placeholder:text-zinc-600 focus:shadow-[0_0_20px_rgba(225,29,46,0.25)]"
+          />
+        </div>
 
-            <div className="flex items-center gap-5">
-              <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-3xl overflow-hidden border-2 border-red-500/40 bg-gradient-to-br from-[#18181b] via-[#101012] to-black shadow-[0_0_20px_rgba(225,29,46,0.25)] shrink-0 flex items-center justify-center">
-                {formData.logoPreview ? (
+        {/* Server Description Input */}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-300">
+              Server Description
+            </label>
+            <span className="text-xs text-zinc-500 font-mono">
+              {formData.description.length}/120
+            </span>
+          </div>
+          <textarea
+            value={formData.description}
+            maxLength={120}
+            rows={2}
+            onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+            placeholder="A brief description of your server for discovery..."
+            className="w-full px-4 py-3 rounded-2xl bg-black/40 border border-white/10 focus:border-red-500 text-white text-sm outline-none transition-all placeholder:text-zinc-600 resize-none focus:shadow-[0_0_20px_rgba(225,29,46,0.25)]"
+          />
+        </div>
+
+        {/* Branding Assets Grid: Icon & Banner */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Server Icon Card */}
+          <div className="p-5 rounded-2xl bg-black/30 border border-white/5 flex flex-col justify-between gap-4">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-mono font-semibold uppercase text-zinc-300">
+                  Server Icon
+                </span>
+                {canUploadAnimatedIcon ? (
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 font-mono">
+                    GIF Unlocked (Level 1)
+                  </span>
+                ) : (
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700 font-mono">
+                    Static Only
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-zinc-400">
+                Recommended size: 512x512px. Accepts PNG, JPEG, or GIF (Level 1+).
+              </p>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="relative w-16 h-16 rounded-2xl overflow-hidden border border-red-500/30 bg-black shrink-0 flex items-center justify-center shadow-[0_0_15px_rgba(225,29,46,0.2)]">
+                {formData.icon ? (
                   <Image
-                    src={formData.logoPreview}
-                    alt="Server Logo"
+                    src={formData.icon}
+                    alt="Icon Preview"
                     fill
                     unoptimized
                     className="object-cover"
                   />
                 ) : (
-                  <span className="text-xl md:text-2xl font-bold text-white font-mono tracking-wider drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
-                    {serverInitials}
-                  </span>
+                  <span className="text-xs text-zinc-500 font-mono">No Icon</span>
                 )}
               </div>
 
-              <div className="flex flex-col gap-2">
-                <span className="text-xs font-semibold text-white">Custom Server Icon</span>
-                <p className="text-[11px] text-zinc-400 leading-relaxed">
-                  Supported formats: PNG, JPG, WEBP, GIF (Level 2 Boost required for GIF).
-                </p>
-
-                <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-col gap-2 flex-1">
+                <input
+                  type="file"
+                  ref={iconInputRef}
+                  onChange={handleIconUpload}
+                  accept={canUploadAnimatedIcon ? "image/png,image/jpeg,image/webp,image/gif" : "image/png,image/jpeg,image/webp"}
+                  className="hidden"
+                />
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => logoInputRef.current?.click()}
-                    className="w-fit px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-red-500/40 text-xs font-semibold text-zinc-200 hover:text-white flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(225,29,46,0.15)]"
+                    onClick={() => iconInputRef.current?.click()}
+                    className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
                   >
-                    <Upload size={13} className="text-red-400" />
-                    <span>Upload Image</span>
+                    <Upload size={14} />
+                    <span>Upload Icon</span>
                   </button>
-
-                  {formData.logoPreview && (
+                  {formData.icon && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setFormData((prev) => ({ ...prev, logoPreview: '' }));
-                        if (logoInputRef.current) logoInputRef.current.value = '';
-                      }}
-                      className="w-fit px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-xs font-semibold text-red-300 hover:text-red-200 flex items-center gap-1.5 transition-all"
+                      onClick={() => setFormData(prev => ({ ...prev, icon: null }))}
+                      className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all"
+                      title="Remove Icon"
                     >
-                      <Trash2 size={13} className="text-red-400" />
-                      <span>Remove Icon</span>
+                      <Trash2 size={14} />
                     </button>
                   )}
                 </div>
+                {iconUploadError && (
+                  <span className="text-xs text-red-400">{iconUploadError}</span>
+                )}
               </div>
             </div>
           </div>
 
-          {/* 2. Banner Background (Image + Static Colour Chooser) */}
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider font-mono flex items-center gap-2">
-                <Sparkles size={14} className="text-red-400" />
-                Server Banner & Accent Color
-              </span>
-              <span
-                className={`text-[10.5px] px-2 py-0.5 rounded-md font-mono ${
-                  isBannerLocked
-                    ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-                    : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                }`}
+          {/* Server Banner Card */}
+          <div className={`p-5 rounded-2xl border flex flex-col justify-between gap-4 transition-all ${
+            canUploadBanner
+              ? 'bg-black/30 border-white/5'
+              : 'bg-black/20 border-white/5 opacity-70'
+          }`}>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-mono font-semibold uppercase text-zinc-300 flex items-center gap-1.5">
+                  {!canUploadBanner && <Lock size={12} className="text-amber-400" />}
+                  Server Banner
+                </span>
+                {!canUploadBanner ? (
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-mono">
+                    Requires Boost Level 2
+                  </span>
+                ) : canUploadAnimatedBanner ? (
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 font-mono">
+                    Animated GIF (Level 3)
+                  </span>
+                ) : (
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 font-mono">
+                    Static Only (Level 2)
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-zinc-400">
+                Recommended size: 960x540px. Displayed at the top of your server channel list.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="relative w-28 h-16 rounded-xl overflow-hidden border border-white/10 bg-black shrink-0 flex items-center justify-center">
+                {formData.banner ? (
+                  <Image
+                    src={formData.banner}
+                    alt="Banner Preview"
+                    fill
+                    unoptimized
+                    className="object-cover"
+                  />
+                ) : (
+                  <span className="text-[11px] text-zinc-600 font-mono">No Banner</span>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2 flex-1">
+                <input
+                  type="file"
+                  ref={bannerInputRef}
+                  onChange={handleBannerUpload}
+                  disabled={!canUploadBanner}
+                  accept={canUploadAnimatedBanner ? "image/png,image/jpeg,image/webp,image/gif" : "image/png,image/jpeg,image/webp"}
+                  className="hidden"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={!canUploadBanner}
+                    onClick={() => bannerInputRef.current?.click()}
+                    className={`px-4 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                      canUploadBanner
+                        ? 'bg-white/5 hover:bg-white/10 border-white/10 text-white'
+                        : 'bg-zinc-800/40 border-zinc-800 text-zinc-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {canUploadBanner ? <Upload size={14} /> : <Lock size={14} />}
+                    <span>Upload Banner</span>
+                  </button>
+                  {formData.banner && canUploadBanner && (
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, banner: null }))}
+                      className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all"
+                      title="Remove Banner"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+                {bannerUploadError && (
+                  <span className="text-xs text-red-400">{bannerUploadError}</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="w-full h-px bg-white/5" />
+
+      {/* SECTION 2: CHANNELS & AUTOMATION (Coupled Dropdowns & Toggles) */}
+      <div className="flex flex-col gap-6">
+        <div>
+          <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+            <Volume2 size={22} className="text-red-400" />
+            Voice & System Channel Automation
+          </h2>
+          <p className="text-xs md:text-sm text-zinc-400 mt-1">
+            Configure inactivity timeout handling and automated Discord system notifications.
+          </p>
+        </div>
+
+        {/* AFK / Inactive Channel & Timeout (Coupled) */}
+        <div className="p-6 rounded-3xl bg-black/30 border border-white/5 flex flex-col gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* AFK Channel Selector */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
+                <Volume2 size={14} className="text-red-400" />
+                Inactive Channel
+              </label>
+              <select
+                value={formData.afkChannelId}
+                onChange={e => setFormData(prev => ({ ...prev, afkChannelId: e.target.value }))}
+                className="w-full px-4 py-3 rounded-2xl bg-black/60 border border-white/10 focus:border-red-500 text-white text-sm outline-none transition-all cursor-pointer"
               >
-                {isBannerLocked ? 'Image: Level 2 Required' : 'Level 2 Image Active'}
+                <option value="">No Inactive Channel</option>
+                {voiceChannels.map(c => (
+                  <option key={c.id} value={c.id}>
+                    🔊 #{c.name}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-zinc-500">
+                Automatically moves inactive members to this voice channel.
               </span>
             </div>
 
-            {/* Banner Preview (Cleanly renders either custom image or chosen static color) */}
-            <div
-              className="relative w-full h-28 md:h-32 rounded-2xl overflow-hidden border-2 border-red-500/30 flex items-center justify-center transition-colors duration-200"
-              style={{
-                backgroundColor: formData.bannerColor !== 'none' ? formData.bannerColor : '#0a0a0a'
-              }}
-            >
-              {!isBannerLocked && formData.bannerPreview && formData.bannerColor === 'none' ? (
-                <Image
-                  src={formData.bannerPreview}
-                  alt="Server Banner Preview"
-                  fill
-                  unoptimized
-                  className="object-cover"
-                />
-              ) : (
-                /* Static Solid Color Banner with Monogram */
-                <div
-                  className="w-full h-full flex items-center justify-between p-4"
-                  style={{
-                    background:
-                      formData.bannerColor !== 'none'
-                        ? `linear-gradient(135deg, ${formData.bannerColor} 0%, rgba(10,10,10,0.85) 100%)`
-                        : 'linear-gradient(135deg, #18181b 0%, #09090b 100%)'
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-black/40 border border-white/20 flex items-center justify-center text-white font-bold text-sm font-mono">
-                      {server.shortName}
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-xs font-bold text-white tracking-tight">{formData.serverName || server.name}</span>
-                      <span className="text-[10px] text-zinc-300 font-mono">
-                        {formData.bannerColor !== 'none' ? 'Static Banner Color' : 'Default Theme'}
-                      </span>
-                    </div>
-                  </div>
+            {/* AFK Timeout (Disabled if no channel selected) */}
+            <div className={`flex flex-col gap-2 transition-opacity ${isAfkActive ? 'opacity-100' : 'opacity-40'}`}>
+              <label className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-300">
+                Inactive Timeout
+              </label>
+              <select
+                value={formData.afkTimeout}
+                disabled={!isAfkActive}
+                onChange={e => setFormData(prev => ({ ...prev, afkTimeout: Number(e.target.value) }))}
+                className={`w-full px-4 py-3 rounded-2xl bg-black/60 border border-white/10 text-white text-sm outline-none transition-all ${
+                  isAfkActive ? 'focus:border-red-500 cursor-pointer' : 'cursor-not-allowed'
+                }`}
+              >
+                {AFK_TIMEOUT_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-zinc-500">
+                {isAfkActive
+                  ? "Duration of inactivity before moving to the inactive channel."
+                  : "Timeout takes effect when an AFK voice channel is selected."}
+              </span>
+            </div>
+          </div>
+        </div>
 
-                  {isBannerLocked && (
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-black/50 text-zinc-300 border border-white/10 font-mono flex items-center gap-1">
-                      <Lock size={10} className="text-red-400" />
-                      Image Locked
-                    </span>
+        {/* System Messages Channel & 4 Notification Toggles (Coupled) */}
+        <div className="p-6 rounded-3xl bg-black/30 border border-white/5 flex flex-col gap-5">
+          <div className="flex flex-col gap-2 max-w-xl">
+            <label className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
+              <MessageSquare size={14} className="text-red-400" />
+              System Messages Channel
+            </label>
+            <select
+              value={formData.systemChannelId}
+              onChange={e => setFormData(prev => ({ ...prev, systemChannelId: e.target.value }))}
+              className="w-full px-4 py-3 rounded-2xl bg-black/60 border border-white/10 focus:border-red-500 text-white text-sm outline-none transition-all cursor-pointer"
+            >
+              <option value="">No System Channel</option>
+              {textChannels.map(c => (
+                <option key={c.id} value={c.id}>
+                  # {c.name}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs text-zinc-500">
+              The text channel where Discord posts member events, boost alerts, and setup reminders.
+            </span>
+          </div>
+
+          {/* 4 Notification Toggles */}
+          <div className={`flex flex-col gap-3 mt-2 transition-opacity ${isSystemActive ? 'opacity-100' : 'opacity-40'}`}>
+            <div className="text-xs font-mono font-semibold uppercase text-zinc-400 tracking-wider">
+              System Notification Events
+            </div>
+
+            {!isSystemActive && (
+              <span className="text-xs text-amber-400/90 font-mono">
+                Select a text channel above to enable system notifications.
+              </span>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="p-4 rounded-2xl bg-black/40 border border-white/5 flex items-center justify-between gap-4">
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-white">Send Welcome Message</span>
+                  <span className="text-xs text-zinc-400">Welcome message when someone joins</span>
+                </div>
+                <Toggle
+                  checked={formData.sendWelcome}
+                  disabled={!isSystemActive}
+                  onChange={checked => setFormData(prev => ({ ...prev, sendWelcome: checked }))}
+                />
+              </div>
+
+              <div className="p-4 rounded-2xl bg-black/40 border border-white/5 flex items-center justify-between gap-4">
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-white">Sticker Reply Prompts</span>
+                  <span className="text-xs text-zinc-400">Prompt members to reply with sticker</span>
+                </div>
+                <Toggle
+                  checked={formData.stickerPrompt}
+                  disabled={!isSystemActive}
+                  onChange={checked => setFormData(prev => ({ ...prev, stickerPrompt: checked }))}
+                />
+              </div>
+
+              <div className="p-4 rounded-2xl bg-black/40 border border-white/5 flex items-center justify-between gap-4">
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-white">Server Boost Alerts</span>
+                  <span className="text-xs text-zinc-400">Announce when someone boosts this server</span>
+                </div>
+                <Toggle
+                  checked={formData.boostMessage}
+                  disabled={!isSystemActive}
+                  onChange={checked => setFormData(prev => ({ ...prev, boostMessage: checked }))}
+                />
+              </div>
+
+              <div className="p-4 rounded-2xl bg-black/40 border border-white/5 flex items-center justify-between gap-4">
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-white">Helpful Tips & Guides</span>
+                  <span className="text-xs text-zinc-400">Helpful setup tips for community members</span>
+                </div>
+                <Toggle
+                  checked={formData.setupTips}
+                  disabled={!isSystemActive}
+                  onChange={checked => setFormData(prev => ({ ...prev, setupTips: checked }))}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="w-full h-px bg-white/5" />
+
+      {/* SECTION 3: NOTIFICATION SETTINGS & VANITY URL */}
+      <div className="flex flex-col gap-6">
+        <div>
+          <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+            <Radio size={22} className="text-red-400" />
+            Default Notifications & Vanity URL
+          </h2>
+          <p className="text-xs md:text-sm text-zinc-400 mt-1">
+            Global member notification frequency and custom invite URL configuration.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Default Notifications Radio Selection */}
+          <div className="p-6 rounded-3xl bg-black/30 border border-white/5 flex flex-col gap-4">
+            <label className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-300">
+              Default Message Notifications
+            </label>
+            <div className="flex flex-col gap-3">
+              <label
+                onClick={() => setFormData(prev => ({ ...prev, defaultMessageNotifications: 0 }))}
+                className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                  formData.defaultMessageNotifications === 0
+                    ? 'bg-red-500/10 border-red-500/50 shadow-[0_0_15px_rgba(225,29,46,0.15)]'
+                    : 'bg-black/40 border-white/5 hover:border-white/10'
+                }`}
+              >
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-white">All Messages</span>
+                  <span className="text-xs text-zinc-400">Members receive pings on every channel message</span>
+                </div>
+                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                  formData.defaultMessageNotifications === 0 ? 'border-red-500' : 'border-zinc-600'
+                }`}>
+                  {formData.defaultMessageNotifications === 0 && (
+                    <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_6px_#ef4444]" />
                   )}
+                </div>
+              </label>
+
+              <label
+                onClick={() => setFormData(prev => ({ ...prev, defaultMessageNotifications: 1 }))}
+                className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                  formData.defaultMessageNotifications === 1
+                    ? 'bg-red-500/10 border-red-500/50 shadow-[0_0_15px_rgba(225,29,46,0.15)]'
+                    : 'bg-black/40 border-white/5 hover:border-white/10'
+                }`}
+              >
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-white">Only @mentions (Recommended)</span>
+                  <span className="text-xs text-zinc-400">Members only notified when tagged directly or by role</span>
+                </div>
+                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                  formData.defaultMessageNotifications === 1 ? 'border-red-500' : 'border-zinc-600'
+                }`}>
+                  {formData.defaultMessageNotifications === 1 && (
+                    <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_6px_#ef4444]" />
+                  )}
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Vanity URL (Gated to Level 3) */}
+          <div className={`p-6 rounded-3xl border flex flex-col justify-between gap-4 transition-all ${
+            canUseVanityUrl
+              ? 'bg-black/30 border-white/5'
+              : 'bg-black/20 border-white/5 opacity-70'
+          }`}>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-300 flex items-center gap-1.5">
+                  {!canUseVanityUrl && <Lock size={12} className="text-amber-400" />}
+                  Custom Vanity Invite URL
+                </label>
+                {!canUseVanityUrl ? (
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-mono">
+                    Requires Boost Level 3
+                  </span>
+                ) : (
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 font-mono">
+                    Level 3 Unlocked
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-zinc-400 mb-4">
+                Share a personalized invite link for your Discord server.
+              </p>
+
+              <div className="flex items-center rounded-2xl bg-black/60 border border-white/10 focus-within:border-red-500 transition-all overflow-hidden">
+                <span className="px-3.5 py-3 text-xs font-mono text-zinc-500 bg-white/[0.02] border-r border-white/10 shrink-0">
+                  discord.gg/
+                </span>
+                <input
+                  type="text"
+                  disabled={!canUseVanityUrl}
+                  value={formData.vanityUrl}
+                  onChange={e => {
+                    setVanityConflictError(null);
+                    setFormData(prev => ({ ...prev, vanityUrl: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }));
+                  }}
+                  placeholder="your-vanity-code"
+                  className={`w-full px-4 py-3 bg-transparent text-white text-sm outline-none ${
+                    canUseVanityUrl ? '' : 'cursor-not-allowed'
+                  }`}
+                />
+              </div>
+
+              {vanityConflictError && (
+                <div className="mt-2 text-xs text-red-400 flex items-center gap-1">
+                  <AlertCircle size={13} className="shrink-0" />
+                  <span>{vanityConflictError}</span>
                 </div>
               )}
             </div>
 
-            {/* Static Banner Color Chooser (Block button + Predefined static swatches) */}
-            <div className="flex flex-col gap-2.5 p-3.5 rounded-2xl bg-white/[0.02] border border-white/5">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-zinc-300 flex items-center gap-1.5 font-mono">
-                  <Palette size={13} className="text-red-400" />
-                  Banner Color Swatches
-                </span>
-                <span className="text-[11px] font-mono text-zinc-400">
-                  {PRESET_BANNER_COLORS.find(
-                    (c) => c.hex.toLowerCase() === formData.bannerColor.toLowerCase()
-                  )?.label || 'RNG Crimson Red'}
-                </span>
-              </div>
-
-              {/* Block Icon Button + Predefined Discord Static Color Swatches */}
-              <div className="flex items-center gap-2 flex-wrap">
-                {PRESET_BANNER_COLORS.map((col) => {
-                  const isSelected = formData.bannerColor.toLowerCase() === col.hex.toLowerCase();
-                  const isNone = col.hex === 'none';
-
-                  if (isNone) {
-                    return (
-                      <button
-                        key={col.id}
-                        type="button"
-                        title={col.label}
-                        onClick={() => setFormData((prev) => ({ ...prev, bannerColor: 'none' }))}
-                        className={`w-7 h-7 rounded-xl transition-all duration-150 relative flex items-center justify-center bg-white/5 border ${
-                          isSelected
-                            ? 'scale-110 border-red-500 ring-2 ring-white shadow-[0_0_12px_rgba(255,255,255,0.6)] z-10 text-red-400'
-                            : 'border-white/10 hover:scale-105 opacity-75 hover:opacity-100 text-zinc-400 hover:text-white'
-                        }`}
-                      >
-                        <Ban size={14} />
-                      </button>
-                    );
-                  }
-
-                  return (
-                    <button
-                      key={col.id}
-                      type="button"
-                      title={col.label}
-                      onClick={() => setFormData((prev) => ({ ...prev, bannerColor: col.hex }))}
-                      className={`w-7 h-7 rounded-xl transition-all duration-150 relative flex items-center justify-center ${
-                        isSelected
-                          ? 'scale-110 ring-2 ring-white shadow-[0_0_12px_rgba(255,255,255,0.6)] z-10'
-                          : 'hover:scale-105 opacity-75 hover:opacity-100'
-                      }`}
-                      style={{ backgroundColor: col.hex }}
-                    >
-                      {isSelected && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-white shadow-sm" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Banner Image Upload Button */}
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[11px] text-zinc-400 font-mono">
-                {isBannerLocked ? 'Requires Level 2 Boost for Custom Image' : '16:9 Aspect Ratio (1920x1080)'}
-              </span>
-
-              <button
-                type="button"
-                disabled={isBannerLocked}
-                onClick={() => bannerInputRef.current?.click()}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
-                  isBannerLocked
-                    ? 'bg-zinc-800/50 text-zinc-500 border border-white/5 cursor-not-allowed'
-                    : 'bg-white/5 hover:bg-white/10 border border-white/10 hover:border-red-500/40 text-zinc-200 hover:text-white shadow-[0_0_15px_rgba(225,29,46,0.15)]'
-                }`}
-              >
-                {isBannerLocked ? <Lock size={13} /> : <Upload size={13} className="text-red-400" />}
-                <span>{formData.bannerPreview && !isBannerLocked ? 'Change Banner' : 'Upload Banner'}</span>
-              </button>
+            <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 text-[11px] text-zinc-500 flex items-center gap-2">
+              <Link2 size={14} className="text-red-400 shrink-0" />
+              <span>Permanent link alias: <code className="text-zinc-300 font-mono font-semibold">/{server?.slug}</code></span>
             </div>
           </div>
         </div>
-
-        {/* Input: Server Name */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold text-zinc-300">Server Name</label>
-          <input
-            type="text"
-            value={formData.serverName}
-            onChange={(e) => setFormData((prev) => ({ ...prev, serverName: e.target.value }))}
-            className="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors"
-          />
-        </div>
-
-        {/* Server Description */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
-            <FileText size={13} className="text-red-400" />
-            Server Description
-          </label>
-          <textarea
-            rows={2}
-            value={formData.description}
-            onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-            className="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-red-500/50 transition-colors resize-none"
-          />
-        </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* SECTION 2: Traits (5 Customizable Slots with Emoji Picker)                */}
-      {/* ========================================================================= */}
-      <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <h3 className="text-base md:text-lg font-bold text-white flex items-center gap-2">
-              <Tag size={18} className="text-red-400" />
-              Traits
-            </h3>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Add up to 5 traits to show off your server&apos;s interests and personality.
-            </p>
-          </div>
-
-          <span className="text-xs font-mono px-3 py-1 rounded-full bg-white/5 border border-white/10 text-zinc-300 w-fit">
-            <span className="text-red-400 font-bold">
-              {formData.traits.filter((t) => t.name.trim() !== '').length}
-            </span>{' '}
-            / 5 Selected
-          </span>
-        </div>
-
-        {/* 5 Trait Slots Grid Matching Discord's exact layout from test.jpg */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {Array.from({ length: 5 }).map((_, index) => {
-            const trait = formData.traits[index] || { emoji: '', name: '' };
-            const isPickerOpen = activeEmojiSlot === index;
-
-            return (
-              <div
-                key={index}
-                className={`relative flex items-center bg-white/[0.03] hover:bg-white/[0.05] border ${
-                  isPickerOpen ? 'border-red-500 shadow-[0_0_15px_rgba(225,29,46,0.25)]' : 'border-white/10'
-                } rounded-2xl p-2 transition-all duration-150 ${
-                  index === 4 ? 'md:col-span-2 md:max-w-[calc(50%-0.5rem)]' : ''
-                }`}
-              >
-                {/* Emoji Trigger Button */}
-                <button
-                  type="button"
-                  onClick={() => setActiveEmojiSlot(isPickerOpen ? null : index)}
-                  className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-red-500/40 flex items-center justify-center text-lg shrink-0 transition-all active:scale-95 shadow-[0_0_10px_rgba(0,0,0,0.3)]"
-                  title="Choose Emoji"
-                >
-                  {trait.emoji ? (
-                    <span className="text-lg leading-none">{trait.emoji}</span>
-                  ) : (
-                    <Smile size={18} className="text-zinc-400 hover:text-red-400 transition-colors" />
-                  )}
-                </button>
-
-                {/* Trait Text Input */}
-                <input
-                  type="text"
-                  maxLength={32}
-                  placeholder={TRAIT_PLACEHOLDERS[index] || `Trait ${index + 1}`}
-                  value={trait.name}
-                  onChange={(e) => handleTraitChange(index, 'name', e.target.value)}
-                  className="flex-1 bg-transparent px-3 text-sm text-white placeholder-zinc-500 focus:outline-none"
-                />
-
-                {/* Clear Button if filled */}
-                {(trait.name || trait.emoji) && (
-                  <button
-                    type="button"
-                    onClick={() => handleClearTrait(index)}
-                    className="w-7 h-7 rounded-lg hover:bg-white/10 flex items-center justify-center text-zinc-500 hover:text-zinc-300 transition-colors shrink-0"
-                    title="Clear slot"
-                  >
-                    <X size={13} />
-                  </button>
-                )}
-
-                {/* Floating Emoji Picker Popover */}
-                <AnimatePresence>
-                  {isPickerOpen && (
-                    <motion.div
-                      ref={emojiPickerRef}
-                      initial={{ opacity: 0, scale: 0.95, y: 5 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, y: 5 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute left-0 top-full mt-2 z-50 max-w-[calc(100vw-32px)]"
-                    >
-                      <DiscordEmojiPicker
-                        currentEmoji={trait.emoji}
-                        slotIndex={index}
-                        onSelect={(chosenEmoji) => {
-                          handleTraitChange(index, 'emoji', chosenEmoji);
-                          setActiveEmojiSlot(null);
-                        }}
-                        onClear={() => handleTraitChange(index, 'emoji', '')}
-                        onClose={() => setActiveEmojiSlot(null)}
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* SECTION 3: Activity Feed Settings                                         */}
-      {/* ========================================================================= */}
-      <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
-        <div>
-          <h3 className="text-base md:text-lg font-bold text-white flex items-center gap-2">
-            <Radio size={18} className="text-red-400" />
-            Activity Feed Settings
-          </h3>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            Shows a feed of activity from games and connected apps in this server.
-          </p>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 max-w-2xl">
-          <Toggle
-            checked={formData.activityFeedEnabled}
-            onChange={(val) => setFormData((prev) => ({ ...prev, activityFeedEnabled: val }))}
-            label="Display activity feed in this server"
-            description="Allow members to view recent games and rich presence activity happening in this server."
-          />
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* SECTION 4: Inactive Channel & AFK Timeout                                 */}
-      {/* ========================================================================= */}
-      <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
-        <div>
-          <h3 className="text-base md:text-lg font-bold text-white flex items-center gap-2">
-            <Volume2 size={18} className="text-red-400" />
-            Inactive Channel & AFK Timeout
-          </h3>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            Automatically move inactive voice members to a specific channel after a period of time.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-semibold text-zinc-300">Inactive Channel (AFK)</label>
-            <select
-              value={formData.afkChannel}
-              onChange={(e) => setFormData((prev) => ({ ...prev, afkChannel: e.target.value }))}
-              className="w-full px-4 py-2.5 rounded-xl bg-[#141414] border border-white/10 text-white text-sm font-mono focus:outline-none focus:border-red-500/50 transition-colors"
-            >
-              <option value="No Inactive Channel">No Inactive Channel</option>
-              <option value="🔊 #afk-lounge">🔊 #afk-lounge</option>
-              <option value="🔊 #voice-inactive">🔊 #voice-inactive</option>
-              <option value="🔊 #lounge">🔊 #lounge</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-semibold text-zinc-300">Inactive Timeout</label>
-            <select
-              value={formData.afkTimeout}
-              onChange={(e) => setFormData((prev) => ({ ...prev, afkTimeout: e.target.value }))}
-              className="w-full px-4 py-2.5 rounded-xl bg-[#141414] border border-white/10 text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors"
-            >
-              <option value="1 minute">1 minute</option>
-              <option value="5 minutes">5 minutes</option>
-              <option value="15 minutes">15 minutes</option>
-              <option value="30 minutes">30 minutes</option>
-              <option value="1 hour">1 hour</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* SECTION 5: System Messages Channel & Event Messages                       */}
-      {/* ========================================================================= */}
-      <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
-        <div>
-          <h3 className="text-base md:text-lg font-bold text-white flex items-center gap-2">
-            <MessageSquare size={18} className="text-red-400" />
-            System Messages Channel & Event Messages
-          </h3>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            Configure automated join announcements, boost alerts, and server notifications.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-2 max-w-md">
-          <label className="text-xs font-semibold text-zinc-300">System Messages Channel</label>
-          <select
-            value={formData.systemChannel}
-            onChange={(e) => setFormData((prev) => ({ ...prev, systemChannel: e.target.value }))}
-            className="w-full px-4 py-2.5 rounded-xl bg-[#141414] border border-white/10 text-white text-sm font-mono focus:outline-none focus:border-red-500/50 transition-colors"
-          >
-            <option value="#welcome">#welcome</option>
-            <option value="#announcements">#announcements</option>
-            <option value="#lounge">#lounge</option>
-            <option value="#general">#general</option>
-            <option value="none">No System Messages Channel</option>
-          </select>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-            <Toggle
-              checked={formData.sendWelcome}
-              onChange={(val) => setFormData((prev) => ({ ...prev, sendWelcome: val }))}
-              label="Random Welcome Messages"
-              description="Send a welcome message when someone joins this server"
-            />
-          </div>
-
-          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-            <Toggle
-              checked={formData.stickerPrompt}
-              onChange={(val) => setFormData((prev) => ({ ...prev, stickerPrompt: val }))}
-              label="Sticker Reply Prompt"
-              description="Prompt members to reply to welcome messages with a sticker"
-            />
-          </div>
-
-          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-            <Toggle
-              checked={formData.boostMessage}
-              onChange={(val) => setFormData((prev) => ({ ...prev, boostMessage: val }))}
-              label="Server Boost Announcements"
-              description="Send a message when someone boosts this server"
-            />
-          </div>
-
-          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-            <Toggle
-              checked={formData.setupTips}
-              onChange={(val) => setFormData((prev) => ({ ...prev, setupTips: val }))}
-              label="Helpful Setup Tips"
-              description="Send helpful tips for server configuration and bot usage"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* SECTION 4: Privacy & Activity Feed Settings                               */}
-      {/* ========================================================================= */}
-      <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-6">
-        <div>
-          <h3 className="text-base md:text-lg font-bold text-white flex items-center gap-2">
-            <Radio size={18} className="text-red-400" />
-            Privacy & Activity Feed Settings
-          </h3>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            Configure server visibility, private profile status, and connected game feeds.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-            <Toggle
-              checked={formData.privateProfile}
-              onChange={(val) => setFormData((prev) => ({ ...prev, privateProfile: val }))}
-              label="Private Server Profile"
-              description="Hide this server from public discovery, member search, and public feeds. Only invited members can view."
-            />
-          </div>
-
-          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-            <Toggle
-              checked={formData.activityFeedEnabled}
-              onChange={(val) => setFormData((prev) => ({ ...prev, activityFeedEnabled: val }))}
-              label="Display Activity Feed"
-              description="Shows a feed of live activity from games and connected apps in this server."
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* SECTION 6: Custom Vanity URL                                              */}
-      {/* ========================================================================= */}
-      <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <h3 className="text-base md:text-lg font-bold text-white flex items-center gap-2">
-              <Link2 size={18} className="text-red-400" />
-              Custom Invite Link (Vanity URL)
-            </h3>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Custom invite URL for your server.
-            </p>
-          </div>
-          <span className="text-[10.5px] px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 font-mono w-fit">
-            Level 3 Boost Perk
-          </span>
-        </div>
-
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 max-w-md w-full">
-          <span className="text-xs font-mono text-zinc-400 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 shrink-0 w-fit sm:w-auto">
-            discord.gg/
-          </span>
-          <input
-            type="text"
-            value={formData.vanityUrl}
-            onChange={(e) => setFormData((prev) => ({ ...prev, vanityUrl: e.target.value }))}
-            className="min-w-0 flex-1 w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white font-mono text-sm focus:outline-none focus:border-red-500/50 transition-colors"
-          />
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* FLOATING POPUP SAVE BAR (Triggered automatically when isDirty is true)    */}
-      {/* ========================================================================= */}
+      {/* Floating Unsaved Changes Bar */}
       <UnsavedChangesBar
         isDirty={isDirty}
         isSaving={isSaving}
         onSave={handleSave}
         onReset={handleReset}
       />
-    </motion.div>
+    </div>
   );
 }
