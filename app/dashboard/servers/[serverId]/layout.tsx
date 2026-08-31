@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
-import { mockServersApi, ServerData } from '@/lib/mockServersApi';
+import { api, ServerDetail } from '@/lib/api';
 import { ServerStatsHeader } from '@/components/server/ServerStatsHeader';
 import { Navbar } from '@/components/server/Navbar';
 
@@ -16,17 +16,23 @@ export default function ServerDetailLayout({
   const params = useParams();
   const serverId = params?.serverId as string;
 
-  const [server, setServer] = useState<ServerData | null>(null);
+  const [server, setServer] = useState<ServerDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
 
     const loadServer = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        if (isMounted) setLoading(false);
+        return;
+      }
+
       try {
-        const found = await mockServersApi.getServerById(serverId);
-        if (isMounted) {
-          setServer(found);
+        const res = await api.fetchServerDetails(token, serverId);
+        if (isMounted && res.success && res.data) {
+          setServer(res.data);
         }
       } catch (err) {
         console.error('Failed to load server:', err);

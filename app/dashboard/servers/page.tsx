@@ -9,26 +9,41 @@ import {
   Users,
   Activity,
   ArrowRight,
-  Bot
+  Bot,
+  Flame,
+  AlertCircle
 } from 'lucide-react';
-import { mockServersApi, ServerData } from '@/lib/mockServersApi';
+import { api, ServerItem } from '@/lib/api';
 
 export default function ServersPage() {
   const router = useRouter();
-  const [servers, setServers] = useState<ServerData[]>([]);
+  const [servers, setServers] = useState<ServerItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
     const loadServers = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/');
+        return;
+      }
+
       try {
-        const data = await mockServersApi.getConnectedServers();
+        const res = await api.fetchServers(token);
         if (isMounted) {
-          setServers(data);
+          if (res.success && res.data) {
+            setServers(res.data);
+          } else {
+            setError(res.message || 'Failed to load Discord servers.');
+          }
         }
-      } catch (err) {
-        console.error('Failed to load servers:', err);
+      } catch (err: unknown) {
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'Network error loading servers.');
+        }
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -41,16 +56,33 @@ export default function ServersPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [router]);
 
-  const handleManageServer = (serverId: string) => {
-    router.push(`/dashboard/servers/${serverId}/settings`);
+  const handleManageServer = (server: ServerItem) => {
+    router.push(`/dashboard/servers/${server.slug || server.id}/settings`);
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="w-10 h-10 border-4 border-white/10 border-t-red-500 rounded-full animate-spin shadow-[0_0_15px_rgba(239,68,68,0.3)]" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 rounded-3xl bg-[#111111]/70 border border-red-500/30 text-center max-w-lg mx-auto">
+        <AlertCircle size={36} className="text-red-400 mx-auto mb-3" />
+        <h2 className="text-xl font-bold text-white mb-2">Error Loading Servers</h2>
+        <p className="text-sm text-zinc-400 mb-6">{error}</p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-semibold transition-all shadow-[0_0_20px_rgba(225,29,46,0.3)]"
+        >
+          Try Again
+        </button>
       </div>
     );
   }
@@ -77,7 +109,7 @@ export default function ServersPage() {
         </div>
       </div>
 
-      {/* Servers List (Equal-height cards with smooth fade animation) */}
+      {/* Servers List */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
         {servers.map((server, index) => {
           return (
@@ -103,7 +135,7 @@ export default function ServersPage() {
                     {/* Server Avatar / Logo */}
                     <div className="relative w-14 h-14 md:w-16 md:h-16 rounded-2xl overflow-hidden border border-red-500/30 bg-black/60 shadow-[0_0_20px_rgba(225,29,46,0.25)] shrink-0 flex items-center justify-center">
                       <Image
-                        src={server.icon}
+                        src={server.iconUrl || '/visuals/staff.png'}
                         alt={server.name}
                         fill
                         unoptimized
@@ -111,32 +143,40 @@ export default function ServersPage() {
                       />
                     </div>
 
-                    {/* Server Title & ID */}
+                    {/* Server Title, Slug & ID */}
                     <div className="flex flex-col min-w-0">
                       <h2 className="text-lg md:text-xl font-extrabold text-white truncate tracking-tight group-hover:text-red-300 transition-colors">
                         {server.name}
                       </h2>
-                      <span className="text-xs text-zinc-400 font-mono mt-0.5 truncate flex items-center gap-1.5">
-                        <Bot size={13} className="text-red-400 shrink-0" />
-                        Guild ID: <span className="text-zinc-300">{server.id}</span>
-                      </span>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <span className="text-[11px] px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-zinc-300 font-mono">
+                          /{server.slug}
+                        </span>
+                        <span className="text-xs text-zinc-400 font-mono truncate flex items-center gap-1">
+                          <Bot size={13} className="text-red-400 shrink-0" />
+                          ID: <span className="text-zinc-300">{server.id}</span>
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Red Theme Status Indicator */}
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-300 font-mono text-[11px] font-semibold shrink-0 shadow-[0_0_10px_rgba(225,29,46,0.2)]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_6px_#ef4444]" />
-                    <span>Bot Active</span>
+                  {/* Status & Boost Indicator */}
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-300 font-mono text-[11px] font-semibold shadow-[0_0_10px_rgba(225,29,46,0.2)]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_6px_#ef4444]" />
+                      <span>Bot Active</span>
+                    </div>
+                    {server.boostLevel > 0 && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 font-mono flex items-center gap-1">
+                        <Flame size={11} className="text-red-400" />
+                        Level {server.boostLevel} ({server.boostCount} Boosts)
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {/* Server Description (Uniform 2-line height across all cards) */}
-                <p className="text-xs md:text-sm text-zinc-400 leading-relaxed mb-6 h-10 line-clamp-2">
-                  {server.description}
-                </p>
-
                 {/* Member Stats Tiles */}
-                <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="grid grid-cols-2 gap-3 mb-6 mt-4">
                   <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center gap-3">
                     <div className="p-2 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20">
                       <Activity size={18} />
@@ -144,7 +184,7 @@ export default function ServersPage() {
                     <div className="flex flex-col">
                       <span className="text-xs text-zinc-400 font-medium">Online</span>
                       <span className="text-base font-bold text-white font-mono">
-                        {server.onlineCount}
+                        {server.onlineCount.toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -156,7 +196,7 @@ export default function ServersPage() {
                     <div className="flex flex-col">
                       <span className="text-xs text-zinc-400 font-medium">Total Members</span>
                       <span className="text-base font-bold text-white font-mono">
-                        {server.totalCount}
+                        {server.totalCount.toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -166,7 +206,7 @@ export default function ServersPage() {
               {/* Manage Server Action Button with Red Hover Glow */}
               <button
                 type="button"
-                onClick={() => handleManageServer(server.id)}
+                onClick={() => handleManageServer(server)}
                 className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#E11D2E] to-[#8A0F1A] hover:from-[#FF3B4D] hover:to-[#B91C1C] text-white font-bold text-sm shadow-[0_0_20px_rgba(225,29,46,0.35)] hover:shadow-[0_0_35px_rgba(225,29,46,0.7)] border border-red-400/30 transition-all duration-300 flex items-center justify-center gap-2 group/btn"
               >
                 <span>Manage Server</span>

@@ -4,13 +4,25 @@ import React from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Flame, Hash, Bot } from 'lucide-react';
-import { ServerData } from '@/lib/mockServersApi';
+export interface ServerStatsData {
+  id: string;
+  name: string;
+  icon?: string | null;
+  iconUrl?: string | null;
+  shortName?: string;
+  boostLevel: number;
+  boostCount: number;
+  onlineCount: number;
+  totalCount: number;
+}
 
 interface ServerStatsHeaderProps {
-  server: ServerData;
+  server: ServerStatsData;
 }
 
 export function ServerStatsHeader({ server }: ServerStatsHeaderProps) {
+  const avatarSrc = server.iconUrl || server.icon;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
@@ -23,9 +35,9 @@ export function ServerStatsHeader({ server }: ServerStatsHeaderProps) {
         <div className="flex items-center gap-5 md:gap-7 min-w-0">
           {/* Enlarged Logo with rounded square shape on the left */}
           <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-3xl overflow-hidden border-2 border-red-500/40 bg-black/60 shadow-[0_0_30px_rgba(225,29,46,0.35)] shrink-0 flex items-center justify-center">
-            {server.icon ? (
+            {avatarSrc ? (
               <Image
-                src={server.icon}
+                src={avatarSrc}
                 alt={server.name}
                 fill
                 unoptimized
