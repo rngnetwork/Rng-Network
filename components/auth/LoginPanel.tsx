@@ -12,7 +12,7 @@ const contentVariants = {
 };
 
 export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBack: () => void }) {
-  const [step, setStep] = useState<'email' | 'whitelist' | 'discord'>('email');
+  const [step, setStep] = useState<'email' | 'whitelist' | 'discord' | 'forgot-password'>('email');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -26,7 +26,6 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
   const [direction, setDirection] = useState(1);
   const [isWhitelisted, setIsWhitelisted] = useState<boolean | null>(null);
 
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotError, setForgotError] = useState<string | null>(null);
@@ -98,7 +97,10 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
   };
 
   const handleBack = () => {
-    if (step === 'discord') {
+    if (step === 'forgot-password') {
+      setDirection(-1);
+      setStep('email');
+    } else if (step === 'discord') {
       setDirection(-1);
       if (mode === 'register') {
         setStep('email'); // skipped whitelist
@@ -268,7 +270,8 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
                     onClick={() => {
                       setForgotEmail(email);
                       setForgotError(null);
-                      setShowForgotPassword(true);
+                      setDirection(1);
+                      setStep('forgot-password');
                     }}
                     className="text-xs font-semibold text-slate-500 hover:text-[#E11D2E] transition-colors"
                   >
@@ -285,62 +288,67 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
                 {!isLoading && "Continue"}
               </Button>
             </form>
+          </motion.div>
+        )}
 
-            {showForgotPassword && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="absolute inset-0 bg-white/95 backdrop-blur-md z-40 flex flex-col justify-center p-6 md:p-10"
-              >
-                <button
-                  onClick={() => setShowForgotPassword(false)}
-                  className="absolute top-6 left-6 text-slate-400 hover:text-slate-800 flex items-center gap-1.5 text-[14px] font-bold transition-colors"
-                >
-                  <ArrowLeft size={16} strokeWidth={3} /> Back to Sign In
-                </button>
+        {step === 'forgot-password' && !showWelcome && !showRegisterSuccess && (
+          <motion.div
+            key="forgot-password"
+            custom={direction}
+            variants={contentVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.35, ease: "easeOut" }}
+            className="flex flex-col w-full h-full justify-center pt-10 pb-6 relative"
+          >
+            <button
+              type="button"
+              onClick={handleBack}
+              className="absolute top-0 left-0 text-slate-400 hover:text-slate-800 flex items-center gap-1.5 text-[14px] font-bold transition-colors w-fit p-2 -ml-2"
+            >
+              <ArrowLeft size={16} strokeWidth={3} /> Back to Sign In
+            </button>
 
-                <div className="w-12 h-12 bg-red-500/10 rounded-2xl flex items-center justify-center mb-4 text-[#E11D2E]">
-                  <Lock size={24} />
-                </div>
+            <div className="w-14 h-14 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center mb-4 mt-2 text-[#E11D2E] shadow-[0_0_20px_rgba(225,29,46,0.15)]">
+              <Lock size={26} />
+            </div>
 
-                <h3 className="text-2xl font-extrabold text-slate-900 mb-1 tracking-tight">
-                  Forgot Password?
-                </h3>
-                <p className="text-slate-500 text-xs mb-6 leading-relaxed">
-                  Enter your whitelisted account email. You will authenticate via your linked Discord account to verify your identity and choose a new password.
-                </p>
+            <h3 className="text-3xl font-extrabold text-slate-900 mb-1 tracking-tight">
+              Forgot Password?
+            </h3>
+            <p className="text-slate-500 text-[13.5px] mb-6 leading-relaxed">
+              Enter your whitelisted account email. You will authenticate via your linked Discord account to verify your identity.
+            </p>
 
-                {forgotError && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs font-medium flex items-start gap-2">
-                    <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
-                    <span>{forgotError}</span>
-                  </div>
-                )}
-
-                <form onSubmit={handleForgotPasswordSubmit} className="flex flex-col gap-3">
-                  <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#E11D2E] transition-colors" size={18} />
-                    <input
-                      type="email"
-                      required
-                      value={forgotEmail}
-                      onChange={(e) => setForgotEmail(e.target.value)}
-                      placeholder="Account Email (e.g. user@rng.com)"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-11 pr-4 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#E11D2E]/50 focus:bg-white focus:ring-4 focus:ring-[#E11D2E]/5 transition-all font-medium text-[13.5px]"
-                    />
-                  </div>
-
-                  <Button
-                    type="submit"
-                    isLoading={forgotLoading}
-                    className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white font-semibold shadow-md mt-2"
-                  >
-                    Verify with Discord &rarr;
-                  </Button>
-                </form>
-              </motion.div>
+            {forgotError && (
+              <div className="mb-4 p-3.5 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs font-medium flex items-start gap-2 shadow-sm">
+                <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
+                <span className="leading-relaxed">{forgotError}</span>
+              </div>
             )}
+
+            <form onSubmit={handleForgotPasswordSubmit} className="flex flex-col gap-4 w-full">
+              <div className="relative group">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#E11D2E] transition-colors" size={18} />
+                <input
+                  type="email"
+                  required
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  placeholder="Account Email (e.g. user@rng.com)"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-11 pr-4 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#E11D2E]/50 focus:bg-white focus:ring-4 focus:ring-[#E11D2E]/5 transition-all font-medium text-[13.5px]"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                isLoading={forgotLoading}
+                className="w-full h-11 bg-slate-900 hover:bg-slate-800 border-none !text-white font-semibold !shadow-md hover:!shadow-[0_0_20px_rgba(225,29,46,0.5)] transition-all mt-1"
+              >
+                {!forgotLoading && "Verify with Discord \u2192"}
+              </Button>
+            </form>
           </motion.div>
         )}
 
