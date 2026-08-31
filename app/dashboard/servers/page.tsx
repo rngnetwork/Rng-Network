@@ -25,7 +25,7 @@ export default function ServersPage() {
     let isMounted = true;
 
     const loadServers = async () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
       if (!token) {
         router.push('/');
         return;

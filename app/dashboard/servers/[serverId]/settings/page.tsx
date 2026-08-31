@@ -83,7 +83,7 @@ export default function ServerSettingsPage() {
     let isMounted = true;
 
     const loadData = async () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
       if (!token) {
         setLoading(false);
         return;
@@ -247,7 +247,7 @@ export default function ServerSettingsPage() {
   };
 
   const handleSave = async () => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
     if (!token) return;
 
     setIsSaving(true);

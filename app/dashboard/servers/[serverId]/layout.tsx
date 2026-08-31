@@ -23,7 +23,7 @@ export default function ServerDetailLayout({
     let isMounted = true;
 
     const loadServer = async () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
       if (!token) {
         if (isMounted) setLoading(false);
         return;
