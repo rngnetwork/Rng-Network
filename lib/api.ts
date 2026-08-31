@@ -77,6 +77,70 @@ export interface FullAuthData {
   user: UserProfileData;
 }
 
+export interface ServerItem {
+  id: string;
+  slug: string;
+  name: string;
+  iconUrl: string | null;
+  bannerUrl: string | null;
+  onlineCount: number;
+  totalCount: number;
+  boostLevel: number;
+  boostCount: number;
+  status: string;
+}
+
+export interface ServerDetail {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  iconUrl: string | null;
+  bannerUrl: string | null;
+  onlineCount: number;
+  totalCount: number;
+  boostLevel: number;
+  boostCount: number;
+  features: string[];
+  afkChannelId: string | null;
+  afkTimeout: number | null;
+  systemChannelId: string | null;
+  sendWelcome: boolean;
+  stickerPrompt: boolean;
+  boostMessage: boolean;
+  setupTips: boolean;
+  defaultMessageNotifications: number | null;
+  vanityUrl: string | null;
+  widgetEnabled: boolean | null;
+  widgetChannelId: string | null;
+}
+
+export interface ChannelItem {
+  id: string;
+  name: string;
+  type: number;
+  position: number;
+  parentId: string | null;
+}
+
+export interface UpdateServerSettingsPayload {
+  name: string;
+  description?: string | null;
+  icon?: string | null;
+  banner?: string | null;
+  afkChannelId?: string | null;
+  afkTimeout?: number | null;
+  systemChannelId?: string | null;
+  sendWelcome?: boolean;
+  stickerPrompt?: boolean;
+  boostMessage?: boolean;
+  setupTips?: boolean;
+  defaultMessageNotifications?: number | null;
+  vanityUrl?: string | null;
+  widgetEnabled?: boolean | null;
+  widgetChannelId?: string | null;
+}
+
 export const api = {
   // ---------------------------------------------------------------------------
   // Step 1: Email / Password Login -> Returns Pre-2FA JWT
@@ -264,6 +328,79 @@ export const api = {
     const data = await response.json();
     if (!response.ok) {
       throw new Error(data.message || 'Failed to fetch personnel hierarchy.');
+    }
+    return data;
+  },
+
+  // ---------------------------------------------------------------------------
+  // Discord Server Management Endpoints
+  // ---------------------------------------------------------------------------
+  async fetchServers(accessToken: string): Promise<ApiResponseEnvelope<ServerItem[]>> {
+    const response = await fetch(`${API_BASE}/api/v1/servers`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      credentials: 'include',
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to fetch Discord servers.');
+    }
+    return data;
+  },
+
+  async fetchServerDetails(accessToken: string, idOrSlug: string): Promise<ApiResponseEnvelope<ServerDetail>> {
+    const response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(idOrSlug)}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      credentials: 'include',
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to fetch server details.');
+    }
+    return data;
+  },
+
+  async fetchServerChannels(accessToken: string, idOrSlug: string): Promise<ApiResponseEnvelope<ChannelItem[]>> {
+    const response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(idOrSlug)}/channels`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      credentials: 'include',
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to fetch server channels.');
+    }
+    return data;
+  },
+
+  async updateServerSettings(
+    accessToken: string,
+    idOrSlug: string,
+    payload: UpdateServerSettingsPayload
+  ): Promise<ApiResponseEnvelope<ServerDetail>> {
+    const response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(idOrSlug)}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to update server settings.');
     }
     return data;
   },
