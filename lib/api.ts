@@ -141,6 +141,15 @@ export interface UpdateServerSettingsPayload {
   widgetChannelId?: string | null;
 }
 
+export interface ForgotPasswordInitiateResponse {
+  discordAuthUrl: string;
+}
+
+export interface ForgotPasswordVerifyResponse {
+  resetToken: string;
+  email: string;
+}
+
 export const api = {
   // ---------------------------------------------------------------------------
   // Step 1: Email / Password Login -> Returns Pre-2FA JWT
@@ -406,17 +415,63 @@ export const api = {
   },
 
   // ---------------------------------------------------------------------------
-  // Fallbacks for Unbuilt APIs (Forgot Password & Registration Request)
+  // Discord-Verified Forgot Password APIs
+  // ---------------------------------------------------------------------------
+  async initiateForgotPassword(email: string): Promise<ApiResponseEnvelope<ForgotPasswordInitiateResponse>> {
+    const response = await fetch(`${API_BASE}/api/v1/auth/forgot-password/initiate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to initiate password reset.');
+    }
+    return data;
+  },
+
+  async verifyForgotPasswordDiscord(code: string, state: string): Promise<ApiResponseEnvelope<ForgotPasswordVerifyResponse>> {
+    const response = await fetch(`${API_BASE}/api/v1/auth/forgot-password/verify-discord`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ code, state }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to verify Discord identity for password reset.');
+    }
+    return data;
+  },
+
+  async resetPassword(resetToken: string, newPassword: string): Promise<ApiResponseEnvelope<null>> {
+    const response = await fetch(`${API_BASE}/api/v1/auth/forgot-password/reset`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${resetToken}`,
+      },
+      body: JSON.stringify({ newPassword }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to reset password.');
+    }
+    return data;
+  },
+
+  // ---------------------------------------------------------------------------
+  // Registration Access Request Fallback
   // ---------------------------------------------------------------------------
   async submitRegister(email: string, username: string, password?: string): Promise<{ success: boolean; message?: string }> {
     console.log('Registration Request:', email, username, !!password);
     await new Promise((r) => setTimeout(r, 600));
     return { success: true, message: 'Access request submitted for review.' };
-  },
-
-  async submitForgotPassword(email: string): Promise<{ success: boolean; message?: string }> {
-    console.log('Forgot Password:', email);
-    await new Promise((r) => setTimeout(r, 600));
-    return { success: true, message: `Password reset instructions sent to ${email}.` };
   },
 };
