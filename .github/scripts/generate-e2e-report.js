@@ -34,7 +34,7 @@ function generateE2EReport() {
       md += `| :--- | :---: | :---: | :---: |\n`;
       md += rows.join('\n') + '\n\n';
       md += `> **Total Scenarios**: ${totalTests} | **Passed**: ${passedTests} | **Failed**: ${failedTests}\n\n`;
-    } catch (e) {
+    } catch {
       md += `> E2E test results generated. Status: Passed.\n\n`;
     }
   } else {

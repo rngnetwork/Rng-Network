@@ -222,6 +222,16 @@ public class AuthService {
 
     @Transactional
     public void resetPassword(Long userId, String token, ResetPasswordRequest request) {
+        if (token != null) {
+            String jti = tokenService.getJtiFromToken(token);
+            if (jti != null) {
+                if (!tokenService.validateToken(token)) {
+                    throw new UnauthorizedException("Reset password token has already been used or revoked");
+                }
+                tokenService.revokeJti(jti);
+            }
+        }
+
         if (request.getNewPassword() == null || request.getNewPassword().length() < 8) {
             throw new BadCredentialsException("Password must be at least 8 characters long");
         }
@@ -231,11 +241,6 @@ public class AuthService {
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
-
-        if (token != null) {
-            String jti = tokenService.getJtiFromToken(token);
-            tokenService.revokeJti(jti);
-        }
 
         log.info("Successfully reset password for user {}", user.getEmail());
     }

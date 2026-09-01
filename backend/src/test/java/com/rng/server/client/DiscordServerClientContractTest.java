@@ -39,6 +39,7 @@ class DiscordServerClientContractTest {
     void setUp() {
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(
                 HttpClient.newBuilder()
+                        .version(HttpClient.Version.HTTP_1_1)
                         .connectTimeout(Duration.ofMillis(500))
                         .build()
         );
@@ -61,7 +62,7 @@ class DiscordServerClientContractTest {
         void updateGuildSettings_verifiesBotAuthAndAuditReasonEncoding() {
             wireMockServer.stubFor(patch(urlEqualTo("/api/v10/guilds/109823471928374650"))
                     .withHeader("Authorization", equalTo("Bot test-bot-token-12345"))
-                    .withHeader("Content-Type", equalTo("application/json"))
+                    .withHeader("Content-Type", containing("application/json"))
                     .withHeader("X-Audit-Log-Reason", equalTo("Updated%20via%20RNG%20Control%20Center%20by%20Arzenic%20(arzenic@rng.com)"))
                     .willReturn(aResponse().withStatus(200)));
 

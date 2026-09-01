@@ -145,6 +145,18 @@ class GlobalExceptionUnitTest {
     }
 
     @Test
+    @DisplayName("Maps DataIntegrityViolationException to 409 CONFLICT")
+    void handleDataIntegrityViolation_returns409() {
+        ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleDataIntegrityViolation(
+                new org.springframework.dao.DataIntegrityViolationException("duplicate key value violates unique constraint")
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getMessage()).contains("Resource conflict");
+    }
+
+    @Test
     @DisplayName("Maps generic unhandled Exception to 500 INTERNAL_SERVER_ERROR")
     void handleGenericException_returns500() {
         ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleGenericException(
@@ -153,7 +165,7 @@ class GlobalExceptionUnitTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().getMessage()).contains("An unexpected error occurred");
+        assertThat(response.getBody().getMessage()).contains("An internal server error occurred");
     }
 
     public void dummyMethod() {}

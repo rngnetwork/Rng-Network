@@ -178,7 +178,12 @@ class AuthServiceUnitTest {
                     .discordLinked(false)
                     .build();
 
-            DiscordUserDto discordUser = new DiscordUserDto("987654321012345678", "RNG_Commander", "a_avatarhash123", null);
+            DiscordUserDto discordUser = DiscordUserDto.builder()
+                    .id("987654321012345678")
+                    .username("RNG_Commander")
+                    .email("firstlink@rng.com")
+                    .avatar("a_avatarhash123")
+                    .build();
 
             when(userRepository.findById(104L)).thenReturn(Optional.of(user));
             when(discordClient.fetchDiscordUser("valid-discord-code")).thenReturn(discordUser);
@@ -212,7 +217,12 @@ class AuthServiceUnitTest {
                     .discordUsername("OldUsername")
                     .build();
 
-            DiscordUserDto discordUser = new DiscordUserDto("987654321012345678", "UpdatedUsername", "new_avatar_hash", null);
+            DiscordUserDto discordUser = DiscordUserDto.builder()
+                    .id("987654321012345678")
+                    .username("UpdatedUsername")
+                    .email("linked@rng.com")
+                    .avatar("new_avatar_hash")
+                    .build();
 
             when(userRepository.findById(105L)).thenReturn(Optional.of(user));
             when(discordClient.fetchDiscordUser("code-123")).thenReturn(discordUser);
@@ -485,6 +495,7 @@ class AuthServiceUnitTest {
                     .password("$2a$10$oldHash")
                     .build();
 
+            when(tokenService.validateToken("mock-reset-token")).thenReturn(true);
             when(userRepository.findById(300L)).thenReturn(Optional.of(user));
             when(passwordEncoder.encode("NewSecurePassword#2026!")).thenReturn("$2a$10$newBcryptHash");
             when(tokenService.getJtiFromToken("mock-reset-token")).thenReturn("reset-jti-uuid");

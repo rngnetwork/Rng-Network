@@ -42,7 +42,14 @@ public class DiscordServerClientImpl implements DiscordServerClient {
     private String botToken;
 
     public DiscordServerClientImpl() {
-        this.restTemplate = new RestTemplate(new JdkClientHttpRequestFactory());
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
+                java.net.http.HttpClient.newBuilder()
+                        .version(java.net.http.HttpClient.Version.HTTP_1_1)
+                        .connectTimeout(java.time.Duration.ofSeconds(5))
+                        .build()
+        );
+        factory.setReadTimeout(java.time.Duration.ofSeconds(10));
+        this.restTemplate = new RestTemplate(factory);
     }
 
     public DiscordServerClientImpl(RestTemplate restTemplate, String botToken) {

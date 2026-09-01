@@ -255,6 +255,7 @@ class AuthServiceTest {
                 .password("old-hashed-password")
                 .build();
 
+        when(tokenService.validateToken("mock-reset-jwt")).thenReturn(true);
         when(userRepository.findById(7L)).thenReturn(Optional.of(user));
         when(passwordEncoder.encode("NewSecretPassword123!")).thenReturn("new-bcrypt-hashed-password");
         when(tokenService.getJtiFromToken("mock-reset-jwt")).thenReturn("reset-jti-789");
