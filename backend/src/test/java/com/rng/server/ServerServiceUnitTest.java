@@ -340,5 +340,84 @@ class ServerServiceUnitTest {
 
             verify(discordClient, never()).updateGuildVanityUrl(anyString(), anyString(), anyString());
         }
+
+        @Test
+        @DisplayName("updateServerSettings handles non-base64 image URLs and skips widget/vanity when omitted")
+        void updateServerSettings_nonDataUrls_skipsVanityAndWidget() {
+            Server server = Server.builder().id("g1").slug("guild-1").name("Guild 1").build();
+            DiscordGuildDetailDto live = DiscordGuildDetailDto.builder()
+                    .name("Guild 1")
+                    .premiumTier(3)
+                    .vanityUrlCode(null)
+                    .systemChannelFlags(0)
+                    .build();
+
+            when(serverRepository.findByIdOrSlug("guild-1")).thenReturn(Optional.of(server));
+            when(serverRepository.findByIdOrSlug("g1")).thenReturn(Optional.of(server));
+            when(discordClient.getGuildDetails("g1")).thenReturn(live);
+
+            UpdateServerSettingsRequest request = UpdateServerSettingsRequest.builder()
+                    .name("Guild 1")
+                    .icon("https://cdn.discordapp.com/icons/g1/icon.png") // not data:
+                    .banner("https://cdn.discordapp.com/banners/g1/banner.png") // not data:
+                    .vanityUrl(null)
+                    .widgetEnabled(null)
+                    .build();
+
+            ServerDetailDto result = serverService.updateServerSettings("guild-1", request, "admin@rng.com");
+
+            assertThat(result).isNotNull();
+            verify(discordClient, never()).updateGuildVanityUrl(anyString(), anyString(), anyString());
+            verify(discordClient, never()).updateGuildWidget(anyString(), any(), any(), anyString());
+        }
+
+        @Test
+        @DisplayName("getServerDetails handles null system channel flags and animated icons")
+        void getServerDetails_nullFlagsAndAnimatedAssets() {
+            Server server = Server.builder().id("g1").slug("guild-1").name("Guild 1").iconHash("a_icon").bannerHash("a_banner").build();
+            DiscordGuildDetailDto live = DiscordGuildDetailDto.builder()
+                    .name("Guild 1")
+                    .icon("a_icon")
+                    .banner("a_banner")
+                    .premiumTier(3)
+                    .systemChannelFlags(null)
+                    .features(null)
+                    .build();
+
+            when(serverRepository.findByIdOrSlug("guild-1")).thenReturn(Optional.of(server));
+            when(discordClient.getGuildDetails("g1")).thenReturn(live);
+            when(discordClient.getBotGuilds()).thenReturn(List.of());
+
+            ServerDetailDto details = serverService.getServerDetails("guild-1");
+
+            assertThat(details).isNotNull();
+            assertThat(details.isSendWelcome()).isFalse();
+            assertThat(details.isBoostMessage()).isFalse();
+            assertThat(details.getIcon()).contains(".gif");
+            assertThat(details.getBanner()).contains(".gif");
+        }
+
+        @Test
+        @DisplayName("getAllServers handles null asset hashes and existing matching server record")
+        void getAllServers_nullAssetsAndExistingRecord() {
+            Server server = Server.builder().id("g1").slug("guild-1").name("Old Name").iconHash(null).bannerHash(null).build();
+            DiscordGuildDto liveGuild = DiscordGuildDto.builder()
+                    .id("g1")
+                    .name("New Name")
+                    .icon(null)
+                    .banner(null)
+                    .approximateMemberCount(50)
+                    .approximatePresenceCount(10)
+                    .build();
+
+            when(serverRepository.findAll()).thenReturn(List.of(server));
+            when(discordClient.getBotGuilds()).thenReturn(List.of(liveGuild));
+
+            List<ServerDto> servers = serverService.getAllServers();
+
+            assertThat(servers).hasSize(1);
+            assertThat(servers.getFirst().getName()).isEqualTo("New Name");
+            verify(serverRepository).save(server);
+        }
     }
 }

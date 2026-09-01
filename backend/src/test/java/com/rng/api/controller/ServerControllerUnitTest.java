@@ -106,4 +106,39 @@ class ServerControllerUnitTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getData().getName()).isEqualTo("New Name");
     }
+
+    @Test
+    @DisplayName("updateServerSettings defaults operator to unknown@rng.com when user ID not found in database")
+    void updateServerSettings_userNotFound_defaultsToUnknown() {
+        Authentication auth = mock(Authentication.class);
+        when(auth.getPrincipal()).thenReturn(999L);
+        when(userRepository.findById(999L)).thenReturn(Optional.empty());
+
+        UpdateServerSettingsRequest request = UpdateServerSettingsRequest.builder().name("New Name").build();
+        ServerDetailDto updated = ServerDetailDto.builder().id("123").name("New Name").build();
+
+        when(serverService.updateServerSettings("123", request, "unknown@rng.com")).thenReturn(updated);
+
+        ResponseEntity<ApiResponse<ServerDetailDto>> response = serverController.updateServerSettings(auth, "123", request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getData().getName()).isEqualTo("New Name");
+    }
+
+    @Test
+    @DisplayName("updateServerSettings defaults operator to system when principal is not a Long")
+    void updateServerSettings_nonLongPrincipal_defaultsToSystem() {
+        Authentication auth = mock(Authentication.class);
+        when(auth.getPrincipal()).thenReturn("anonymousUser");
+
+        UpdateServerSettingsRequest request = UpdateServerSettingsRequest.builder().name("New Name").build();
+        ServerDetailDto updated = ServerDetailDto.builder().id("123").name("New Name").build();
+
+        when(serverService.updateServerSettings("123", request, "system@rng.com")).thenReturn(updated);
+
+        ResponseEntity<ApiResponse<ServerDetailDto>> response = serverController.updateServerSettings(auth, "123", request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getData().getName()).isEqualTo("New Name");
+    }
 }

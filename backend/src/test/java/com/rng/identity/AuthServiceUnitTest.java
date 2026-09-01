@@ -516,5 +516,95 @@ class AuthServiceUnitTest {
                     .isInstanceOf(BadCredentialsException.class)
                     .hasMessageContaining("Password must be at least 8 characters long");
         }
+
+        @Test
+        @DisplayName("Stage 3: Resets password when token is null without token validation")
+        void resetPassword_nullToken_success() {
+            User user = User.builder().id(300L).email("recovery@rng.com").build();
+            when(userRepository.findById(300L)).thenReturn(Optional.of(user));
+            when(passwordEncoder.encode("NewSecurePassword#2026!")).thenReturn("$2a$10$newBcryptHash");
+
+            authService.resetPassword(300L, null, new ResetPasswordRequest("NewSecurePassword#2026!"));
+
+            assertThat(user.getPassword()).isEqualTo("$2a$10$newBcryptHash");
+            verify(userRepository).save(user);
+            verifyNoInteractions(tokenService);
+        }
+
+        @Test
+        @DisplayName("Stage 3: Throws UnauthorizedException when token JTI is invalid or revoked")
+        void resetPassword_invalidToken_throwsUnauthorized() {
+            when(tokenService.getJtiFromToken("expired-token")).thenReturn("expired-jti");
+            when(tokenService.validateToken("expired-token")).thenReturn(false);
+
+            assertThatThrownBy(() -> authService.resetPassword(300L, "expired-token", new ResetPasswordRequest("NewSecurePassword#2026!")))
+                    .isInstanceOf(UnauthorizedException.class)
+                    .hasMessageContaining("Reset password token has already been used or revoked");
+        }
+
+        @Test
+        @DisplayName("Stage 3: Throws ResourceNotFoundException when user is missing")
+        void resetPassword_userNotFound_throwsException() {
+            when(userRepository.findById(999L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> authService.resetPassword(999L, null, new ResetPasswordRequest("NewSecurePassword#2026!")))
+                    .isInstanceOf(ResourceNotFoundException.class)
+                    .hasMessageContaining("User not found");
+        }
+
+        @Test
+        @DisplayName("Stage 1: Rejects password recovery when Discord ID is blank or UNLINKED")
+        void initiateForgotPassword_unlinkedDiscordString_throwsBadCredentials() {
+            User unlinkedUser = User.builder().id(303L).email("unlinked2@rng.com").provider(AuthProvider.EMAIL).discordId("UNLINKED").build();
+            when(userRepository.findByEmail("unlinked2@rng.com")).thenReturn(Optional.of(unlinkedUser));
+
+            assertThatThrownBy(() -> authService.initiateForgotPassword(new ForgotPasswordInitiateRequest("unlinked2@rng.com")))
+                    .isInstanceOf(BadCredentialsException.class)
+                    .hasMessageContaining("no Discord account is linked");
+        }
+    }
+
+    @Nested
+    @DisplayName("User Profile & Queries")
+    class UserQueries {
+
+        @Test
+        @DisplayName("getCurrentUser returns fully mapped UserResponse")
+        void getCurrentUser_success() {
+            User user = User.builder()
+                    .id(10L)
+                    .email("officer@rng.com")
+                    .fullName("Officer Name")
+                    .provider(AuthProvider.EMAIL)
+                    .discordId("123456789")
+                    .discordUsername("officer_tag")
+                    .discordAvatar("avatar_hash")
+                    .discordLinked(true)
+                    .role("ROLE_HIGH_COMMAND")
+                    .designations("Supreme, Ministry of Tech")
+                    .roles("High Command, Lead Architect")
+                    .status("ACTIVE")
+                    .build();
+
+            when(userRepository.findById(10L)).thenReturn(Optional.of(user));
+
+            UserResponse response = authService.getCurrentUser(10L);
+
+            assertThat(response).isNotNull();
+            assertThat(response.getEmail()).isEqualTo("officer@rng.com");
+            assertThat(response.getRole()).isEqualTo("ROLE_HIGH_COMMAND");
+            assertThat(response.getDesignationList()).contains("Supreme", "Ministry of Tech");
+            assertThat(response.getRoleList()).contains("High Command", "Lead Architect");
+        }
+
+        @Test
+        @DisplayName("getCurrentUser throws ResourceNotFoundException when user is not found")
+        void getCurrentUser_notFound_throwsException() {
+            when(userRepository.findById(999L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> authService.getCurrentUser(999L))
+                    .isInstanceOf(ResourceNotFoundException.class)
+                    .hasMessageContaining("User not found");
+        }
     }
 }

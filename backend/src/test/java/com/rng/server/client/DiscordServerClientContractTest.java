@@ -295,6 +295,50 @@ class DiscordServerClientContractTest {
         }
 
         @Test
+        @DisplayName("Maps 401 Unauthorized to ForbiddenException")
+        void updateGuildSettings_401Unauthorized_throwsForbiddenException() {
+            wireMockServer.stubFor(patch(urlEqualTo("/api/v10/guilds/109823471928374650"))
+                    .willReturn(aResponse().withStatus(401).withBody("{\"message\":\"401: Unauthorized\"}")));
+
+            assertThatThrownBy(() -> discordClient.updateGuildSettings(
+                    "109823471928374650",
+                    DiscordGuildPatchRequest.builder().name("Test").build(),
+                    "Audit"
+            )).isInstanceOf(ForbiddenException.class)
+                    .hasMessageContaining("Bot authentication failed");
+        }
+
+        @Test
+        @DisplayName("Maps 400 Bad Request (Non-vanity) to IllegalArgumentException")
+        void updateGuildSettings_400Generic_throwsIllegalArgument() {
+            wireMockServer.stubFor(patch(urlEqualTo("/api/v10/guilds/109823471928374650"))
+                    .willReturn(aResponse().withStatus(400).withBody("{\"message\":\"Invalid name\"}")));
+
+            assertThatThrownBy(() -> discordClient.updateGuildSettings(
+                    "109823471928374650",
+                    DiscordGuildPatchRequest.builder().name("Test").build(),
+                    "Audit"
+            )).isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Discord API rejected request payload");
+        }
+
+        @Test
+        @DisplayName("Omitted audit reason does not attach X-Audit-Log-Reason header")
+        void updateGuildSettings_nullAuditReason_noAuditHeader() {
+            wireMockServer.stubFor(patch(urlEqualTo("/api/v10/guilds/109823471928374650"))
+                    .willReturn(aResponse().withStatus(200)));
+
+            discordClient.updateGuildSettings(
+                    "109823471928374650",
+                    DiscordGuildPatchRequest.builder().name("No Audit").build(),
+                    null
+            );
+
+            wireMockServer.verify(patchRequestedFor(urlEqualTo("/api/v10/guilds/109823471928374650"))
+                    .withoutHeader("X-Audit-Log-Reason"));
+        }
+
+        @Test
         @DisplayName("Maps Socket Read Timeout to ServiceUnavailableException")
         void updateGuildSettings_readTimeout_throwsServiceUnavailable() {
             wireMockServer.stubFor(patch(urlEqualTo("/api/v10/guilds/109823471928374650"))
