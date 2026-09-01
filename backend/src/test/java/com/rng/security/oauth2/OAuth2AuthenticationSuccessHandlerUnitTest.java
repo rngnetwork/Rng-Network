@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.*;
 
@@ -67,12 +68,13 @@ class OAuth2AuthenticationSuccessHandlerUnitTest {
 
         CustomOAuth2User customOAuth2User = new CustomOAuth2User(user, Map.of("sub", "sub-123", "email", "google.user@rng.com"));
         when(response.isCommitted()).thenReturn(false);
+        when(response.encodeRedirectURL(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
         when(authentication.getPrincipal()).thenReturn(customOAuth2User);
         when(tokenService.generatePre2FaToken(42L, "google.user@rng.com")).thenReturn("pre-2fa-token-xyz");
 
         successHandler.onAuthenticationSuccess(request, response, authentication);
 
         verify(tokenService).generatePre2FaToken(42L, "google.user@rng.com");
-        verify(response).sendRedirect(contains("http://localhost:3000/auth/2fa?token=pre-2fa-token-xyz&email=google.user%40rng.com&discordLinked=true"));
+        verify(response).sendRedirect(contains("http://localhost:3000/auth/2fa?token=pre-2fa-token-xyz&email=google.user@rng.com&discordLinked=true"));
     }
 }

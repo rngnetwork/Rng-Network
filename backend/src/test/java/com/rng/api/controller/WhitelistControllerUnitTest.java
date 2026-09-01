@@ -5,7 +5,6 @@ import com.rng.identity.dto.UpdateWhitelistedUserRequest;
 import com.rng.identity.dto.WhitelistUserRequest;
 import com.rng.identity.dto.WhitelistedUserDto;
 import com.rng.identity.service.WhitelistService;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,17 +30,12 @@ class WhitelistControllerUnitTest {
     @InjectMocks
     private WhitelistController whitelistController;
 
-    private Authentication authentication;
-
-    @BeforeEach
-    void setUp() {
-        authentication = mock(Authentication.class);
-        when(authentication.getPrincipal()).thenReturn(10L);
-    }
-
     @Test
     @DisplayName("getWhitelistedUsers returns 200 OK with list of DTOs")
     void getWhitelistedUsers_success() {
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getPrincipal()).thenReturn(10L);
+
         WhitelistedUserDto dto = WhitelistedUserDto.builder().id(1L).email("user@rng.com").build();
         when(whitelistService.getWhitelistedUsers(10L)).thenReturn(List.of(dto));
 
@@ -55,6 +49,9 @@ class WhitelistControllerUnitTest {
     @Test
     @DisplayName("createWhitelistedUser returns 201 CREATED with created DTO")
     void createWhitelistedUser_success() {
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getPrincipal()).thenReturn(10L);
+
         WhitelistUserRequest request = WhitelistUserRequest.builder().email("new@rng.com").build();
         WhitelistedUserDto createdDto = WhitelistedUserDto.builder().id(2L).email("new@rng.com").build();
 
@@ -69,6 +66,9 @@ class WhitelistControllerUnitTest {
     @Test
     @DisplayName("updateWhitelistedUser returns 200 OK with updated DTO")
     void updateWhitelistedUser_success() {
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getPrincipal()).thenReturn(10L);
+
         UpdateWhitelistedUserRequest request = UpdateWhitelistedUserRequest.builder().userName("Updated").build();
         WhitelistedUserDto updatedDto = WhitelistedUserDto.builder().id(2L).userName("Updated").build();
 
@@ -83,6 +83,9 @@ class WhitelistControllerUnitTest {
     @Test
     @DisplayName("deleteWhitelistedUser returns 200 OK")
     void deleteWhitelistedUser_success() {
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getPrincipal()).thenReturn(10L);
+
         ResponseEntity<ApiResponse<Void>> response = whitelistController.deleteWhitelistedUser(authentication, 2L);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
