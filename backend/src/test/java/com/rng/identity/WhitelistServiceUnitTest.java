@@ -435,5 +435,33 @@ class WhitelistServiceUnitTest {
                     .isInstanceOf(ForbiddenException.class)
                     .hasMessageContaining("Ministers can only delete users within their own assigned Ministries");
         }
+
+        @Test
+        @DisplayName("Ministers without ministry designations are forbidden from deleting users")
+        void deleteWhitelistedUser_ministerNoMinistries_throwsForbidden() {
+            User minister = User.builder().id(10L).email("min@rng.com").role("ROLE_MINISTER").designations("Chancellory").build();
+            User target = User.builder().id(30L).email("target@rng.com").role("ROLE_USER").designations("Chancellory").build();
+
+            when(userRepository.findById(10L)).thenReturn(Optional.of(minister));
+            when(userRepository.findById(30L)).thenReturn(Optional.of(target));
+
+            assertThatThrownBy(() -> whitelistService.deleteWhitelistedUser(10L, 30L))
+                    .isInstanceOf(ForbiddenException.class)
+                    .hasMessageContaining("Minister is not assigned to a valid Ministry");
+        }
+
+        @Test
+        @DisplayName("Unauthorized operator (ROLE_USER) is forbidden from deleting users")
+        void deleteWhitelistedUser_regularUserOperator_throwsForbidden() {
+            User operator = User.builder().id(99L).email("user@rng.com").role("ROLE_USER").build();
+            User target = User.builder().id(30L).email("target@rng.com").role("ROLE_USER").build();
+
+            when(userRepository.findById(99L)).thenReturn(Optional.of(operator));
+            when(userRepository.findById(30L)).thenReturn(Optional.of(target));
+
+            assertThatThrownBy(() -> whitelistService.deleteWhitelistedUser(99L, 30L))
+                    .isInstanceOf(ForbiddenException.class)
+                    .hasMessageContaining("Access Denied: Insufficient authorization to delete whitelisted users");
+        }
     }
 }

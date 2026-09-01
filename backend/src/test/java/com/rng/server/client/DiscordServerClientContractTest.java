@@ -165,6 +165,45 @@ class DiscordServerClientContractTest {
             assertThat(channels.get(0).getName()).isEqualTo("general");
             assertThat(channels.get(1).getType()).isEqualTo(2);
         }
+
+        @Test
+        @DisplayName("updateGuildVanityUrl successfully patches guild vanity code")
+        void updateGuildVanityUrl_success() {
+            wireMockServer.stubFor(patch(urlEqualTo("/api/v10/guilds/109823471928374650/vanity-url"))
+                    .withHeader("Authorization", equalTo("Bot test-bot-token-12345"))
+                    .withRequestBody(containing("\"code\":\"rng-elite\""))
+                    .willReturn(aResponse().withStatus(200)));
+
+            discordClient.updateGuildVanityUrl("109823471928374650", "rng-elite", "Audit");
+
+            wireMockServer.verify(patchRequestedFor(urlEqualTo("/api/v10/guilds/109823471928374650/vanity-url")));
+        }
+
+        @Test
+        @DisplayName("updateGuildWidget patches widget settings with and without channel ID")
+        void updateGuildWidget_success() {
+            wireMockServer.stubFor(patch(urlEqualTo("/api/v10/guilds/109823471928374650/widget"))
+                    .withHeader("Authorization", equalTo("Bot test-bot-token-12345"))
+                    .willReturn(aResponse().withStatus(200)));
+
+            discordClient.updateGuildWidget("109823471928374650", true, "channel-123", "Audit");
+            discordClient.updateGuildWidget("109823471928374650", false, null, "Audit");
+
+            wireMockServer.verify(2, patchRequestedFor(urlEqualTo("/api/v10/guilds/109823471928374650/widget")));
+        }
+
+        @Test
+        @DisplayName("getBotGuilds and getGuildChannels return empty list when server returns null body")
+        void queries_nullBody_returnsEmptyList() {
+            wireMockServer.stubFor(get(urlEqualTo("/api/v10/users/@me/guilds?with_counts=true"))
+                    .willReturn(aResponse().withStatus(204)));
+
+            wireMockServer.stubFor(get(urlEqualTo("/api/v10/guilds/109823471928374650/channels"))
+                    .willReturn(aResponse().withStatus(204)));
+
+            assertThat(discordClient.getBotGuilds()).isEmpty();
+            assertThat(discordClient.getGuildChannels("109823471928374650")).isEmpty();
+        }
     }
 
     @Nested

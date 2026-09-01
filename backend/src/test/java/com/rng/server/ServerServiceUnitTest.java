@@ -278,5 +278,67 @@ class ServerServiceUnitTest {
                     .isInstanceOf(ResourceNotFoundException.class)
                     .hasMessageContaining("Server not found");
         }
+
+        @Test
+        @DisplayName("updateServerSettings updates discord guild, vanity, widget, and persists changes")
+        void updateServerSettings_success() {
+            Server server = Server.builder().id("g1").slug("guild-1").name("Guild 1").build();
+            DiscordGuildDetailDto live = DiscordGuildDetailDto.builder()
+                    .name("Guild 1")
+                    .premiumTier(3)
+                    .vanityUrlCode("old-vanity")
+                    .systemChannelFlags(0)
+                    .build();
+
+            when(serverRepository.findByIdOrSlug("guild-1")).thenReturn(Optional.of(server));
+            when(serverRepository.findByIdOrSlug("g1")).thenReturn(Optional.of(server));
+            when(discordClient.getGuildDetails("g1")).thenReturn(live);
+
+            UpdateServerSettingsRequest request = UpdateServerSettingsRequest.builder()
+                    .name("New Guild Name")
+                    .icon("data:image/png;base64,iVBORw0")
+                    .banner("data:image/png;base64,iVBORw0")
+                    .vanityUrl("new-vanity")
+                    .widgetEnabled(true)
+                    .widgetChannelId("c1")
+                    .sendWelcome(true)
+                    .boostMessage(false)
+                    .setupTips(true)
+                    .stickerPrompt(false)
+                    .build();
+
+            ServerDetailDto result = serverService.updateServerSettings("guild-1", request, "operator@rng.com");
+
+            assertThat(result).isNotNull();
+            verify(discordClient).updateGuildSettings(eq("g1"), any(DiscordGuildPatchRequest.class), anyString());
+            verify(discordClient).updateGuildVanityUrl(eq("g1"), eq("new-vanity"), anyString());
+            verify(discordClient).updateGuildWidget(eq("g1"), eq(true), eq("c1"), anyString());
+            verify(serverRepository).save(server);
+        }
+
+        @Test
+        @DisplayName("updateServerSettings with unchanged vanity does not call updateGuildVanityUrl")
+        void updateServerSettings_unchangedVanity_skipsVanityUpdate() {
+            Server server = Server.builder().id("g1").slug("guild-1").name("Guild 1").build();
+            DiscordGuildDetailDto live = DiscordGuildDetailDto.builder()
+                    .name("Guild 1")
+                    .premiumTier(3)
+                    .vanityUrlCode("same-vanity")
+                    .systemChannelFlags(0)
+                    .build();
+
+            when(serverRepository.findByIdOrSlug("guild-1")).thenReturn(Optional.of(server));
+            when(serverRepository.findByIdOrSlug("g1")).thenReturn(Optional.of(server));
+            when(discordClient.getGuildDetails("g1")).thenReturn(live);
+
+            UpdateServerSettingsRequest request = UpdateServerSettingsRequest.builder()
+                    .name("Guild 1")
+                    .vanityUrl("same-vanity")
+                    .build();
+
+            serverService.updateServerSettings("guild-1", request, "operator@rng.com");
+
+            verify(discordClient, never()).updateGuildVanityUrl(anyString(), anyString(), anyString());
+        }
     }
 }
