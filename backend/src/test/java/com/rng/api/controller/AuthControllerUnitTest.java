@@ -42,23 +42,23 @@ class AuthControllerUnitTest {
     void login_success() {
         LoginRequest request = new LoginRequest("user@rng.com", "Password123!");
         Pre2FaResponse pre2Fa = Pre2FaResponse.builder()
-                .pre2FaToken("mock-pre2fa-jwt")
-                .email("user@rng.com")
+                .token("mock-pre2fa-jwt")
+                .userEmail("user@rng.com")
                 .discordLinked(true)
                 .build();
 
-        when(authService.authenticateEmailPassword("user@rng.com", "Password123!")).thenReturn(pre2Fa);
+        when(authService.authenticateEmailPassword(request)).thenReturn(pre2Fa);
 
         ResponseEntity<ApiResponse<Pre2FaResponse>> response = authController.login(request);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isTrue();
-        assertThat(response.getBody().getData().getPre2FaToken()).isEqualTo("mock-pre2fa-jwt");
+        assertThat(response.getBody().getData().getToken()).isEqualTo("mock-pre2fa-jwt");
     }
 
     @Test
-    @DisplayName("discord2Fa extracts userId and delegates to AuthService")
+    @DisplayName("discord2Fa extracts Bearer token, userId, jti, and delegates to AuthService")
     void discord2Fa_success() {
         Discord2FaRequest request = new Discord2FaRequest("oauth-code-123");
         AuthResponse authResponse = AuthResponse.builder()
@@ -66,8 +66,9 @@ class AuthControllerUnitTest {
                 .role("ROLE_HIGH_COMMAND")
                 .build();
 
-        when(httpRequest.getAttribute("currentUserId")).thenReturn(10L);
-        when(httpRequest.getAttribute("jti")).thenReturn("jti-uuid");
+        when(httpRequest.getHeader(SecurityConstants.AUTHORIZATION_HEADER)).thenReturn("Bearer pre2fa-jwt");
+        when(tokenService.getUserIdFromToken("pre2fa-jwt")).thenReturn(10L);
+        when(tokenService.getJtiFromToken("pre2fa-jwt")).thenReturn("jti-uuid");
         when(authService.processDiscord2Fa(10L, "jti-uuid", "oauth-code-123", httpResponse)).thenReturn(authResponse);
 
         ResponseEntity<ApiResponse<AuthResponse>> response = authController.discord2Fa(request, httpRequest, httpResponse);
@@ -81,7 +82,7 @@ class AuthControllerUnitTest {
     void initiateForgotPassword_success() {
         ForgotPasswordInitiateRequest request = new ForgotPasswordInitiateRequest("user@rng.com");
         ForgotPasswordInitiateResponse initResponse = ForgotPasswordInitiateResponse.builder()
-                .authorizationUrl("https://discord.com/oauth2/authorize?state=xyz")
+                .discordAuthUrl("https://discord.com/oauth2/authorize?state=xyz")
                 .build();
 
         when(authService.initiateForgotPassword(request)).thenReturn(initResponse);
@@ -89,7 +90,7 @@ class AuthControllerUnitTest {
         ResponseEntity<ApiResponse<ForgotPasswordInitiateResponse>> response = authController.initiateForgotPassword(request);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody().getData().getAuthorizationUrl()).contains("discord.com");
+        assertThat(response.getBody().getData().getDiscordAuthUrl()).contains("discord.com");
     }
 
     @Test
