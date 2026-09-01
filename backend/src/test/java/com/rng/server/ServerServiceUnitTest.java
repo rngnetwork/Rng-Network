@@ -124,10 +124,10 @@ class ServerServiceUnitTest {
 
             ServerDetailDto result = serverService.getServerDetails("guild-1");
 
-            assertThat(result.isSendWelcome()).isEqualTo(welcome);
-            assertThat(result.isBoostMessage()).isEqualTo(boost);
-            assertThat(result.isSetupTips()).isEqualTo(tips);
-            assertThat(result.isStickerPrompt()).isEqualTo(stickers);
+            assertThat(result.getSendWelcome()).isEqualTo(welcome);
+            assertThat(result.getBoostMessage()).isEqualTo(boost);
+            assertThat(result.getSetupTips()).isEqualTo(tips);
+            assertThat(result.getStickerPrompt()).isEqualTo(stickers);
         }
 
         @Test
