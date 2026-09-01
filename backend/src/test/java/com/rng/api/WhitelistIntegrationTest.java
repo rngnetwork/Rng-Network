@@ -25,13 +25,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
-class WhitelistIntegrationTest {
+import com.rng.AbstractPostgresIntegrationTest;
 
-    @Autowired
-    private MockMvc mockMvc;
+class WhitelistIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;

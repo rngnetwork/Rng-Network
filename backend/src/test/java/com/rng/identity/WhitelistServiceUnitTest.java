@@ -1,0 +1,439 @@
+package com.rng.identity;
+
+import com.rng.common.exception.ConflictException;
+import com.rng.common.exception.ForbiddenException;
+import com.rng.common.exception.ResourceNotFoundException;
+import com.rng.identity.domain.AuthProvider;
+import com.rng.identity.domain.User;
+import com.rng.identity.dto.UpdateWhitelistedUserRequest;
+import com.rng.identity.dto.WhitelistUserRequest;
+import com.rng.identity.dto.WhitelistedUserDto;
+import com.rng.identity.repository.UserRepository;
+import com.rng.identity.service.WhitelistService;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class WhitelistServiceUnitTest {
+
+    @Mock
+    private UserRepository userRepository;
+
+    @InjectMocks
+    private WhitelistService whitelistService;
+
+    @Nested
+    @DisplayName("Personnel Whitelist Queries & Directory Scoping")
+    class DirectoryScoping {
+
+        @Test
+        @DisplayName("Chief High Command receives unrestricted personnel directory")
+        void getWhitelistedUsers_chiefHighCommand_returnsAll() {
+            User chief = User.builder().id(1L).email("arzenic@rng.com").role("ROLE_HIGH_COMMAND").designations("Supreme").roles("Chief High Command").build();
+            User techUser = User.builder().id(2L).email("dev@rng.com").role("ROLE_USER").designations("Ministry of Tech").roles("Junior Dev").build();
+            User financeUser = User.builder().id(3L).email("auditor@rng.com").role("ROLE_USER").designations("Ministry of Finances").roles("Auditor").build();
+
+            when(userRepository.findById(1L)).thenReturn(Optional.of(chief));
+            when(userRepository.findAll()).thenReturn(List.of(chief, techUser, financeUser));
+
+            List<WhitelistedUserDto> results = whitelistService.getWhitelistedUsers(1L);
+
+            assertThat(results).hasSize(3);
+        }
+
+        @Test
+        @DisplayName("Regular High Command receives unrestricted personnel directory")
+        void getWhitelistedUsers_regularHc_returnsAll() {
+            User regularHc = User.builder().id(2L).email("commander@rng.com").role("ROLE_HIGH_COMMAND").designations("Supreme").roles("High Command").build();
+            User user1 = User.builder().id(3L).email("user1@rng.com").role("ROLE_USER").designations("Ministry of Tech").roles("Dev").build();
+
+            when(userRepository.findById(2L)).thenReturn(Optional.of(regularHc));
+            when(userRepository.findAll()).thenReturn(List.of(regularHc, user1));
+
+            List<WhitelistedUserDto> results = whitelistService.getWhitelistedUsers(2L);
+
+            assertThat(results).hasSize(2);
+        }
+
+        @Test
+        @DisplayName("Ministers are domain-scoped to their own assigned ministry")
+        void getWhitelistedUsers_minister_scopedToAssignedMinistry() {
+            User techMinister = User.builder().id(10L).email("tech.minister@rng.com").role("ROLE_MINISTER").designations("Ministry of Tech").roles("Minister").build();
+            User techDev = User.builder().id(11L).email("tech.dev@rng.com").role("ROLE_USER").designations("Ministry of Tech").roles("Junior Dev").build();
+            User financeDev = User.builder().id(12L).email("fin.dev@rng.com").role("ROLE_USER").designations("Ministry of Finances").roles("Auditor").build();
+
+            when(userRepository.findById(10L)).thenReturn(Optional.of(techMinister));
+            when(userRepository.findAll()).thenReturn(List.of(techMinister, techDev, financeDev));
+
+            List<WhitelistedUserDto> results = whitelistService.getWhitelistedUsers(10L);
+
+            assertThat(results).hasSize(2);
+            assertThat(results.stream().map(WhitelistedUserDto::getEmail)).containsExactlyInAnyOrder("tech.minister@rng.com", "tech.dev@rng.com");
+        }
+
+        @Test
+        @DisplayName("Throws ForbiddenException when regular user attempts to access whitelist")
+        void getWhitelistedUsers_regularUser_throwsForbidden() {
+            User regularUser = User.builder().id(99L).email("regular@rng.com").role("ROLE_USER").designations("Ministry of Tech").roles("Dev").build();
+            when(userRepository.findById(99L)).thenReturn(Optional.of(regularUser));
+
+            assertThatThrownBy(() -> whitelistService.getWhitelistedUsers(99L))
+                    .isInstanceOf(ForbiddenException.class)
+                    .hasMessageContaining("Insufficient authorization scope");
+        }
+    }
+
+    @Nested
+    @DisplayName("Personnel Whitelisting & Creation RBAC")
+    class CreationRBAC {
+
+        @Test
+        @DisplayName("Chief High Command can assign Chief High Command role")
+        void createWhitelistedUser_chiefAssignsChief_success() {
+            User chief = User.builder().id(1L).email("arzenic@rng.com").role("ROLE_HIGH_COMMAND").designations("Supreme").roles("Chief High Command").build();
+            WhitelistUserRequest request = WhitelistUserRequest.builder()
+                    .email("new.chief@rng.com")
+                    .userName("New Chief")
+                    .provider(AuthProvider.EMAIL)
+                    .designations(List.of("Supreme"))
+                    .roles(List.of("Chief High Command", "High Command"))
+                    .build();
+
+            when(userRepository.findById(1L)).thenReturn(Optional.of(chief));
+            when(userRepository.existsByEmail("new.chief@rng.com")).thenReturn(false);
+            when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+
+            WhitelistedUserDto dto = whitelistService.createWhitelistedUser(1L, request);
+
+            assertThat(dto.getEmail()).isEqualTo("new.chief@rng.com");
+            assertThat(dto.getRole()).isEqualTo("ROLE_HIGH_COMMAND");
+        }
+
+        @Test
+        @DisplayName("Regular High Command is forbidden from assigning Chief High Command role")
+        void createWhitelistedUser_regularHcAssignsChief_throwsForbidden() {
+            User regularHc = User.builder().id(2L).email("hc@rng.com").role("ROLE_HIGH_COMMAND").designations("Supreme").roles("High Command").build();
+            WhitelistUserRequest request = WhitelistUserRequest.builder()
+                    .email("applicant@rng.com")
+                    .userName("Applicant")
+                    .provider(AuthProvider.EMAIL)
+                    .designations(List.of("Supreme"))
+                    .roles(List.of("Chief High Command"))
+                    .build();
+
+            when(userRepository.findById(2L)).thenReturn(Optional.of(regularHc));
+            when(userRepository.existsByEmail("applicant@rng.com")).thenReturn(false);
+
+            assertThatThrownBy(() -> whitelistService.createWhitelistedUser(2L, request))
+                    .isInstanceOf(ForbiddenException.class)
+                    .hasMessageContaining("Only Chief High Command can assign the Chief High Command role");
+        }
+
+        @Test
+        @DisplayName("High Command can assign multiple designations and roles across departments")
+        void createWhitelistedUser_highCommandAssignsMultiMinistry_success() {
+            User hc = User.builder().id(2L).email("hc@rng.com").role("ROLE_HIGH_COMMAND").designations("Supreme").roles("High Command").build();
+            WhitelistUserRequest request = WhitelistUserRequest.builder()
+                    .email("crossdept@rng.com")
+                    .userName("Cross Dept Officer")
+                    .provider(AuthProvider.EMAIL)
+                    .designations(List.of("Ministry of Tech", "Ministry of Culture"))
+                    .roles(List.of("Lead Architect", "Community Specialist"))
+                    .build();
+
+            when(userRepository.findById(2L)).thenReturn(Optional.of(hc));
+            when(userRepository.existsByEmail("crossdept@rng.com")).thenReturn(false);
+            when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+
+            WhitelistedUserDto dto = whitelistService.createWhitelistedUser(2L, request);
+
+            assertThat(dto.getEmail()).isEqualTo("crossdept@rng.com");
+            assertThat(dto.getDesignations()).contains("Ministry of Tech", "Ministry of Culture");
+        }
+
+        @Test
+        @DisplayName("Ministers can whitelist subordinates in their own ministry")
+        void createWhitelistedUser_ministerOwnMinistry_success() {
+            User techMinister = User.builder().id(10L).email("tech.min@rng.com").role("ROLE_MINISTER").designations("Ministry of Tech").roles("Minister").build();
+            WhitelistUserRequest request = WhitelistUserRequest.builder()
+                    .email("tech.cadet@rng.com")
+                    .userName("Tech Cadet")
+                    .provider(AuthProvider.EMAIL)
+                    .designations(List.of("Ministry of Tech"))
+                    .roles(List.of("Junior Dev"))
+                    .build();
+
+            when(userRepository.findById(10L)).thenReturn(Optional.of(techMinister));
+            when(userRepository.existsByEmail("tech.cadet@rng.com")).thenReturn(false);
+            when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+
+            WhitelistedUserDto dto = whitelistService.createWhitelistedUser(10L, request);
+
+            assertThat(dto.getEmail()).isEqualTo("tech.cadet@rng.com");
+            assertThat(dto.getRole()).isEqualTo("ROLE_USER");
+        }
+
+        @Test
+        @DisplayName("Ministers are forbidden from assigning designations outside their assigned ministry")
+        void createWhitelistedUser_ministerForeignMinistry_throwsForbidden() {
+            User techMinister = User.builder().id(10L).email("tech.min@rng.com").role("ROLE_MINISTER").designations("Ministry of Tech").roles("Minister").build();
+            WhitelistUserRequest request = WhitelistUserRequest.builder()
+                    .email("fin.hire@rng.com")
+                    .userName("Fin Hire")
+                    .provider(AuthProvider.EMAIL)
+                    .designations(List.of("Ministry of Finances"))
+                    .roles(List.of("Auditor"))
+                    .build();
+
+            when(userRepository.findById(10L)).thenReturn(Optional.of(techMinister));
+            when(userRepository.existsByEmail("fin.hire@rng.com")).thenReturn(false);
+
+            assertThatThrownBy(() -> whitelistService.createWhitelistedUser(10L, request))
+                    .isInstanceOf(ForbiddenException.class)
+                    .hasMessageContaining("Ministers may only assign their own assigned ministries");
+        }
+
+        @Test
+        @DisplayName("Throws ConflictException when whitelisting an existing email")
+        void createWhitelistedUser_duplicateEmail_throwsConflict() {
+            User chief = User.builder().id(1L).email("arzenic@rng.com").role("ROLE_HIGH_COMMAND").designations("Supreme").roles("Chief High Command").build();
+            when(userRepository.findById(1L)).thenReturn(Optional.of(chief));
+            when(userRepository.existsByEmail("existing@rng.com")).thenReturn(true);
+
+            WhitelistUserRequest request = WhitelistUserRequest.builder().email("existing@rng.com").designations(List.of("Supreme")).roles(List.of("High Command")).build();
+
+            assertThatThrownBy(() -> whitelistService.createWhitelistedUser(1L, request))
+                    .isInstanceOf(ConflictException.class)
+                    .hasMessageContaining("is already whitelisted");
+        }
+    }
+
+    @Nested
+    @DisplayName("Personnel Modification & Update RBAC")
+    class UpdateRBAC {
+
+        @Test
+        @DisplayName("Chief High Command can modify regular High Command members")
+        void updateWhitelistedUser_chiefModifiesHc_success() {
+            User chief = User.builder().id(1L).email("arzenic@rng.com").role("ROLE_HIGH_COMMAND").designations("Supreme").roles("Chief High Command").build();
+            User regularHc = User.builder().id(2L).email("hc@rng.com").role("ROLE_HIGH_COMMAND").designations("Supreme").roles("High Command").build();
+
+            UpdateWhitelistedUserRequest request = UpdateWhitelistedUserRequest.builder()
+                    .userName("Promoted HC")
+                    .designations(List.of("Supreme", "Ministry of Tech"))
+                    .roles(List.of("High Command", "Lead Architect"))
+                    .build();
+
+            when(userRepository.findById(1L)).thenReturn(Optional.of(chief));
+            when(userRepository.findById(2L)).thenReturn(Optional.of(regularHc));
+            when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+
+            WhitelistedUserDto dto = whitelistService.updateWhitelistedUser(1L, 2L, request);
+
+            assertThat(dto.getUserName()).isEqualTo("Promoted HC");
+            assertThat(dto.getDesignations()).contains("Supreme", "Ministry of Tech");
+        }
+
+        @Test
+        @DisplayName("Regular High Command is forbidden from modifying other High Command members (Peer Protection)")
+        void updateWhitelistedUser_hcModifiesOtherHc_throwsForbidden() {
+            User hc1 = User.builder().id(2L).email("hc1@rng.com").role("ROLE_HIGH_COMMAND").designations("Supreme").roles("High Command").build();
+            User hc2 = User.builder().id(3L).email("hc2@rng.com").role("ROLE_HIGH_COMMAND").designations("Supreme").roles("High Command").build();
+
+            UpdateWhitelistedUserRequest request = UpdateWhitelistedUserRequest.builder()
+                    .designations(List.of("Supreme"))
+                    .roles(List.of("High Command"))
+                    .build();
+
+            when(userRepository.findById(2L)).thenReturn(Optional.of(hc1));
+            when(userRepository.findById(3L)).thenReturn(Optional.of(hc2));
+
+            assertThatThrownBy(() -> whitelistService.updateWhitelistedUser(2L, 3L, request))
+                    .isInstanceOf(ForbiddenException.class)
+                    .hasMessageContaining("High Command administrators cannot modify other High Command members");
+        }
+
+        @Test
+        @DisplayName("Ministers cannot modify High Command accounts")
+        void updateWhitelistedUser_ministerModifiesHc_throwsForbidden() {
+            User minister = User.builder().id(10L).email("min@rng.com").role("ROLE_MINISTER").designations("Ministry of Tech").roles("Minister").build();
+            User hc = User.builder().id(2L).email("hc@rng.com").role("ROLE_HIGH_COMMAND").designations("Ministry of Tech, Supreme").roles("High Command").build();
+
+            UpdateWhitelistedUserRequest request = UpdateWhitelistedUserRequest.builder()
+                    .designations(List.of("Ministry of Tech"))
+                    .roles(List.of("Junior Dev"))
+                    .build();
+
+            when(userRepository.findById(10L)).thenReturn(Optional.of(minister));
+            when(userRepository.findById(2L)).thenReturn(Optional.of(hc));
+
+            assertThatThrownBy(() -> whitelistService.updateWhitelistedUser(10L, 2L, request))
+                    .isInstanceOf(ForbiddenException.class)
+                    .hasMessageContaining("Ministers cannot modify High Command accounts");
+        }
+
+        @Test
+        @DisplayName("Ministers cannot modify other Minister accounts")
+        void updateWhitelistedUser_ministerModifiesOtherMinister_throwsForbidden() {
+            User minister1 = User.builder().id(10L).email("min1@rng.com").role("ROLE_MINISTER").designations("Ministry of Tech").roles("Minister").build();
+            User minister2 = User.builder().id(11L).email("min2@rng.com").role("ROLE_MINISTER").designations("Ministry of Tech").roles("Minister").build();
+
+            UpdateWhitelistedUserRequest request = UpdateWhitelistedUserRequest.builder()
+                    .designations(List.of("Ministry of Tech"))
+                    .roles(List.of("Lead Architect"))
+                    .build();
+
+            when(userRepository.findById(10L)).thenReturn(Optional.of(minister1));
+            when(userRepository.findById(11L)).thenReturn(Optional.of(minister2));
+
+            assertThatThrownBy(() -> whitelistService.updateWhitelistedUser(10L, 11L, request))
+                    .isInstanceOf(ForbiddenException.class)
+                    .hasMessageContaining("Ministers cannot modify other Minister accounts");
+        }
+
+        @Test
+        @DisplayName("Minister modifying own account must retain Minister role")
+        void updateWhitelistedUser_ministerModifyingSelf_mustRetainMinisterRole() {
+            User minister = User.builder().id(10L).email("min@rng.com").role("ROLE_MINISTER").designations("Ministry of Tech").roles("Minister").build();
+
+            UpdateWhitelistedUserRequest badRequest = UpdateWhitelistedUserRequest.builder()
+                    .designations(List.of("Ministry of Tech"))
+                    .roles(List.of("Junior Dev")) // removed Minister
+                    .build();
+
+            when(userRepository.findById(10L)).thenReturn(Optional.of(minister));
+
+            assertThatThrownBy(() -> whitelistService.updateWhitelistedUser(10L, 10L, badRequest))
+                    .isInstanceOf(ForbiddenException.class)
+                    .hasMessageContaining("Ministers cannot remove their own Minister role");
+        }
+    }
+
+    @Nested
+    @DisplayName("Personnel Deletion & Immunity Guards")
+    class DeletionGuards {
+
+        @Test
+        @DisplayName("Administrators cannot delete their own account")
+        void deleteWhitelistedUser_selfDelete_throwsForbidden() {
+            User chief = User.builder().id(1L).email("arzenic@rng.com").role("ROLE_HIGH_COMMAND").designations("Supreme").roles("Chief High Command").build();
+            when(userRepository.findById(1L)).thenReturn(Optional.of(chief));
+
+            assertThatThrownBy(() -> whitelistService.deleteWhitelistedUser(1L, 1L))
+                    .isInstanceOf(ForbiddenException.class)
+                    .hasMessageContaining("Administrators cannot delete their own account");
+        }
+
+        @Test
+        @DisplayName("Chief High Command accounts cannot be deleted by anyone")
+        void deleteWhitelistedUser_targetChief_throwsForbidden() {
+            User chief1 = User.builder().id(1L).email("chief1@rng.com").role("ROLE_HIGH_COMMAND").designations("Supreme").roles("Chief High Command").build();
+            User chief2 = User.builder().id(99L).email("chief2@rng.com").role("ROLE_HIGH_COMMAND").designations("Supreme").roles("Chief High Command").build();
+
+            when(userRepository.findById(1L)).thenReturn(Optional.of(chief1));
+            when(userRepository.findById(99L)).thenReturn(Optional.of(chief2));
+
+            assertThatThrownBy(() -> whitelistService.deleteWhitelistedUser(1L, 99L))
+                    .isInstanceOf(ForbiddenException.class)
+                    .hasMessageContaining("Chief High Command administrator accounts cannot be deleted");
+        }
+
+        @Test
+        @DisplayName("Chief High Command can delete regular High Command members seamlessly")
+        void deleteWhitelistedUser_chiefDeletesRegularHc_success() {
+            User chief = User.builder().id(1L).email("arzenic@rng.com").role("ROLE_HIGH_COMMAND").designations("Supreme").roles("Chief High Command").build();
+            User regularHc = User.builder().id(2L).email("hc@rng.com").role("ROLE_HIGH_COMMAND").designations("Supreme").roles("High Command").build();
+
+            when(userRepository.findById(1L)).thenReturn(Optional.of(chief));
+            when(userRepository.findById(2L)).thenReturn(Optional.of(regularHc));
+
+            whitelistService.deleteWhitelistedUser(1L, 2L);
+
+            verify(userRepository).delete(regularHc);
+        }
+
+        @Test
+        @DisplayName("Regular High Command is forbidden from deleting other High Command members")
+        void deleteWhitelistedUser_hcDeletesOtherHc_throwsForbidden() {
+            User hc1 = User.builder().id(2L).email("hc1@rng.com").role("ROLE_HIGH_COMMAND").designations("Supreme").roles("High Command").build();
+            User hc2 = User.builder().id(3L).email("hc2@rng.com").role("ROLE_HIGH_COMMAND").designations("Supreme").roles("High Command").build();
+
+            when(userRepository.findById(2L)).thenReturn(Optional.of(hc1));
+            when(userRepository.findById(3L)).thenReturn(Optional.of(hc2));
+
+            assertThatThrownBy(() -> whitelistService.deleteWhitelistedUser(2L, 3L))
+                    .isInstanceOf(ForbiddenException.class)
+                    .hasMessageContaining("High Command administrators cannot delete other High Command members");
+        }
+
+        @Test
+        @DisplayName("Ministers cannot delete High Command accounts")
+        void deleteWhitelistedUser_ministerDeletesHc_throwsForbidden() {
+            User minister = User.builder().id(10L).email("min@rng.com").role("ROLE_MINISTER").designations("Ministry of Tech").roles("Minister").build();
+            User hc = User.builder().id(2L).email("hc@rng.com").role("ROLE_HIGH_COMMAND").designations("Supreme").roles("High Command").build();
+
+            when(userRepository.findById(10L)).thenReturn(Optional.of(minister));
+            when(userRepository.findById(2L)).thenReturn(Optional.of(hc));
+
+            assertThatThrownBy(() -> whitelistService.deleteWhitelistedUser(10L, 2L))
+                    .isInstanceOf(ForbiddenException.class)
+                    .hasMessageContaining("Ministers cannot delete High Command accounts");
+        }
+
+        @Test
+        @DisplayName("Ministers cannot delete other Minister accounts")
+        void deleteWhitelistedUser_ministerDeletesOtherMinister_throwsForbidden() {
+            User min1 = User.builder().id(10L).email("min1@rng.com").role("ROLE_MINISTER").designations("Ministry of Tech").roles("Minister").build();
+            User min2 = User.builder().id(11L).email("min2@rng.com").role("ROLE_MINISTER").designations("Ministry of Tech").roles("Minister").build();
+
+            when(userRepository.findById(10L)).thenReturn(Optional.of(min1));
+            when(userRepository.findById(11L)).thenReturn(Optional.of(min2));
+
+            assertThatThrownBy(() -> whitelistService.deleteWhitelistedUser(10L, 11L))
+                    .isInstanceOf(ForbiddenException.class)
+                    .hasMessageContaining("Ministers cannot delete other Minister accounts");
+        }
+
+        @Test
+        @DisplayName("Ministers can delete subordinate users within their assigned ministry")
+        void deleteWhitelistedUser_ministerDeletesSubordinate_success() {
+            User minister = User.builder().id(10L).email("min@rng.com").role("ROLE_MINISTER").designations("Ministry of Tech").roles("Minister").build();
+            User subordinate = User.builder().id(20L).email("cadet@rng.com").role("ROLE_USER").designations("Ministry of Tech").roles("Junior Dev").build();
+
+            when(userRepository.findById(10L)).thenReturn(Optional.of(minister));
+            when(userRepository.findById(20L)).thenReturn(Optional.of(subordinate));
+
+            whitelistService.deleteWhitelistedUser(10L, 20L);
+
+            verify(userRepository).delete(subordinate);
+        }
+
+        @Test
+        @DisplayName("Ministers cannot delete users from unassigned ministries")
+        void deleteWhitelistedUser_ministerForeignSubordinate_throwsForbidden() {
+            User minister = User.builder().id(10L).email("min@rng.com").role("ROLE_MINISTER").designations("Ministry of Tech").roles("Minister").build();
+            User foreignUser = User.builder().id(30L).email("fin@rng.com").role("ROLE_USER").designations("Ministry of Finances").roles("Auditor").build();
+
+            when(userRepository.findById(10L)).thenReturn(Optional.of(minister));
+            when(userRepository.findById(30L)).thenReturn(Optional.of(foreignUser));
+
+            assertThatThrownBy(() -> whitelistService.deleteWhitelistedUser(10L, 30L))
+                    .isInstanceOf(ForbiddenException.class)
+                    .hasMessageContaining("Ministers can only delete users within their own assigned Ministries");
+        }
+    }
+}

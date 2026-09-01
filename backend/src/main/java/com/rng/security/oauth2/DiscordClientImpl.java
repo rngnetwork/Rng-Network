@@ -3,7 +3,6 @@ package com.rng.security.oauth2;
 import com.rng.common.dto.DiscordUserDto;
 import com.rng.common.exception.UnauthorizedException;
 import com.rng.common.security.DiscordClient;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -16,10 +15,12 @@ import java.util.Map;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class DiscordClientImpl implements DiscordClient {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
+
+    @Value("${app.discord.api-base:https://discord.com/api}")
+    private String discordApiBase;
 
     @Value("${spring.security.oauth2.client.registration.discord.client-id:discord-client-id-placeholder}")
     private String clientId;
@@ -29,6 +30,19 @@ public class DiscordClientImpl implements DiscordClient {
 
     @Value("${app.discord.redirect-uri:${NEXT_PUBLIC_DISCORD_REDIRECT_URI:http://localhost:3000/auth/discord/callback}}")
     private String redirectUri;
+
+    public DiscordClientImpl() {
+        this.restTemplate = new RestTemplate();
+        this.discordApiBase = "https://discord.com/api";
+    }
+
+    public DiscordClientImpl(RestTemplate restTemplate, String clientId, String clientSecret, String redirectUri, String discordApiBase) {
+        this.restTemplate = restTemplate;
+        this.clientId = clientId;
+        this.clientSecret = clientSecret;
+        this.redirectUri = redirectUri;
+        this.discordApiBase = discordApiBase;
+    }
 
     @Override
     public DiscordUserDto fetchDiscordUser(String code) {
@@ -45,7 +59,7 @@ public class DiscordClientImpl implements DiscordClient {
             body.add("redirect_uri", redirectUri);
 
             HttpEntity<MultiValueMap<String, String>> tokenRequest = new HttpEntity<>(body, tokenHeaders);
-            ResponseEntity<Map> tokenResponse = restTemplate.postForEntity("https://discord.com/api/oauth2/token", tokenRequest, Map.class);
+            ResponseEntity<Map> tokenResponse = restTemplate.postForEntity(discordApiBase + "/oauth2/token", tokenRequest, Map.class);
 
             if (!tokenResponse.getStatusCode().is2xxSuccessful() || tokenResponse.getBody() == null) {
                 throw new UnauthorizedException("Failed to obtain Discord OAuth2 token");
@@ -58,7 +72,7 @@ public class DiscordClientImpl implements DiscordClient {
             userHeaders.setBearerAuth(discordAccessToken);
             HttpEntity<Void> userRequest = new HttpEntity<>(userHeaders);
 
-            ResponseEntity<Map> userResponse = restTemplate.exchange("https://discord.com/api/users/@me", HttpMethod.GET, userRequest, Map.class);
+            ResponseEntity<Map> userResponse = restTemplate.exchange(discordApiBase + "/users/@me", HttpMethod.GET, userRequest, Map.class);
             if (!userResponse.getStatusCode().is2xxSuccessful() || userResponse.getBody() == null) {
                 throw new UnauthorizedException("Failed to fetch Discord user details");
             }
