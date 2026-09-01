@@ -3,6 +3,7 @@ package com.rng.security.config;
 import com.rng.security.jwt.JwtAuthenticationFilter;
 import com.rng.security.oauth2.CustomOAuth2UserService;
 import com.rng.security.oauth2.OAuth2AuthenticationSuccessHandler;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -65,7 +66,7 @@ class SecurityConfigUnitTest {
 
     @Test
     @DisplayName("accessDeniedHandler writes 403 JSON envelope")
-    void accessDeniedHandler_writes403Json() throws IOException {
+    void accessDeniedHandler_writes403Json() throws IOException, ServletException {
         AccessDeniedHandler accessDeniedHandler = (request, response, accessDeniedException) -> {
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             response.setContentType("application/json");

@@ -14,7 +14,7 @@ import com.rng.server.dto.discord.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -25,7 +25,7 @@ class DomainAndDtoUnitTest {
     @Test
     @DisplayName("User entity helper methods, builders, and getters operate correctly")
     void userEntity_helpers() {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         User user = User.builder()
                 .id(1L)
                 .email("user@rng.com")
@@ -80,7 +80,7 @@ class DomainAndDtoUnitTest {
     @Test
     @DisplayName("Server entity getters and setters operate correctly")
     void serverEntity_helpers() {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         Server server = Server.builder()
                 .id("100200300")
                 .name("RNG HQ")
@@ -124,10 +124,6 @@ class DomainAndDtoUnitTest {
         assertThat(err1.isSuccess()).isFalse();
         assertThat(err1.getMessage()).isEqualTo("Custom Error");
         assertThat(err1.getData()).isNull();
-
-        ApiResponse<Void> err2 = ApiResponse.error("Error", "Detail error");
-        assertThat(err2.isSuccess()).isFalse();
-        assertThat(err2.getMessage()).isEqualTo("Error");
     }
 
     @Test
@@ -182,6 +178,7 @@ class DomainAndDtoUnitTest {
     @Test
     @DisplayName("DTO records and models construct and map fields properly")
     void dtos_models_construct() {
+        Instant now = Instant.now();
         DiscordUserDto discordUser = new DiscordUserDto("id", "username", "avatar", "email@discord.com");
         assertThat(discordUser.getId()).isEqualTo("id");
         assertThat(discordUser.getUsername()).isEqualTo("username");
@@ -248,7 +245,7 @@ class DomainAndDtoUnitTest {
         WhitelistUserRequest wlReq = WhitelistUserRequest.builder().email("new@rng.com").userName("New User").provider(AuthProvider.EMAIL).designations(List.of("Tech")).roles(List.of("Dev")).build();
         assertThat(wlReq.getEmail()).isEqualTo("new@rng.com");
 
-        WhitelistedUserDto wlDto = WhitelistedUserDto.builder().id(5L).email("wl@rng.com").userName("WL User").provider("EMAIL").role("ROLE_USER").designations(List.of("Tech")).roles(List.of("Dev")).discordId("123").discordUsername("wl").discordAvatar("a").discordLinked(true).status("ACTIVE").createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).build();
+        WhitelistedUserDto wlDto = WhitelistedUserDto.builder().id(5L).email("wl@rng.com").userName("WL User").provider("EMAIL").role("ROLE_USER").designations(List.of("Tech")).roles(List.of("Dev")).discordId("123").discordUsername("wl").discordAvatar("a").discordLinked(true).status("ACTIVE").createdAt(now).updatedAt(now).build();
         assertThat(wlDto.getId()).isEqualTo(5L);
 
         ChannelDto channel = ChannelDto.builder().id("c1").name("general").type(0).position(1).parentId(null).build();
@@ -257,8 +254,10 @@ class DomainAndDtoUnitTest {
         ServerDetailDto detail = ServerDetailDto.builder().id("g1").name("Guild").slug("guild").boostLevel(1).build();
         assertThat(detail.getBoostLevel()).isEqualTo(1);
 
-        ServerDto serverDto = ServerDto.builder().id("g1").name("Server").slug("srv").iconUrl("icon").bannerUrl("banner").memberCount(100).presenceCount(50).build();
+        ServerDto serverDto = ServerDto.builder().id("g1").name("Server").slug("srv").iconUrl("icon").bannerUrl("banner").onlineCount(50).totalCount(100).boostLevel(1).boostCount(2).status("ACTIVE").build();
         assertThat(serverDto.getId()).isEqualTo("g1");
+        assertThat(serverDto.getOnlineCount()).isEqualTo(50);
+        assertThat(serverDto.getTotalCount()).isEqualTo(100);
 
         UpdateServerSettingsRequest srvReq = UpdateServerSettingsRequest.builder().name("New Name").icon("icon").banner("banner").vanityUrl("vanity").widgetEnabled(true).widgetChannelId("c1").sendWelcome(true).boostMessage(false).setupTips(true).stickerPrompt(false).build();
         assertThat(srvReq.getName()).isEqualTo("New Name");

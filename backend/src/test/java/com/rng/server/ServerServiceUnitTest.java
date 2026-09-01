@@ -391,10 +391,10 @@ class ServerServiceUnitTest {
             ServerDetailDto details = serverService.getServerDetails("guild-1");
 
             assertThat(details).isNotNull();
-            assertThat(details.isSendWelcome()).isFalse();
-            assertThat(details.isBoostMessage()).isFalse();
-            assertThat(details.getIcon()).contains(".gif");
-            assertThat(details.getBanner()).contains(".gif");
+            assertThat(details.getSendWelcome()).isFalse();
+            assertThat(details.getBoostMessage()).isFalse();
+            assertThat(details.getIconUrl()).contains(".gif");
+            assertThat(details.getBannerUrl()).contains(".gif");
         }
 
         @Test
