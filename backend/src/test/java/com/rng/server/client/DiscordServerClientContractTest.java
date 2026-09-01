@@ -60,10 +60,13 @@ class DiscordServerClientContractTest {
         @Test
         @DisplayName("Transmits Authorization Bot token header and RFC 3986 percent-encoded audit reason")
         void updateGuildSettings_verifiesBotAuthAndAuditReasonEncoding() {
+            String rawAuditReason = "Updated via RNG Control Center by Arzenic (arzenic@rng.com)";
+            String expectedEncodedReason = "Updated%20via%20RNG%20Control%20Center%20by%20Arzenic%20%28arzenic%40rng.com%29";
+
             wireMockServer.stubFor(patch(urlEqualTo("/api/v10/guilds/109823471928374650"))
                     .withHeader("Authorization", equalTo("Bot test-bot-token-12345"))
                     .withHeader("Content-Type", containing("application/json"))
-                    .withHeader("X-Audit-Log-Reason", equalTo("Updated%20via%20RNG%20Control%20Center%20by%20Arzenic%20(arzenic@rng.com)"))
+                    .withHeader("X-Audit-Log-Reason", equalTo(expectedEncodedReason))
                     .willReturn(aResponse().withStatus(200)));
 
             DiscordGuildPatchRequest request = DiscordGuildPatchRequest.builder()
@@ -73,12 +76,12 @@ class DiscordServerClientContractTest {
             discordClient.updateGuildSettings(
                     "109823471928374650",
                     request,
-                    "Updated via RNG Control Center by Arzenic (arzenic@rng.com)"
+                    rawAuditReason
             );
 
             wireMockServer.verify(patchRequestedFor(urlEqualTo("/api/v10/guilds/109823471928374650"))
                     .withHeader("Authorization", equalTo("Bot test-bot-token-12345"))
-                    .withHeader("X-Audit-Log-Reason", equalTo("Updated%20via%20RNG%20Control%20Center%20by%20Arzenic%20(arzenic@rng.com)")));
+                    .withHeader("X-Audit-Log-Reason", equalTo(expectedEncodedReason)));
         }
     }
 
