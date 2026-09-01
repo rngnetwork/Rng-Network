@@ -5,6 +5,7 @@ import com.rng.identity.dto.UpdateWhitelistedUserRequest;
 import com.rng.identity.dto.WhitelistUserRequest;
 import com.rng.identity.dto.WhitelistedUserDto;
 import com.rng.identity.service.WhitelistService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,13 +14,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class WhitelistControllerUnitTest {
@@ -30,13 +31,21 @@ class WhitelistControllerUnitTest {
     @InjectMocks
     private WhitelistController whitelistController;
 
+    private Authentication authentication;
+
+    @BeforeEach
+    void setUp() {
+        authentication = mock(Authentication.class);
+        when(authentication.getPrincipal()).thenReturn(10L);
+    }
+
     @Test
     @DisplayName("getWhitelistedUsers returns 200 OK with list of DTOs")
     void getWhitelistedUsers_success() {
         WhitelistedUserDto dto = WhitelistedUserDto.builder().id(1L).email("user@rng.com").build();
         when(whitelistService.getWhitelistedUsers(10L)).thenReturn(List.of(dto));
 
-        ResponseEntity<ApiResponse<List<WhitelistedUserDto>>> response = whitelistController.getWhitelistedUsers(10L);
+        ResponseEntity<ApiResponse<List<WhitelistedUserDto>>> response = whitelistController.getWhitelistedUsers(authentication);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getData()).hasSize(1);
@@ -51,7 +60,7 @@ class WhitelistControllerUnitTest {
 
         when(whitelistService.createWhitelistedUser(10L, request)).thenReturn(createdDto);
 
-        ResponseEntity<ApiResponse<WhitelistedUserDto>> response = whitelistController.createWhitelistedUser(10L, request);
+        ResponseEntity<ApiResponse<WhitelistedUserDto>> response = whitelistController.createWhitelistedUser(authentication, request);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody().getData().getEmail()).isEqualTo("new@rng.com");
@@ -65,7 +74,7 @@ class WhitelistControllerUnitTest {
 
         when(whitelistService.updateWhitelistedUser(10L, 2L, request)).thenReturn(updatedDto);
 
-        ResponseEntity<ApiResponse<WhitelistedUserDto>> response = whitelistController.updateWhitelistedUser(10L, 2L, request);
+        ResponseEntity<ApiResponse<WhitelistedUserDto>> response = whitelistController.updateWhitelistedUser(authentication, 2L, request);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getData().getUserName()).isEqualTo("Updated");
@@ -74,7 +83,7 @@ class WhitelistControllerUnitTest {
     @Test
     @DisplayName("deleteWhitelistedUser returns 200 OK")
     void deleteWhitelistedUser_success() {
-        ResponseEntity<ApiResponse<Void>> response = whitelistController.deleteWhitelistedUser(10L, 2L);
+        ResponseEntity<ApiResponse<Void>> response = whitelistController.deleteWhitelistedUser(authentication, 2L);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         verify(whitelistService).deleteWhitelistedUser(10L, 2L);

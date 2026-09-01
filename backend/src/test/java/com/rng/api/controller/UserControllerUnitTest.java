@@ -11,8 +11,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -27,6 +29,9 @@ class UserControllerUnitTest {
     @Test
     @DisplayName("getCurrentUser returns 200 OK with authenticated user profile")
     void getCurrentUser_success() {
+        Authentication auth = mock(Authentication.class);
+        when(auth.getPrincipal()).thenReturn(10L);
+
         UserResponse userResponse = UserResponse.builder()
                 .id(10L)
                 .email("user@rng.com")
@@ -35,7 +40,7 @@ class UserControllerUnitTest {
 
         when(authService.getCurrentUser(10L)).thenReturn(userResponse);
 
-        ResponseEntity<ApiResponse<UserResponse>> response = userController.getCurrentUser(10L);
+        ResponseEntity<ApiResponse<UserResponse>> response = userController.getCurrentUser(auth);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
