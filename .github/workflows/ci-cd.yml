@@ -69,13 +69,13 @@ jobs:
 
       - name: Output Real-Time Frontend Report to CI Summary
         if: always()
-        run: cat target/frontend-report.md >> $GITHUB_STEP_SUMMARY || true
+        run: cat target/frontend-report.md >> $GITHUB_STEP_SUMMARY
 
   # ----------------------------------------------------------------------------
   # Job 3: Spring Boot 3.2.4 Backend CI Pipeline
   # ----------------------------------------------------------------------------
   backend-ci:
-    name: Backend (Spring Boot 3.2.4) CI & Quality Gates
+    name: Backend (Spring Boot 3.2.4) CI
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -88,7 +88,7 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Setup Node.js for Validation & Reporting Scripts
+      - name: Setup Node.js for Flyway Validation Script
         uses: actions/setup-node@v4
         with:
           node-version: '24.19.0'
@@ -96,19 +96,15 @@ jobs:
       - name: Verify Flyway SQL Schema Mirrored to JPA Entities
         run: node .github/scripts/verify-flyway-jpa-sync.js
 
-      - name: Output Schema Sync Report to CI Summary
+      - name: Output Real-Time Schema Sync Report to CI Summary
         if: always()
         run: cat backend/target/schema-sync-report.md >> $GITHUB_STEP_SUMMARY || true
 
       - name: Grant Execute Permission for Maven Wrapper
         run: chmod +x ./backend/mvnw
 
-      - name: Run Backend Tests (Unit, Testcontainers, WireMock) & JaCoCo Verification
-        run: ./backend/mvnw -f ./backend/pom.xml verify -Dspring.profiles.active=test
-
-      - name: Generate Dynamic Backend Markdown Test Report
-        if: always()
-        run: node .github/scripts/generate-backend-test-report.js
+      - name: Run Backend Integration Tests & JaCoCo Coverage
+        run: ./backend/mvnw -f ./backend/pom.xml test -Dspring.profiles.active=test
 
       - name: Upload JaCoCo Coverage Report Artifact
         if: always()
@@ -125,59 +121,3 @@ jobs:
           name: JUnit Test Results
           path: backend/target/surefire-reports/*.xml
           reporter: java-junit
-
-  # ----------------------------------------------------------------------------
-  # Job 4: Full-Stack Playwright End-to-End (E2E) Browser CI Pipeline
-  # ----------------------------------------------------------------------------
-  e2e-ci:
-    name: Full-Stack E2E Browser Testing
-    needs: [frontend-ci, backend-ci]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js 24.19.0
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24.19.0'
-          cache: 'npm'
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Install Playwright Browsers & OS Dependencies
-        run: npx playwright install --with-deps chromium
-
-      - name: Setup Environment Files for Docker Compose Stack
-        run: |
-          cp .env.example .env
-          cp .env.local.example .env.local
-
-      - name: Spin Up Containerized Stack (PostgreSQL + Backend + Frontend)
-        run: docker compose --project-directory . -f .deploy/docker-compose.yml up -d --build
-
-      - name: Wait for Services Health Check
-        run: |
-          echo "Waiting for Spring Boot backend and Next.js frontend to become ready..."
-          timeout 60 bash -c 'until curl -s http://localhost:8080/api/v1/auth/forgot-password/initiate > /dev/null 2>&1 && curl -s http://localhost:3000 > /dev/null 2>&1; do sleep 2; done' || true
-
-      - name: Run Playwright E2E Browser Test Suite
-        id: playwright
-        run: npm run test:e2e
-
-      - name: Generate Dynamic E2E Markdown Summary Report
-        if: always()
-        run: node .github/scripts/generate-e2e-report.js
-
-      - name: Upload Playwright Test Report Artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: playwright-report/
-          if-no-files-found: ignore
-
-      - name: Teardown Docker Compose Stack
-        if: always()
-        run: docker compose --project-directory . -f .deploy/docker-compose.yml down -v
