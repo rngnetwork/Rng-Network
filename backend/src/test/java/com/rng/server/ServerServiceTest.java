@@ -44,7 +44,6 @@ class ServerServiceTest {
     @Mock
     private UserRepository userRepository;
 
-    @InjectMocks
     private ServerService serverService;
 
     private Server sampleServer;
@@ -52,6 +51,8 @@ class ServerServiceTest {
 
     @BeforeEach
     void setUp() {
+        serverService = new ServerService(serverRepository, discordClient, userRepository, null);
+
         sampleServer = Server.builder()
                 .id("100000000000000001")
                 .slug("rednecks-gaming")
