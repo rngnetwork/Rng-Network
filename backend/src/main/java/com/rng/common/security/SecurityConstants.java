@@ -10,7 +10,6 @@ public final class SecurityConstants {
     public static final String SCOPE_RESET_REQUEST = "SCOPE_RESET_REQUEST";
     public static final String SCOPE_RESET_PASSWORD = "SCOPE_RESET_PASSWORD";
 
-    public static final String TOKEN_PREFIX = "Bearer ";
     public static final String TOKEN_TYPE_HEADER = "Bearer ";
     public static final String AUTHORIZATION_HEADER = "Authorization";
     public static final String REFRESH_TOKEN_COOKIE_NAME = "rng_refresh_token";

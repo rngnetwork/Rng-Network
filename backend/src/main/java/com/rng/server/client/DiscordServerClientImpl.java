@@ -33,35 +33,20 @@ import java.util.Map;
 @Service
 public class DiscordServerClientImpl implements DiscordServerClient {
 
-    private final RestTemplate restTemplate;
+    private static final String DISCORD_API_BASE = "https://discord.com/api/v10";
 
-    @Value("${app.discord.api-base:https://discord.com/api/v10}")
-    private String discordApiBase;
+    private final RestTemplate restTemplate;
 
     @Value("${app.discord.bot-token:}")
     private String botToken;
 
     public DiscordServerClientImpl() {
-        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
-                java.net.http.HttpClient.newBuilder()
-                        .version(java.net.http.HttpClient.Version.HTTP_1_1)
-                        .connectTimeout(java.time.Duration.ofSeconds(5))
-                        .build()
-        );
-        factory.setReadTimeout(java.time.Duration.ofSeconds(10));
-        this.restTemplate = new RestTemplate(factory);
+        this.restTemplate = new RestTemplate(new JdkClientHttpRequestFactory());
     }
 
     public DiscordServerClientImpl(RestTemplate restTemplate, String botToken) {
         this.restTemplate = restTemplate;
         this.botToken = botToken;
-        this.discordApiBase = "https://discord.com/api/v10";
-    }
-
-    public DiscordServerClientImpl(RestTemplate restTemplate, String botToken, String discordApiBase) {
-        this.restTemplate = restTemplate;
-        this.botToken = botToken;
-        this.discordApiBase = discordApiBase;
     }
 
     private HttpHeaders createHeaders(String auditReason) {
@@ -81,7 +66,7 @@ public class DiscordServerClientImpl implements DiscordServerClient {
 
     @Override
     public List<DiscordGuildDto> getBotGuilds() {
-        String url = discordApiBase + "/users/@me/guilds?with_counts=true";
+        String url = DISCORD_API_BASE + "/users/@me/guilds?with_counts=true";
         try {
             HttpEntity<Void> entity = new HttpEntity<>(createHeaders(null));
             ResponseEntity<DiscordGuildDto[]> response = restTemplate.exchange(
@@ -102,7 +87,7 @@ public class DiscordServerClientImpl implements DiscordServerClient {
 
     @Override
     public DiscordGuildDetailDto getGuildDetails(String guildId) {
-        String url = discordApiBase + "/guilds/" + guildId;
+        String url = DISCORD_API_BASE + "/guilds/" + guildId;
         try {
             HttpEntity<Void> entity = new HttpEntity<>(createHeaders(null));
             ResponseEntity<DiscordGuildDetailDto> response = restTemplate.exchange(
@@ -120,7 +105,7 @@ public class DiscordServerClientImpl implements DiscordServerClient {
 
     @Override
     public List<DiscordChannelDto> getGuildChannels(String guildId) {
-        String url = discordApiBase + "/guilds/" + guildId + "/channels";
+        String url = DISCORD_API_BASE + "/guilds/" + guildId + "/channels";
         try {
             HttpEntity<Void> entity = new HttpEntity<>(createHeaders(null));
             ResponseEntity<DiscordChannelDto[]> response = restTemplate.exchange(
@@ -141,7 +126,7 @@ public class DiscordServerClientImpl implements DiscordServerClient {
 
     @Override
     public void updateGuildSettings(String guildId, DiscordGuildPatchRequest request, String auditReason) {
-        String url = discordApiBase + "/guilds/" + guildId;
+        String url = DISCORD_API_BASE + "/guilds/" + guildId;
         try {
             HttpEntity<DiscordGuildPatchRequest> entity = new HttpEntity<>(request, createHeaders(auditReason));
             restTemplate.exchange(url, HttpMethod.PATCH, entity, Void.class);
@@ -152,7 +137,7 @@ public class DiscordServerClientImpl implements DiscordServerClient {
 
     @Override
     public void updateGuildVanityUrl(String guildId, String vanityCode, String auditReason) {
-        String url = discordApiBase + "/guilds/" + guildId + "/vanity-url";
+        String url = DISCORD_API_BASE + "/guilds/" + guildId + "/vanity-url";
         try {
             Map<String, String> body = Map.of("code", vanityCode);
             HttpEntity<Map<String, String>> entity = new HttpEntity<>(body, createHeaders(auditReason));
@@ -164,7 +149,7 @@ public class DiscordServerClientImpl implements DiscordServerClient {
 
     @Override
     public void updateGuildWidget(String guildId, boolean enabled, String channelId, String auditReason) {
-        String url = discordApiBase + "/guilds/" + guildId + "/widget";
+        String url = DISCORD_API_BASE + "/guilds/" + guildId + "/widget";
         try {
             Map<String, Object> body = new HashMap<>();
             body.put("enabled", enabled);
@@ -198,9 +183,6 @@ public class DiscordServerClientImpl implements DiscordServerClient {
             }
             if (statusEx.getStatusCode() == HttpStatus.FORBIDDEN || statusEx.getStatusCode() == HttpStatus.UNAUTHORIZED) {
                 throw new ForbiddenException("Bot does not have required permissions in this Discord server: " + responseBody);
-            }
-            if (statusEx.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
-                throw new ServiceUnavailableException("Discord API rate limit reached. Please try again later.");
             }
             if (statusEx.getStatusCode().is5xxServerError()) {
                 throw new ServiceUnavailableException("Discord API is currently experiencing outages. Please try again later.");

@@ -39,9 +39,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-import com.rng.AbstractPostgresIntegrationTest;
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+class AuthIntegrationTest {
 
-class AuthIntegrationTest extends AbstractPostgresIntegrationTest {
+    @Autowired
+    private MockMvc mockMvc;
 
     @Autowired
     private ObjectMapper objectMapper;
