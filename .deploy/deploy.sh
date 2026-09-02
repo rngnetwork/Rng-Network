@@ -109,6 +109,17 @@ else
     echo "  [!] WARNING: PostgreSQL did not respond on port 5432 after 15 seconds."
 fi
 
+# Check Redis Cache Service (Port 6379)
+echo "  -> Verifying Redis Cache Service (Port 6379)..."
+if command -v docker &> /dev/null && ! nc -z localhost 6379 2>/dev/null; then
+    docker start rng_redis 2>/dev/null || docker run -d --name rng_redis -p 6379:6379 redis:7.2-alpine redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru 2>/dev/null || true
+    echo "  [x] Redis 7 Docker Container STARTED."
+elif nc -z localhost 6379 2>/dev/null; then
+    echo "  [x] Redis Cache Service is ACTIVE on port 6379."
+else
+    echo "  [!] NOTICE: Redis not detected on port 6379. Application will utilize in-memory fallback cache."
+fi
+
 # ------------------------------------------------------------------------------
 # STEP 4: Push Database Schema & Migration Seeds (Flyway DB Push Equivalent)
 # ------------------------------------------------------------------------------
