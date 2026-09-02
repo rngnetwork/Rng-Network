@@ -28,22 +28,29 @@ export function Sidebar({ user }: SidebarProps) {
 
   React.useEffect(() => {
     let isMounted = true;
-    const token = typeof window !== 'undefined' ? (localStorage.getItem('accessToken') || localStorage.getItem('token')) : null;
-    if (token) {
-      api.fetchServers(token)
-        .then((res) => {
-          if (isMounted && res.success && Array.isArray(res.data)) {
-            setServerCount(res.data.length);
-          }
-        })
-        .catch(() => {
-          // Ignore network errors on unauthenticated transitions
-        });
-    }
+    const fetchCount = () => {
+      const token = typeof window !== 'undefined' ? (localStorage.getItem('accessToken') || localStorage.getItem('token')) : null;
+      if (token) {
+        api.fetchServers(token)
+          .then((res) => {
+            if (isMounted && res.success && Array.isArray(res.data)) {
+              setServerCount(res.data.length);
+            }
+          })
+          .catch(() => {
+            // Ignore network errors on unauthenticated transitions
+          });
+      }
+    };
+
+    fetchCount();
+    const interval = setInterval(fetchCount, 60000);
+
     return () => {
       isMounted = false;
+      clearInterval(interval);
     };
-  }, [pathname]);
+  }, []);
 
   const isHighCommand = user?.role === 'ROLE_HIGH_COMMAND' || user?.roles?.includes('High Command') || user?.designations?.includes('Supreme');
   const isMinister = user?.role === 'ROLE_MINISTER' || user?.roles?.includes('Minister') || user?.designations?.includes('Ministry');

@@ -91,9 +91,9 @@ export default function AccountPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link
-            href="/dashboard/whitelist"
+            href="/dashboard/servers"
             className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-400 hover:text-white transition-colors"
-            title="Return to Whitelist"
+            title="Return to Servers"
           >
             <ArrowLeft size={18} />
           </Link>
