@@ -4,6 +4,7 @@ import com.rng.common.exception.ConflictException;
 import com.rng.common.exception.ForbiddenException;
 import com.rng.common.exception.ResourceNotFoundException;
 import com.rng.common.exception.ServiceUnavailableException;
+import com.rng.common.exception.UnauthorizedException;
 import com.rng.server.dto.discord.DiscordChannelDto;
 import com.rng.server.dto.discord.DiscordGuildDetailDto;
 import com.rng.server.dto.discord.DiscordGuildDto;
@@ -49,10 +50,27 @@ public class DiscordServerClientImpl implements DiscordServerClient {
         this.botToken = botToken;
     }
 
+    private String cleanToken(String raw) {
+        if (raw == null) return "";
+        String t = raw.trim();
+        if ((t.startsWith("\"") && t.endsWith("\"")) || (t.startsWith("'") && t.endsWith("'"))) {
+            t = t.substring(1, t.length() - 1).trim();
+        }
+        if (t.toLowerCase().startsWith("bot ")) {
+            t = t.substring(4).trim();
+        }
+        return t;
+    }
+
     private HttpHeaders createHeaders(String auditReason) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Authorization", "Bot " + (botToken != null ? botToken.trim() : ""));
+        headers.set("User-Agent", "DiscordBot (https://rednecksgaming.com, 1.0.0)");
+        String token = cleanToken(botToken);
+        if (token.isBlank() || "your-discord-bot-token".equalsIgnoreCase(token) || "discord-bot-token-placeholder".equalsIgnoreCase(token)) {
+            log.error("CRITICAL: DISCORD_BOT_TOKEN is blank or placeholder ('{}'). Discord API will reject with 401 Unauthorized.", botToken);
+        }
+        headers.set("Authorization", "Bot " + token);
         if (auditReason != null && !auditReason.isBlank()) {
             try {
                 String encoded = URLEncoder.encode(auditReason, StandardCharsets.UTF_8).replace("+", "%20");
@@ -181,7 +199,10 @@ public class DiscordServerClientImpl implements DiscordServerClient {
             if (statusEx.getStatusCode() == HttpStatus.NOT_FOUND) {
                 throw new ResourceNotFoundException("Discord server or channel was not found.");
             }
-            if (statusEx.getStatusCode() == HttpStatus.FORBIDDEN || statusEx.getStatusCode() == HttpStatus.UNAUTHORIZED) {
+            if (statusEx.getStatusCode() == HttpStatus.UNAUTHORIZED) {
+                throw new UnauthorizedException("Discord Bot Token (DISCORD_BOT_TOKEN) is invalid, expired, or missing: " + responseBody);
+            }
+            if (statusEx.getStatusCode() == HttpStatus.FORBIDDEN) {
                 throw new ForbiddenException("Bot does not have required permissions in this Discord server: " + responseBody);
             }
             if (statusEx.getStatusCode().is5xxServerError()) {
