@@ -317,13 +317,6 @@ public class ServerService {
 
         discordClient.updateGuildSettings(server.getId(), patchRequest, auditReason);
 
-        if (request.getVanityUrl() != null && !request.getVanityUrl().isBlank()) {
-            String sanitizedVanity = request.getVanityUrl().trim();
-            if (!sanitizedVanity.equals(liveDetails.getVanityUrlCode())) {
-                discordClient.updateGuildVanityUrl(server.getId(), sanitizedVanity, auditReason);
-            }
-        }
-
         if (request.getWidgetEnabled() != null) {
             discordClient.updateGuildWidget(server.getId(), request.getWidgetEnabled(), request.getWidgetChannelId(), auditReason);
         }
@@ -351,15 +344,6 @@ public class ServerService {
             if (request.getBanner().startsWith("data:image/gif")) {
                 if (boostLevel < 3 && !features.contains("ANIMATED_BANNER")) {
                     throw new IllegalArgumentException("Animated GIF banners require Server Boost Level 3.");
-                }
-            }
-        }
-
-        if (request.getVanityUrl() != null && !request.getVanityUrl().isBlank()) {
-            String requestedVanity = request.getVanityUrl().trim();
-            if (!requestedVanity.equals(liveDetails.getVanityUrlCode())) {
-                if (boostLevel < 3 && !features.contains("VANITY_URL")) {
-                    throw new IllegalArgumentException("Custom vanity URLs require Server Boost Level 3.");
                 }
             }
         }

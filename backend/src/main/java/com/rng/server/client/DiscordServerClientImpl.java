@@ -154,18 +154,6 @@ public class DiscordServerClientImpl implements DiscordServerClient {
     }
 
     @Override
-    public void updateGuildVanityUrl(String guildId, String vanityCode, String auditReason) {
-        String url = DISCORD_API_BASE + "/guilds/" + guildId + "/vanity-url";
-        try {
-            Map<String, String> body = Map.of("code", vanityCode);
-            HttpEntity<Map<String, String>> entity = new HttpEntity<>(body, createHeaders(auditReason));
-            restTemplate.exchange(url, HttpMethod.PATCH, entity, Void.class);
-        } catch (Exception e) {
-            handleException("updateGuildVanityUrl for " + guildId, e);
-        }
-    }
-
-    @Override
     public void updateGuildWidget(String guildId, boolean enabled, String channelId, String auditReason) {
         String url = DISCORD_API_BASE + "/guilds/" + guildId + "/widget";
         try {
@@ -188,12 +176,9 @@ public class DiscordServerClientImpl implements DiscordServerClient {
             log.warn("Discord error response status={} body={}", statusEx.getStatusCode(), responseBody);
 
             if (statusEx.getStatusCode() == HttpStatus.CONFLICT) {
-                throw new ConflictException("The requested setting or vanity URL is already taken by another Discord server.");
+                throw new ConflictException("The requested setting is already in conflict with another Discord server.");
             }
             if (statusEx.getStatusCode() == HttpStatus.BAD_REQUEST) {
-                if (responseBody.contains("already taken") || responseBody.contains("code") || responseBody.contains("50020")) {
-                    throw new ConflictException("The requested vanity URL is already in use by another Discord server.");
-                }
                 throw new IllegalArgumentException("Invalid Discord server settings: " + responseBody);
             }
             if (statusEx.getStatusCode() == HttpStatus.NOT_FOUND) {

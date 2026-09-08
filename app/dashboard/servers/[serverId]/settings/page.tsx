@@ -33,7 +33,6 @@ interface ServerSettingsForm {
   boostMessage: boolean;
   setupTips: boolean;
   defaultMessageNotifications: number;
-  vanityUrl: string;
 }
 
 const AFK_TIMEOUT_OPTIONS = [
@@ -54,7 +53,6 @@ export default function ServerSettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [vanityConflictError, setVanityConflictError] = useState<string | null>(null);
 
   const [initialForm, setInitialForm] = useState<ServerSettingsForm | null>(null);
   const [formData, setFormData] = useState<ServerSettingsForm>({
@@ -69,8 +67,7 @@ export default function ServerSettingsPage() {
     stickerPrompt: true,
     boostMessage: true,
     setupTips: false,
-    defaultMessageNotifications: 1,
-    vanityUrl: ''
+    defaultMessageNotifications: 1
   });
 
   const [iconUploadError, setIconUploadError] = useState<string | null>(null);
@@ -112,8 +109,7 @@ export default function ServerSettingsPage() {
               stickerPrompt: s.stickerPrompt ?? true,
               boostMessage: s.boostMessage ?? true,
               setupTips: s.setupTips ?? false,
-              defaultMessageNotifications: s.defaultMessageNotifications != null ? s.defaultMessageNotifications : 1,
-              vanityUrl: s.vanityUrl || ''
+              defaultMessageNotifications: s.defaultMessageNotifications != null ? s.defaultMessageNotifications : 1
             };
 
             setFormData(initial);
@@ -163,8 +159,7 @@ export default function ServerSettingsPage() {
       formData.stickerPrompt !== initialForm.stickerPrompt ||
       formData.boostMessage !== initialForm.boostMessage ||
       formData.setupTips !== initialForm.setupTips ||
-      formData.defaultMessageNotifications !== initialForm.defaultMessageNotifications ||
-      formData.vanityUrl !== initialForm.vanityUrl
+      formData.defaultMessageNotifications !== initialForm.defaultMessageNotifications
     );
   }, [formData, initialForm]);
 
@@ -175,7 +170,6 @@ export default function ServerSettingsPage() {
   const canUploadAnimatedIcon = boostLevel >= 1 || features.has('ANIMATED_ICON');
   const canUploadBanner = boostLevel >= 2 || features.has('BANNER');
   const canUploadAnimatedBanner = boostLevel >= 3 || features.has('ANIMATED_BANNER');
-  const canUseVanityUrl = boostLevel >= 3 || features.has('VANITY_URL');
 
   // Handle Logo Upload
   const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -242,7 +236,6 @@ export default function ServerSettingsPage() {
     setFormData(initialForm);
     setIconUploadError(null);
     setBannerUploadError(null);
-    setVanityConflictError(null);
     setSaveError(null);
   };
 
@@ -252,7 +245,6 @@ export default function ServerSettingsPage() {
 
     setIsSaving(true);
     setSaveError(null);
-    setVanityConflictError(null);
 
     const payload: UpdateServerSettingsPayload = {
       name: formData.name.trim(),
@@ -266,8 +258,7 @@ export default function ServerSettingsPage() {
       stickerPrompt: formData.stickerPrompt,
       boostMessage: formData.boostMessage,
       setupTips: formData.setupTips,
-      defaultMessageNotifications: formData.defaultMessageNotifications,
-      vanityUrl: canUseVanityUrl && formData.vanityUrl.trim() ? formData.vanityUrl.trim() : null
+      defaultMessageNotifications: formData.defaultMessageNotifications
     };
 
     try {
@@ -288,8 +279,7 @@ export default function ServerSettingsPage() {
           stickerPrompt: s.stickerPrompt ?? true,
           boostMessage: s.boostMessage ?? true,
           setupTips: s.setupTips ?? false,
-          defaultMessageNotifications: s.defaultMessageNotifications != null ? s.defaultMessageNotifications : 1,
-          vanityUrl: s.vanityUrl || ''
+          defaultMessageNotifications: s.defaultMessageNotifications != null ? s.defaultMessageNotifications : 1
         };
 
         setFormData(newInitial);
@@ -301,11 +291,7 @@ export default function ServerSettingsPage() {
       }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : 'Error saving settings.';
-      if (errMsg.toLowerCase().includes('vanity') || errMsg.toLowerCase().includes('already in use') || errMsg.toLowerCase().includes('conflict')) {
-        setVanityConflictError(errMsg);
-      } else {
-        setSaveError(errMsg);
-      }
+      setSaveError(errMsg);
     } finally {
       setIsSaving(false);
     }
@@ -720,15 +706,15 @@ export default function ServerSettingsPage() {
 
       <div className="w-full h-px bg-white/5" />
 
-      {/* SECTION 3: NOTIFICATION SETTINGS & VANITY URL */}
+      {/* SECTION 3: NOTIFICATION SETTINGS */}
       <div className="flex flex-col gap-6">
         <div>
           <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             <Radio size={22} className="text-red-400" />
-            Default Notifications & Vanity URL
+            Default Notifications
           </h2>
           <p className="text-xs md:text-sm text-zinc-400 mt-1">
-            Global member notification frequency and custom invite URL configuration.
+            Global member notification frequency for new server messages.
           </p>
         </div>
 
@@ -783,62 +769,20 @@ export default function ServerSettingsPage() {
             </div>
           </div>
 
-          {/* Vanity URL (Gated to Level 3) */}
-          <div className={`p-6 rounded-3xl border flex flex-col justify-between gap-4 transition-all ${
-            canUseVanityUrl
-              ? 'bg-black/30 border-white/5'
-              : 'bg-black/20 border-white/5 opacity-70'
-          }`}>
+          {/* Server Permanent Slug Info */}
+          <div className="p-6 rounded-3xl bg-black/30 border border-white/5 flex flex-col justify-between gap-4">
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-300 flex items-center gap-1.5">
-                  {!canUseVanityUrl && <Lock size={12} className="text-amber-400" />}
-                  Custom Vanity Invite URL
-                </label>
-                {!canUseVanityUrl ? (
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-mono">
-                    Requires Boost Level 3
-                  </span>
-                ) : (
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 font-mono">
-                    Level 3 Unlocked
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-zinc-400 mb-4">
-                Share a personalized invite link for your Discord server.
+              <label className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-300">
+                Server Slug & Permanent Identifier
+              </label>
+              <p className="text-xs text-zinc-400 mt-1">
+                Unique server identifier used for permanent navigation within RNG Control Center.
               </p>
-
-              <div className="flex items-center rounded-2xl bg-black/60 border border-white/10 focus-within:border-red-500 transition-all overflow-hidden">
-                <span className="px-3.5 py-3 text-xs font-mono text-zinc-500 bg-white/[0.02] border-r border-white/10 shrink-0">
-                  discord.gg/
-                </span>
-                <input
-                  type="text"
-                  disabled={!canUseVanityUrl}
-                  value={formData.vanityUrl}
-                  onChange={e => {
-                    setVanityConflictError(null);
-                    setFormData(prev => ({ ...prev, vanityUrl: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }));
-                  }}
-                  placeholder="your-vanity-code"
-                  className={`w-full px-4 py-3 bg-transparent text-white text-sm outline-none ${
-                    canUseVanityUrl ? '' : 'cursor-not-allowed'
-                  }`}
-                />
-              </div>
-
-              {vanityConflictError && (
-                <div className="mt-2 text-xs text-red-400 flex items-center gap-1">
-                  <AlertCircle size={13} className="shrink-0" />
-                  <span>{vanityConflictError}</span>
-                </div>
-              )}
             </div>
 
-            <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 text-[11px] text-zinc-500 flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 text-[11px] text-zinc-400 flex items-center gap-2">
               <Link2 size={14} className="text-red-400 shrink-0" />
-              <span>Permanent link alias: <code className="text-zinc-300 font-mono font-semibold">/{server?.slug}</code></span>
+              <span>Control Center Route: <code className="text-zinc-200 font-mono font-semibold">/dashboard/servers/{server?.slug}</code></span>
             </div>
           </div>
         </div>

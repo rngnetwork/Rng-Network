@@ -17,7 +17,5 @@ public interface DiscordServerClient {
 
     void updateGuildSettings(String guildId, DiscordGuildPatchRequest request, String auditReason);
 
-    void updateGuildVanityUrl(String guildId, String vanityCode, String auditReason);
-
     void updateGuildWidget(String guildId, boolean enabled, String channelId, String auditReason);
 }

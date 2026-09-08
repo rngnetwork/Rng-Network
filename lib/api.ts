@@ -136,7 +136,6 @@ export interface UpdateServerSettingsPayload {
   boostMessage?: boolean;
   setupTips?: boolean;
   defaultMessageNotifications?: number | null;
-  vanityUrl?: string | null;
   widgetEnabled?: boolean | null;
   widgetChannelId?: string | null;
 }

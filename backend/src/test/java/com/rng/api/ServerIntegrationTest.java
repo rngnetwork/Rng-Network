@@ -223,7 +223,6 @@ class ServerIntegrationTest {
                 .afkTimeout(900)
                 .systemChannelId("200000000000000001")
                 .defaultMessageNotifications(1)
-                .vanityUrl("rednecks")
                 .build();
 
         mockMvc.perform(put("/api/v1/servers/rednecks-gaming")
@@ -250,27 +249,6 @@ class ServerIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success", is(false)));
-    }
-
-    @Test
-    @DisplayName("PUT /api/v1/servers/{idOrSlug} should return 409 Conflict when vanity URL is already taken")
-    void testUpdateServerSettingsVanityConflict() throws Exception {
-        when(discordClient.getGuildDetails(testServer.getId())).thenReturn(testGuildDetail);
-        doThrow(new ConflictException("The requested vanity URL is already in use by another Discord server."))
-                .when(discordClient).updateGuildVanityUrl(eq(testServer.getId()), eq("taken-vanity"), any());
-
-        UpdateServerSettingsRequest request = UpdateServerSettingsRequest.builder()
-                .name("Rednecks Gaming")
-                .vanityUrl("taken-vanity")
-                .build();
-
-        mockMvc.perform(put("/api/v1/servers/rednecks-gaming")
-                        .header(SecurityConstants.AUTHORIZATION_HEADER, "Bearer " + fullyAuthenticatedToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.message", containsString("already in use")));
     }
 
     @Test

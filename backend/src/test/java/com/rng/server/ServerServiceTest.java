@@ -178,19 +178,6 @@ class ServerServiceTest {
     }
 
     @Test
-    @DisplayName("validateBoostPerks should reject custom vanity URL when server is below Boost Level 3")
-    void testVanityUrlBelowLevel3() {
-        UpdateServerSettingsRequest request = UpdateServerSettingsRequest.builder()
-                .name("Rednecks Gaming")
-                .vanityUrl("rng-custom-vanity")
-                .build();
-
-        assertThatThrownBy(() -> serverService.validateBoostPerks(request, sampleGuildDetail))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Custom vanity URLs require Server Boost Level 3");
-    }
-
-    @Test
     @DisplayName("updateServerSettings should compute correct suppression flags and audit reason")
     void testUpdateServerSettingsSuccess() {
         when(serverRepository.findByIdOrSlug("rednecks-gaming")).thenReturn(Optional.of(sampleServer));

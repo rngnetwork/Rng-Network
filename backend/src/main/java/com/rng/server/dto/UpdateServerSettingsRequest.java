@@ -33,7 +33,6 @@ public class UpdateServerSettingsRequest {
     private Boolean setupTips;
 
     private Integer defaultMessageNotifications;
-    private String vanityUrl;
     private Boolean widgetEnabled;
     private String widgetChannelId;
 }
