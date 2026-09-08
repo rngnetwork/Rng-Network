@@ -1,10 +1,7 @@
 name: RNG Control Center CI/CD Pipeline
 
 on:
-  push:
-    branches: [ main, master, auth-backend, auth-frontend, whitelist-backend ]
-  pull_request:
-    branches: [ main, master, auth-backend, auth-frontend, whitelist-frontend ]
+  [push, pull_request]
 
 jobs:
   # ----------------------------------------------------------------------------

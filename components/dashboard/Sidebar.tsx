@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShieldCheck,
+  Server,
   User,
   LogOut,
   Menu,
@@ -23,12 +24,46 @@ export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [serverCount, setServerCount] = useState<number | null>(null);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    const fetchCount = () => {
+      const token = typeof window !== 'undefined' ? (localStorage.getItem('accessToken') || localStorage.getItem('token')) : null;
+      if (token) {
+        api.fetchServers(token)
+          .then((res) => {
+            if (isMounted && res.success && Array.isArray(res.data)) {
+              setServerCount(res.data.length);
+            }
+          })
+          .catch(() => {
+            // Ignore network errors on unauthenticated transitions
+          });
+      }
+    };
+
+    fetchCount();
+    const interval = setInterval(fetchCount, 60000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   const isHighCommand = user?.role === 'ROLE_HIGH_COMMAND' || user?.roles?.includes('High Command') || user?.designations?.includes('Supreme');
   const isMinister = user?.role === 'ROLE_MINISTER' || user?.roles?.includes('Minister') || user?.designations?.includes('Ministry');
   const canAccessWhitelist = isHighCommand || isMinister;
 
   const navItems = [
+    {
+      label: 'Servers',
+      href: '/dashboard/servers',
+      icon: Server,
+      show: true,
+      badge: serverCount !== null ? `${serverCount} Live` : 'Live',
+    },
     {
       label: 'Whitelist',
       href: '/dashboard/whitelist',
@@ -109,12 +144,15 @@ export function Sidebar({ user }: SidebarProps) {
                   <div className="flex items-center gap-2">
                     {item.badge && (
                       <span
-                        className={`text-[10px] px-2 py-0.5 rounded-md font-mono ${
+                        className={`text-[10px] px-2 py-0.5 rounded-md font-mono flex items-center gap-1.5 ${
                           isActive
                             ? 'bg-red-500/20 text-red-300 border border-red-500/40'
                             : 'bg-white/5 text-zinc-400 border border-white/10'
                         }`}
                       >
+                        {item.label === 'Servers' && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                        )}
                         {item.badge}
                       </span>
                     )}

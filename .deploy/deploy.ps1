@@ -109,12 +109,46 @@ if (-not $dbActive) {
                 docker run -d --name rng_postgres -p 5432:5432 -e POSTGRES_DB=rng_db -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres postgres:16-alpine
             }
             Start-Sleep -Seconds 3
-            Write-Host "  [x] PostgreSQL Docker Container STARTED." -ForegroundColor Green
         } else {
             Write-Host "  [!] PostgreSQL not installed or running. Installing via winget..." -ForegroundColor Yellow
             if (Get-Command "winget" -ErrorAction SilentlyContinue) {
                 winget install --id PostgreSQL.PostgreSQL --accept-source-agreements --accept-package-agreements
             }
+        }
+    }
+}
+
+# Check Redis Cache Service (Port 6379)
+Write-Host "`n  -> Starting Local Cache Service (Redis 7)..." -ForegroundColor Yellow
+$redisActive = $false
+try {
+    $tcpRedis = New-Object System.Net.Sockets.TcpClient
+    $tcpRedis.Connect("127.0.0.1", 6379)
+    $redisActive = $true
+    $tcpRedis.Close()
+    Write-Host "  [x] Redis Cache port 6379 is ACTIVE and responding." -ForegroundColor Green
+} catch {
+    $redisActive = $false
+}
+
+if (-not $redisActive) {
+    $redisService = Get-Service -Name "redis*", "memurai*" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($redisService) {
+        Start-Service -Name $redisService.Name -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
+        Write-Host "  [x] Windows Redis Service ($($redisService.Name)) STARTED." -ForegroundColor Green
+    } else {
+        $dockerCheck = Get-Command "docker" -ErrorAction SilentlyContinue
+        if ($dockerCheck) {
+            docker start rng_redis 2>$null
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "  -> Launching Redis 7 Docker container (rng_redis)..." -ForegroundColor Yellow
+                docker run -d --name rng_redis -p 6379:6379 redis:7.2-alpine redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+            }
+            Start-Sleep -Seconds 2
+            Write-Host "  [x] Redis 7 Docker Container STARTED on port 6379." -ForegroundColor Green
+        } else {
+            Write-Host "  [!] NOTICE: Redis container not launched (Docker not detected). Application will utilize in-memory fallback cache." -ForegroundColor Yellow
         }
     }
 }

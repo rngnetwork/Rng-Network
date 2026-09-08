@@ -18,3 +18,5 @@ jwt:
 app:
   frontend:
     2fa-redirect-url: http://localhost:3000/auth/2fa
+  discord:
+    bot-token: test-bot-token

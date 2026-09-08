@@ -10,6 +10,10 @@ public interface TokenService {
 
     String generateRefreshToken(Long userId);
 
+    String generateResetRequestToken(Long userId, String email);
+
+    String generateResetPasswordToken(Long userId, String email);
+
     boolean validateToken(String token);
 
     void revokeJti(String jti);
@@ -21,4 +25,6 @@ public interface TokenService {
     String getRoleFromToken(String token);
 
     String getJtiFromToken(String token);
+
+    String getEmailFromToken(String token);
 }

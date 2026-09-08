@@ -14,30 +14,7 @@ export default function DashboardRedirectPage() {
       return;
     }
 
-    const checkDestination = async () => {
-      try {
-        const userRes = await api.fetchCurrentUser(token);
-        if (userRes.success && userRes.data) {
-          const isPrivileged =
-            userRes.data.role === 'ROLE_HIGH_COMMAND' ||
-            userRes.data.roles?.includes('High Command') ||
-            userRes.data.roles?.includes('Minister') ||
-            userRes.data.role === 'ROLE_MINISTER';
-
-          if (isPrivileged) {
-            router.replace('/dashboard/whitelist');
-          } else {
-            router.replace('/dashboard/account');
-          }
-          return;
-        }
-      } catch {
-        // Token invalid
-      }
-      router.replace('/dashboard/whitelist');
-    };
-
-    checkDestination();
+    router.replace('/dashboard/servers');
   }, [router]);
 
   return (

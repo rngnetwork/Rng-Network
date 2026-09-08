@@ -12,7 +12,7 @@ const contentVariants = {
 };
 
 export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBack: () => void }) {
-  const [step, setStep] = useState<'email' | 'whitelist' | 'discord'>('email');
+  const [step, setStep] = useState<'email' | 'whitelist' | 'discord' | 'forgot-password'>('email');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -25,6 +25,32 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
   
   const [direction, setDirection] = useState(1);
   const [isWhitelisted, setIsWhitelisted] = useState<boolean | null>(null);
+
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState<string | null>(null);
+
+  const resetSuccessNotice = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('notice') === 'password_reset_success'
+    : false;
+
+  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail) return;
+    setForgotLoading(true);
+    setForgotError(null);
+    try {
+      const res = await api.initiateForgotPassword(forgotEmail);
+      if (res.success && res.data?.discordAuthUrl) {
+        window.location.href = res.data.discordAuthUrl;
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to initiate password reset.';
+      setForgotError(msg);
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   const handleEmailSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -71,7 +97,10 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
   };
 
   const handleBack = () => {
-    if (step === 'discord') {
+    if (step === 'forgot-password') {
+      setDirection(-1);
+      setStep('email');
+    } else if (step === 'discord') {
       setDirection(-1);
       if (mode === 'register') {
         setStep('email'); // skipped whitelist
@@ -145,6 +174,13 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
             <p className="text-slate-500 text-[14px] mb-4 leading-relaxed">
               {mode === 'register' ? 'Apply for a network account with your details.' : 'Use your network email, or continue with Google.'}
             </p>
+
+            {resetSuccessNotice && (
+              <div className="mb-4 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-medium flex items-center gap-2.5 shadow-sm">
+                <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+                <span>Password reset successfully! Please sign in with your new password.</span>
+              </div>
+            )}
 
             {errorMessage && (
               <div className="mb-4 p-3.5 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs font-medium flex flex-col gap-1.5 shadow-sm">
@@ -227,6 +263,22 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
                 </button>
               </div>
 
+              {mode === 'login' && (
+                <div className="flex justify-end -mt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForgotEmail(email);
+                      setForgotError(null);
+                      setDirection(1);
+                      setStep('forgot-password');
+                    }}
+                    className="text-xs font-semibold text-slate-500 hover:text-[#E11D2E] transition-colors"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              )}
 
               <Button 
                 type="submit" 
@@ -234,6 +286,67 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
                 className={`w-full h-11 bg-slate-900 hover:bg-slate-800 border-none !text-white font-semibold !shadow-md hover:!shadow-[0_0_20px_rgba(225,29,46,0.5)] transition-all duration-300 ${mode === 'register' ? 'mt-2' : 'mt-1'}`}
               >
                 {!isLoading && "Continue"}
+              </Button>
+            </form>
+          </motion.div>
+        )}
+
+        {step === 'forgot-password' && !showWelcome && !showRegisterSuccess && (
+          <motion.div
+            key="forgot-password"
+            custom={direction}
+            variants={contentVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.35, ease: "easeOut" }}
+            className="flex flex-col w-full h-full justify-center pt-10 pb-6 relative"
+          >
+            <button
+              type="button"
+              onClick={handleBack}
+              className="absolute top-0 left-0 text-slate-400 hover:text-slate-800 flex items-center gap-1.5 text-[14px] font-bold transition-colors w-fit p-2 -ml-2"
+            >
+              <ArrowLeft size={16} strokeWidth={3} /> Back to Sign In
+            </button>
+
+            <div className="w-14 h-14 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center mb-4 mt-2 text-[#E11D2E] shadow-[0_0_20px_rgba(225,29,46,0.15)]">
+              <Lock size={26} />
+            </div>
+
+            <h3 className="text-3xl font-extrabold text-slate-900 mb-1 tracking-tight">
+              Forgot Password?
+            </h3>
+            <p className="text-slate-500 text-[13.5px] mb-6 leading-relaxed">
+              Enter your whitelisted account email. You will authenticate via your linked Discord account to verify your identity.
+            </p>
+
+            {forgotError && (
+              <div className="mb-4 p-3.5 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs font-medium flex items-start gap-2 shadow-sm">
+                <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
+                <span className="leading-relaxed">{forgotError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleForgotPasswordSubmit} className="flex flex-col gap-4 w-full">
+              <div className="relative group">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#E11D2E] transition-colors" size={18} />
+                <input
+                  type="email"
+                  required
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  placeholder="Account Email (e.g. user@rng.com)"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-11 pr-4 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#E11D2E]/50 focus:bg-white focus:ring-4 focus:ring-[#E11D2E]/5 transition-all font-medium text-[13.5px]"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                isLoading={forgotLoading}
+                className="w-full h-11 bg-slate-900 hover:bg-slate-800 border-none !text-white font-semibold !shadow-md hover:!shadow-[0_0_20px_rgba(225,29,46,0.5)] transition-all mt-1"
+              >
+                {!forgotLoading && "Verify with Discord \u2192"}
               </Button>
             </form>
           </motion.div>

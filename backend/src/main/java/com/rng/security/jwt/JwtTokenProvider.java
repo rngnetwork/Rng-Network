@@ -7,12 +7,14 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,9 +25,20 @@ public class JwtTokenProvider implements TokenService {
 
     private final SecretKey key;
     private final Set<String> revokedJtis = ConcurrentHashMap.newKeySet();
+    private final Optional<RedisTokenStore> redisTokenStore;
 
-    public JwtTokenProvider(@Value("${jwt.secret:rngSecretKeyForJwtSigningMustBeAtLeast32BytesLongForHmacSha256!}") String secret) {
+    @Autowired
+    public JwtTokenProvider(
+            @Value("${jwt.secret:rngSecretKeyForJwtSigningMustBeAtLeast32BytesLongForHmacSha256!}") String secret,
+            @Autowired(required = false) RedisTokenStore redisTokenStore
+    ) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.redisTokenStore = Optional.ofNullable(redisTokenStore);
+    }
+
+    public JwtTokenProvider(String secret) {
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.redisTokenStore = Optional.empty();
     }
 
     @Override
@@ -76,13 +89,53 @@ public class JwtTokenProvider implements TokenService {
     }
 
     @Override
+    public String generateResetRequestToken(Long userId, String email) {
+        String jti = UUID.randomUUID().toString();
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + SecurityConstants.RESET_REQUEST_TOKEN_EXPIRATION_MS);
+
+        return Jwts.builder()
+                .subject(String.valueOf(userId))
+                .claim("email", email)
+                .claim("scope", SecurityConstants.SCOPE_RESET_REQUEST)
+                .id(jti)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(key)
+                .compact();
+    }
+
+    @Override
+    public String generateResetPasswordToken(Long userId, String email) {
+        String jti = UUID.randomUUID().toString();
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + SecurityConstants.RESET_PASSWORD_TOKEN_EXPIRATION_MS);
+
+        return Jwts.builder()
+                .subject(String.valueOf(userId))
+                .claim("email", email)
+                .claim("scope", SecurityConstants.SCOPE_RESET_PASSWORD)
+                .id(jti)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(key)
+                .compact();
+    }
+
+    @Override
     public boolean validateToken(String token) {
         try {
             Claims claims = getClaims(token);
             String jti = claims.getId();
-            if (jti != null && revokedJtis.contains(jti)) {
-                log.warn("JWT validation failed: jti {} is revoked", jti);
-                return false;
+            if (jti != null) {
+                if (revokedJtis.contains(jti)) {
+                    log.warn("JWT validation failed: jti {} is revoked in local store", jti);
+                    return false;
+                }
+                if (redisTokenStore.isPresent() && redisTokenStore.get().isJtiRevoked(jti)) {
+                    log.warn("JWT validation failed: jti {} is revoked in Redis store", jti);
+                    return false;
+                }
             }
             return true;
         } catch (JwtException | IllegalArgumentException e) {
@@ -95,7 +148,8 @@ public class JwtTokenProvider implements TokenService {
     public void revokeJti(String jti) {
         if (jti != null) {
             revokedJtis.add(jti);
-            log.info("Revoked pre-2FA JWT jti: {}", jti);
+            redisTokenStore.ifPresent(store -> store.revokeJti(jti, SecurityConstants.RESET_PASSWORD_TOKEN_EXPIRATION_MS));
+            log.info("Revoked single-use JWT jti: {}", jti);
         }
     }
 
@@ -121,6 +175,12 @@ public class JwtTokenProvider implements TokenService {
     public String getJtiFromToken(String token) {
         Claims claims = getClaims(token);
         return claims.getId();
+    }
+
+    @Override
+    public String getEmailFromToken(String token) {
+        Claims claims = getClaims(token);
+        return claims.get("email", String.class);
     }
 
     private Claims getClaims(String token) {

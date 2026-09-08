@@ -1,0 +1,13 @@
+CREATE TABLE IF NOT EXISTS servers (
+    id VARCHAR(64) PRIMARY KEY,
+    slug VARCHAR(64) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL,
+    icon_hash VARCHAR(128),
+    banner_hash VARCHAR(128),
+    premium_tier INT NOT NULL DEFAULT 0,
+    premium_subscription_count INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_servers_slug ON servers(slug);

@@ -11,10 +11,12 @@ function DiscordCallbackContent() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [isResetFlow, setIsResetFlow] = useState(false);
 
   useEffect(() => {
-    const processDiscord2Fa = async () => {
+    const processDiscordCallback = async () => {
       const code = searchParams.get('code');
+      const state = searchParams.get('state');
       const pre2FaToken = sessionStorage.getItem('pre2FaToken');
 
       if (!code) {
@@ -23,6 +25,33 @@ function DiscordCallbackContent() {
         return;
       }
 
+      // Discord-Verified Forgot Password Recovery Flow
+      if (state) {
+        setIsResetFlow(true);
+        try {
+          const res = await api.verifyForgotPasswordDiscord(code, state);
+          if (res.success && res.data?.resetToken) {
+            sessionStorage.setItem('resetPasswordToken', res.data.resetToken);
+            sessionStorage.setItem('resetPasswordEmail', res.data.email);
+            setStatus('success');
+            setTimeout(() => {
+              router.push('/auth/reset-password');
+            }, 1000);
+            return;
+          } else {
+            setStatus('error');
+            setErrorMessage(res.message || 'Discord verification for password recovery failed.');
+            return;
+          }
+        } catch (err: unknown) {
+          setStatus('error');
+          const message = err instanceof Error ? err.message : 'Discord verification for password recovery failed.';
+          setErrorMessage(message);
+          return;
+        }
+      }
+
+      // Standard Discord 2FA Upgrade Flow
       if (!pre2FaToken) {
         setStatus('error');
         setErrorMessage('Pre-2FA authentication token missing or expired. Please sign in again.');
@@ -49,7 +78,7 @@ function DiscordCallbackContent() {
       }
     };
 
-    processDiscord2Fa();
+    processDiscordCallback();
   }, [searchParams, router]);
 
   return (
@@ -64,8 +93,14 @@ function DiscordCallbackContent() {
         {status === 'loading' && (
           <div className="flex flex-col items-center">
             <div className="w-16 h-16 border-4 border-white/10 border-t-[#5865F2] rounded-full animate-spin mb-6" />
-            <h2 className="text-2xl font-bold tracking-tight mb-2">Verifying Discord 2FA</h2>
-            <p className="text-[#A0A0A0] text-sm">Exchanging authorization code and upgrading security credentials...</p>
+            <h2 className="text-2xl font-bold tracking-tight mb-2">
+              {isResetFlow ? 'Verifying Identity' : 'Verifying Discord 2FA'}
+            </h2>
+            <p className="text-[#A0A0A0] text-sm">
+              {isResetFlow
+                ? 'Confirming linked Discord account for password recovery...'
+                : 'Exchanging authorization code and upgrading security credentials...'}
+            </p>
           </div>
         )}
 
@@ -74,8 +109,14 @@ function DiscordCallbackContent() {
             <div className="w-16 h-16 bg-[#3BA55D]/10 rounded-full flex items-center justify-center mb-6">
               <CheckCircle2 className="text-[#3BA55D]" size={36} />
             </div>
-            <h2 className="text-2xl font-bold tracking-tight mb-2 text-white">2FA Verification Complete</h2>
-            <p className="text-[#A0A0A0] text-sm">Account authenticated successfully. Loading dashboard...</p>
+            <h2 className="text-2xl font-bold tracking-tight mb-2 text-white">
+              {isResetFlow ? 'Identity Verified!' : '2FA Verification Complete'}
+            </h2>
+            <p className="text-[#A0A0A0] text-sm">
+              {isResetFlow
+                ? 'Account verified. Redirecting to password reset...'
+                : 'Account authenticated successfully. Loading dashboard...'}
+            </p>
           </div>
         )}
 

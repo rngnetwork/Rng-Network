@@ -3,10 +3,7 @@ package com.rng.api.controller;
 import com.rng.common.dto.ApiResponse;
 import com.rng.common.security.SecurityConstants;
 import com.rng.common.security.TokenService;
-import com.rng.identity.dto.AuthResponse;
-import com.rng.identity.dto.Discord2FaRequest;
-import com.rng.identity.dto.LoginRequest;
-import com.rng.identity.dto.Pre2FaResponse;
+import com.rng.identity.dto.*;
 import com.rng.identity.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -45,6 +42,33 @@ public class AuthController {
 
         AuthResponse response = authService.processDiscord2Fa(userId, jti, request.getCode(), httpResponse);
         return ResponseEntity.ok(ApiResponse.success(response, "Discord 2FA verification successful. Access credentials issued."));
+    }
+
+    @PostMapping("/forgot-password/initiate")
+    public ResponseEntity<ApiResponse<ForgotPasswordInitiateResponse>> initiateForgotPassword(
+            @Valid @RequestBody ForgotPasswordInitiateRequest request) {
+        ForgotPasswordInitiateResponse response = authService.initiateForgotPassword(request);
+        return ResponseEntity.ok(ApiResponse.success(response, "Discord verification initiated."));
+    }
+
+    @PostMapping("/forgot-password/verify-discord")
+    public ResponseEntity<ApiResponse<ForgotPasswordVerifyResponse>> verifyForgotPasswordDiscord(
+            @Valid @RequestBody ForgotPasswordVerifyRequest request) {
+        ForgotPasswordVerifyResponse response = authService.verifyForgotPasswordDiscord(request);
+        return ResponseEntity.ok(ApiResponse.success(response, "Discord identity verified successfully."));
+    }
+
+    @PostMapping("/forgot-password/reset")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            HttpServletRequest httpRequest,
+            @Valid @RequestBody ResetPasswordRequest request) {
+        String bearerToken = httpRequest.getHeader(SecurityConstants.AUTHORIZATION_HEADER);
+        String jwt = (StringUtils.hasText(bearerToken) && bearerToken.startsWith(SecurityConstants.TOKEN_TYPE_HEADER))
+                ? bearerToken.substring(7) : null;
+
+        Long userId = tokenService.getUserIdFromToken(jwt);
+        authService.resetPassword(userId, jwt, request);
+        return ResponseEntity.ok(ApiResponse.success(null, "Password has been reset successfully. Please log in with your new password."));
     }
 
     @PostMapping("/refresh")

@@ -31,7 +31,27 @@ services:
       - rng_network
 
   # ----------------------------------------------------------------------------
-  # 2. Spring Boot 3.2.4 Backend Service
+  # 2. Redis 7 Distributed In-Memory Cache Service
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7.2-alpine
+    container_name: rng_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - rng_network
+
+  # ----------------------------------------------------------------------------
+  # 3. Spring Boot 3.2.4 Backend Service
   # ----------------------------------------------------------------------------
   backend:
     build:
@@ -46,6 +66,8 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-rng_db}
       DB_USERNAME: ${DB_USERNAME:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
       JWT_SECRET: ${JWT_SECRET:-rngSecretKeyForJwtSigningMustBeAtLeast32BytesLongForHmacSha256!}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-google-client-id-placeholder}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-google-client-secret-placeholder}
@@ -56,6 +78,8 @@ services:
       - "8080:8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8080/error || exit 1"]
@@ -97,6 +121,8 @@ services:
 # ------------------------------------------------------------------------------
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local
 
 networks:
