@@ -105,7 +105,7 @@ public class DiscordServerClientImpl implements DiscordServerClient {
 
     @Override
     public DiscordGuildDetailDto getGuildDetails(String guildId) {
-        String url = DISCORD_API_BASE + "/guilds/" + guildId;
+        String url = DISCORD_API_BASE + "/guilds/" + guildId + "?with_counts=true";
         try {
             HttpEntity<Void> entity = new HttpEntity<>(createHeaders(null));
             ResponseEntity<DiscordGuildDetailDto> response = restTemplate.exchange(

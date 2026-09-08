@@ -17,6 +17,7 @@ import com.rng.server.repository.ServerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
@@ -154,17 +155,22 @@ public class ServerService {
 
         int onlineCount = 0;
         int totalCount = 0;
-        try {
-            List<DiscordGuildDto> guilds = discordClient.getBotGuilds();
-            for (DiscordGuildDto g : guilds) {
-                if (g.getId().equals(server.getId())) {
-                    onlineCount = g.getApproximatePresenceCount() != null ? g.getApproximatePresenceCount() : 0;
-                    totalCount = g.getApproximateMemberCount() != null ? g.getApproximateMemberCount() : 0;
-                    break;
+        if (details.getApproximatePresenceCount() != null && details.getApproximateMemberCount() != null) {
+            onlineCount = details.getApproximatePresenceCount();
+            totalCount = details.getApproximateMemberCount();
+        } else {
+            try {
+                List<DiscordGuildDto> guilds = discordClient.getBotGuilds();
+                for (DiscordGuildDto g : guilds) {
+                    if (g.getId().equals(server.getId())) {
+                        onlineCount = g.getApproximatePresenceCount() != null ? g.getApproximatePresenceCount() : 0;
+                        totalCount = g.getApproximateMemberCount() != null ? g.getApproximateMemberCount() : 0;
+                        break;
+                    }
                 }
+            } catch (Exception e) {
+                log.warn("Could not fetch presence counts for server {}: {}", server.getId(), e.getMessage());
             }
-        } catch (Exception e) {
-            log.warn("Could not fetch presence counts for server {}: {}", server.getId(), e.getMessage());
         }
 
         return ServerDetailDto.builder()
@@ -390,7 +396,7 @@ public class ServerService {
                     .name(guild.getName())
                     .iconUrl(guild.getIconUrl())
                     .bannerUrl(guild.getBannerUrl())
-                    .onlineCount(guild.getMemberCount())
+                    .onlineCount(calculateOnlineCount(guild))
                     .totalCount(guild.getMemberCount())
                     .boostLevel(guild.getBoostTier().getKey())
                     .boostCount(guild.getBoostCount())
@@ -398,6 +404,27 @@ public class ServerService {
                     .build());
         }
         return result;
+    }
+
+    private int calculateOnlineCount(Guild guild) {
+        if (guild == null) {
+            return 0;
+        }
+        try {
+            long online = guild.getMembers().stream()
+                    .filter(m -> {
+                        if (m == null) return false;
+                        OnlineStatus status = m.getOnlineStatus();
+                        return status == OnlineStatus.ONLINE
+                                || status == OnlineStatus.IDLE
+                                || status == OnlineStatus.DO_NOT_DISTURB;
+                    })
+                    .count();
+            return (int) online;
+        } catch (Exception e) {
+            log.warn("Could not compute online presence count from JDA guild {}: {}", guild.getId(), e.getMessage());
+            return 0;
+        }
     }
 
     private ServerDetailDto mapJdaGuildToDetailDto(Server server, Guild guild) {
@@ -408,7 +435,7 @@ public class ServerService {
                 .description(guild.getDescription())
                 .iconUrl(guild.getIconUrl())
                 .bannerUrl(guild.getBannerUrl())
-                .onlineCount(guild.getMemberCount())
+                .onlineCount(calculateOnlineCount(guild))
                 .totalCount(guild.getMemberCount())
                 .boostLevel(guild.getBoostTier().getKey())
                 .boostCount(guild.getBoostCount())

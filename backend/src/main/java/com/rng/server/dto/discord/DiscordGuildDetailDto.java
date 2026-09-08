@@ -20,6 +20,12 @@ public class DiscordGuildDetailDto {
     private String icon;
     private String banner;
 
+    @JsonProperty("approximate_member_count")
+    private Integer approximateMemberCount;
+
+    @JsonProperty("approximate_presence_count")
+    private Integer approximatePresenceCount;
+
     @JsonProperty("premium_tier")
     private Integer premiumTier;
 

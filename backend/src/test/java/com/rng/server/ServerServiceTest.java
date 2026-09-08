@@ -14,6 +14,10 @@ import com.rng.server.dto.discord.DiscordGuildDto;
 import com.rng.server.dto.discord.DiscordGuildPatchRequest;
 import com.rng.server.repository.ServerRepository;
 import com.rng.server.service.ServerService;
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.OnlineStatus;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -242,5 +246,56 @@ class ServerServiceTest {
         assertThat(channels.get(0).getType()).isEqualTo(0);
         assertThat(channels.get(1).getName()).isEqualTo("Voice Lounge");
         assertThat(channels.get(1).getType()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("getAllServers with JDA connected should compute distinct onlineCount and totalCount")
+    void testGetAllServersWithJdaPresences() {
+        JDA jda = mock(JDA.class);
+        when(jda.getStatus()).thenReturn(JDA.Status.CONNECTED);
+
+        Guild guild = mock(Guild.class);
+        when(guild.getId()).thenReturn("100000000000000001");
+        when(guild.getName()).thenReturn("Rednecks Gaming");
+        when(guild.getMemberCount()).thenReturn(50);
+        when(guild.getBoostTier()).thenReturn(net.dv8tion.jda.api.entities.Guild.BoostTier.TIER_2);
+        when(guild.getBoostCount()).thenReturn(14);
+
+        Member m1 = mock(Member.class);
+        when(m1.getOnlineStatus()).thenReturn(OnlineStatus.ONLINE);
+        Member m2 = mock(Member.class);
+        when(m2.getOnlineStatus()).thenReturn(OnlineStatus.IDLE);
+        Member m3 = mock(Member.class);
+        when(m3.getOnlineStatus()).thenReturn(OnlineStatus.DO_NOT_DISTURB);
+        Member m4 = mock(Member.class);
+        when(m4.getOnlineStatus()).thenReturn(OnlineStatus.OFFLINE);
+
+        when(guild.getMembers()).thenReturn(List.of(m1, m2, m3, m4));
+        when(jda.getGuilds()).thenReturn(List.of(guild));
+
+        when(serverRepository.findById("100000000000000001")).thenReturn(Optional.of(sampleServer));
+
+        ServerService jdaServerService = new ServerService(serverRepository, discordClient, userRepository, jda);
+        List<ServerDto> servers = jdaServerService.getAllServers();
+
+        assertThat(servers).hasSize(1);
+        ServerDto dto = servers.get(0);
+        assertThat(dto.getOnlineCount()).isEqualTo(3);
+        assertThat(dto.getTotalCount()).isEqualTo(50);
+    }
+
+    @Test
+    @DisplayName("getServerDetails should use approximate counts directly from DiscordGuildDetailDto if present")
+    void testGetServerDetailsWithCountsFromDetailDto() {
+        when(serverRepository.findByIdOrSlug("rednecks-gaming")).thenReturn(Optional.of(sampleServer));
+        sampleGuildDetail.setApproximatePresenceCount(123);
+        sampleGuildDetail.setApproximateMemberCount(456);
+        when(discordClient.getGuildDetails(sampleServer.getId())).thenReturn(sampleGuildDetail);
+
+        ServerDetailDto details = serverService.getServerDetails("rednecks-gaming");
+
+        assertThat(details.getOnlineCount()).isEqualTo(123);
+        assertThat(details.getTotalCount()).isEqualTo(456);
+        verify(discordClient, never()).getBotGuilds();
     }
 }
