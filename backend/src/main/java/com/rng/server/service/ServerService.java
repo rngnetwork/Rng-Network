@@ -30,8 +30,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
@@ -58,7 +60,19 @@ public class ServerService {
     @Cacheable(value = "guilds:summary", key = "'all'")
     @Transactional
     public List<ServerDto> getAllServers() {
-        // Priority 1: Fast 0ms read from JDA Gateway Cache
+        // Priority 1: Outbound REST Client (with accurate approximatePresenceCount & approximateMemberCount, cached in Redis for 60s)
+        List<DiscordGuildDto> guilds = null;
+        try {
+            guilds = discordClient.getBotGuilds();
+        } catch (Exception e) {
+            log.warn("Discord REST API unavailable for getAllServers ({}), falling back to JDA Gateway cache", e.getMessage());
+        }
+
+        if (guilds != null && !guilds.isEmpty()) {
+            return syncAndMapRestGuilds(guilds);
+        }
+
+        // Priority 2: Fast read from JDA Gateway Cache (when REST is rate-limited / offline)
         if (jda.isPresent() && jda.get().getStatus() == JDA.Status.CONNECTED) {
             List<Guild> jdaGuilds = jda.get().getGuilds();
             if (!jdaGuilds.isEmpty()) {
@@ -67,23 +81,13 @@ public class ServerService {
             }
         }
 
-        // Priority 2: Outbound REST Client (with auto fallback to database on 429/failures)
-        List<DiscordGuildDto> guilds;
-        try {
-            guilds = discordClient.getBotGuilds();
-        } catch (Exception e) {
-            log.warn("Discord REST API unavailable for getAllServers ({}), falling back to database records", e.getMessage());
-            return serverRepository.findAll().stream()
-                    .map(this::mapEntityToDto)
-                    .toList();
-        }
+        // Priority 3: Database records
+        return serverRepository.findAll().stream()
+                .map(this::mapEntityToDto)
+                .toList();
+    }
 
-        if (guilds.isEmpty()) {
-            return serverRepository.findAll().stream()
-                    .map(this::mapEntityToDto)
-                    .toList();
-        }
-
+    private List<ServerDto> syncAndMapRestGuilds(List<DiscordGuildDto> guilds) {
         List<ServerDto> result = new ArrayList<>();
         for (DiscordGuildDto guild : guilds) {
             Server server = serverRepository.findById(guild.getId())
@@ -110,20 +114,40 @@ public class ServerService {
                 serverRepository.save(server);
             }
 
+            int boostLevel = server.getPremiumTier();
+            int boostCount = server.getPremiumSubscriptionCount();
+            String iconUrl = formatDiscordIconUrl(server.getId(), server.getIconHash());
+            String bannerUrl = formatDiscordBannerUrl(server.getId(), server.getBannerHash());
+            String serverName = server.getName();
+
+            if (jda.isPresent() && jda.get().getStatus() == JDA.Status.CONNECTED) {
+                Guild jdaGuild = jda.get().getGuildById(guild.getId());
+                if (jdaGuild != null) {
+                    boostLevel = jdaGuild.getBoostTier().getKey();
+                    boostCount = jdaGuild.getBoostCount();
+                    if (jdaGuild.getIconUrl() != null) {
+                        iconUrl = jdaGuild.getIconUrl();
+                    }
+                    if (jdaGuild.getBannerUrl() != null) {
+                        bannerUrl = jdaGuild.getBannerUrl();
+                    }
+                    serverName = jdaGuild.getName();
+                }
+            }
+
             result.add(ServerDto.builder()
                     .id(server.getId())
                     .slug(server.getSlug())
-                    .name(server.getName())
-                    .iconUrl(formatDiscordIconUrl(server.getId(), server.getIconHash()))
-                    .bannerUrl(formatDiscordBannerUrl(server.getId(), server.getBannerHash()))
+                    .name(serverName)
+                    .iconUrl(iconUrl)
+                    .bannerUrl(bannerUrl)
                     .onlineCount(guild.getApproximatePresenceCount() != null ? guild.getApproximatePresenceCount() : 0)
                     .totalCount(guild.getApproximateMemberCount() != null ? guild.getApproximateMemberCount() : 0)
-                    .boostLevel(server.getPremiumTier())
-                    .boostCount(server.getPremiumSubscriptionCount())
+                    .boostLevel(boostLevel)
+                    .boostCount(boostCount)
                     .status("operational")
                     .build());
         }
-
         return result;
     }
 
@@ -133,7 +157,17 @@ public class ServerService {
         Server server = serverRepository.findByIdOrSlug(idOrSlug)
                 .orElseThrow(() -> new ResourceNotFoundException("Server not found: " + idOrSlug));
 
-        // Priority 1: JDA in-memory guild details
+        // Priority 1: Discord REST Client with ?with_counts=true (cached in Redis for 30s)
+        try {
+            DiscordGuildDetailDto details = discordClient.getGuildDetails(server.getId());
+            if (details != null) {
+                return mapRestDetailDto(server, details);
+            }
+        } catch (Exception e) {
+            log.warn("Discord REST API unavailable for getServerDetails {}: {}, falling back to JDA Gateway", server.getId(), e.getMessage());
+        }
+
+        // Priority 2: Fallback to JDA in-memory guild details
         if (jda.isPresent() && jda.get().getStatus() == JDA.Status.CONNECTED) {
             Guild jdaGuild = jda.get().getGuildById(server.getId());
             if (jdaGuild != null) {
@@ -141,12 +175,10 @@ public class ServerService {
             }
         }
 
-        // Priority 2: Discord REST Client
-        DiscordGuildDetailDto details = discordClient.getGuildDetails(server.getId());
-        if (details == null) {
-            throw new ResourceNotFoundException("Discord guild details unavailable for " + server.getId());
-        }
+        throw new ResourceNotFoundException("Discord guild details unavailable for " + server.getId());
+    }
 
+    private ServerDetailDto mapRestDetailDto(Server server, DiscordGuildDetailDto details) {
         int flags = details.getSystemChannelFlags() != null ? details.getSystemChannelFlags() : 0;
         boolean sendWelcome = (flags & (1 << 0)) == 0;
         boolean boostMessage = (flags & (1 << 1)) == 0;
@@ -173,6 +205,16 @@ public class ServerService {
             }
         }
 
+        int boostLevel = details.getPremiumTier() != null ? details.getPremiumTier() : 0;
+        int boostCount = details.getPremiumSubscriptionCount() != null ? details.getPremiumSubscriptionCount() : 0;
+        if (jda.isPresent() && jda.get().getStatus() == JDA.Status.CONNECTED) {
+            Guild jdaGuild = jda.get().getGuildById(server.getId());
+            if (jdaGuild != null) {
+                boostLevel = jdaGuild.getBoostTier().getKey();
+                boostCount = jdaGuild.getBoostCount();
+            }
+        }
+
         return ServerDetailDto.builder()
                 .id(server.getId())
                 .slug(server.getSlug())
@@ -182,8 +224,8 @@ public class ServerService {
                 .bannerUrl(formatDiscordBannerUrl(server.getId(), details.getBanner()))
                 .onlineCount(onlineCount)
                 .totalCount(totalCount)
-                .boostLevel(details.getPremiumTier() != null ? details.getPremiumTier() : 0)
-                .boostCount(details.getPremiumSubscriptionCount() != null ? details.getPremiumSubscriptionCount() : 0)
+                .boostLevel(boostLevel)
+                .boostCount(boostCount)
                 .features(details.getFeatures() != null ? details.getFeatures() : List.of())
                 .afkChannelId(details.getAfkChannelId())
                 .afkTimeout(details.getAfkTimeout())
@@ -373,6 +415,18 @@ public class ServerService {
     }
 
     private List<ServerDto> syncAndMapJdaGuilds(List<Guild> jdaGuilds) {
+        Map<String, DiscordGuildDto> countMap = new HashMap<>();
+        try {
+            List<DiscordGuildDto> botGuilds = discordClient.getBotGuilds();
+            if (botGuilds != null) {
+                for (DiscordGuildDto bg : botGuilds) {
+                    countMap.put(bg.getId(), bg);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not retrieve bot guilds for presence mapping in syncAndMapJdaGuilds: {}", e.getMessage());
+        }
+
         List<ServerDto> result = new ArrayList<>();
         for (Guild guild : jdaGuilds) {
             Server server = serverRepository.findById(guild.getId())
@@ -390,14 +444,24 @@ public class ServerService {
                         return serverRepository.save(newServer);
                     });
 
+            DiscordGuildDto countDto = countMap.get(guild.getId());
+            int online = calculateOnlineCount(guild);
+            if (online == 0 && countDto != null && countDto.getApproximatePresenceCount() != null) {
+                online = countDto.getApproximatePresenceCount();
+            }
+            int total = guild.getMemberCount();
+            if (total == 0 && countDto != null && countDto.getApproximateMemberCount() != null) {
+                total = countDto.getApproximateMemberCount();
+            }
+
             result.add(ServerDto.builder()
                     .id(server.getId())
                     .slug(server.getSlug())
                     .name(guild.getName())
                     .iconUrl(guild.getIconUrl())
                     .bannerUrl(guild.getBannerUrl())
-                    .onlineCount(calculateOnlineCount(guild))
-                    .totalCount(guild.getMemberCount())
+                    .onlineCount(online)
+                    .totalCount(total)
                     .boostLevel(guild.getBoostTier().getKey())
                     .boostCount(guild.getBoostCount())
                     .status("operational")
@@ -428,6 +492,18 @@ public class ServerService {
     }
 
     private ServerDetailDto mapJdaGuildToDetailDto(Server server, Guild guild) {
+        int online = calculateOnlineCount(guild);
+        int total = guild.getMemberCount();
+        if (online == 0) {
+            try {
+                DiscordGuildDetailDto detail = discordClient.getGuildDetails(server.getId());
+                if (detail != null && detail.getApproximatePresenceCount() != null) {
+                    online = detail.getApproximatePresenceCount();
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
         return ServerDetailDto.builder()
                 .id(server.getId())
                 .slug(server.getSlug())
@@ -435,8 +511,8 @@ public class ServerService {
                 .description(guild.getDescription())
                 .iconUrl(guild.getIconUrl())
                 .bannerUrl(guild.getBannerUrl())
-                .onlineCount(calculateOnlineCount(guild))
-                .totalCount(guild.getMemberCount())
+                .onlineCount(online)
+                .totalCount(total)
                 .boostLevel(guild.getBoostTier().getKey())
                 .boostCount(guild.getBoostCount())
                 .features(guild.getFeatures().stream().toList())
