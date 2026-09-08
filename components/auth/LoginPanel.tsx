@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Mail, Lock, Eye, EyeOff, User, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, Eye, EyeOff, User, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/lib/api';
 
@@ -50,6 +50,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Authentication failed';
+      console.error('[Authentication Error]:', msg, err);
       setErrorMessage(msg);
     } finally {
       setIsLoading(false);
@@ -146,8 +147,20 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
             </p>
 
             {errorMessage && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-xs font-medium">
-                {errorMessage}
+              <div className="mb-4 p-3.5 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs font-medium flex flex-col gap-1.5 shadow-sm">
+                <div className="flex items-start gap-2">
+                  <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
+                  <span className="leading-relaxed">{errorMessage}</span>
+                </div>
+                {errorMessage.toLowerCase().includes('google') && (
+                  <button
+                    type="button"
+                    onClick={handleGoogleSubmit}
+                    className="ml-6 text-[11.5px] font-bold text-red-700 hover:text-red-800 underline flex items-center gap-1 w-fit"
+                  >
+                    Click here to Continue with Google &rarr;
+                  </button>
+                )}
               </div>
             )}
             

@@ -67,11 +67,23 @@ class AuthIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        User user = userRepository.findByEmail("testuser@rng.com").orElse(null);
-        if (user != null) {
-            user.setPassword(passwordEncoder.encode("password123"));
-            userRepository.save(user);
-        }
+        User user = userRepository.findByEmail("testuser@rng.com").orElseGet(() -> {
+            User newUser = User.builder()
+                    .email("testuser@rng.com")
+                    .fullName("Test User")
+                    .provider(com.rng.identity.domain.AuthProvider.EMAIL)
+                    .role("ROLE_USER")
+                    .status("ACTIVE")
+                    .discordLinked(false)
+                    .build();
+            return userRepository.save(newUser);
+        });
+        user.setPassword(passwordEncoder.encode("password123"));
+        user.setDiscordLinked(false);
+        user.setDiscordId(null);
+        user.setDiscordUsername(null);
+        user.setDiscordAvatar(null);
+        userRepository.save(user);
     }
 
     @Test
@@ -256,5 +268,97 @@ class AuthIntegrationTest {
         User updatedUser = userRepository.findByEmail("testuser@rng.com").orElseThrow();
         assertThat(updatedUser.getDiscordUsername()).isEqualTo("NewUpdatedUsername");
         assertThat(updatedUser.getDiscordAvatar()).isEqualTo("a_new_animated_avatar_hash");
+    }
+
+    @Test
+    @DisplayName("First-Time Email Login: NULL password automatically registered with BCrypt and issues Pre-2FA token")
+    void testFirstTimeLoginPasswordAutoRegistration() throws Exception {
+        User newlyWhitelisted = userRepository.save(User.builder()
+                .email("newwhitelisted@rng.com")
+                .fullName("New Whitelisted User")
+                .provider(com.rng.identity.domain.AuthProvider.EMAIL)
+                .password(null) // No password initially
+                .role("ROLE_USER")
+                .designations("Ministry of Tech")
+                .roles("Junior Dev")
+                .status("ACTIVE")
+                .build());
+
+        LoginRequest loginRequest = LoginRequest.builder()
+                .email("newwhitelisted@rng.com")
+                .password("myFirstSecretPassword!99")
+                .build();
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.token", notNullValue()))
+                .andExpect(jsonPath("$.data.requiresDiscord2Fa", is(true)))
+                .andExpect(jsonPath("$.data.userEmail", is("newwhitelisted@rng.com")));
+
+        // Verify password was registered and encoded in DB
+        User updated = userRepository.findByEmail("newwhitelisted@rng.com").orElseThrow();
+        assertThat(updated.getPassword()).isNotNull();
+        assertThat(passwordEncoder.matches("myFirstSecretPassword!99", updated.getPassword())).isTrue();
+    }
+
+    @Test
+    @DisplayName("High Command Seeded User: Can login with db#*whitelisted68527 and authenticate")
+    void testHighCommandSeededUserLogin() throws Exception {
+        User highCommand = userRepository.findByEmail("arzenic@rednecksgaming.com").orElseGet(() -> {
+            return userRepository.save(User.builder()
+                    .email("arzenic@rednecksgaming.com")
+                    .fullName("Arzenic")
+                    .provider(com.rng.identity.domain.AuthProvider.EMAIL)
+                    .role("ROLE_HIGH_COMMAND")
+                    .designations("Supreme")
+                    .roles("High Command")
+                    .status("ACTIVE")
+                    .build());
+        });
+        highCommand.setPassword(passwordEncoder.encode("db#*whitelisted68527"));
+        userRepository.save(highCommand);
+
+        LoginRequest loginRequest = LoginRequest.builder()
+                .email("arzenic@rednecksgaming.com")
+                .password("db#*whitelisted68527")
+                .build();
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.token", notNullValue()))
+                .andExpect(jsonPath("$.data.userEmail", is("arzenic@rednecksgaming.com")));
+    }
+
+    @Test
+    @DisplayName("Provider Security: Account whitelisted with GOOGLE provider is rejected on Email/Password login")
+    void testGoogleProviderUserCannotLoginWithEmailPassword() throws Exception {
+        userRepository.save(User.builder()
+                .email("googleonly@rng.com")
+                .fullName("Google Only User")
+                .provider(com.rng.identity.domain.AuthProvider.GOOGLE)
+                .password(null)
+                .role("ROLE_USER")
+                .designations("Ministry of Tech")
+                .roles("Junior Dev")
+                .status("ACTIVE")
+                .build());
+
+        LoginRequest loginRequest = LoginRequest.builder()
+                .email("googleonly@rng.com")
+                .password("anyPasswordAttempt123!")
+                .build();
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", containsString("This account is configured for Google Sign-In")));
     }
 }

@@ -8,6 +8,7 @@ import com.rng.common.exception.UnauthorizedException;
 import com.rng.common.security.DiscordClient;
 import com.rng.common.security.SecurityConstants;
 import com.rng.common.security.TokenService;
+import com.rng.identity.domain.AuthProvider;
 import com.rng.identity.domain.User;
 import com.rng.identity.dto.*;
 import com.rng.identity.repository.UserRepository;
@@ -30,17 +31,29 @@ public class AuthService {
     private final TokenService tokenService;
     private final DiscordClient discordClient;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Pre2FaResponse authenticateEmailPassword(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> {
-                    log.warn("Login attempt failed: Email {} not found", request.getEmail());
+                    log.warn("Login attempt failed: Email {} not found in whitelist", request.getEmail());
                     return new BadCredentialsException("Invalid email or password");
                 });
 
-        if (user.getPassword() == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            log.warn("Login attempt failed: Password mismatch for email {}", request.getEmail());
-            throw new BadCredentialsException("Invalid email or password");
+        if (user.getProvider() == AuthProvider.GOOGLE) {
+            log.warn("Login attempt rejected: User {} is configured with Google provider", request.getEmail());
+            throw new BadCredentialsException("This account is configured for Google Sign-In. Please sign in with 'Continue with Google'.");
+        }
+
+        if (user.getPassword() == null || user.getPassword().isBlank()) {
+            // First login attempt: automatically register password into PostgreSQL
+            log.info("First-time login: Registering initial password for whitelisted user {}", user.getEmail());
+            user.setPassword(passwordEncoder.encode(request.getPassword()));
+            userRepository.save(user);
+        } else {
+            if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+                log.warn("Login attempt failed: Password mismatch for email {}", request.getEmail());
+                throw new BadCredentialsException("Invalid email or password");
+            }
         }
 
         String pre2FaToken = tokenService.generatePre2FaToken(user.getId(), user.getEmail());
@@ -132,6 +145,9 @@ public class AuthService {
         addRefreshCookie(response, "", 0);
     }
 
+    @org.springframework.beans.factory.annotation.Value("${app.security.cookie-secure:false}")
+    private boolean cookieSecure;
+
     @Transactional(readOnly = true)
     public UserResponse getCurrentUser(Long userId) {
         User user = userRepository.findById(userId)
@@ -147,13 +163,18 @@ public class AuthService {
                 .discordAvatar(user.getDiscordAvatar())
                 .discordLinked(user.isDiscordLinked())
                 .role(user.getRole())
+                .designations(user.getDesignations())
+                .roles(user.getRoles())
+                .designationList(user.getDesignationList())
+                .roleList(user.getRoleList())
+                .status(user.getStatus())
                 .build();
     }
 
     private void addRefreshCookie(HttpServletResponse response, String value, int maxAge) {
         ResponseCookie cookie = ResponseCookie.from(SecurityConstants.REFRESH_TOKEN_COOKIE_NAME, value)
                 .httpOnly(true)
-                .secure(false) // Set true in production over HTTPS
+                .secure(cookieSecure)
                 .sameSite("Strict")
                 .path("/api/v1/auth")
                 .maxAge(maxAge)

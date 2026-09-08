@@ -56,6 +56,16 @@ public class User {
     @Builder.Default
     private String role = "ROLE_USER";
 
+    @Column(columnDefinition = "TEXT")
+    private String designations;
+
+    @Column(columnDefinition = "TEXT")
+    private String roles;
+
+    @Column(nullable = false, length = 30)
+    @Builder.Default
+    private String status = "ACTIVE";
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -63,4 +73,20 @@ public class User {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    public java.util.List<String> getDesignationList() {
+        if (designations == null || designations.isBlank()) return java.util.List.of();
+        return java.util.Arrays.stream(designations.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+    }
+
+    public java.util.List<String> getRoleList() {
+        if (roles == null || roles.isBlank()) return java.util.List.of();
+        return java.util.Arrays.stream(roles.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+    }
 }

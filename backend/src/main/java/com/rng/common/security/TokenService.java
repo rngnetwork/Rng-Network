@@ -18,5 +18,7 @@ public interface TokenService {
 
     String getScopeFromToken(String token);
 
+    String getRoleFromToken(String token);
+
     String getJtiFromToken(String token);
 }

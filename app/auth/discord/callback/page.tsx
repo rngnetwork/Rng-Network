@@ -36,7 +36,7 @@ function DiscordCallbackContent() {
           sessionStorage.removeItem('pre2FaToken');
           setStatus('success');
           setTimeout(() => {
-            router.push('/servers');
+            router.push('/dashboard');
           }, 1200);
         } else {
           setStatus('error');

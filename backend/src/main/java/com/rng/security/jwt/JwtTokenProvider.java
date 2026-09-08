@@ -112,6 +112,12 @@ public class JwtTokenProvider implements TokenService {
     }
 
     @Override
+    public String getRoleFromToken(String token) {
+        Claims claims = getClaims(token);
+        return claims.get("role", String.class);
+    }
+
+    @Override
     public String getJtiFromToken(String token) {
         Claims claims = getClaims(token);
         return claims.getId();

@@ -42,6 +42,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     authorities.add(new SimpleGrantedAuthority(scope));
                 }
 
+                String role = tokenProvider.getRoleFromToken(jwt);
+                if (StringUtils.hasText(role)) {
+                    authorities.add(new SimpleGrantedAuthority(role));
+                }
+
                 if (SecurityConstants.SCOPE_FULLY_AUTHENTICATED.equals(scope)) {
                     authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
                 }
