@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   Server,
   User,
+  Boxes,
   LogOut,
   Menu,
   X,
@@ -63,6 +64,13 @@ export function Sidebar({ user }: SidebarProps) {
       icon: Server,
       show: true,
       badge: serverCount !== null ? `${serverCount} Live` : 'Live',
+    },
+    {
+      label: 'Embed Builder',
+      href: '/dashboard/embeds',
+      icon: Boxes,
+      show: true,
+      badge: 'V2',
     },
     {
       label: 'Whitelist',
