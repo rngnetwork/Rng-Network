@@ -830,3 +830,84 @@ export function formatEmojiInsertString(emoji: EmojiItem): string {
   }
   return emoji.char || '';
 }
+
+/**
+ * Server Emojis Specification & Helpers
+ * Supports server-specific custom emojis for the active Discord Guild.
+ */
+export function getDefaultServerEmojis(serverId?: string, serverName?: string): EmojiItem[] {
+  const prefix = serverName
+    ? serverName.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 10).replace(/^_+|_+$/g, '')
+    : 'guild';
+
+  return [
+    {
+      type: 'custom',
+      id: '1318001001',
+      name: `${prefix || 'server'}_verified`,
+      animated: false,
+      url: 'https://cdn.discordapp.com/emojis/10182738491823.webp?size=64',
+      category: 'server',
+      keywords: ['verified', 'official', 'guild', 'badge', 'server', prefix]
+    },
+    {
+      type: 'custom',
+      id: '1318001002',
+      name: `${prefix || 'server'}_boost`,
+      animated: true,
+      url: 'https://cdn.discordapp.com/emojis/98765432109876.gif?size=64',
+      category: 'server',
+      keywords: ['boost', 'nitro', 'guild', 'server', 'fire', prefix]
+    },
+    {
+      type: 'custom',
+      id: '1318001003',
+      name: `${prefix || 'server'}_party`,
+      animated: true,
+      url: 'https://cdn.discordapp.com/emojis/82391029384756.gif?size=64',
+      category: 'server',
+      keywords: ['party', 'dance', 'celebrate', 'guild', 'server', prefix]
+    },
+    {
+      type: 'custom',
+      id: '1318001004',
+      name: `${prefix || 'server'}_crown`,
+      animated: false,
+      url: 'https://cdn.discordapp.com/emojis/76543210987654.webp?size=64',
+      category: 'server',
+      keywords: ['crown', 'vip', 'owner', 'king', 'guild', prefix]
+    },
+    {
+      type: 'custom',
+      id: '1318001005',
+      name: `${prefix || 'server'}_shield`,
+      animated: false,
+      url: 'https://cdn.discordapp.com/emojis/91827364510293.webp?size=64',
+      category: 'server',
+      keywords: ['shield', 'mod', 'staff', 'security', 'guild', prefix]
+    },
+    {
+      type: 'custom',
+      id: '1318001006',
+      name: `${prefix || 'server'}_heart`,
+      animated: true,
+      url: 'https://cdn.discordapp.com/emojis/67584930291827.gif?size=64',
+      category: 'server',
+      keywords: ['heart', 'love', 'guild', 'server', 'community', prefix]
+    }
+  ];
+}
+
+export function getServerEmojis(serverId?: string, serverName?: string): EmojiItem[] {
+  if (typeof window === 'undefined') return getDefaultServerEmojis(serverId, serverName);
+  try {
+    const key = serverId ? `rng_server_emojis_${serverId}` : 'rng_server_emojis_default';
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (err) {}
+  return getDefaultServerEmojis(serverId, serverName);
+}
+

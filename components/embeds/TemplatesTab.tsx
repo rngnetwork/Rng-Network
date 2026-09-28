@@ -4,11 +4,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { TemplateItem, Type17Container } from './types';
 
 interface TemplatesTabProps {
-  currentBuilderState: {
+  currentBuilderState?: {
     message: { content: string };
     type17Containers: Type17Container[];
   };
   onLoadTemplate: (state: { message: { content: string }; type17Containers: Type17Container[] }) => void;
+  allowCreate?: boolean;
+  allowSearch?: boolean;
 }
 
 const STORAGE_KEY_TEMPLATES = 'rng_discord_user_templates';
@@ -180,7 +182,12 @@ const DEFAULT_TEMPLATES: TemplateItem[] = [
   }
 ];
 
-export function TemplatesTab({ currentBuilderState, onLoadTemplate }: TemplatesTabProps) {
+export function TemplatesTab({
+  currentBuilderState,
+  onLoadTemplate,
+  allowCreate = true,
+  allowSearch = true
+}: TemplatesTabProps) {
   const [search, setSearch] = useState('');
   const [userTemplates, setUserTemplates] = useState<TemplateItem[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -265,34 +272,40 @@ export function TemplatesTab({ currentBuilderState, onLoadTemplate }: TemplatesT
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* Search Box */}
-          <div style={{ position: 'relative', width: '260px' }}>
-            <input
-              type="text"
-              className="form-input"
-              style={{ paddingLeft: '32px', fontSize: '13px', height: '38px', borderRadius: '8px' }}
-              placeholder="Search templates..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <i
-              className="fa-solid fa-magnifying-glass"
-              style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#949ba4', fontSize: '12px' }}
-            />
-          </div>
+        {(allowSearch || allowCreate) && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/* Search Box */}
+            {allowSearch && (
+              <div style={{ position: 'relative', width: '260px' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  style={{ paddingLeft: '32px', fontSize: '13px', height: '38px', borderRadius: '8px' }}
+                  placeholder="Search templates..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <i
+                  className="fa-solid fa-magnifying-glass"
+                  style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#949ba4', fontSize: '12px' }}
+                />
+              </div>
+            )}
 
-          {/* Create / Save Template Button */}
-          <button
-            type="button"
-            className="btn-dispatch-submit"
-            style={{ width: 'auto', padding: '9px 18px', fontSize: '12.5px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
-            onClick={() => setIsCreateModalOpen(true)}
-          >
-            <i className="fa-solid fa-plus" />
-            <span>Save Current as Template</span>
-          </button>
-        </div>
+            {/* Create / Save Template Button */}
+            {allowCreate && (
+              <button
+                type="button"
+                className="btn-dispatch-submit"
+                style={{ width: 'auto', padding: '9px 18px', fontSize: '12.5px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                onClick={() => setIsCreateModalOpen(true)}
+              >
+                <i className="fa-solid fa-plus" />
+                <span>Save Current as Template</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Templates Grid */}
@@ -379,7 +392,7 @@ export function TemplatesTab({ currentBuilderState, onLoadTemplate }: TemplatesT
       )}
 
       {/* Save Template Modal */}
-      {isCreateModalOpen && (
+      {allowCreate && isCreateModalOpen && (
         <div
           className="modal-overlay open"
           onClick={() => setIsCreateModalOpen(false)}

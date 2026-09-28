@@ -7,6 +7,8 @@ import { EmojiItem } from './emoji-data';
 
 interface ComponentsTabProps {
   onInsertComponent: (item: number | DiscordInnerComponent) => void;
+  allowCreate?: boolean;
+  allowSearch?: boolean;
 }
 
 interface ComponentSpecItem {
@@ -185,7 +187,11 @@ const INITIAL_CUSTOM_COMPONENTS: CustomComponentItem[] = [
   }
 ];
 
-export function ComponentsTab({ onInsertComponent }: ComponentsTabProps) {
+export function ComponentsTab({
+  onInsertComponent,
+  allowCreate = true,
+  allowSearch = true
+}: ComponentsTabProps) {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'default' | 'custom'>('all');
   const [userComponents, setUserComponents] = useState<CustomComponentItem[]>([]);
@@ -395,36 +401,41 @@ export function ComponentsTab({ onInsertComponent }: ComponentsTabProps) {
           </p>
         </div>
 
-        {/* Search Bar + Create Button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* Bigger Search Bar */}
-          <div style={{ position: 'relative', width: '340px' }}>
-            <input
-              type="text"
-              className="form-input"
-              style={{ paddingLeft: '34px', fontSize: '13.5px', height: '40px', borderRadius: '8px', background: '#1e1f22', borderColor: 'rgba(255,255,255,0.1)' }}
-              placeholder="Search components (Name, Type number)..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <i
-              className="fa-solid fa-magnifying-glass"
-              style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#949ba4', fontSize: '13px' }}
-            />
-          </div>
+        {(allowSearch || allowCreate) && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/* Bigger Search Bar */}
+            {allowSearch && (
+              <div style={{ position: 'relative', width: '340px' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  style={{ paddingLeft: '34px', fontSize: '13.5px', height: '40px', borderRadius: '8px', background: '#1e1f22', borderColor: 'rgba(255,255,255,0.1)' }}
+                  placeholder="Search components (Name, Type number)..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <i
+                  className="fa-solid fa-magnifying-glass"
+                  style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#949ba4', fontSize: '13px' }}
+                />
+              </div>
+            )}
 
-          {/* Plus sign / Create Component Button */}
-          <button
-            type="button"
-            className="btn-dispatch-submit"
-            style={{ width: 'auto', padding: '10px 18px', fontSize: '13px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '7px' }}
-            onClick={() => setIsCreateModalOpen(true)}
-            title="Create Custom Component with live preview"
-          >
-            <i className="fa-solid fa-plus" />
-            <span>Create Component</span>
-          </button>
-        </div>
+            {/* Plus sign / Create Component Button */}
+            {allowCreate && (
+              <button
+                type="button"
+                className="btn-dispatch-submit"
+                style={{ width: 'auto', padding: '10px 18px', fontSize: '13px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '7px' }}
+                onClick={() => setIsCreateModalOpen(true)}
+                title="Create Custom Component with live preview"
+              >
+                <i className="fa-solid fa-plus" />
+                <span>Create Component</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Category Filter Pills: All, Default, Custom */}
@@ -466,14 +477,16 @@ export function ComponentsTab({ onInsertComponent }: ComponentsTabProps) {
                 {filteredCustom.length}
               </span>
             </div>
-            <button
-              type="button"
-              className="btn-header-action"
-              style={{ padding: '4px 10px', fontSize: '11.5px', color: 'var(--discord-cyan)' }}
-              onClick={() => setIsCreateModalOpen(true)}
-            >
-              <i className="fa-solid fa-plus" /> New Custom Component
-            </button>
+            {allowCreate && (
+              <button
+                type="button"
+                className="btn-header-action"
+                style={{ padding: '4px 10px', fontSize: '11.5px', color: 'var(--discord-cyan)' }}
+                onClick={() => setIsCreateModalOpen(true)}
+              >
+                <i className="fa-solid fa-plus" /> New Custom Component
+              </button>
+            )}
           </div>
 
           {filteredCustom.length > 0 ? (
@@ -624,7 +637,7 @@ export function ComponentsTab({ onInsertComponent }: ComponentsTabProps) {
       )}
 
       {/* POPUP MODAL: CREATE CUSTOM COMPONENT (Centered with backdrop blur, 3 fields + Sapphire editor) */}
-      {isCreateModalOpen && (
+      {allowCreate && isCreateModalOpen && (
         <div
           className="modal-overlay open"
           style={{

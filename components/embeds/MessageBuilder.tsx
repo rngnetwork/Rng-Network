@@ -20,6 +20,7 @@ import { PaletteModal } from './PaletteModal';
 import { ButtonModal } from './ButtonModal';
 import { LoadModal } from './LoadModal';
 import { EmojiItem, formatEmojiInsertString } from './emoji-data';
+import { ChannelItem } from '@/lib/api';
 
 interface MessageBuilderProps {
   containers: Type17Container[];
@@ -28,6 +29,10 @@ interface MessageBuilderProps {
   setMessageContent: React.Dispatch<React.SetStateAction<string>>;
   onLoadTemplate: (state: { message: { content: string }; type17Containers: Type17Container[] }) => void;
   onDirtyChange?: () => void;
+  serverId?: string;
+  serverName?: string;
+  serverChannels?: ChannelItem[];
+  serverEmojis?: EmojiItem[];
 }
 
 const PRESET_ACCENTS = [
@@ -46,7 +51,11 @@ export function MessageBuilder({
   messageContent,
   setMessageContent,
   onLoadTemplate,
-  onDirtyChange
+  onDirtyChange,
+  serverId,
+  serverName,
+  serverChannels,
+  serverEmojis
 }: MessageBuilderProps) {
   const [activeSubTab, setActiveSubTab] = useState<'edit' | 'preview' | 'raw' | 'dispatch'>('edit');
   const [rawPayloadMode, setRawPayloadMode] = useState<'message' | 'modal'>('message');
@@ -74,11 +83,19 @@ export function MessageBuilder({
   const [rawJsonError, setRawJsonError] = useState<string | null>(null);
 
   // Dispatch Tab State {server selector, channel selector, scheduler(true/false, time), dispatchBtn}
-  const [selectedServer, setSelectedServer] = useState('server_rng_hq');
-  const [selectedChannel, setSelectedChannel] = useState('channel_announcements');
+  const [selectedServer, setSelectedServer] = useState(serverId || 'server_rng_hq');
+  const [selectedChannel, setSelectedChannel] = useState(
+    serverChannels && serverChannels.length > 0 ? serverChannels[0].id : 'channel_announcements'
+  );
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduleTime, setScheduleTime] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('https://discord.com/api/webhooks/123456789/token_sample?with_components=true');
+
+  React.useEffect(() => {
+    if (serverChannels && serverChannels.length > 0 && (!selectedChannel || selectedChannel === 'channel_announcements')) {
+      setSelectedChannel(serverChannels[0].id);
+    }
+  }, [serverChannels, selectedChannel]);
   const [telemetryLogs, setTelemetryLogs] = useState<string[]>([
     '[Ready] Discord Components V2 Engine loaded.',
     '[Info] IS_COMPONENTS_V2 flag enabled (32768). Type 17 Containers active.'
@@ -2054,19 +2071,30 @@ export function MessageBuilder({
 
               {/* Server Selector & Channel Selector */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
-                <div className="form-group">
-                  <label className="form-label">Select Server</label>
-                  <select
-                    className="form-input"
-                    value={selectedServer}
-                    onChange={(e) => setSelectedServer(e.target.value)}
-                    style={{ background: '#0a0a0e', color: '#fff', height: '40px' }}
-                  >
-                    <option value="server_rng_hq">RNG Network Official HQ</option>
-                    <option value="server_community">RNG Community Guild</option>
-                    <option value="server_dev">RNG Bot Development Lab</option>
-                  </select>
-                </div>
+                {serverId ? (
+                  <div className="form-group">
+                    <label className="form-label">Active Discord Server</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', height: '40px', padding: '0 12px', background: '#0a0a0e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#fff', fontSize: '13px' }}>
+                      <i className="fa-solid fa-server" style={{ color: 'var(--color-primary)' }} />
+                      <span style={{ fontWeight: 600 }}>{serverName || 'This Server'}</span>
+                      <span style={{ fontSize: '10.5px', color: '#949ba4', fontFamily: 'monospace', marginLeft: 'auto' }}>ID: {serverId}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="form-group">
+                    <label className="form-label">Select Server</label>
+                    <select
+                      className="form-input"
+                      value={selectedServer}
+                      onChange={(e) => setSelectedServer(e.target.value)}
+                      style={{ background: '#0a0a0e', color: '#fff', height: '40px' }}
+                    >
+                      <option value="server_rng_hq">RNG Network Official HQ</option>
+                      <option value="server_community">RNG Community Guild</option>
+                      <option value="server_dev">RNG Bot Development Lab</option>
+                    </select>
+                  </div>
+                )}
 
                 <div className="form-group">
                   <label className="form-label">Select Channel</label>
@@ -2076,10 +2104,23 @@ export function MessageBuilder({
                     onChange={(e) => setSelectedChannel(e.target.value)}
                     style={{ background: '#0a0a0e', color: '#fff', height: '40px' }}
                   >
-                    <option value="channel_announcements">📢 #announcements</option>
-                    <option value="channel_rules">📜 #rules-verification</option>
-                    <option value="channel_updates">📦 #changelog</option>
-                    <option value="channel_general">💬 #general-chat</option>
+                    {serverChannels && serverChannels.length > 0 ? (
+                      serverChannels
+                        .filter(c => c.type === 0 || c.type === 5 || c.type === 2)
+                        .sort((a, b) => a.position - b.position)
+                        .map(c => (
+                          <option key={c.id} value={c.id}>
+                            {c.type === 5 ? '📢' : c.type === 2 ? '🔊' : '💬'} #{c.name}
+                          </option>
+                        ))
+                    ) : (
+                      <>
+                        <option value="channel_announcements">📢 #announcements</option>
+                        <option value="channel_rules">📜 #rules-verification</option>
+                        <option value="channel_updates">📦 #changelog</option>
+                        <option value="channel_general">💬 #general-chat</option>
+                      </>
+                    )}
                   </select>
                 </div>
               </div>
@@ -2191,6 +2232,8 @@ export function MessageBuilder({
           if (emojiPickerCallback) emojiPickerCallback(emoji, insertStr);
         }}
         triggerRect={emojiPickerTriggerRect}
+        serverEmojis={serverEmojis}
+        serverName={serverName}
       />
 
     </div>

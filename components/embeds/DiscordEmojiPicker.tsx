@@ -19,16 +19,20 @@ interface DiscordEmojiPickerProps {
   onClose: () => void;
   onSelect: (emoji: EmojiItem, insertString: string) => void;
   triggerRect?: DOMRect | null;
+  serverEmojis?: EmojiItem[];
+  serverName?: string;
 }
 
 export function DiscordEmojiPicker({
   isOpen,
   onClose,
   onSelect,
-  triggerRect
+  triggerRect,
+  serverEmojis,
+  serverName
 }: DiscordEmojiPickerProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState('smileys');
+  const [activeCategory, setActiveCategory] = useState(serverEmojis && serverEmojis.length > 0 ? 'server' : 'smileys');
   const [hoveredEmoji, setHoveredEmoji] = useState<EmojiItem | null>(null);
   const [customBotEmojis, setCustomBotEmojis] = useState<EmojiItem[]>([]);
   const [frequentEmojis, setFrequentEmojis] = useState<EmojiItem[]>([]);
@@ -132,13 +136,27 @@ export function DiscordEmojiPicker({
     }
   };
 
+  // Category rail list with dynamic server category
+  const categoriesList = useMemo(() => {
+    if (!serverEmojis || serverEmojis.length === 0) return DISCORD_EMOJI_CATEGORIES;
+    const serverCategory: EmojiCategory = {
+      id: 'server',
+      label: serverName ? `${serverName} Emojis` : 'Server Emojis',
+      icon: 'fa-solid fa-server'
+    };
+    const res = [...DISCORD_EMOJI_CATEGORIES];
+    res.splice(1, 0, serverCategory);
+    return res;
+  }, [serverEmojis, serverName]);
+
   // Filtered emoji list for search
   const filteredEmojis = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return null;
 
     const allBot = customBotEmojis.length > 0 ? customBotEmojis : DEFAULT_BOT_EMOJIS;
-    const all = [...allBot, ...UNICODE_EMOJIS];
+    const allServer = serverEmojis || [];
+    const all = [...allServer, ...allBot, ...UNICODE_EMOJIS];
 
     return all.filter(e => {
       if (e.name.toLowerCase().includes(q)) return true;
@@ -146,7 +164,7 @@ export function DiscordEmojiPicker({
       if (e.id && e.id.includes(q)) return true;
       return false;
     });
-  }, [searchQuery, customBotEmojis]);
+  }, [searchQuery, customBotEmojis, serverEmojis]);
 
   if (!isOpen) return null;
 
@@ -211,7 +229,7 @@ export function DiscordEmojiPicker({
         <div className="emoji-picker-body-wrapper">
           {/* Left Category Rail */}
           <div className="emoji-picker-rail">
-            {DISCORD_EMOJI_CATEGORIES.map((cat) => (
+            {categoriesList.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
@@ -297,7 +315,45 @@ export function DiscordEmojiPicker({
                   </div>
                 )}
 
-                {/* 2. Bot Emojis */}
+                {/* 2. Server / Guild Emojis */}
+                {serverEmojis && serverEmojis.length > 0 && (
+                  <div
+                    className="emoji-section"
+                    ref={(el) => { categoryRefs.current['server'] = el; }}
+                  >
+                    <div className="emoji-section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>{serverName ? `${serverName} Emojis` : 'Server Emojis'}</span>
+                        <span className="inspector-badge-custom" style={{ background: '#23a55a', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 700 }}>
+                          SERVER
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '10.5px', color: '#949ba4' }}>{serverEmojis.length} emojis</span>
+                    </div>
+                    <div className="emoji-grid">
+                      {serverEmojis.map((emoji) => (
+                        <button
+                          key={`server_${emoji.id}_${emoji.name}`}
+                          type="button"
+                          className="emoji-cell-btn"
+                          onMouseEnter={() => setHoveredEmoji(emoji)}
+                          onMouseLeave={() => setHoveredEmoji(null)}
+                          onClick={() => handleEmojiSelect(emoji)}
+                          title={`<:${emoji.name}:${emoji.id}>`}
+                        >
+                          <img
+                            src={emoji.url}
+                            alt={emoji.name}
+                            className="bot-emoji-img"
+                            loading="lazy"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. Bot Emojis */}
                 <div
                   className="emoji-section"
                   ref={(el) => { categoryRefs.current['bot'] = el; }}
@@ -403,7 +459,11 @@ export function DiscordEmojiPicker({
               {hoveredEmoji ? (
                 <>
                   <span style={{ color: '#fff', fontWeight: 800 }}>:{hoveredEmoji.name}:</span>
-                  {hoveredEmoji.type === 'custom' ? (
+                  {hoveredEmoji.category === 'server' ? (
+                    <span className="inspector-badge-custom" style={{ background: '#23a55a', color: '#fff', padding: '1px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 800 }}>
+                      SERVER EMOJI
+                    </span>
+                  ) : hoveredEmoji.type === 'custom' ? (
                     <span className="inspector-badge-custom" style={{ background: '#5865F2', color: '#fff', padding: '1px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 800 }}>
                       BOT EMOJI
                     </span>
