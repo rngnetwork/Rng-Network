@@ -27,17 +27,17 @@ interface MessageBuilderProps {
   messageContent: string;
   setMessageContent: React.Dispatch<React.SetStateAction<string>>;
   onLoadTemplate: (state: { message: { content: string }; type17Containers: Type17Container[] }) => void;
+  onDirtyChange?: () => void;
 }
 
 const PRESET_ACCENTS = [
-  { name: 'Blurple', hex: '#5865F2' },
+  { name: 'Cyan', hex: '#00A8FC' },
   { name: 'RNG Red', hex: '#E11D2E' },
+  { name: 'Blurple', hex: '#5865F2' },
   { name: 'Green', hex: '#23A55A' },
   { name: 'Yellow', hex: '#FEE75C' },
   { name: 'Fuchsia', hex: '#EB459E' },
-  { name: 'Grey', hex: '#4E5058' },
-  { name: 'Dark', hex: '#2B2D31' },
-  { name: 'Black', hex: '#1E1F22' }
+  { name: 'Dark Grey', hex: '#2B2D31' }
 ];
 
 export function MessageBuilder({
@@ -45,13 +45,15 @@ export function MessageBuilder({
   setContainers,
   messageContent,
   setMessageContent,
-  onLoadTemplate
+  onLoadTemplate,
+  onDirtyChange
 }: MessageBuilderProps) {
   const [activeSubTab, setActiveSubTab] = useState<'edit' | 'preview' | 'raw' | 'dispatch'>('edit');
   const [rawPayloadMode, setRawPayloadMode] = useState<'message' | 'modal'>('message');
 
   // Modals state
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [paletteTarget, setPaletteTarget] = useState<{ cIdx: number } | null>(null);
   const [isLoadModalOpen, setIsLoadModalOpen] = useState(false);
   const [editingButton, setEditingButton] = useState<{ cIdx: number; rowId: string; bIdx: number; data: DiscordButtonComponent } | null>(null);
 
@@ -62,7 +64,9 @@ export function MessageBuilder({
 
   // Drag & Drop tracking
   const [draggedComp, setDraggedComp] = useState<{ cIdx: number; compIdx: number } | null>(null);
+  const [dragOverComp, setDragOverComp] = useState<{ cIdx: number; compIdx: number } | null>(null);
   const [draggedContainer, setDraggedContainer] = useState<number | null>(null);
+  const [dragOverContainer, setDragOverContainer] = useState<number | null>(null);
 
   // Raw JSON state
   const [rawJsonText, setRawJsonText] = useState('');
@@ -110,11 +114,15 @@ export function MessageBuilder({
   const addContainer = () => {
     const newContainer: Type17Container = {
       id: `c17_${Date.now()}`,
-      accentColor: '#E11D2E',
+      accentColor: '#00A8FC',
       isSpoiler: false,
+      author: { name: '', icon_url: '' },
       title: 'Container Title',
       description: 'Describe the contents of this Type 17 Container...',
       fields: [],
+      thumbnail: '',
+      image: '',
+      footer: { text: '', icon_url: '' },
       components: [
         {
           type: 1,
@@ -127,6 +135,7 @@ export function MessageBuilder({
       ]
     };
     setContainers([...containers, newContainer]);
+    onDirtyChange?.();
   };
 
   const removeContainer = (cIdx: number) => {
@@ -136,6 +145,7 @@ export function MessageBuilder({
     const updated = [...containers];
     updated.splice(cIdx, 1);
     setContainers(updated);
+    onDirtyChange?.();
   };
 
   const moveContainer = (cIdx: number, direction: 'up' | 'down') => {
@@ -145,6 +155,96 @@ export function MessageBuilder({
     const [moved] = updated.splice(cIdx, 1);
     updated.splice(targetIdx, 0, moved);
     setContainers(updated);
+    onDirtyChange?.();
+  };
+
+  const updateContainerAccent = (cIdx: number, color: string) => {
+    const upd = [...containers];
+    upd[cIdx].accentColor = color;
+    setContainers(upd);
+    onDirtyChange?.();
+  };
+
+  const toggleContainerSpoiler = (cIdx: number) => {
+    const upd = [...containers];
+    upd[cIdx].isSpoiler = !upd[cIdx].isSpoiler;
+    setContainers(upd);
+    onDirtyChange?.();
+  };
+
+  const updateContainerAuthor = (cIdx: number, key: 'name' | 'icon_url', val: string) => {
+    const upd = [...containers];
+    if (!upd[cIdx].author) upd[cIdx].author = { name: '', icon_url: '' };
+    upd[cIdx].author![key] = val;
+    setContainers(upd);
+    onDirtyChange?.();
+  };
+
+  const updateContainerTitle = (cIdx: number, val: string) => {
+    const upd = [...containers];
+    upd[cIdx].title = val;
+    setContainers(upd);
+    onDirtyChange?.();
+  };
+
+  const updateContainerDescription = (cIdx: number, val: string) => {
+    const upd = [...containers];
+    upd[cIdx].description = val;
+    setContainers(upd);
+    onDirtyChange?.();
+  };
+
+  const updateContainerThumbnail = (cIdx: number, url: string) => {
+    const upd = [...containers];
+    upd[cIdx].thumbnail = url;
+    setContainers(upd);
+    onDirtyChange?.();
+  };
+
+  const updateContainerImage = (cIdx: number, url: string) => {
+    const upd = [...containers];
+    upd[cIdx].image = url;
+    setContainers(upd);
+    onDirtyChange?.();
+  };
+
+  const updateContainerFooter = (cIdx: number, key: 'text' | 'icon_url', val: string) => {
+    const upd = [...containers];
+    if (!upd[cIdx].footer) upd[cIdx].footer = { text: '', icon_url: '' };
+    upd[cIdx].footer![key] = val;
+    setContainers(upd);
+    onDirtyChange?.();
+  };
+
+  const addField = (cIdx: number) => {
+    const upd = [...containers];
+    if (!upd[cIdx].fields) upd[cIdx].fields = [];
+    upd[cIdx].fields!.push({
+      id: `field_${Date.now()}`,
+      name: `Field ${(upd[cIdx].fields?.length || 0) + 1}`,
+      value: 'Field value',
+      inline: true
+    });
+    setContainers(upd);
+    onDirtyChange?.();
+  };
+
+  const removeField = (cIdx: number, fIdx: number) => {
+    const upd = [...containers];
+    if (upd[cIdx].fields) {
+      upd[cIdx].fields!.splice(fIdx, 1);
+      setContainers(upd);
+      onDirtyChange?.();
+    }
+  };
+
+  const updateField = (cIdx: number, fIdx: number, key: 'name' | 'value', val: string) => {
+    const upd = [...containers];
+    if (upd[cIdx].fields && upd[cIdx].fields![fIdx]) {
+      upd[cIdx].fields![fIdx][key] = val;
+      setContainers(upd);
+      onDirtyChange?.();
+    }
   };
 
   // Add Action Row
@@ -162,13 +262,15 @@ export function MessageBuilder({
     };
     target.components.push(newRow);
     setContainers(updated);
+    onDirtyChange?.();
   };
 
   // Insert component from Palette
   const handleInsertComponentType = (typeNum: number) => {
     if (containers.length === 0) addContainer();
     const updated = [...containers];
-    const target = updated[0];
+    const targetIdx = paletteTarget?.cIdx !== undefined && updated[paletteTarget.cIdx] ? paletteTarget.cIdx : 0;
+    const target = updated[targetIdx];
 
     if (typeNum === 17) {
       addContainer();
@@ -455,6 +557,13 @@ export function MessageBuilder({
         }
       });
 
+      if (c.footer?.text) {
+        cComponents.push({
+          type: 10,
+          content: `-# ${c.footer.text}`
+        });
+      }
+
       return {
         type: 17,
         accent_color: accentDec,
@@ -481,22 +590,58 @@ export function MessageBuilder({
   const handleApplyRawJson = () => {
     try {
       const parsed = JSON.parse(rawJsonText);
-      if (parsed.content) setMessageContent(parsed.content);
+      if (parsed.content !== undefined) setMessageContent(parsed.content);
       if (Array.isArray(parsed.components)) {
         const loadedContainers: Type17Container[] = [];
         parsed.components.forEach((c: any, idx: number) => {
           if (c.type === 17) {
-            const hexColor = c.accent_color ? `#${c.accent_color.toString(16).padStart(6, '0')}` : '#E11D2E';
+            const hexColor = c.accent_color ? `#${c.accent_color.toString(16).padStart(6, '0')}` : (c.accentColor || '#00A8FC');
+            let author = c.author || { name: '', icon_url: '' };
+            let title = c.title || '';
+            let description = c.description || '';
+            let thumbnail = c.thumbnail || '';
+            let image = c.image || '';
+            let fields: EmbedField[] = Array.isArray(c.fields) ? c.fields : [];
+            let footer = c.footer || { text: '', icon_url: '' };
+            const innerComps: DiscordInnerComponent[] = [];
+
+            if (Array.isArray(c.components)) {
+              c.components.forEach((inner: any) => {
+                if (inner.type === 9) {
+                  if (inner.accessory?.media?.url || inner.accessory?.url) {
+                    thumbnail = inner.accessory?.media?.url || inner.accessory?.url;
+                  }
+                  if (inner.components?.[0]?.content && !description) {
+                    description = inner.components[0].content;
+                  }
+                } else if (inner.type === 12 && inner.items?.[0]?.media?.url && !image) {
+                  image = inner.items[0].media.url;
+                } else if (inner.type === 10 && typeof inner.content === 'string' && inner.content.startsWith('-# ')) {
+                  footer.text = inner.content.replace('-# ', '');
+                } else {
+                  innerComps.push(inner);
+                }
+              });
+            }
+
             loadedContainers.push({
-              id: `c17_${Date.now()}_${idx}`,
+              id: c.id || `c17_${Date.now()}_${idx}`,
               accentColor: hexColor,
-              isSpoiler: Boolean(c.spoiler),
-              components: c.components || []
+              isSpoiler: Boolean(c.spoiler || c.isSpoiler),
+              author,
+              title,
+              description,
+              thumbnail,
+              image,
+              fields,
+              footer,
+              components: innerComps.length > 0 ? innerComps : (c.components || [])
             });
           }
         });
         if (loadedContainers.length > 0) {
           setContainers(loadedContainers);
+          onDirtyChange?.();
         }
       }
       setRawJsonError(null);
@@ -645,273 +790,366 @@ export function MessageBuilder({
               </div>
 
               {/* 2. Type 17 Containers List */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {containers.map((container, cIdx) => (
+              <div id="wysiwyg-containers-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {containers.map((c17, cIdx) => (
                   <div
-                    key={container.id}
-                    className="type17-container-card"
-                    style={{
-                      borderLeft: `4px solid ${container.accentColor || '#E11D2E'}`,
-                      background: '#2b2d31',
-                      borderRadius: '8px',
-                      padding: '14px',
-                      boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '10px'
+                    key={c17.id || `c17_${cIdx}`}
+                    className={`wysiwyg-type17-container ${draggedContainer === cIdx ? 'dragging' : ''} ${dragOverContainer === cIdx ? 'drag-over' : ''}`}
+                    style={{ borderLeftColor: c17.accentColor || '#00A8FC' }}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', String(cIdx));
+                      setDraggedContainer(cIdx);
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragOverContainer(cIdx);
+                    }}
+                    onDragLeave={() => {
+                      if (dragOverContainer === cIdx) setDragOverContainer(null);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (draggedContainer !== null && draggedContainer !== cIdx) {
+                        const upd = [...containers];
+                        const [moved] = upd.splice(draggedContainer, 1);
+                        upd.splice(cIdx, 0, moved);
+                        setContainers(upd);
+                        onDirtyChange?.();
+                      }
+                      setDraggedContainer(null);
+                      setDragOverContainer(null);
                     }}
                   >
-                    {/* Container Card Header */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ cursor: 'grab', color: '#949ba4' }} title="Drag Container">
-                          <i className="fa-solid fa-grip-vertical" />
-                        </span>
-                        <span style={{ fontSize: '12.5px', fontWeight: 800, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                          Container {cIdx + 1} (Type 17)
-                        </span>
+                    {/* Top Container Strip with Drag & Controls */}
+                    <div className="container-control-strip">
+                      <i className="fa-solid fa-grip-vertical container-drag-handle" title="Drag to reorder Container" />
+                      <button
+                        type="button"
+                        className="comp-move-btn"
+                        onClick={() => moveContainer(cIdx, 'up')}
+                        title="Move Container Up"
+                        disabled={cIdx === 0}
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        className="comp-move-btn"
+                        onClick={() => moveContainer(cIdx, 'down')}
+                        title="Move Container Down"
+                        disabled={cIdx === containers.length - 1}
+                      >
+                        ▼
+                      </button>
 
-                        {/* Accent Swatches */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(0,0,0,0.25)', padding: '2px 5px', borderRadius: '5px' }}>
-                          {PRESET_ACCENTS.map((acc) => (
-                            <button
-                              key={acc.name}
-                              type="button"
-                              onClick={() => {
-                                const upd = [...containers];
-                                upd[cIdx].accentColor = acc.hex;
-                                setContainers(upd);
-                              }}
-                              style={{
-                                width: '15px',
-                                height: '15px',
-                                borderRadius: '3px',
-                                background: acc.hex,
-                                border: container.accentColor === acc.hex ? '1.5px solid #fff' : '1px solid rgba(0,0,0,0.5)',
-                                cursor: 'pointer',
-                                padding: 0
-                              }}
-                              title={acc.name}
-                            />
-                          ))}
+                      {/* Preset Color Swatches */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '3px', margin: '0 2px' }}>
+                        {PRESET_ACCENTS.map((col) => (
+                          <div
+                            key={col.hex}
+                            style={{
+                              width: '13px',
+                              height: '13px',
+                              borderRadius: '3px',
+                              background: col.hex,
+                              cursor: 'pointer',
+                              border: '1px solid rgba(255,255,255,0.3)',
+                              boxShadow: (c17.accentColor || '#00A8FC').toLowerCase() === col.hex.toLowerCase() ? '0 0 6px #fff' : 'none',
+                              transform: (c17.accentColor || '#00A8FC').toLowerCase() === col.hex.toLowerCase() ? 'scale(1.2)' : 'none'
+                            }}
+                            onClick={() => updateContainerAccent(cIdx, col.hex)}
+                            title={`Color: ${col.name} (${col.hex})`}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Color Picker Pill */}
+                      <div className="container-color-picker-pill">
+                        <input
+                          type="color"
+                          className="container-color-dot"
+                          value={c17.accentColor || '#00A8FC'}
+                          onChange={(e) => updateContainerAccent(cIdx, e.target.value)}
+                        />
+                        <input
+                          type="text"
+                          value={c17.accentColor || '#00A8FC'}
+                          style={{ width: '58px', background: 'transparent', border: 'none', color: '#fff', fontFamily: 'var(--font-mono)', fontSize: '10px', textTransform: 'uppercase' }}
+                          onChange={(e) => updateContainerAccent(cIdx, e.target.value)}
+                        />
+                      </div>
+
+                      {/* Spoiler toggle */}
+                      <button
+                        type="button"
+                        style={{
+                          background: c17.isSpoiler ? '#da373c' : 'rgba(255,255,255,0.08)',
+                          border: 'none',
+                          color: '#fff',
+                          padding: '2px 6px',
+                          borderRadius: '3px',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => toggleContainerSpoiler(cIdx)}
+                        title="Toggle Spoiler Hide"
+                      >
+                        {c17.isSpoiler ? '|| Spoiler Active' : '|| Spoiler'}
+                      </button>
+
+                      {/* Add Component to this Container */}
+                      <button
+                        type="button"
+                        className="btn-ctrl-xs"
+                        style={{ padding: '2px 8px', fontSize: '10px', background: 'rgba(0,168,252,0.15)', borderColor: 'rgba(0,168,252,0.3)', color: 'var(--discord-cyan)', cursor: 'pointer' }}
+                        onClick={() => {
+                          setPaletteTarget({ cIdx });
+                          setIsPaletteOpen(true);
+                        }}
+                        title="Add Component to this container"
+                      >
+                        <i className="fa-solid fa-plus" /> Component
+                      </button>
+
+                      {/* Remove Container */}
+                      <button
+                        type="button"
+                        className="btn-container-close"
+                        title="Remove Container"
+                        onClick={() => removeContainer(cIdx)}
+                      >
+                        <i className="fa-solid fa-xmark" />
+                      </button>
+                    </div>
+
+                    {/* Author, Title, Description, Thumbnail Slot */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginTop: '2px' }}>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <div style={{ display: 'flex', gap: '6px' }}>
                           <input
                             type="text"
-                            value={container.accentColor || '#E11D2E'}
-                            onChange={(e) => {
-                              const upd = [...containers];
-                              upd[cIdx].accentColor = e.target.value;
-                              setContainers(upd);
-                            }}
-                            style={{
-                              width: '65px',
-                              height: '18px',
-                              background: 'transparent',
-                              border: 'none',
-                              color: '#fff',
-                              fontFamily: 'var(--font-mono)',
-                              fontSize: '10.5px',
-                              padding: '0 4px',
-                              textAlign: 'center'
-                            }}
+                            className="bare-input input-author-name"
+                            placeholder="Author name (e.g. RNG Network)"
+                            value={c17.author?.name || ''}
+                            onChange={(e) => updateContainerAuthor(cIdx, 'name', e.target.value)}
+                            style={{ flex: 2 }}
                           />
+                          <input
+                            type="text"
+                            className="bare-input"
+                            placeholder="Author icon URL (optional)"
+                            value={c17.author?.icon_url || ''}
+                            onChange={(e) => updateContainerAuthor(cIdx, 'icon_url', e.target.value)}
+                            style={{ flex: 1, fontSize: '11px', color: 'var(--discord-text-muted)' }}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <input
+                            type="text"
+                            className="bare-input input-container-title"
+                            placeholder="Title (e.g. Discord Components V2)"
+                            value={c17.title || ''}
+                            onChange={(e) => updateContainerTitle(cIdx, e.target.value)}
+                            style={{ flex: 1 }}
+                          />
+                          <button
+                            type="button"
+                            className="wysiwyg-tool-btn"
+                            title="Pick Discord Emoji for Title"
+                            onClick={(e) => triggerEmojiPicker(e, (emoji, insertStr) => {
+                              updateContainerTitle(cIdx, (c17.title || '') + insertStr);
+                            })}
+                          >
+                            <i className="fa-regular fa-face-smile" style={{ color: 'var(--discord-cyan)' }} />
+                          </button>
+                        </div>
+                        <div style={{ position: 'relative' }}>
+                          <textarea
+                            className="bare-input input-container-desc"
+                            placeholder="Description (markdown supported)..."
+                            value={c17.description || ''}
+                            onChange={(e) => updateContainerDescription(cIdx, e.target.value)}
+                            rows={2}
+                          />
+                          <button
+                            type="button"
+                            className="wysiwyg-tool-btn"
+                            style={{ position: 'absolute', top: '4px', right: '6px', background: 'rgba(0,0,0,0.5)', width: '22px', height: '22px' }}
+                            title="Pick Discord Emoji for Description"
+                            onClick={(e) => triggerEmojiPicker(e, (emoji, insertStr) => {
+                              updateContainerDescription(cIdx, (c17.description || '') + insertStr);
+                            })}
+                          >
+                            <i className="fa-regular fa-face-smile" style={{ color: 'var(--discord-cyan)' }} />
+                          </button>
                         </div>
                       </div>
 
-                      {/* Container Actions */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {/* Spoiler toggle */}
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#949ba4', cursor: 'pointer' }}>
-                          <input
-                            type="checkbox"
-                            checked={Boolean(container.isSpoiler)}
-                            onChange={(e) => {
-                              const upd = [...containers];
-                              upd[cIdx].isSpoiler = e.target.checked;
-                              setContainers(upd);
-                            }}
+                      {/* Thumbnail Slot (Top Right) */}
+                      <div
+                        className="inline-thumbnail-slot"
+                        title="Click to set thumbnail URL"
+                        onClick={() => {
+                          const current = c17.thumbnail || '';
+                          const input = prompt('Enter Thumbnail Image URL (leave empty to remove):', current);
+                          if (input !== null) {
+                            updateContainerThumbnail(cIdx, input.trim());
+                          }
+                        }}
+                      >
+                        {c17.thumbnail ? (
+                          <img
+                            src={c17.thumbnail}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }}
+                            alt="Thumbnail"
+                            onError={(e) => { (e.target as any).style.display = 'none'; }}
                           />
-                          <span>Spoiler</span>
-                        </label>
-
-                        {/* Move Up */}
-                        <button
-                          type="button"
-                          className="wysiwyg-tool-btn"
-                          title="Move Container Up"
-                          disabled={cIdx === 0}
-                          onClick={() => moveContainer(cIdx, 'up')}
-                        >
-                          <i className="fa-solid fa-chevron-up" />
-                        </button>
-                        {/* Move Down */}
-                        <button
-                          type="button"
-                          className="wysiwyg-tool-btn"
-                          title="Move Container Down"
-                          disabled={cIdx === containers.length - 1}
-                          onClick={() => moveContainer(cIdx, 'down')}
-                        >
-                          <i className="fa-solid fa-chevron-down" />
-                        </button>
-                        {/* Delete Container */}
-                        <button
-                          type="button"
-                          className="wysiwyg-tool-btn"
-                          title="Delete Container"
-                          style={{ color: '#ef4444' }}
-                          onClick={() => removeContainer(cIdx)}
-                        >
-                          <i className="fa-solid fa-trash" />
-                        </button>
+                        ) : (
+                          <i className="fa-regular fa-image" />
+                        )}
                       </div>
                     </div>
 
-                    {/* Author, Title, Description Fields */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <input
-                          type="text"
-                          className="form-input"
-                          style={{ flex: 1, height: '32px', fontSize: '12px' }}
-                          placeholder="Author Name (Optional)"
-                          value={container.author?.name || ''}
-                          onChange={(e) => {
-                            const upd = [...containers];
-                            upd[cIdx].author = { ...upd[cIdx].author, name: e.target.value };
-                            setContainers(upd);
-                          }}
-                        />
-                        <input
-                          type="text"
-                          className="form-input"
-                          style={{ flex: 1, height: '32px', fontSize: '12px' }}
-                          placeholder="Author Icon URL"
-                          value={container.author?.icon_url || ''}
-                          onChange={(e) => {
-                            const upd = [...containers];
-                            upd[cIdx].author = { ...upd[cIdx].author, name: upd[cIdx].author?.name || '', icon_url: e.target.value };
-                            setContainers(upd);
-                          }}
-                        />
-                      </div>
-
-                      <div style={{ position: 'relative' }}>
-                        <input
-                          type="text"
-                          className="form-input"
-                          style={{ height: '36px', fontSize: '13px', fontWeight: 700, paddingRight: '36px' }}
-                          placeholder="Container Title..."
-                          value={container.title || ''}
-                          onChange={(e) => {
-                            const upd = [...containers];
-                            upd[cIdx].title = e.target.value;
-                            setContainers(upd);
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className="wysiwyg-tool-btn"
-                          style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)' }}
-                          onClick={(e) => triggerEmojiPicker(e, (emoji, insertStr) => {
-                            const upd = [...containers];
-                            upd[cIdx].title = (upd[cIdx].title || '') + insertStr;
-                            setContainers(upd);
-                          })}
-                        >
-                          <i className="fa-regular fa-face-smile" />
-                        </button>
-                      </div>
-
-                      <div style={{ position: 'relative' }}>
-                        <textarea
-                          className="form-input"
-                          rows={2}
-                          style={{ fontSize: '13px', lineHeight: 1.45, paddingRight: '36px' }}
-                          placeholder="Container Description (markdown supported)..."
-                          value={container.description || ''}
-                          onChange={(e) => {
-                            const upd = [...containers];
-                            upd[cIdx].description = e.target.value;
-                            setContainers(upd);
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className="wysiwyg-tool-btn"
-                          style={{ position: 'absolute', right: '6px', top: '10px' }}
-                          onClick={(e) => triggerEmojiPicker(e, (emoji, insertStr) => {
-                            const upd = [...containers];
-                            upd[cIdx].description = (upd[cIdx].description || '') + insertStr;
-                            setContainers(upd);
-                          })}
-                        >
-                          <i className="fa-regular fa-face-smile" />
-                        </button>
-                      </div>
+                    {/* Fields Grid */}
+                    <div className="inline-fields-area">
+                      {c17.fields?.map((f, fIdx) => (
+                        <div key={f.id || `field_${fIdx}`} className="inline-field-card">
+                          <button
+                            type="button"
+                            className="field-delete-btn"
+                            title="Delete Field"
+                            onClick={() => removeField(cIdx, fIdx)}
+                          >
+                            <i className="fa-solid fa-xmark" />
+                          </button>
+                          <input
+                            type="text"
+                            className="bare-input input-field-name"
+                            value={f.name}
+                            placeholder="Field name"
+                            onChange={(e) => updateField(cIdx, fIdx, 'name', e.target.value)}
+                          />
+                          <input
+                            type="text"
+                            className="bare-input input-field-value"
+                            value={f.value}
+                            placeholder="Field value"
+                            onChange={(e) => updateField(cIdx, fIdx, 'value', e.target.value)}
+                          />
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        className="btn-add-field-pill"
+                        onClick={() => addField(cIdx)}
+                      >
+                        + Add Field
+                      </button>
                     </div>
 
-                    {/* Child Components inside Container */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
-                      {container.components.map((comp, compIdx) => (
+                    {/* Large Image Slot */}
+                    <div
+                      className="inline-large-image-slot"
+                      onClick={() => {
+                        const current = c17.image || '';
+                        const input = prompt('Enter Large Media Image URL (leave empty to remove):', current);
+                        if (input !== null) {
+                          updateContainerImage(cIdx, input.trim());
+                        }
+                      }}
+                      title="Click to set large media image"
+                    >
+                      <i className="fa-regular fa-image" />
+                      <span>{c17.image ? `Large image configured: ${c17.image.length > 35 ? c17.image.substring(0, 32) + '...' : c17.image} (Click to change)` : 'Click to set large media image'}</span>
+                    </div>
+
+                    {/* Nested Components Area (Draggable Items) */}
+                    <div className="container-nested-components-area">
+                      {c17.components.map((comp, compIdx) => (
                         <div
                           key={comp.id || `comp_${compIdx}`}
-                          className="draggable-comp-item"
-                          style={{
-                            background: '#1e1f22',
-                            border: '1px solid rgba(255,255,255,0.08)',
-                            borderRadius: '8px',
-                            padding: '10px 12px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '8px'
+                          className={`draggable-comp-item ${draggedComp?.cIdx === cIdx && draggedComp?.compIdx === compIdx ? 'dragging' : ''} ${dragOverComp?.cIdx === cIdx && dragOverComp?.compIdx === compIdx ? 'drag-over' : ''}`}
+                          draggable
+                          onDragStart={(e) => {
+                            e.stopPropagation();
+                            setDraggedComp({ cIdx, compIdx });
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setDragOverComp({ cIdx, compIdx });
+                          }}
+                          onDragLeave={() => {
+                            if (dragOverComp?.cIdx === cIdx && dragOverComp?.compIdx === compIdx) {
+                              setDragOverComp(null);
+                            }
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (draggedComp) {
+                              const fromC = draggedComp.cIdx;
+                              const fromComp = draggedComp.compIdx;
+                              const toC = cIdx;
+                              const toComp = compIdx;
+
+                              const upd = [...containers];
+                              const [movedItem] = upd[fromC].components.splice(fromComp, 1);
+                              upd[toC].components.splice(toComp, 0, movedItem);
+                              setContainers(upd);
+                              onDirtyChange?.();
+                            }
+                            setDraggedComp(null);
+                            setDragOverComp(null);
                           }}
                         >
-                          {/* Component Item Header */}
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span style={{ cursor: 'grab', color: '#949ba4' }}>
-                                <i className="fa-solid fa-grip-vertical" />
-                              </span>
-                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#fff' }}>
+                          {/* Component Header Strip */}
+                          <div className="comp-header-strip">
+                            <div className="comp-header-left">
+                              <i className="fa-solid fa-grip-vertical comp-drag-grip" title="Drag to reorder component" />
+                              <button
+                                type="button"
+                                className="comp-move-btn"
+                                onClick={() => moveComponent(cIdx, compIdx, 'up')}
+                                disabled={compIdx === 0}
+                                title="Move Up"
+                              >
+                                ▲
+                              </button>
+                              <button
+                                type="button"
+                                className="comp-move-btn"
+                                onClick={() => moveComponent(cIdx, compIdx, 'down')}
+                                disabled={compIdx === c17.components.length - 1}
+                                title="Move Down"
+                              >
+                                ▼
+                              </button>
+                              <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--discord-cyan)', letterSpacing: '0.04em' }}>
                                 {comp.type === 1 && 'ACTION ROW (TYPE 1)'}
-                                {comp.type === 14 && 'SEPARATOR (TYPE 14)'}
-                                {comp.type === 10 && 'TEXT DISPLAY (TYPE 10)'}
                                 {comp.type === 3 && 'STRING SELECT (TYPE 3)'}
-                                {comp.type === 12 && 'MEDIA GALLERY (TYPE 12)'}
-                                {comp.type === 13 && 'FILE ATTACHMENT (TYPE 13)'}
                                 {comp.type === 9 && 'SECTION (TYPE 9)'}
+                                {comp.type === 10 && 'TEXT DISPLAY (TYPE 10)'}
+                                {comp.type === 11 && 'THUMBNAIL (TYPE 11)'}
+                                {comp.type === 12 && 'MEDIA GALLERY (TYPE 12)'}
+                                {comp.type === 13 && 'FILE (TYPE 13)'}
+                                {comp.type === 14 && 'SEPARATOR (TYPE 14)'}
                                 {comp.type > 14 && `COMPONENT (TYPE ${comp.type})`}
                               </span>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <div className="comp-header-right">
                               <button
                                 type="button"
-                                className="wysiwyg-tool-btn"
-                                title="Move Up"
-                                disabled={compIdx === 0}
-                                onClick={() => moveComponent(cIdx, compIdx, 'up')}
-                              >
-                                <i className="fa-solid fa-arrow-up" style={{ fontSize: '10px' }} />
-                              </button>
-                              <button
-                                type="button"
-                                className="wysiwyg-tool-btn"
-                                title="Move Down"
-                                disabled={compIdx === container.components.length - 1}
-                                onClick={() => moveComponent(cIdx, compIdx, 'down')}
-                              >
-                                <i className="fa-solid fa-arrow-down" style={{ fontSize: '10px' }} />
-                              </button>
-                              <button
-                                type="button"
-                                className="wysiwyg-tool-btn"
+                                className="comp-tool-btn btn-del"
                                 title="Remove Component"
-                                style={{ color: '#ef4444' }}
                                 onClick={() => {
                                   const upd = [...containers];
                                   upd[cIdx].components.splice(compIdx, 1);
                                   setContainers(upd);
+                                  onDirtyChange?.();
                                 }}
                               >
                                 <i className="fa-solid fa-xmark" />
@@ -919,359 +1157,544 @@ export function MessageBuilder({
                             </div>
                           </div>
 
-                          {/* Specific Component Content Renderers */}
-                          {/* 1. Action Row (Buttons) */}
-                          {comp.type === 1 && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                {(comp as DiscordActionRowComponent).items?.map((item: any, bIdx: number) => {
-                                  if (item.type === 2) {
-                                    const btn = item as DiscordButtonComponent;
-                                    const styleClass =
-                                      btn.style === 1 ? 'btn-style-1' :
-                                      btn.style === 2 ? 'btn-style-2' :
-                                      btn.style === 3 ? 'btn-style-3' :
-                                      btn.style === 4 ? 'btn-style-4' : 'btn-style-5';
+                          {/* Component Body Content */}
+                          <div className="comp-body-content">
+                            {/* 1. Action Row (Type 1) */}
+                            {comp.type === 1 && (() => {
+                              const row = comp as DiscordActionRowComponent;
+                              const rowItems = row.items || [];
+                              const btnCount = rowItems.filter((i: any) => i.type === 2).length;
+                              const canAddBtn = btnCount < 5;
 
-                                    return (
-                                      <div
-                                        key={btn.id || `btn_${bIdx}`}
-                                        className={`discord-btn ${styleClass}`}
-                                        style={{
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          gap: '6px',
-                                          padding: '5px 8px',
-                                          borderRadius: '6px',
-                                          fontSize: '12px'
-                                        }}
-                                      >
-                                        {/* Shift left */}
-                                        <button
-                                          type="button"
-                                          className="wysiwyg-tool-btn"
-                                          style={{ width: '18px', height: '18px', fontSize: '9px' }}
-                                          disabled={bIdx === 0}
-                                          onClick={() => shiftButton(cIdx, comp.id!, bIdx, 'left')}
-                                        >
-                                          ◀
-                                        </button>
-
-                                        {/* Inline Label */}
-                                        <input
-                                          type="text"
-                                          value={btn.label}
-                                          onChange={(e) => {
-                                            const upd = [...containers];
-                                            const row = upd[cIdx].components[compIdx] as DiscordActionRowComponent;
-                                            (row.items[bIdx] as DiscordButtonComponent).label = e.target.value;
-                                            setContainers(upd);
-                                          }}
-                                          style={{
-                                            background: 'transparent',
-                                            border: 'none',
-                                            color: '#fff',
-                                            fontWeight: 600,
-                                            fontSize: '12px',
-                                            width: `${Math.max(60, btn.label.length * 8 + 10)}px`,
-                                            outline: 'none'
-                                          }}
-                                        />
-
-                                        {/* Cycle Style */}
-                                        <button
-                                          type="button"
-                                          className="wysiwyg-tool-btn"
-                                          style={{ width: '18px', height: '18px', fontSize: '10px' }}
-                                          title="Cycle Button Style (1-5)"
-                                          onClick={() => cycleButtonStyle(cIdx, comp.id!, bIdx)}
-                                        >
-                                          🎨
-                                        </button>
-
-                                        {/* Edit Modal */}
-                                        <button
-                                          type="button"
-                                          className="wysiwyg-tool-btn"
-                                          style={{ width: '18px', height: '18px', fontSize: '10px' }}
-                                          title="Configure Button"
-                                          onClick={() => setEditingButton({ cIdx, rowId: comp.id!, bIdx, data: btn })}
-                                        >
-                                          ⚙️
-                                        </button>
-
-                                        {/* Shift right */}
-                                        <button
-                                          type="button"
-                                          className="wysiwyg-tool-btn"
-                                          style={{ width: '18px', height: '18px', fontSize: '9px' }}
-                                          disabled={bIdx === (comp as DiscordActionRowComponent).items.length - 1}
-                                          onClick={() => shiftButton(cIdx, comp.id!, bIdx, 'right')}
-                                        >
-                                          ▶
-                                        </button>
-
-                                        {/* Remove Button */}
-                                        <button
-                                          type="button"
-                                          className="wysiwyg-tool-btn"
-                                          style={{ width: '18px', height: '18px', fontSize: '10px', color: '#ff4d4d' }}
-                                          title="Remove Button"
-                                          onClick={() => removeButton(cIdx, comp.id!, bIdx)}
-                                        >
-                                          ✕
-                                        </button>
-                                      </div>
-                                    );
-                                  }
-                                  return null;
-                                })}
-
-                                {(comp as DiscordActionRowComponent).items.length < 5 && (
-                                  <button
-                                    type="button"
-                                    className="btn-header-action"
-                                    style={{ padding: '4px 10px', fontSize: '11px' }}
-                                    onClick={() => {
-                                      const upd = [...containers];
-                                      const row = upd[cIdx].components[compIdx] as DiscordActionRowComponent;
-                                      row.items.push({
-                                        type: 2,
-                                        style: 1,
-                                        label: `Button ${row.items.length + 1}`,
-                                        custom_id: `btn_${Date.now()}`
-                                      });
-                                      setContainers(upd);
+                              return (
+                                <div className="wysiwyg-action-row">
+                                  <input
+                                    type="text"
+                                    value={row.label || 'ROW'}
+                                    style={{
+                                      width: '50px',
+                                      background: 'rgba(255,255,255,0.08)',
+                                      border: 'none',
+                                      borderRadius: '3px',
+                                      color: '#fff',
+                                      fontFamily: 'var(--font-mono)',
+                                      fontSize: '10px',
+                                      fontWeight: 800,
+                                      padding: '2px 4px',
+                                      textAlign: 'center'
                                     }}
-                                  >
-                                    <i className="fa-solid fa-plus" /> Button
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          )}
+                                    onChange={(e) => {
+                                      const upd = [...containers];
+                                      (upd[cIdx].components[compIdx] as DiscordActionRowComponent).label = e.target.value;
+                                      setContainers(upd);
+                                      onDirtyChange?.();
+                                    }}
+                                  />
 
-                          {/* 2. Separator */}
-                          {comp.type === 14 && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12px' }}>
-                              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                                <input
-                                  type="checkbox"
-                                  checked={Boolean((comp as DiscordSeparatorComponent).divider)}
-                                  onChange={(e) => {
-                                    const upd = [...containers];
-                                    (upd[cIdx].components[compIdx] as DiscordSeparatorComponent).divider = e.target.checked;
-                                    setContainers(upd);
-                                  }}
-                                />
-                                <span>Visible Divider Line</span>
-                              </label>
+                                  <span style={{ fontSize: '10px', color: 'var(--discord-text-muted)', background: 'rgba(0,0,0,0.3)', padding: '2px 5px', borderRadius: '3px', fontWeight: 700 }}>
+                                    {btnCount}/5
+                                  </span>
 
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span>Spacing:</span>
-                                <button
-                                  type="button"
-                                  className={`btn-style-chip ${(comp as DiscordSeparatorComponent).spacing === 1 ? 'active' : ''}`}
-                                  style={{ padding: '2px 8px', fontSize: '11px' }}
-                                  onClick={() => {
-                                    const upd = [...containers];
-                                    (upd[cIdx].components[compIdx] as DiscordSeparatorComponent).spacing = 1;
-                                    setContainers(upd);
-                                  }}
-                                >
-                                  Small (1)
-                                </button>
-                                <button
-                                  type="button"
-                                  className={`btn-style-chip ${(comp as DiscordSeparatorComponent).spacing === 2 ? 'active' : ''}`}
-                                  style={{ padding: '2px 8px', fontSize: '11px' }}
-                                  onClick={() => {
-                                    const upd = [...containers];
-                                    (upd[cIdx].components[compIdx] as DiscordSeparatorComponent).spacing = 2;
-                                    setContainers(upd);
-                                  }}
-                                >
-                                  Large (2)
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                                  {rowItems.map((item: any, bIdx: number) => {
+                                    if (item.type === 2) {
+                                      const btn = item as DiscordButtonComponent;
+                                      return (
+                                        <div
+                                          key={btn.id || `btn_${bIdx}`}
+                                          className={`wysiwyg-btn-pill btn-style-${btn.style || 1}`}
+                                        >
+                                          {/* Move Left */}
+                                          <button
+                                            type="button"
+                                            className="comp-move-btn"
+                                            disabled={bIdx === 0}
+                                            onClick={() => shiftButton(cIdx, row.id!, bIdx, 'left')}
+                                            title="Move Left"
+                                            style={{ color: '#fff' }}
+                                          >
+                                            ◀
+                                          </button>
 
-                          {/* 3. Text Display */}
-                          {comp.type === 10 && (
-                            <div style={{ position: 'relative' }}>
-                              <textarea
-                                className="form-input"
-                                rows={2}
-                                style={{ fontSize: '12.5px', paddingRight: '36px' }}
-                                value={(comp as DiscordTextDisplayComponent).text}
-                                onChange={(e) => {
-                                  const upd = [...containers];
-                                  (upd[cIdx].components[compIdx] as DiscordTextDisplayComponent).text = e.target.value;
-                                  setContainers(upd);
-                                }}
-                              />
-                              <button
-                                type="button"
-                                className="wysiwyg-tool-btn"
-                                style={{ position: 'absolute', right: '6px', top: '10px' }}
-                                onClick={(e) => triggerEmojiPicker(e, (emoji, insertStr) => {
-                                  const upd = [...containers];
-                                  const c = upd[cIdx].components[compIdx] as DiscordTextDisplayComponent;
-                                  c.text = (c.text || '') + insertStr;
-                                  setContainers(upd);
-                                })}
-                              >
-                                <i className="fa-regular fa-face-smile" />
-                              </button>
-                            </div>
-                          )}
+                                          {/* Emoji click to pick emoji */}
+                                          <span
+                                            style={{ fontSize: '13px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', minWidth: '18px', justifyContent: 'center' }}
+                                            title="Click to pick Discord emoji"
+                                            onClick={(e: any) => {
+                                              triggerEmojiPicker(e, (emoji, insertStr) => {
+                                                const upd = [...containers];
+                                                const targetRow = upd[cIdx].components[compIdx] as DiscordActionRowComponent;
+                                                (targetRow.items[bIdx] as DiscordButtonComponent).emoji = insertStr;
+                                                setContainers(upd);
+                                                onDirtyChange?.();
+                                              });
+                                            }}
+                                          >
+                                            {btn.emoji ? (typeof btn.emoji === 'string' ? btn.emoji : btn.emoji.name) : '⚡'}
+                                          </span>
 
-                          {/* 4. String Select */}
-                          {comp.type === 3 && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                              <input
-                                type="text"
-                                className="form-input"
-                                style={{ height: '32px', fontSize: '12px' }}
-                                placeholder="Select placeholder..."
-                                value={(comp as DiscordSelectComponent).placeholder || ''}
-                                onChange={(e) => {
-                                  const upd = [...containers];
-                                  (upd[cIdx].components[compIdx] as DiscordSelectComponent).placeholder = e.target.value;
-                                  setContainers(upd);
-                                }}
-                              />
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                {(comp as DiscordSelectComponent).options?.map((opt, optIdx) => (
-                                  <div key={optIdx} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                    <input
-                                      type="text"
-                                      className="form-input"
-                                      style={{ width: '40px', textAlign: 'center', height: '28px', fontSize: '12px' }}
-                                      value={opt.emoji || ''}
-                                      placeholder="⭐"
-                                      onChange={(e) => {
-                                        const upd = [...containers];
-                                        const select = upd[cIdx].components[compIdx] as DiscordSelectComponent;
-                                        select.options![optIdx].emoji = e.target.value;
-                                        setContainers(upd);
-                                      }}
-                                    />
-                                    <input
-                                      type="text"
-                                      className="form-input"
-                                      style={{ flex: 1, height: '28px', fontSize: '12px' }}
-                                      placeholder="Option label"
-                                      value={opt.label}
-                                      onChange={(e) => {
-                                        const upd = [...containers];
-                                        const select = upd[cIdx].components[compIdx] as DiscordSelectComponent;
-                                        select.options![optIdx].label = e.target.value;
-                                        setContainers(upd);
-                                      }}
-                                    />
-                                    <input
-                                      type="text"
-                                      className="form-input"
-                                      style={{ flex: 1, height: '28px', fontSize: '12px' }}
-                                      placeholder="Description"
-                                      value={opt.description || ''}
-                                      onChange={(e) => {
-                                        const upd = [...containers];
-                                        const select = upd[cIdx].components[compIdx] as DiscordSelectComponent;
-                                        select.options![optIdx].description = e.target.value;
-                                        setContainers(upd);
-                                      }}
-                                    />
+                                          {/* Inline Label Edit */}
+                                          <input
+                                            type="text"
+                                            value={btn.label || 'Btn'}
+                                            onChange={(e) => {
+                                              const upd = [...containers];
+                                              const targetRow = upd[cIdx].components[compIdx] as DiscordActionRowComponent;
+                                              (targetRow.items[bIdx] as DiscordButtonComponent).label = e.target.value;
+                                              setContainers(upd);
+                                              onDirtyChange?.();
+                                            }}
+                                            style={{
+                                              background: 'transparent',
+                                              border: 'none',
+                                              color: '#fff',
+                                              fontWeight: 600,
+                                              fontSize: '12px',
+                                              width: `${Math.max(50, (btn.label || 'Btn').length * 8 + 10)}px`,
+                                              outline: 'none'
+                                            }}
+                                            title="Directly edit button label"
+                                          />
+
+                                          {/* Move Right */}
+                                          <button
+                                            type="button"
+                                            className="comp-move-btn"
+                                            disabled={bIdx === rowItems.length - 1}
+                                            onClick={() => shiftButton(cIdx, row.id!, bIdx, 'right')}
+                                            title="Move Right"
+                                            style={{ color: '#fff' }}
+                                          >
+                                            ▶
+                                          </button>
+
+                                          {/* Gear Configure Modal */}
+                                          <i
+                                            className="fa-solid fa-gear"
+                                            style={{ fontSize: '11px', opacity: 0.85, cursor: 'pointer', padding: '0 2px' }}
+                                            title="Configure Button"
+                                            onClick={() => setEditingButton({ cIdx, rowId: row.id!, bIdx, data: btn })}
+                                          />
+
+                                          {/* Delete Button */}
+                                          <i
+                                            className="fa-solid fa-xmark"
+                                            style={{ fontSize: '11px', opacity: 0.85, cursor: 'pointer', padding: '0 2px', color: '#ff5b69' }}
+                                            title="Remove Button"
+                                            onClick={() => removeButton(cIdx, row.id!, bIdx)}
+                                          />
+                                        </div>
+                                      );
+                                    }
+                                    return null;
+                                  })}
+
+                                  {canAddBtn && (
                                     <button
                                       type="button"
-                                      className="wysiwyg-tool-btn"
-                                      style={{ color: '#ef4444' }}
+                                      className="btn-add-field-pill"
+                                      style={{ padding: '3px 8px', fontSize: '11px', width: 'auto' }}
                                       onClick={() => {
                                         const upd = [...containers];
-                                        const select = upd[cIdx].components[compIdx] as DiscordSelectComponent;
-                                        select.options!.splice(optIdx, 1);
+                                        const targetRow = upd[cIdx].components[compIdx] as DiscordActionRowComponent;
+                                        targetRow.items.push({
+                                          type: 2,
+                                          style: 1,
+                                          label: `Button ${targetRow.items.length + 1}`,
+                                          custom_id: `btn_${Date.now()}`
+                                        });
                                         setContainers(upd);
+                                        onDirtyChange?.();
                                       }}
                                     >
-                                      ✕
+                                      + Button
                                     </button>
-                                  </div>
-                                ))}
-                                <button
-                                  type="button"
-                                  className="btn-header-action"
-                                  style={{ padding: '3px 8px', fontSize: '10.5px', alignSelf: 'flex-start' }}
-                                  onClick={() => {
-                                    const upd = [...containers];
-                                    const select = upd[cIdx].components[compIdx] as DiscordSelectComponent;
-                                    if (!select.options) select.options = [];
-                                    select.options.push({
-                                      label: `Option ${select.options.length + 1}`,
-                                      value: `opt_${Date.now()}`
-                                    });
-                                    setContainers(upd);
-                                  }}
-                                >
-                                  + Add Option
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                                  )}
+                                </div>
+                              );
+                            })()}
 
+                            {/* 2. Separator (Type 14) */}
+                            {comp.type === 14 && (
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--discord-text-muted)', textTransform: 'uppercase' }}>Spacing:</span>
+                                  <button
+                                    type="button"
+                                    className={`btn-ctrl-xs ${(comp as DiscordSeparatorComponent).spacing === 1 ? 'active-pill' : ''}`}
+                                    style={{ padding: '2px 8px', fontSize: '10.5px' }}
+                                    onClick={() => {
+                                      const upd = [...containers];
+                                      (upd[cIdx].components[compIdx] as DiscordSeparatorComponent).spacing = 1;
+                                      setContainers(upd);
+                                      onDirtyChange?.();
+                                    }}
+                                  >
+                                    Small (1)
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={`btn-ctrl-xs ${(comp as DiscordSeparatorComponent).spacing === 2 ? 'active-pill' : ''}`}
+                                    style={{ padding: '2px 8px', fontSize: '10.5px' }}
+                                    onClick={() => {
+                                      const upd = [...containers];
+                                      (upd[cIdx].components[compIdx] as DiscordSeparatorComponent).spacing = 2;
+                                      setContainers(upd);
+                                      onDirtyChange?.();
+                                    }}
+                                  >
+                                    Large (2)
+                                  </button>
+                                </div>
+
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', color: 'var(--discord-text-normal)', cursor: 'pointer' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={Boolean((comp as DiscordSeparatorComponent).divider)}
+                                    onChange={(e) => {
+                                      const upd = [...containers];
+                                      (upd[cIdx].components[compIdx] as DiscordSeparatorComponent).divider = e.target.checked;
+                                      setContainers(upd);
+                                      onDirtyChange?.();
+                                    }}
+                                  />
+                                  <span>Visible Divider Line</span>
+                                </label>
+                              </div>
+                            )}
+
+                            {/* 3. Text Display (Type 10) */}
+                            {comp.type === 10 && (
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '3px' }}>
+                                  <span style={{ fontSize: '11px', color: 'var(--discord-text-muted)', fontWeight: 600 }}>
+                                    <i className="fa-solid fa-paragraph" style={{ marginRight: '4px' }} /> Text Display Markdown
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="wysiwyg-tool-btn"
+                                    title="Pick Discord Emoji for Text Display"
+                                    onClick={(e) => triggerEmojiPicker(e, (emoji, insertStr) => {
+                                      const upd = [...containers];
+                                      const c = upd[cIdx].components[compIdx] as DiscordTextDisplayComponent;
+                                      c.text = (c.text || '') + insertStr;
+                                      setContainers(upd);
+                                      onDirtyChange?.();
+                                    })}
+                                  >
+                                    <i className="fa-regular fa-face-smile" style={{ color: 'var(--discord-cyan)' }} />
+                                  </button>
+                                </div>
+                                <textarea
+                                  className="bare-input"
+                                  rows={2}
+                                  style={{ fontSize: '13px', lineHeight: 1.45, resize: 'vertical', background: 'rgba(0,0,0,0.18)', padding: '6px 8px', borderRadius: '4px' }}
+                                  placeholder="Markdown text display (# headers, **bold**, lists)..."
+                                  value={(comp as DiscordTextDisplayComponent).text || ''}
+                                  onChange={(e) => {
+                                    const upd = [...containers];
+                                    (upd[cIdx].components[compIdx] as DiscordTextDisplayComponent).text = e.target.value;
+                                    setContainers(upd);
+                                    onDirtyChange?.();
+                                  }}
+                                />
+                              </div>
+                            )}
+
+                            {/* 4. String Select (Type 3) */}
+                            {comp.type === 3 && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', background: '#1e1f22', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px', padding: '6px 10px', gap: '8px' }}>
+                                  <i className="fa-solid fa-bars-staggered" style={{ fontSize: '12px', color: 'var(--discord-cyan)' }} />
+                                  <input
+                                    type="text"
+                                    className="bare-input"
+                                    style={{ fontSize: '12.5px', color: 'var(--discord-text-normal)' }}
+                                    placeholder="Placeholder text..."
+                                    value={(comp as DiscordSelectComponent).placeholder || ''}
+                                    onChange={(e) => {
+                                      const upd = [...containers];
+                                      (upd[cIdx].components[compIdx] as DiscordSelectComponent).placeholder = e.target.value;
+                                      setContainers(upd);
+                                      onDirtyChange?.();
+                                    }}
+                                  />
+                                  <i className="fa-solid fa-chevron-down" style={{ fontSize: '11px', color: 'var(--discord-text-muted)' }} />
+                                </div>
+
+                                <div className="select-options-list" style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '2px' }}>
+                                  <span style={{ fontSize: '10.5px', color: 'var(--discord-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Options List:</span>
+                                  {(comp as DiscordSelectComponent).options?.map((opt, optIdx) => (
+                                    <div key={optIdx} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                      <input
+                                        type="text"
+                                        className="bare-input"
+                                        style={{ width: '36px', textAlign: 'center', height: '26px', fontSize: '12px', background: 'rgba(255,255,255,0.06)' }}
+                                        value={opt.emoji || ''}
+                                        placeholder="⭐"
+                                        onChange={(e) => {
+                                          const upd = [...containers];
+                                          const select = upd[cIdx].components[compIdx] as DiscordSelectComponent;
+                                          select.options![optIdx].emoji = e.target.value;
+                                          setContainers(upd);
+                                          onDirtyChange?.();
+                                        }}
+                                      />
+                                      <input
+                                        type="text"
+                                        className="bare-input"
+                                        style={{ fontWeight: 600, fontSize: '12px', flex: 1 }}
+                                        placeholder="Option label"
+                                        value={opt.label || ''}
+                                        onChange={(e) => {
+                                          const upd = [...containers];
+                                          const select = upd[cIdx].components[compIdx] as DiscordSelectComponent;
+                                          select.options![optIdx].label = e.target.value;
+                                          setContainers(upd);
+                                          onDirtyChange?.();
+                                        }}
+                                      />
+                                      <input
+                                        type="text"
+                                        className="bare-input"
+                                        style={{ fontSize: '11px', color: 'var(--discord-text-muted)', flex: 1 }}
+                                        placeholder="Description"
+                                        value={opt.description || ''}
+                                        onChange={(e) => {
+                                          const upd = [...containers];
+                                          const select = upd[cIdx].components[compIdx] as DiscordSelectComponent;
+                                          select.options![optIdx].description = e.target.value;
+                                          setContainers(upd);
+                                          onDirtyChange?.();
+                                        }}
+                                      />
+                                      <button
+                                        type="button"
+                                        className="comp-tool-btn btn-del"
+                                        style={{ width: '18px', height: '18px' }}
+                                        onClick={() => {
+                                          const upd = [...containers];
+                                          const select = upd[cIdx].components[compIdx] as DiscordSelectComponent;
+                                          select.options!.splice(optIdx, 1);
+                                          setContainers(upd);
+                                          onDirtyChange?.();
+                                        }}
+                                      >
+                                        <i className="fa-solid fa-xmark" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                  <button
+                                    type="button"
+                                    className="btn-add-field-pill"
+                                    style={{ padding: '3px 8px', fontSize: '10.5px', alignSelf: 'flex-start', width: 'auto' }}
+                                    onClick={() => {
+                                      const upd = [...containers];
+                                      const select = upd[cIdx].components[compIdx] as DiscordSelectComponent;
+                                      if (!select.options) select.options = [];
+                                      select.options.push({
+                                        label: `Option ${select.options.length + 1}`,
+                                        value: `opt_${Date.now()}`
+                                      });
+                                      setContainers(upd);
+                                      onDirtyChange?.();
+                                    }}
+                                  >
+                                    + Add Option
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 5. Section (Type 9) */}
+                            {comp.type === 9 && (
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '3px' }}>
+                                  <span style={{ fontSize: '11px', color: 'var(--discord-text-muted)', fontWeight: 600 }}>
+                                    <i className="fa-solid fa-align-left" style={{ marginRight: '4px' }} /> Section Markdown
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="wysiwyg-tool-btn"
+                                    title="Pick Discord Emoji for Section"
+                                    onClick={(e) => triggerEmojiPicker(e, (emoji, insertStr) => {
+                                      const upd = [...containers];
+                                      const c = upd[cIdx].components[compIdx] as DiscordSectionComponent;
+                                      c.text = (c.text || '') + insertStr;
+                                      setContainers(upd);
+                                      onDirtyChange?.();
+                                    })}
+                                  >
+                                    <i className="fa-regular fa-face-smile" style={{ color: 'var(--discord-cyan)' }} />
+                                  </button>
+                                </div>
+                                <textarea
+                                  className="bare-input"
+                                  rows={2}
+                                  style={{ fontSize: '12.5px', lineHeight: 1.4, resize: 'vertical', background: 'rgba(0,0,0,0.2)', padding: '6px 10px', borderRadius: '4px' }}
+                                  placeholder="Section markdown content..."
+                                  value={(comp as DiscordSectionComponent).text || ''}
+                                  onChange={(e) => {
+                                    const upd = [...containers];
+                                    (upd[cIdx].components[compIdx] as DiscordSectionComponent).text = e.target.value;
+                                    setContainers(upd);
+                                    onDirtyChange?.();
+                                  }}
+                                />
+                              </div>
+                            )}
+
+                            {/* 6. Media Gallery (Type 12) */}
+                            {comp.type === 12 && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                  {(comp as DiscordMediaGalleryComponent).items?.map((url, imgIdx) => (
+                                    <div key={imgIdx} style={{ position: 'relative', width: '60px', height: '50px', borderRadius: '4px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)' }}>
+                                      <img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                                      <button
+                                        type="button"
+                                        style={{ position: 'absolute', top: '2px', right: '2px', background: 'rgba(0,0,0,0.7)', color: '#ff5b69', border: 'none', borderRadius: '2px', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '10px' }}
+                                        onClick={() => {
+                                          const upd = [...containers];
+                                          (upd[cIdx].components[compIdx] as DiscordMediaGalleryComponent).items.splice(imgIdx, 1);
+                                          setContainers(upd);
+                                          onDirtyChange?.();
+                                        }}
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                  ))}
+                                  <button
+                                    type="button"
+                                    className="btn-add-field-pill"
+                                    style={{ height: '50px', width: '90px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                    onClick={() => {
+                                      const url = prompt('Enter Image URL to add to Media Gallery:');
+                                      if (url) {
+                                        const upd = [...containers];
+                                        const mg = upd[cIdx].components[compIdx] as DiscordMediaGalleryComponent;
+                                        if (!mg.items) mg.items = [];
+                                        mg.items.push(url.trim());
+                                        setContainers(upd);
+                                        onDirtyChange?.();
+                                      }
+                                    }}
+                                  >
+                                    + Add Image
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 7. File Attachment (Type 13) */}
+                            {comp.type === 13 && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#1e1f22', padding: '6px 10px', borderRadius: '4px' }}>
+                                <i className="fa-solid fa-file-lines" style={{ color: 'var(--discord-cyan)', fontSize: '16px' }} />
+                                <input
+                                  type="text"
+                                  className="bare-input"
+                                  style={{ fontSize: '12px', fontWeight: 600, flex: 1 }}
+                                  placeholder="Filename (e.g. document.pdf)"
+                                  value={(comp as DiscordFileComponent).filename || ''}
+                                  onChange={(e) => {
+                                    const upd = [...containers];
+                                    (upd[cIdx].components[compIdx] as DiscordFileComponent).filename = e.target.value;
+                                    setContainers(upd);
+                                    onDirtyChange?.();
+                                  }}
+                                />
+                                <input
+                                  type="text"
+                                  className="bare-input"
+                                  style={{ fontSize: '11px', color: 'var(--discord-text-muted)', width: '70px' }}
+                                  placeholder="Size"
+                                  value={(comp as DiscordFileComponent).filesize || ''}
+                                  onChange={(e) => {
+                                    const upd = [...containers];
+                                    (upd[cIdx].components[compIdx] as DiscordFileComponent).filesize = e.target.value;
+                                    setContainers(upd);
+                                    onDirtyChange?.();
+                                  }}
+                                />
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ))}
+                    </div>
+
+                    {/* Footer Row (Bottom of Container) */}
+                    <div className="inline-footer-row" style={{ marginTop: '8px' }}>
+                      <i className="fa-regular fa-calendar" style={{ fontSize: '11px' }} />
+                      <input
+                        type="text"
+                        className="bare-input"
+                        style={{ fontSize: '11px', color: 'var(--discord-text-muted)', flex: 1 }}
+                        placeholder="Footer text..."
+                        value={c17.footer?.text || ''}
+                        onChange={(e) => updateContainerFooter(cIdx, 'text', e.target.value)}
+                      />
+                      <input
+                        type="text"
+                        className="bare-input"
+                        style={{ fontSize: '11px', color: 'var(--discord-text-muted)', width: '160px' }}
+                        placeholder="Footer icon URL..."
+                        value={c17.footer?.icon_url || ''}
+                        onChange={(e) => updateContainerFooter(cIdx, 'icon_url', e.target.value)}
+                      />
                     </div>
 
                   </div>
                 ))}
               </div>
 
-            </div>
+              {/* 3. Integrated Bottom Controls Bar (Glued to board, inside wysiwyg-board, scrolling naturally with editor!) */}
+              <div className="wysiwyg-bottom-bar" style={{ position: 'static', margin: '8px 0 0 0' }}>
+                <button
+                  type="button"
+                  className="btn-ctrl-cyan"
+                  onClick={addContainer}
+                  title="Add another Type 17 Container"
+                >
+                  <i className="fa-solid fa-plus" /> Container
+                </button>
+                <button
+                  type="button"
+                  className="btn-ctrl-blue"
+                  onClick={() => addActionRow(0)}
+                  title="Add Action Row"
+                >
+                  <i className="fa-solid fa-plus" /> Action Row
+                </button>
+                <button
+                  type="button"
+                  className="btn-ctrl-purple"
+                  onClick={() => {
+                    setPaletteTarget(null);
+                    setIsPaletteOpen(true);
+                  }}
+                  title="Insert Discord Component Types 1 to 23"
+                >
+                  <i className="fa-solid fa-cubes" /> + Component (Type 1-23)
+                </button>
+                <button
+                  type="button"
+                  className="btn-ctrl-green"
+                  onClick={() => setIsLoadModalOpen(true)}
+                  title="Load Preset or Template"
+                >
+                  Load
+                </button>
+                <button
+                  type="button"
+                  className="btn-ctrl-red"
+                  onClick={handleClearBuilder}
+                  title="Clear Builder"
+                >
+                  Clear
+                </button>
+              </div>
 
-            {/* 3. Integrated Bottom Controls Bar (Glued to board, no dead gap!) */}
-            <div className="wysiwyg-bottom-bar">
-              <button
-                type="button"
-                className="btn-ctrl-cyan"
-                onClick={addContainer}
-                title="Add another Type 17 Container"
-              >
-                <i className="fa-solid fa-plus" /> Container
-              </button>
-              <button
-                type="button"
-                className="btn-ctrl-blue"
-                onClick={() => addActionRow(0)}
-                title="Add Action Row"
-              >
-                <i className="fa-solid fa-plus" /> Action Row
-              </button>
-              <button
-                type="button"
-                className="btn-ctrl-purple"
-                onClick={() => setIsPaletteOpen(true)}
-                title="Insert Discord Component Types 1 to 23"
-              >
-                <i className="fa-solid fa-cubes" /> + Component (Type 1-23)
-              </button>
-              <button
-                type="button"
-                className="btn-ctrl-green"
-                onClick={() => setIsLoadModalOpen(true)}
-                title="Load Preset or Template"
-              >
-                Load
-              </button>
-              <button
-                type="button"
-                className="btn-ctrl-red"
-                onClick={handleClearBuilder}
-                title="Clear Builder"
-              >
-                Clear
-              </button>
             </div>
 
           </div>
@@ -1310,7 +1733,7 @@ export function MessageBuilder({
                   <div
                     key={c.id}
                     style={{
-                      borderLeft: `4px solid ${c.accentColor || '#E11D2E'}`,
+                      borderLeft: `4px solid ${c.accentColor || '#00A8FC'}`,
                       background: '#2b2d31',
                       borderRadius: '4px',
                       padding: '12px 14px',
@@ -1318,23 +1741,69 @@ export function MessageBuilder({
                       flexDirection: 'column',
                       gap: '8px',
                       marginTop: '4px',
-                      maxWidth: '520px'
+                      maxWidth: '540px',
+                      position: 'relative'
                     }}
                   >
-                    {c.author?.name && (
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {c.author.icon_url && <img src={c.author.icon_url} alt="" style={{ width: '18px', height: '18px', borderRadius: '50%' }} />}
-                        <span>{c.author.name}</span>
+                    {/* Spoiler Tag */}
+                    {c.isSpoiler && (
+                      <div style={{ position: 'absolute', top: '8px', right: '10px', background: 'rgba(0,0,0,0.65)', border: '1px solid rgba(255,255,255,0.15)', padding: '1px 6px', borderRadius: '3px', fontSize: '9.5px', fontWeight: 800, color: '#ff7b72', letterSpacing: '0.05em' }}>
+                        || SPOILER
                       </div>
                     )}
-                    {c.title && (
-                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>
-                        {c.title}
+
+                    {/* Top Row: Author, Title, Description + Thumbnail */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {c.author?.name && (
+                          <div style={{ fontSize: '12px', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {c.author.icon_url && <img src={c.author.icon_url} alt="" style={{ width: '18px', height: '18px', borderRadius: '50%', objectFit: 'cover' }} />}
+                            <span>{c.author.name}</span>
+                          </div>
+                        )}
+                        {c.title && (
+                          <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--discord-cyan)' }}>
+                            {c.title}
+                          </div>
+                        )}
+                        {c.description && (
+                          <div style={{ fontSize: '13px', color: '#dbdee1', whiteSpace: 'pre-wrap', lineHeight: 1.45 }}>
+                            {c.description}
+                          </div>
+                        )}
+                      </div>
+
+                      {c.thumbnail && (
+                        <img
+                          src={c.thumbnail}
+                          alt="Thumbnail"
+                          style={{ width: '64px', height: '64px', borderRadius: '4px', objectFit: 'cover', flexShrink: 0 }}
+                          onError={(e) => { (e.target as any).style.display = 'none'; }}
+                        />
+                      )}
+                    </div>
+
+                    {/* Fields Grid */}
+                    {c.fields && c.fields.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', margin: '4px 0' }}>
+                        {c.fields.map((f, fIdx) => (
+                          <div key={fIdx} style={{ display: 'flex', flexDirection: 'column', gap: '2px', background: 'rgba(0,0,0,0.15)', padding: '4px 6px', borderRadius: '4px' }}>
+                            <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#fff' }}>{f.name}</span>
+                            <span style={{ fontSize: '11.5px', color: '#dbdee1' }}>{f.value}</span>
+                          </div>
+                        ))}
                       </div>
                     )}
-                    {c.description && (
-                      <div style={{ fontSize: '13px', color: '#dbdee1', whiteSpace: 'pre-wrap', lineHeight: 1.45 }}>
-                        {c.description}
+
+                    {/* Large Media Image */}
+                    {c.image && (
+                      <div style={{ marginTop: '2px', borderRadius: '4px', overflow: 'hidden' }}>
+                        <img
+                          src={c.image}
+                          alt="Media"
+                          style={{ width: '100%', maxHeight: '280px', objectFit: 'cover', borderRadius: '4px' }}
+                          onError={(e) => { (e.target as any).style.display = 'none'; }}
+                        />
                       </div>
                     )}
 
@@ -1374,7 +1843,7 @@ export function MessageBuilder({
                           />
                         )}
                         {comp.type === 10 && (
-                          <div style={{ fontSize: '13px', color: '#dbdee1', whiteSpace: 'pre-wrap' }}>
+                          <div style={{ fontSize: '13px', color: '#dbdee1', whiteSpace: 'pre-wrap', lineHeight: 1.45 }}>
                             {(comp as DiscordTextDisplayComponent).text}
                           </div>
                         )}
@@ -1384,8 +1853,34 @@ export function MessageBuilder({
                             <i className="fa-solid fa-chevron-down" style={{ fontSize: '11px' }} />
                           </div>
                         )}
+                        {comp.type === 12 && (
+                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                            {(comp as DiscordMediaGalleryComponent).items?.map((imgUrl, iIdx) => (
+                              <img key={iIdx} src={imgUrl} alt="" style={{ width: '80px', height: '60px', objectFit: 'cover', borderRadius: '4px' }} />
+                            ))}
+                          </div>
+                        )}
+                        {comp.type === 13 && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#1e1f22', padding: '6px 10px', borderRadius: '4px', fontSize: '12px' }}>
+                            <i className="fa-solid fa-file-lines" style={{ color: 'var(--discord-cyan)' }} />
+                            <span style={{ fontWeight: 600, color: '#fff' }}>{(comp as DiscordFileComponent).filename}</span>
+                            <span style={{ color: '#949ba4', fontSize: '11px' }}>{(comp as DiscordFileComponent).filesize}</span>
+                          </div>
+                        )}
                       </div>
                     ))}
+
+                    {/* Footer Row */}
+                    {c.footer?.text && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#949ba4', marginTop: '6px', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '4px' }}>
+                        {c.footer.icon_url ? (
+                          <img src={c.footer.icon_url} alt="" style={{ width: '14px', height: '14px', borderRadius: '50%', objectFit: 'cover' }} />
+                        ) : (
+                          <i className="fa-regular fa-calendar" style={{ fontSize: '11px' }} />
+                        )}
+                        <span>{c.footer.text}</span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

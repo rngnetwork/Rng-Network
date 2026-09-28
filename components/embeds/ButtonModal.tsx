@@ -91,21 +91,43 @@ export function ButtonModal({
     <>
       <div
         className="modal-overlay open"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 999999,
+          backdropFilter: 'blur(14px)',
+          background: 'rgba(0, 0, 0, 0.75)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px'
+        }}
         onClick={(e) => {
           if (e.target === e.currentTarget) onClose();
         }}
       >
-        <div className="modal-dialog" style={{ maxWidth: '520px' }}>
-          <div className="modal-header">
+        <div
+          className="modal-dialog"
+          style={{
+            maxWidth: '520px',
+            width: '100%',
+            margin: 'auto',
+            background: '#313338',
+            border: '1px solid rgba(255, 255, 255, 0.09)',
+            boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
+            borderRadius: '12px'
+          }}
+        >
+          <div className="modal-header" style={{ background: '#2b2d31', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <i className="fa-solid fa-gamepad" style={{ color: 'var(--discord-cyan)' }} />
+              <i className="fa-solid fa-gamepad" style={{ color: '#5865F2' }} />
               <span>Customize Discord Button (Type 2)</span>
             </div>
             <button className="btn-container-close" onClick={onClose}>
               <i className="fa-solid fa-xmark" />
             </button>
           </div>
-          <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '18px 20px' }}>
             
             <div className="form-group">
               <label className="form-label">Button Label / Text</label>

@@ -225,14 +225,36 @@ export function LoadModal({
   return (
     <div
       className="modal-overlay open"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 999999,
+        backdropFilter: 'blur(14px)',
+        background: 'rgba(0, 0, 0, 0.82)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px'
+      }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="modal-dialog" style={{ maxWidth: '680px' }}>
-        <div className="modal-header">
+      <div
+        className="modal-dialog"
+        style={{
+          maxWidth: '680px',
+          width: '100%',
+          margin: 'auto',
+          background: '#313338',
+          border: '1px solid rgba(255, 255, 255, 0.09)',
+          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.85)',
+          borderRadius: '12px'
+        }}
+      >
+        <div className="modal-header" style={{ background: '#2b2d31', borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
           <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <i className="fa-solid fa-cloud-arrow-down" style={{ color: '#22c55e' }} />
+            <i className="fa-solid fa-cloud-arrow-down" style={{ color: '#23A55A' }} />
             <span>Load Templates & Components</span>
           </div>
           <button className="btn-container-close" onClick={onClose}>

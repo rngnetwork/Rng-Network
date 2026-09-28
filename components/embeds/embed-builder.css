@@ -878,25 +878,84 @@
 }
 
 /* ==========================================================================
-   INTEGRATED BOTTOM BAR (Glued directly to board bottom, no dead space)
+   DISCORD AUTHENTIC SCROLLBARS (Vertical & Horizontal)
+   ========================================================================== */
+.main-workspace *::-webkit-scrollbar,
+.unified-workspace-shell *::-webkit-scrollbar,
+.discord-emoji-picker-popover *::-webkit-scrollbar,
+.modal-overlay *::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+.main-workspace *::-webkit-scrollbar-track,
+.unified-workspace-shell *::-webkit-scrollbar-track,
+.discord-emoji-picker-popover *::-webkit-scrollbar-track,
+.modal-overlay *::-webkit-scrollbar-track {
+  background: #1e1f22;
+}
+.main-workspace *::-webkit-scrollbar-thumb,
+.unified-workspace-shell *::-webkit-scrollbar-thumb,
+.discord-emoji-picker-popover *::-webkit-scrollbar-thumb,
+.modal-overlay *::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+}
+.main-workspace *::-webkit-scrollbar-thumb:hover,
+.unified-workspace-shell *::-webkit-scrollbar-thumb:hover,
+.discord-emoji-picker-popover *::-webkit-scrollbar-thumb:hover,
+.modal-overlay *::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* Discord-Themed Inputs & Dropdowns */
+.form-input, select.form-input, textarea.form-input {
+  background: #1e1f22 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #dbdee1 !important;
+  transition: all 0.15s ease;
+}
+.form-input:focus, select.form-input:focus, textarea.form-input:focus {
+  border-color: #5865F2 !important;
+  box-shadow: 0 0 10px rgba(88, 101, 242, 0.35) !important;
+  background: #232428 !important;
+}
+select.form-input option {
+  background: #1e1f22;
+  color: #dbdee1;
+  padding: 8px 12px;
+}
+
+/* Drag & Drop Feedback Classes */
+.draggable-comp-item {
+  transition: transform 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+.draggable-comp-item.dragging,
+.type17-container-card.dragging {
+  opacity: 0.45;
+  transform: scale(0.98);
+  border: 1.5px dashed var(--discord-cyan) !important;
+}
+.draggable-comp-item.drag-over,
+.type17-container-card.drag-over {
+  border-top: 2px solid var(--discord-cyan) !important;
+  box-shadow: 0 -4px 15px rgba(0, 168, 252, 0.5);
+}
+
+/* ==========================================================================
+   INTEGRATED BOTTOM BAR (Flowing directly below containers, NOT pinned/sticky)
    ========================================================================== */
 .wysiwyg-bottom-bar {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 10px 14px;
-  background: rgba(35, 37, 42, 0.96);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.45), 0 8px 30px rgba(0, 0, 0, 0.6);
-  position: sticky;
-  bottom: 0;
-  z-index: 40;
-  margin-top: auto;
+  padding: 12px 16px;
+  background: #2b2d31;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  position: static;
+  margin-top: 14px;
 }
 
 .btn-ctrl-cyan {

@@ -7,20 +7,25 @@ import { MessageBuilder } from '@/components/embeds/MessageBuilder';
 import { TemplatesTab } from '@/components/embeds/TemplatesTab';
 import { ComponentsTab } from '@/components/embeds/ComponentsTab';
 
+import { UnsavedChangesBar } from '@/components/ui/UnsavedChangesBar';
+
 const INITIAL_SAMPLE_STATE = {
   messageContent: "Welcome to the RNG Discord Components V2 control center.",
   containers: [
     {
       id: "c17_init_1",
-      accentColor: "#E11D2E",
+      accentColor: "#00A8FC",
       isSpoiler: false,
       author: { name: "RNG Network", icon_url: "" },
       title: "🚀 Discord Components V2 Engine",
       description: "Interactive message builder supporting official Type 17 Containers, Action Rows, Buttons, and Select Menus with complete live preview.",
       fields: [
         { name: "⚡ V2 Flags", value: "IS_COMPONENTS_V2 (32768)", inline: true },
-        { name: "🛡️ Theme", value: "RNG Signature Red", inline: true }
+        { name: "🛡️ Theme", value: "Discord Authentic Dark", inline: true }
       ],
+      thumbnail: "",
+      image: "",
+      footer: { text: "RNG Network • Components V2 Specification", icon_url: "" },
       components: [
         {
           type: 10 as const,
@@ -63,6 +68,53 @@ export default function EmbedsPage() {
   const [messageContent, setMessageContent] = useState(INITIAL_SAMPLE_STATE.messageContent);
   const [containers, setContainers] = useState<Type17Container[]>(INITIAL_SAMPLE_STATE.containers);
 
+  // Unsaved Changes Tracking
+  const [savedState, setSavedState] = useState({
+    messageContent: INITIAL_SAMPLE_STATE.messageContent,
+    containers: JSON.parse(JSON.stringify(INITIAL_SAMPLE_STATE.containers))
+  });
+  const [isDirty, setIsDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSetMessageContent: React.Dispatch<React.SetStateAction<string>> = (val) => {
+    setMessageContent((prev) => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      if (next !== prev) setIsDirty(true);
+      return next;
+    });
+  };
+
+  const handleSetContainers: React.Dispatch<React.SetStateAction<Type17Container[]>> = (val) => {
+    setContainers((prev) => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      setIsDirty(true);
+      return next;
+    });
+  };
+
+  const handleSave = () => {
+    setIsSaving(true);
+    try {
+      const stateToSave = {
+        messageContent,
+        containers: JSON.parse(JSON.stringify(containers))
+      };
+      localStorage.setItem('rng_embed_builder_saved', JSON.stringify(stateToSave));
+      setSavedState(stateToSave);
+      setIsDirty(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setTimeout(() => setIsSaving(false), 300);
+    }
+  };
+
+  const handleReset = () => {
+    setMessageContent(savedState.messageContent);
+    setContainers(JSON.parse(JSON.stringify(savedState.containers)));
+    setIsDirty(false);
+  };
+
   // Copy JSON shortcut
   const handleCopyJson = () => {
     const payload = {
@@ -70,7 +122,7 @@ export default function EmbedsPage() {
       flags: 32768,
       components: containers.map(c => ({
         type: 17,
-        accent_color: parseInt((c.accentColor || '#E11D2E').replace('#', ''), 16) || 14753070,
+        accent_color: parseInt((c.accentColor || '#00A8FC').replace('#', ''), 16) || 43260,
         spoiler: Boolean(c.isSpoiler),
         components: c.components
       }))
@@ -81,28 +133,38 @@ export default function EmbedsPage() {
 
   // Reset to default sample
   const handleResetToSample = () => {
-    if (confirm('Reset canvas to default Discord Components V2 sample?')) {
-      setMessageContent(INITIAL_SAMPLE_STATE.messageContent);
-      setContainers(JSON.parse(JSON.stringify(INITIAL_SAMPLE_STATE.containers)));
+    if (isDirty) {
+      const proceed = window.confirm('You have unsaved changes! Reset canvas to default Discord Components V2 sample?');
+      if (!proceed) return;
+    } else {
+      if (!confirm('Reset canvas to default Discord Components V2 sample?')) return;
     }
+    setMessageContent(INITIAL_SAMPLE_STATE.messageContent);
+    setContainers(JSON.parse(JSON.stringify(INITIAL_SAMPLE_STATE.containers)));
+    setIsDirty(true);
   };
 
   // Load a template into the builder
   const handleLoadTemplate = (state: { message: { content: string }; type17Containers: Type17Container[] }) => {
+    if (isDirty) {
+      const proceed = window.confirm('You have unsaved changes! Discard your changes and load this template?');
+      if (!proceed) return;
+    }
     setMessageContent(state.message?.content || '');
     setContainers(JSON.parse(JSON.stringify(state.type17Containers || [])));
+    setIsDirty(true);
     setActiveTopTab('builder');
   };
 
   // Insert component from Components Tab
   const handleInsertComponentFromCatalog = (typeNum: number) => {
     setActiveTopTab('builder');
-    // Handled in MessageBuilder via palette or state append
+    setIsDirty(true);
     if (containers.length === 0) {
       setContainers([
         {
           id: `c17_${Date.now()}`,
-          accentColor: '#E11D2E',
+          accentColor: '#00A8FC',
           isSpoiler: false,
           components: [{ type: typeNum as any, id: `comp_${Date.now()}` } as any]
         }
@@ -177,10 +239,11 @@ export default function EmbedsPage() {
       {activeTopTab === 'builder' && (
         <MessageBuilder
           containers={containers}
-          setContainers={setContainers}
+          setContainers={handleSetContainers}
           messageContent={messageContent}
-          setMessageContent={setMessageContent}
+          setMessageContent={handleSetMessageContent}
           onLoadTemplate={handleLoadTemplate}
+          onDirtyChange={() => setIsDirty(true)}
         />
       )}
 
@@ -203,6 +266,15 @@ export default function EmbedsPage() {
           />
         </div>
       )}
+
+      {/* Floating Discord-styled Unsaved Changes Action Bar */}
+      <UnsavedChangesBar
+        isDirty={isDirty}
+        isSaving={isSaving}
+        onSave={handleSave}
+        onReset={handleReset}
+        message="Careful — you have unsaved changes in Message Builder!"
+      />
 
     </div>
   );

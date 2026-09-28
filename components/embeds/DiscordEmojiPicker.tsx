@@ -150,55 +150,62 @@ export function DiscordEmojiPicker({
 
   if (!isOpen) return null;
 
-  // Position popover near trigger if available
-  let popoverStyle: React.CSSProperties = {
-    position: 'fixed',
-    zIndex: 999999,
-  };
-
-  if (triggerRect) {
-    const top = Math.min(triggerRect.bottom + 8, window.innerHeight - 480);
-    const left = Math.min(Math.max(10, triggerRect.left - 100), window.innerWidth - 460);
-    popoverStyle.top = `${Math.max(10, top)}px`;
-    popoverStyle.left = `${Math.max(10, left)}px`;
-  } else {
-    popoverStyle.top = '50%';
-    popoverStyle.left = '50%';
-    popoverStyle.transform = 'translate(-50%, -50%)';
-  }
-
   return (
     <>
       <div
-        ref={popoverRef}
-        className="discord-emoji-picker-popover"
-        style={popoverStyle}
-        onClick={(e) => e.stopPropagation()}
+        className="modal-overlay open"
+        onClick={onClose}
+        style={{
+          zIndex: 1000000,
+          backdropFilter: 'blur(12px)',
+          background: 'rgba(0, 0, 0, 0.75)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'fixed',
+          inset: 0
+        }}
       >
-        {/* Top Search Bar */}
-        <div className="emoji-picker-search-bar">
-          <input
-            type="text"
-            className="emoji-search-input"
-            placeholder="Search emoji or paste <:name:id>..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            autoFocus
-          />
-          <i
-            className="fa-solid fa-magnifying-glass emoji-search-icon"
-            style={{ position: 'absolute', left: '26px', color: '#949ba4', fontSize: '13px' }}
-          />
-          {searchQuery && (
-            <button
-              className="emoji-search-clear"
-              onClick={() => setSearchQuery('')}
-              title="Clear Search"
-            >
-              <i className="fa-solid fa-xmark" />
-            </button>
-          )}
-        </div>
+        <div
+          ref={popoverRef}
+          className="discord-emoji-picker-popover"
+          style={{
+            position: 'relative',
+            margin: 'auto',
+            maxHeight: '85vh',
+            boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            background: '#2b2d31',
+            borderRadius: '12px',
+            overflow: 'hidden'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Top Search Bar */}
+          <div className="emoji-picker-search-bar" style={{ background: '#232428', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <input
+              type="text"
+              className="emoji-search-input"
+              placeholder="Search emoji or paste <:name:id>..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ background: '#1e1f22', border: '1px solid rgba(255,255,255,0.08)', color: '#fff' }}
+              autoFocus
+            />
+            <i
+              className="fa-solid fa-magnifying-glass emoji-search-icon"
+              style={{ position: 'absolute', left: '26px', color: '#949ba4', fontSize: '13px' }}
+            />
+            {searchQuery && (
+              <button
+                className="emoji-search-clear"
+                onClick={() => setSearchQuery('')}
+                title="Clear Search"
+              >
+                <i className="fa-solid fa-xmark" />
+              </button>
+            )}
+          </div>
 
         {/* Body: Left Rail + Scrollable Content */}
         <div className="emoji-picker-body-wrapper">
@@ -378,56 +385,63 @@ export function DiscordEmojiPicker({
           </div>
         </div>
 
-        {/* BOTTOM HOVER INSPECTOR FOOTER (1:1 Discord Replica with Emoji ID Display) */}
-        <div className="emoji-picker-inspector">
-          <div className="inspector-preview-box">
+        {/* BOTTOM HOVER INSPECTOR FOOTER (1:1 Discord Replica with vivid Emoji ID Display) */}
+        <div className="emoji-picker-inspector" style={{ background: '#232428', borderTop: '1px solid rgba(255, 255, 255, 0.06)', padding: '8px 14px' }}>
+          <div className="inspector-preview-box" style={{ background: '#111214', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
             {hoveredEmoji ? (
               hoveredEmoji.type === 'custom' ? (
                 <img src={hoveredEmoji.url} alt={hoveredEmoji.name} />
               ) : (
-                <span>{hoveredEmoji.char}</span>
+                <span style={{ fontSize: '24px' }}>{hoveredEmoji.char}</span>
               )
             ) : (
-              <i className="fa-regular fa-face-smile" style={{ color: '#949ba4' }} />
+              <i className="fa-regular fa-face-smile" style={{ color: '#5865F2' }} />
             )}
           </div>
           <div className="inspector-info">
-            <div className="inspector-name">
+            <div className="inspector-name" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {hoveredEmoji ? (
                 <>
-                  <span>:{hoveredEmoji.name}:</span>
-                  {hoveredEmoji.type === 'custom' && (
-                    <span className="inspector-badge-custom" style={{ background: '#5865F2', color: '#fff', padding: '1px 5px', borderRadius: '3px', fontSize: '9px', fontWeight: 800 }}>
-                      BOT
+                  <span style={{ color: '#fff', fontWeight: 800 }}>:{hoveredEmoji.name}:</span>
+                  {hoveredEmoji.type === 'custom' ? (
+                    <span className="inspector-badge-custom" style={{ background: '#5865F2', color: '#fff', padding: '1px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 800 }}>
+                      BOT EMOJI
+                    </span>
+                  ) : (
+                    <span style={{ background: 'rgba(255, 255, 255, 0.1)', color: '#ededed', padding: '1px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 700 }}>
+                      UNICODE
                     </span>
                   )}
                 </>
               ) : (
-                'SELECT AN EMOJI'
+                <span style={{ color: '#949ba4' }}>HOVER ANY EMOJI TO INSPECT</span>
               )}
             </div>
-            <div className="inspector-meta" style={{ fontFamily: hoveredEmoji ? 'var(--font-mono)' : 'inherit', fontSize: '11px', color: '#dbdee1' }}>
+            <div className="inspector-meta" style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: '#949ba4', marginTop: '2px' }}>
               {hoveredEmoji ? (
                 hoveredEmoji.type === 'custom' ? (
-                  hoveredEmoji.animated ? (
-                    `<a:${hoveredEmoji.name}:${hoveredEmoji.id}> • ID: ${hoveredEmoji.id}`
-                  ) : (
-                    `<:${hoveredEmoji.name}:${hoveredEmoji.id}> • ID: ${hoveredEmoji.id}`
-                  )
+                  <>
+                    <span style={{ color: '#fff' }}>Syntax:</span> {hoveredEmoji.animated ? `<a:${hoveredEmoji.name}:${hoveredEmoji.id}>` : `<:${hoveredEmoji.name}:${hoveredEmoji.id}>`}
+                    <span style={{ color: '#949ba4', margin: '0 6px' }}>|</span>
+                    <span style={{ color: '#fff' }}>ID:</span> <span style={{ color: '#38bdf8' }}>{hoveredEmoji.id}</span>
+                  </>
                 ) : (
-                  hoveredEmoji.char ? (
-                    `:${hoveredEmoji.name}: • Codepoint: U+${hoveredEmoji.char.codePointAt(0)?.toString(16).toUpperCase()}`
-                  ) : (
-                    `:${hoveredEmoji.name}:`
-                  )
+                  <>
+                    <span style={{ color: '#fff' }}>Emoji:</span> {hoveredEmoji.char}
+                    <span style={{ color: '#949ba4', margin: '0 6px' }}>|</span>
+                    <span style={{ color: '#fff' }}>Codepoint ID:</span> <span style={{ color: '#38bdf8' }}>U+{hoveredEmoji.char ? hoveredEmoji.char.codePointAt(0)?.toString(16).toUpperCase() : '0000'}</span>
+                    <span style={{ color: '#949ba4', margin: '0 6px' }}>|</span>
+                    <span style={{ color: '#fff' }}>Category:</span> {hoveredEmoji.category}
+                  </>
                 )
               ) : (
-                'Discord Components V2 Picker (Unicode & Bot Emojis)'
+                'RNG Control Center • Unified Unicode & Bot Emoji Picker'
               )}
             </div>
           </div>
         </div>
       </div>
+    </div>
 
       {/* ADD CUSTOM DISCORD BOT EMOJI MODAL */}
       {showAddCustomModal && (
