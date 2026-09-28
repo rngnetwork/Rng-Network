@@ -67,6 +67,7 @@ export function MessageBuilder({
   const [dragOverComp, setDragOverComp] = useState<{ cIdx: number; compIdx: number } | null>(null);
   const [draggedContainer, setDraggedContainer] = useState<number | null>(null);
   const [dragOverContainer, setDragOverContainer] = useState<number | null>(null);
+  const [collapsedAuthors, setCollapsedAuthors] = useState<{ [cIdx: number]: boolean }>({});
 
   // Raw JSON state
   const [rawJsonText, setRawJsonText] = useState('');
@@ -804,6 +805,24 @@ export function MessageBuilder({
                     onDragOver={(e) => {
                       e.preventDefault();
                       setDragOverContainer(cIdx);
+
+                      // Auto-scroll when dragging near top/bottom edges of scrollable view
+                      const scrollParent = e.currentTarget.closest('.tab-content-area') as HTMLElement | null;
+                      if (scrollParent) {
+                        const rect = scrollParent.getBoundingClientRect();
+                        const y = e.clientY;
+                        if (y < rect.top + 100) {
+                          scrollParent.scrollTop -= 16;
+                        } else if (y > rect.bottom - 100) {
+                          scrollParent.scrollTop += 16;
+                        }
+                      }
+                      const vh = window.innerHeight;
+                      if (e.clientY < 90) {
+                        window.scrollBy({ top: -16, behavior: 'auto' });
+                      } else if (e.clientY > vh - 90) {
+                        window.scrollBy({ top: 16, behavior: 'auto' });
+                      }
                     }}
                     onDragLeave={() => {
                       if (dragOverContainer === cIdx) setDragOverContainer(null);
@@ -812,8 +831,11 @@ export function MessageBuilder({
                       e.preventDefault();
                       if (draggedContainer !== null && draggedContainer !== cIdx) {
                         const upd = [...containers];
-                        const [moved] = upd.splice(draggedContainer, 1);
-                        upd.splice(cIdx, 0, moved);
+                        // Swap the two containers directly
+                        const draggedItem = upd[draggedContainer];
+                        const targetItem = upd[cIdx];
+                        upd[draggedContainer] = targetItem;
+                        upd[cIdx] = draggedItem;
                         setContainers(upd);
                         onDirtyChange?.();
                       }
@@ -821,130 +843,167 @@ export function MessageBuilder({
                       setDragOverContainer(null);
                     }}
                   >
-                    {/* Top Container Strip with Drag & Controls */}
+                    {/* Top Container Strip with Drag & Controls (Non-overlapping layout) */}
                     <div className="container-control-strip">
-                      <i className="fa-solid fa-grip-vertical container-drag-handle" title="Drag to reorder Container" />
-                      <button
-                        type="button"
-                        className="comp-move-btn"
-                        onClick={() => moveContainer(cIdx, 'up')}
-                        title="Move Container Up"
-                        disabled={cIdx === 0}
-                      >
-                        ▲
-                      </button>
-                      <button
-                        type="button"
-                        className="comp-move-btn"
-                        onClick={() => moveContainer(cIdx, 'down')}
-                        title="Move Container Down"
-                        disabled={cIdx === containers.length - 1}
-                      >
-                        ▼
-                      </button>
+                      {/* Left: Drag handle, Move buttons, Badge, Color picker */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <i className="fa-solid fa-grip-vertical container-drag-handle" title="Drag to swap container position" style={{ cursor: 'grab', color: '#949ba4', fontSize: '13px' }} />
+                        <button
+                          type="button"
+                          className="comp-move-btn"
+                          onClick={() => moveContainer(cIdx, 'up')}
+                          title="Move Container Up"
+                          disabled={cIdx === 0}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          className="comp-move-btn"
+                          onClick={() => moveContainer(cIdx, 'down')}
+                          title="Move Container Down"
+                          disabled={cIdx === containers.length - 1}
+                        >
+                          ▼
+                        </button>
+                        <span style={{ fontSize: '11.5px', fontWeight: 800, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: '4px' }}>
+                          Container {cIdx + 1}
+                        </span>
 
-                      {/* Preset Color Swatches */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '3px', margin: '0 2px' }}>
-                        {PRESET_ACCENTS.map((col) => (
-                          <div
-                            key={col.hex}
-                            style={{
-                              width: '13px',
-                              height: '13px',
-                              borderRadius: '3px',
-                              background: col.hex,
-                              cursor: 'pointer',
-                              border: '1px solid rgba(255,255,255,0.3)',
-                              boxShadow: (c17.accentColor || '#00A8FC').toLowerCase() === col.hex.toLowerCase() ? '0 0 6px #fff' : 'none',
-                              transform: (c17.accentColor || '#00A8FC').toLowerCase() === col.hex.toLowerCase() ? 'scale(1.2)' : 'none'
-                            }}
-                            onClick={() => updateContainerAccent(cIdx, col.hex)}
-                            title={`Color: ${col.name} (${col.hex})`}
+                        {/* Preset Color Swatches */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '3px', background: 'rgba(0,0,0,0.3)', padding: '2px 5px', borderRadius: '4px' }}>
+                          {PRESET_ACCENTS.map((col) => (
+                            <div
+                              key={col.hex}
+                              style={{
+                                width: '13px',
+                                height: '13px',
+                                borderRadius: '3px',
+                                background: col.hex,
+                                cursor: 'pointer',
+                                border: '1px solid rgba(255,255,255,0.3)',
+                                boxShadow: (c17.accentColor || '#00A8FC').toLowerCase() === col.hex.toLowerCase() ? '0 0 6px #fff' : 'none',
+                                transform: (c17.accentColor || '#00A8FC').toLowerCase() === col.hex.toLowerCase() ? 'scale(1.2)' : 'none'
+                              }}
+                              onClick={() => updateContainerAccent(cIdx, col.hex)}
+                              title={`Color: ${col.name} (${col.hex})`}
+                            />
+                          ))}
+                        </div>
+
+                        {/* Color Picker Pill */}
+                        <div className="container-color-picker-pill">
+                          <input
+                            type="color"
+                            className="container-color-dot"
+                            value={c17.accentColor || '#00A8FC'}
+                            onChange={(e) => updateContainerAccent(cIdx, e.target.value)}
                           />
-                        ))}
+                          <input
+                            type="text"
+                            value={c17.accentColor || '#00A8FC'}
+                            style={{ width: '58px', background: 'transparent', border: 'none', color: '#fff', fontFamily: 'var(--font-mono)', fontSize: '10px', textTransform: 'uppercase' }}
+                            onChange={(e) => updateContainerAccent(cIdx, e.target.value)}
+                          />
+                        </div>
                       </div>
 
-                      {/* Color Picker Pill */}
-                      <div className="container-color-picker-pill">
+                      {/* Right: Author toggle, Spoiler toggle, + Component, Delete */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        {/* Author Collapse / Expand Toggle Button */}
+                        <button
+                          type="button"
+                          className="btn-ctrl-xs"
+                          style={{
+                            padding: '3px 8px',
+                            fontSize: '10.5px',
+                            background: collapsedAuthors[cIdx] ? 'rgba(255,255,255,0.06)' : 'rgba(0, 168, 252, 0.15)',
+                            borderColor: collapsedAuthors[cIdx] ? 'rgba(255,255,255,0.12)' : 'rgba(0, 168, 252, 0.35)',
+                            color: collapsedAuthors[cIdx] ? '#949ba4' : 'var(--discord-cyan)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                          onClick={() => {
+                            setCollapsedAuthors(prev => ({ ...prev, [cIdx]: !prev[cIdx] }));
+                          }}
+                          title="Toggle Author Row Collapse / Expand"
+                        >
+                          <i className="fa-solid fa-user" style={{ fontSize: '10px' }} />
+                          <span>Author</span>
+                          <i className={`fa-solid fa-chevron-${collapsedAuthors[cIdx] ? 'right' : 'down'}`} style={{ fontSize: '9px' }} />
+                        </button>
+
+                        {/* Spoiler toggle */}
+                        <button
+                          type="button"
+                          className="btn-ctrl-xs"
+                          style={{
+                            background: c17.isSpoiler ? '#da373c' : 'rgba(255,255,255,0.08)',
+                            borderColor: c17.isSpoiler ? '#da373c' : 'rgba(255,255,255,0.12)',
+                            color: '#fff',
+                            padding: '3px 8px',
+                            fontSize: '10.5px',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => toggleContainerSpoiler(cIdx)}
+                          title="Toggle Spoiler Hide"
+                        >
+                          {c17.isSpoiler ? '|| Spoiler Active' : '|| Spoiler'}
+                        </button>
+
+                        {/* Add Component to this Container */}
+                        <button
+                          type="button"
+                          className="btn-ctrl-xs"
+                          style={{ padding: '3px 9px', fontSize: '10.5px', background: 'rgba(88, 101, 242, 0.2)', borderColor: 'rgba(88, 101, 242, 0.4)', color: '#5865F2', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                          onClick={() => {
+                            setPaletteTarget({ cIdx });
+                            setIsPaletteOpen(true);
+                          }}
+                          title="Add Component to this container"
+                        >
+                          <i className="fa-solid fa-plus" /> Component
+                        </button>
+
+                        {/* Remove Container */}
+                        <button
+                          type="button"
+                          className="btn-container-close"
+                          title="Remove Container"
+                          onClick={() => removeContainer(cIdx)}
+                        >
+                          <i className="fa-solid fa-xmark" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Collapsible Author Row */}
+                    {!collapsedAuthors[cIdx] && (
+                      <div style={{ display: 'flex', gap: '6px', margin: '2px 0 4px 0' }}>
                         <input
-                          type="color"
-                          className="container-color-dot"
-                          value={c17.accentColor || '#00A8FC'}
-                          onChange={(e) => updateContainerAccent(cIdx, e.target.value)}
+                          type="text"
+                          className="bare-input input-author-name"
+                          placeholder="Author name (e.g. RNG Network)"
+                          value={c17.author?.name || ''}
+                          onChange={(e) => updateContainerAuthor(cIdx, 'name', e.target.value)}
+                          style={{ flex: 2 }}
                         />
                         <input
                           type="text"
-                          value={c17.accentColor || '#00A8FC'}
-                          style={{ width: '58px', background: 'transparent', border: 'none', color: '#fff', fontFamily: 'var(--font-mono)', fontSize: '10px', textTransform: 'uppercase' }}
-                          onChange={(e) => updateContainerAccent(cIdx, e.target.value)}
+                          className="bare-input"
+                          placeholder="Author icon URL (optional)"
+                          value={c17.author?.icon_url || ''}
+                          onChange={(e) => updateContainerAuthor(cIdx, 'icon_url', e.target.value)}
+                          style={{ flex: 1, fontSize: '11px', color: 'var(--discord-text-muted)' }}
                         />
                       </div>
+                    )}
 
-                      {/* Spoiler toggle */}
-                      <button
-                        type="button"
-                        style={{
-                          background: c17.isSpoiler ? '#da373c' : 'rgba(255,255,255,0.08)',
-                          border: 'none',
-                          color: '#fff',
-                          padding: '2px 6px',
-                          borderRadius: '3px',
-                          fontSize: '10px',
-                          fontWeight: 700,
-                          cursor: 'pointer'
-                        }}
-                        onClick={() => toggleContainerSpoiler(cIdx)}
-                        title="Toggle Spoiler Hide"
-                      >
-                        {c17.isSpoiler ? '|| Spoiler Active' : '|| Spoiler'}
-                      </button>
-
-                      {/* Add Component to this Container */}
-                      <button
-                        type="button"
-                        className="btn-ctrl-xs"
-                        style={{ padding: '2px 8px', fontSize: '10px', background: 'rgba(0,168,252,0.15)', borderColor: 'rgba(0,168,252,0.3)', color: 'var(--discord-cyan)', cursor: 'pointer' }}
-                        onClick={() => {
-                          setPaletteTarget({ cIdx });
-                          setIsPaletteOpen(true);
-                        }}
-                        title="Add Component to this container"
-                      >
-                        <i className="fa-solid fa-plus" /> Component
-                      </button>
-
-                      {/* Remove Container */}
-                      <button
-                        type="button"
-                        className="btn-container-close"
-                        title="Remove Container"
-                        onClick={() => removeContainer(cIdx)}
-                      >
-                        <i className="fa-solid fa-xmark" />
-                      </button>
-                    </div>
-
-                    {/* Author, Title, Description, Thumbnail Slot */}
+                    {/* Title, Description & Thumbnail Slot */}
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginTop: '2px' }}>
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <input
-                            type="text"
-                            className="bare-input input-author-name"
-                            placeholder="Author name (e.g. RNG Network)"
-                            value={c17.author?.name || ''}
-                            onChange={(e) => updateContainerAuthor(cIdx, 'name', e.target.value)}
-                            style={{ flex: 2 }}
-                          />
-                          <input
-                            type="text"
-                            className="bare-input"
-                            placeholder="Author icon URL (optional)"
-                            value={c17.author?.icon_url || ''}
-                            onChange={(e) => updateContainerAuthor(cIdx, 'icon_url', e.target.value)}
-                            style={{ flex: 1, fontSize: '11px', color: 'var(--discord-text-muted)' }}
-                          />
-                        </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <input
                             type="text"

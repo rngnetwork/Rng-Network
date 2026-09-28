@@ -373,12 +373,16 @@
 }
 
 .container-control-strip {
-  position: absolute;
-  top: 8px;
-  right: 10px;
+  position: relative;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  width: 100%;
   z-index: 5;
 }
 
@@ -1637,7 +1641,8 @@ select.form-input option {
 }
 
 .discord-emoji-picker-popover {
-  position: fixed;
+  position: relative;
+  margin: auto;
   z-index: 999999;
   width: 442px;
   height: 468px;

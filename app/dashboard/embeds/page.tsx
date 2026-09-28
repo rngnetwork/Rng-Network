@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import '@/components/embeds/embed-builder.css';
-import { Type17Container } from '@/components/embeds/types';
+import { Type17Container, DiscordInnerComponent } from '@/components/embeds/types';
 import { MessageBuilder } from '@/components/embeds/MessageBuilder';
 import { TemplatesTab } from '@/components/embeds/TemplatesTab';
 import { ComponentsTab } from '@/components/embeds/ComponentsTab';
@@ -157,21 +157,25 @@ export default function EmbedsPage() {
   };
 
   // Insert component from Components Tab
-  const handleInsertComponentFromCatalog = (typeNum: number) => {
+  const handleInsertComponentFromCatalog = (item: number | DiscordInnerComponent) => {
     setActiveTopTab('builder');
     setIsDirty(true);
+    const newComp = typeof item === 'number'
+      ? ({ type: item as any, id: `comp_${Date.now()}` } as any)
+      : JSON.parse(JSON.stringify(item));
+
     if (containers.length === 0) {
       setContainers([
         {
           id: `c17_${Date.now()}`,
           accentColor: '#00A8FC',
           isSpoiler: false,
-          components: [{ type: typeNum as any, id: `comp_${Date.now()}` } as any]
+          components: [newComp]
         }
       ]);
     } else {
       const upd = [...containers];
-      upd[0].components.push({ type: typeNum as any, id: `comp_${Date.now()}` } as any);
+      upd[0].components.push(newComp);
       setContainers(upd);
     }
   };
@@ -214,15 +218,17 @@ export default function EmbedsPage() {
             <span>IS_COMPONENTS_V2 (32768)</span>
           </div>
 
-          <button
-            type="button"
-            className="btn-header-action"
-            onClick={handleCopyJson}
-            title="Copy Discord JSON Payload"
-          >
-            <i className="fa-regular fa-copy" />
-            <span>Copy JSON</span>
-          </button>
+          {activeTopTab === 'builder' && (
+            <button
+              type="button"
+              className="btn-header-action"
+              onClick={handleCopyJson}
+              title="Copy Discord JSON Payload"
+            >
+              <i className="fa-regular fa-copy" />
+              <span>Copy JSON</span>
+            </button>
+          )}
           <button
             type="button"
             className="btn-header-action"
