@@ -18,7 +18,7 @@ export function Navbar({
   return (
     <header
       className={`sticky top-0 z-30 h-16 px-6 md:px-8 border-b border-white/10 bg-[#080808]/90 backdrop-blur-xl flex items-center justify-between transition-all duration-300 ease-in-out shrink-0 relative ${
-        isHeaderCollapsed ? '-mt-16' : 'mt-0'
+        isHeaderCollapsed ? '-translate-y-full -mb-16' : 'translate-y-0 mb-0'
       }`}
     >
       <div className="flex items-center gap-3">

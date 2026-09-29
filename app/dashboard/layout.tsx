@@ -114,7 +114,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="h-screen w-full bg-[#080808] text-white flex font-sans relative overflow-hidden">
+    <div className="min-h-screen w-full bg-[#080808] text-white flex font-sans relative overflow-x-hidden">
       {/* Dynamic Ambient Background Glows */}
       <div className="fixed top-[-15%] left-[-10%] w-[45vw] h-[45vw] bg-red-600/5 blur-[160px] rounded-full pointer-events-none" />
       <div className="fixed bottom-[-15%] right-[-10%] w-[40vw] h-[40vw] bg-red-950/10 blur-[180px] rounded-full pointer-events-none" />
@@ -142,7 +142,7 @@ export default function DashboardLayout({
       />
 
       {/* Main App Container */}
-      <div className={`flex-1 flex flex-col min-w-0 h-screen overflow-hidden transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'md:pl-0' : 'md:pl-64'}`}>
+      <div className={`flex-1 flex flex-col min-w-0 min-h-screen transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'md:pl-0' : 'md:pl-64'}`}>
         {/* Top Navbar Bar Component with Joint Bottom Center Toggle */}
         <Navbar
           user={user}
@@ -151,7 +151,7 @@ export default function DashboardLayout({
         />
 
         {/* Dynamic Page Content */}
-        <main className="flex-1 flex flex-col min-w-0 min-h-0 p-3 md:p-4 w-full max-w-full overflow-hidden">
+        <main className="flex-1 p-4 md:p-6 w-full">
           {children}
         </main>
       </div>

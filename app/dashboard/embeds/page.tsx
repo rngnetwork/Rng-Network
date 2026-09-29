@@ -2,10 +2,9 @@
 
 import React, { useState } from 'react';
 import '@/components/embeds/embed-builder.css';
-import { Type17Container, DiscordInnerComponent } from '@/components/embeds/types';
+import { Type17Container } from '@/components/embeds/types';
 import { MessageBuilder } from '@/components/embeds/MessageBuilder';
 import { TemplatesTab } from '@/components/embeds/TemplatesTab';
-import { ComponentsTab } from '@/components/embeds/ComponentsTab';
 
 import { UnsavedChangesBar } from '@/components/ui/UnsavedChangesBar';
 
@@ -64,7 +63,7 @@ const INITIAL_SAMPLE_STATE = {
 };
 
 export default function EmbedsPage() {
-  const [activeTopTab, setActiveTopTab] = useState<'builder' | 'templates' | 'components'>('builder');
+  const [activeTopTab, setActiveTopTab] = useState<'builder' | 'templates'>('builder');
   const [messageContent, setMessageContent] = useState(INITIAL_SAMPLE_STATE.messageContent);
   const [containers, setContainers] = useState<Type17Container[]>(INITIAL_SAMPLE_STATE.containers);
 
@@ -128,32 +127,8 @@ export default function EmbedsPage() {
     setActiveTopTab('builder');
   };
 
-  // Insert component from Components Tab
-  const handleInsertComponentFromCatalog = (item: number | DiscordInnerComponent) => {
-    setActiveTopTab('builder');
-    setIsDirty(true);
-    const newComp = typeof item === 'number'
-      ? ({ type: item as DiscordInnerComponent['type'], id: `comp_${Date.now()}` } as DiscordInnerComponent)
-      : JSON.parse(JSON.stringify(item));
-
-    if (containers.length === 0) {
-      setContainers([
-        {
-          id: `c17_${Date.now()}`,
-          accentColor: '#00A8FC',
-          isSpoiler: false,
-          components: [newComp]
-        }
-      ]);
-    } else {
-      const upd = [...containers];
-      upd[0].components.push(newComp);
-      setContainers(upd);
-    }
-  };
-
   return (
-    <div className="main-workspace w-full" style={{ flex: 1, minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div className="main-workspace w-full" style={{ height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' }}>
       
       {/* Top Navigation Tabs Bar */}
       <header className="top-nav-bar">
@@ -173,14 +148,6 @@ export default function EmbedsPage() {
           >
             <i className="fa-solid fa-layer-group" />
             <span>Templates</span>
-          </button>
-          <button
-            type="button"
-            className={`main-tab-btn ${activeTopTab === 'components' ? 'active' : ''}`}
-            onClick={() => setActiveTopTab('components')}
-          >
-            <i className="fa-solid fa-puzzle-piece" />
-            <span>Components</span>
           </button>
         </div>
       </header>
@@ -205,14 +172,6 @@ export default function EmbedsPage() {
               type17Containers: containers
             }}
             onLoadTemplate={handleLoadTemplate}
-          />
-        </div>
-      )}
-
-      {activeTopTab === 'components' && (
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          <ComponentsTab
-            onInsertComponent={handleInsertComponentFromCatalog}
           />
         </div>
       )}
