@@ -1,6 +1,4 @@
-"use client";
-
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Type17Container, DiscordInnerComponent, DiscordButtonComponent } from '../../types';
 import { NormalMessageBox } from '../common/NormalMessageBox';
 import { ContainerCard } from '../containers/ContainerCard';
@@ -49,6 +47,78 @@ export function EditTab({
   collapsedAuthors,
   setCollapsedAuthors
 }: EditTabProps) {
+  // Active text input tracking for cursor-aware emoji insertion
+  const lastActiveInputRef = useRef<{
+    element: HTMLInputElement | HTMLTextAreaElement;
+    start: number;
+    end: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const handleSelection = () => {
+      const el = document.activeElement;
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+        if (!el.classList.contains('emoji-search-input') && !el.closest('.discord-emoji-picker-popover')) {
+          lastActiveInputRef.current = {
+            element: el,
+            start: el.selectionStart ?? el.value.length,
+            end: el.selectionEnd ?? el.value.length
+          };
+        }
+      }
+    };
+
+    document.addEventListener('selectionchange', handleSelection);
+    document.addEventListener('focusin', handleSelection);
+    document.addEventListener('keyup', handleSelection);
+    document.addEventListener('mouseup', handleSelection);
+
+    return () => {
+      document.removeEventListener('selectionchange', handleSelection);
+      document.removeEventListener('focusin', handleSelection);
+      document.removeEventListener('keyup', handleSelection);
+      document.removeEventListener('mouseup', handleSelection);
+    };
+  }, []);
+
+  const insertEmojiAtCursor = (_emoji: EmojiItem, insertStr: string) => {
+    const target = lastActiveInputRef.current;
+    if (target && document.body.contains(target.element)) {
+      const el = target.element;
+      const start = target.start ?? el.value.length;
+      const end = target.end ?? el.value.length;
+      const val = el.value;
+      const updated = val.slice(0, start) + insertStr + val.slice(end);
+
+      const nativeSetter = el instanceof HTMLTextAreaElement
+        ? Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set
+        : Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+
+      if (nativeSetter) {
+        nativeSetter.call(el, updated);
+      } else {
+        el.value = updated;
+      }
+
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+
+      const nextPos = start + insertStr.length;
+      lastActiveInputRef.current = { element: el, start: nextPos, end: nextPos };
+
+      setTimeout(() => {
+        try {
+          el.focus();
+          el.setSelectionRange(nextPos, nextPos);
+        } catch {
+          // ignore focus error
+        }
+      }, 10);
+    } else {
+      setMessageContent((prev) => prev + insertStr);
+    }
+  };
+
   // Container Operations
   const handleAddContainer = () => {
     const newContainer: Type17Container = {
@@ -175,10 +245,15 @@ export function EditTab({
     onDirtyChange?.();
   };
 
-  const handleUpdateField = (cIdx: number, fIdx: number, key: 'name' | 'value' | 'inline', val: any) => {
+  const handleUpdateField = (cIdx: number, fIdx: number, key: 'name' | 'value' | 'inline', val: string | boolean) => {
     const upd = [...containers];
-    if (upd[cIdx].fields && upd[cIdx].fields![fIdx]) {
-      (upd[cIdx].fields![fIdx] as any)[key] = val;
+    const targetFields = upd[cIdx].fields;
+    if (targetFields && targetFields[fIdx]) {
+      if (key === 'inline') {
+        targetFields[fIdx].inline = Boolean(val);
+      } else {
+        targetFields[fIdx][key] = String(val);
+      }
       setContainers(upd);
       onDirtyChange?.();
     }
@@ -245,7 +320,7 @@ export function EditTab({
     e.dataTransfer.effectAllowed = 'move';
   };
 
-  const handleContainerDragOver = (e: React.DragEvent, _cIdx: number) => {
+  const handleContainerDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
   };
@@ -302,7 +377,7 @@ export function EditTab({
           <NormalMessageBox
             messageContent={messageContent}
             setMessageContent={setMessageContent}
-            onOpenEmojiPicker={onOpenEmojiPicker}
+            onOpenEmojiPicker={(e, cb) => onOpenEmojiPicker(e, cb || insertEmojiAtCursor)}
           />
 
           {/* 2. Type 17 Containers List */}
@@ -387,6 +462,19 @@ export function EditTab({
             title="Clear Builder"
           >
             Clear
+          </button>
+          <button
+            type="button"
+            className="btn-ctrl-emoji"
+            onMouseDown={(e) => {
+              e.preventDefault();
+            }}
+            onClick={(e) => {
+              onOpenEmojiPicker(e, insertEmojiAtCursor);
+            }}
+            title="Open Discord Emoji Picker"
+          >
+            <i className="fa-regular fa-face-smile" />
           </button>
         </div>
       </div>

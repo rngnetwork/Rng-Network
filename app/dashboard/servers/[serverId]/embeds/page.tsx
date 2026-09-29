@@ -158,34 +158,6 @@ export default function ServerEmbedsPage() {
     setIsDirty(false);
   };
 
-  // Copy JSON shortcut
-  const handleCopyJson = () => {
-    const payload = {
-      content: messageContent || undefined,
-      flags: 32768,
-      components: containers.map(c => ({
-        type: 17,
-        accent_color: parseInt((c.accentColor || '#E11D2E').replace('#', ''), 16) || 14753070,
-        spoiler: Boolean(c.isSpoiler),
-        components: c.components
-      }))
-    };
-    navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
-    alert('Discord Components V2 JSON copied to clipboard!');
-  };
-
-  // Reset to default sample
-  const handleResetToSample = () => {
-    if (isDirty) {
-      const proceed = window.confirm('You have unsaved changes! Reset canvas to default Discord Components V2 sample?');
-      if (!proceed) return;
-    } else {
-      if (!confirm('Reset canvas to default Discord Components V2 sample?')) return;
-    }
-    setMessageContent(INITIAL_SERVER_SAMPLE_STATE.messageContent);
-    setContainers(JSON.parse(JSON.stringify(INITIAL_SERVER_SAMPLE_STATE.containers)));
-    setIsDirty(true);
-  };
 
   // Load template into builder (1-click green button)
   const handleLoadTemplate = (state: { message: { content: string }; type17Containers: Type17Container[] }) => {
@@ -204,7 +176,7 @@ export default function ServerEmbedsPage() {
     setActiveTopTab('builder');
     setIsDirty(true);
     const newComp = typeof item === 'number'
-      ? ({ type: item as any, id: `comp_${Date.now()}` } as any)
+      ? ({ type: item as DiscordInnerComponent['type'], id: `comp_${Date.now()}` } as DiscordInnerComponent)
       : JSON.parse(JSON.stringify(item));
 
     if (containers.length === 0) {
@@ -263,41 +235,14 @@ export default function ServerEmbedsPage() {
           </button>
         </div>
 
-        <div className="top-nav-actions" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {server && (
+        {server && (
+          <div className="top-nav-actions" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div className="status-pill" style={{ background: 'rgba(225, 29, 46, 0.1)', borderColor: 'rgba(225, 29, 46, 0.3)', color: '#FF3B4D' }}>
               <i className="fa-solid fa-server" />
               <span>{server.name}</span>
             </div>
-          )}
-
-          <div className="status-pill">
-            <div className="status-indicator-dot" />
-            <span>IS_COMPONENTS_V2 (32768)</span>
           </div>
-
-          {activeTopTab === 'builder' && (
-            <button
-              type="button"
-              className="btn-header-action"
-              onClick={handleCopyJson}
-              title="Copy Discord JSON Payload"
-            >
-              <i className="fa-regular fa-copy" />
-              <span>Copy JSON</span>
-            </button>
-          )}
-
-          <button
-            type="button"
-            className="btn-header-action"
-            onClick={handleResetToSample}
-            title="Reset to Defaults"
-          >
-            <i className="fa-solid fa-rotate-left" />
-            <span>Reset</span>
-          </button>
-        </div>
+        )}
       </header>
 
       {/* Main Tab Panels */}

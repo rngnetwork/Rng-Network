@@ -115,34 +115,6 @@ export default function EmbedsPage() {
     setIsDirty(false);
   };
 
-  // Copy JSON shortcut
-  const handleCopyJson = () => {
-    const payload = {
-      content: messageContent || undefined,
-      flags: 32768,
-      components: containers.map(c => ({
-        type: 17,
-        accent_color: parseInt((c.accentColor || '#00A8FC').replace('#', ''), 16) || 43260,
-        spoiler: Boolean(c.isSpoiler),
-        components: c.components
-      }))
-    };
-    navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
-    alert('Discord Components V2 JSON copied to clipboard!');
-  };
-
-  // Reset to default sample
-  const handleResetToSample = () => {
-    if (isDirty) {
-      const proceed = window.confirm('You have unsaved changes! Reset canvas to default Discord Components V2 sample?');
-      if (!proceed) return;
-    } else {
-      if (!confirm('Reset canvas to default Discord Components V2 sample?')) return;
-    }
-    setMessageContent(INITIAL_SAMPLE_STATE.messageContent);
-    setContainers(JSON.parse(JSON.stringify(INITIAL_SAMPLE_STATE.containers)));
-    setIsDirty(true);
-  };
 
   // Load a template into the builder
   const handleLoadTemplate = (state: { message: { content: string }; type17Containers: Type17Container[] }) => {
@@ -161,7 +133,7 @@ export default function EmbedsPage() {
     setActiveTopTab('builder');
     setIsDirty(true);
     const newComp = typeof item === 'number'
-      ? ({ type: item as any, id: `comp_${Date.now()}` } as any)
+      ? ({ type: item as DiscordInnerComponent['type'], id: `comp_${Date.now()}` } as DiscordInnerComponent)
       : JSON.parse(JSON.stringify(item));
 
     if (containers.length === 0) {
@@ -209,34 +181,6 @@ export default function EmbedsPage() {
           >
             <i className="fa-solid fa-puzzle-piece" />
             <span>Components</span>
-          </button>
-        </div>
-
-        <div className="top-nav-actions">
-          <div className="status-pill">
-            <div className="status-indicator-dot" />
-            <span>IS_COMPONENTS_V2 (32768)</span>
-          </div>
-
-          {activeTopTab === 'builder' && (
-            <button
-              type="button"
-              className="btn-header-action"
-              onClick={handleCopyJson}
-              title="Copy Discord JSON Payload"
-            >
-              <i className="fa-regular fa-copy" />
-              <span>Copy JSON</span>
-            </button>
-          )}
-          <button
-            type="button"
-            className="btn-header-action"
-            onClick={handleResetToSample}
-            title="Reset to Defaults"
-          >
-            <i className="fa-solid fa-rotate-left" />
-            <span>Reset</span>
           </button>
         </div>
       </header>

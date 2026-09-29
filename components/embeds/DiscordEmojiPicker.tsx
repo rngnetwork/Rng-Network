@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -21,21 +22,26 @@ interface DiscordEmojiPickerProps {
   triggerRect?: DOMRect | null;
   serverEmojis?: EmojiItem[];
   serverName?: string;
+  placement?: 'bottom-right' | 'center';
 }
 
 export function DiscordEmojiPicker({
   isOpen,
   onClose,
   onSelect,
-  triggerRect,
   serverEmojis,
-  serverName
+  serverName,
+  placement = 'bottom-right'
 }: DiscordEmojiPickerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState(serverEmojis && serverEmojis.length > 0 ? 'server' : 'smileys');
   const [hoveredEmoji, setHoveredEmoji] = useState<EmojiItem | null>(null);
-  const [customBotEmojis, setCustomBotEmojis] = useState<EmojiItem[]>([]);
-  const [frequentEmojis, setFrequentEmojis] = useState<EmojiItem[]>([]);
+  const [customBotEmojis, setCustomBotEmojis] = useState<EmojiItem[]>(() =>
+    typeof window !== 'undefined' ? getCustomBotEmojis() : []
+  );
+  const [frequentEmojis] = useState<EmojiItem[]>(() =>
+    typeof window !== 'undefined' ? getFrequentlyUsedEmojis() : []
+  );
   const [showAddCustomModal, setShowAddCustomModal] = useState(false);
 
   // New Custom Emoji Form state
@@ -48,15 +54,6 @@ export function DiscordEmojiPicker({
   const popoverRef = useRef<HTMLDivElement>(null);
   const scrollPaneRef = useRef<HTMLDivElement>(null);
   const categoryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
-
-  useEffect(() => {
-    if (isOpen) {
-      setCustomBotEmojis(getCustomBotEmojis());
-      setFrequentEmojis(getFrequentlyUsedEmojis());
-      setSearchQuery('');
-      setHoveredEmoji(null);
-    }
-  }, [isOpen]);
 
   // Click outside listener
   useEffect(() => {
@@ -112,8 +109,9 @@ export function DiscordEmojiPicker({
       setCustomUrl('');
       setCustomAnimated(false);
       handleEmojiSelect(newEmoji);
-    } catch (err: any) {
-      alert(err.message || 'Failed to save custom emoji');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save custom emoji';
+      alert(msg);
     }
   };
 
@@ -175,11 +173,12 @@ export function DiscordEmojiPicker({
         onClick={onClose}
         style={{
           zIndex: 1000000,
-          backdropFilter: 'blur(12px)',
-          background: 'rgba(0, 0, 0, 0.75)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          background: 'rgba(0, 0, 0, 0.45)',
+          display: placement === 'center' ? 'flex' : 'block',
+          alignItems: placement === 'center' ? 'center' : undefined,
+          justifyContent: placement === 'center' ? 'center' : undefined,
           position: 'fixed',
           inset: 0
         }}
@@ -187,16 +186,33 @@ export function DiscordEmojiPicker({
         <div
           ref={popoverRef}
           className="discord-emoji-picker-popover"
-          style={{
-            position: 'relative',
-            margin: 'auto',
-            maxHeight: '85vh',
-            boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            background: '#2b2d31',
-            borderRadius: '12px',
-            overflow: 'hidden'
-          }}
+          style={
+            placement === 'bottom-right'
+              ? {
+                  position: 'fixed',
+                  bottom: '65px',
+                  right: '20px',
+                  margin: 0,
+                  maxHeight: 'min(490px, calc(100vh - 85px))',
+                  boxShadow: '0 20px 50px rgba(0,0,0,0.85)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  background: '#2b2d31',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  transformOrigin: 'bottom right',
+                  animation: 'discordEmojiSlideUp 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
+                }
+              : {
+                  position: 'relative',
+                  margin: 'auto',
+                  maxHeight: '85vh',
+                  boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  background: '#2b2d31',
+                  borderRadius: '12px',
+                  overflow: 'hidden'
+                }
+          }
           onClick={(e) => e.stopPropagation()}
         >
           {/* Top Search Bar */}
@@ -276,7 +292,7 @@ export function DiscordEmojiPicker({
                     ))
                   ) : (
                     <div style={{ padding: '20px 10px', color: '#949ba4', fontSize: '12px', gridColumn: 'span 8' }}>
-                      No matching Discord or Unicode emojis found for "{searchQuery}".
+                      No matching Discord or Unicode emojis found for &quot;{searchQuery}&quot;.
                     </div>
                   )}
                 </div>

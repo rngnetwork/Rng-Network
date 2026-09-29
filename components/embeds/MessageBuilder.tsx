@@ -164,7 +164,7 @@ export function MessageBuilder({
     if ([3, 5, 6, 7, 8].includes(typeNum)) {
       // Select Menus
       target.components.push({
-        type: typeNum as any,
+        type: typeNum as 3 | 5 | 6 | 7 | 8,
         id: `sel_${Date.now()}`,
         custom_id: `select_${Date.now()}`,
         placeholder: 'Select an option...',
@@ -242,7 +242,7 @@ export function MessageBuilder({
 
     // Modal-only components fallback
     target.components.push({
-      type: typeNum as any,
+      type: typeNum as DiscordInnerComponent['type'],
       id: `comp_${Date.now()}`,
       label: `Form Component (Type ${typeNum})`
     } as DiscordInnerComponent);
@@ -313,20 +313,6 @@ export function MessageBuilder({
             <i className="fa-solid fa-paper-plane" />
             <span>Dispatch</span>
           </button>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button
-            type="button"
-            className="btn-header-action"
-            onClick={() => handleOpenPalette(0)}
-            style={{ color: 'var(--discord-cyan)', borderColor: 'rgba(0, 168, 252, 0.4)' }}
-          >
-            <i className="fa-solid fa-plus" /> Add Component (Type 1-23)
-          </button>
-          <span style={{ fontSize: '11px', color: 'var(--color-foreground-muted)' }}>
-            Type 17 V2 Mode
-          </span>
         </div>
       </nav>
 

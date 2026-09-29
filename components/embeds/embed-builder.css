@@ -1045,6 +1045,27 @@ select.form-input option {
   background: var(--discord-red-hover);
 }
 
+.btn-ctrl-emoji {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--discord-text-muted);
+  font-size: 18px;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-ctrl-emoji:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
 /* ==========================================================================
    PREVIEW TAB: Full-Width 1:1 Discord Live Message View (Fixes CSS mismatch)
    ========================================================================== */
@@ -1645,6 +1666,17 @@ select.form-input option {
   100% {
     opacity: 1;
     transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes discordEmojiSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
