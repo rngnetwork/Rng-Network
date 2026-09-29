@@ -1,6 +1,4 @@
-"use client";
-
-import React, { useState } from 'react';
+import React from 'react';
 import { Type17Container, DiscordInnerComponent, DiscordButtonComponent } from '../../types';
 import { ContainerHeader } from './ContainerHeader';
 import { ContainerFields } from './ContainerFields';
@@ -71,8 +69,6 @@ export function ContainerCard({
   draggedComp,
   dragOverComp
 }: ContainerCardProps) {
-  const [showAuthorIconPopover, setShowAuthorIconPopover] = useState(false);
-
   return (
     <div
       className="wysiwyg-container-card"
@@ -106,137 +102,16 @@ export function ContainerCard({
 
       {/* 2. Author Header (Collapsible) */}
       {!isAuthorCollapsed && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#191a1d', padding: '6px 10px', borderRadius: '4px', position: 'relative' }}>
-          {/* Clickable Author Avatar Thumbnail */}
-          <div style={{ position: 'relative' }}>
-            <button
-              type="button"
-              onClick={() => setShowAuthorIconPopover(!showAuthorIconPopover)}
-              title="Click to set Author Icon URL"
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                background: '#2b2d31',
-                border: '1px solid rgba(255,255,255,0.15)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
-                cursor: 'pointer',
-                padding: 0,
-                position: 'relative'
-              }}
-            >
-              {container.author?.icon_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={container.author.icon_url}
-                  alt="Author Icon"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              ) : (
-                <i className="fa-solid fa-user" style={{ fontSize: '13px', color: 'var(--discord-text-muted)' }} />
-              )}
-            </button>
-
-            {/* Author Icon URL Popover */}
-            {showAuthorIconPopover && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '38px',
-                  left: 0,
-                  zIndex: 100,
-                  background: '#232428',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  borderRadius: '6px',
-                  padding: '10px',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
-                  width: '280px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 600, color: '#fff' }}>Author Icon URL</span>
-                  <button
-                    type="button"
-                    onClick={() => setShowAuthorIconPopover(false)}
-                    style={{ background: 'none', border: 'none', color: 'var(--discord-text-muted)', cursor: 'pointer', fontSize: '12px' }}
-                  >
-                    <i className="fa-solid fa-xmark" />
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  className="bare-input"
-                  style={{
-                    fontSize: '11.5px',
-                    color: '#fff',
-                    background: '#1e1f22',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '4px',
-                    padding: '6px 8px'
-                  }}
-                  value={container.author?.icon_url || ''}
-                  placeholder="https://cdn.discordapp.com/icons/..."
-                  onChange={(e) => onUpdateAuthor(cIdx, 'icon_url', e.target.value)}
-                  autoFocus
-                />
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
-                  {container.author?.icon_url && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onUpdateAuthor(cIdx, 'icon_url', '');
-                      }}
-                      style={{
-                        fontSize: '11px',
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--discord-red)',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Clear
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setShowAuthorIconPopover(false)}
-                    style={{
-                      fontSize: '11px',
-                      background: 'var(--discord-blurple)',
-                      border: 'none',
-                      borderRadius: '3px',
-                      color: '#fff',
-                      padding: '3px 8px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Author Name */}
-          <div style={{ flex: 1 }}>
-            <input
-              type="text"
-              className="bare-input"
-              style={{ fontSize: '12px', fontWeight: 600, color: '#fff' }}
-              value={container.author?.name || ''}
-              placeholder="Author Name (e.g. Server Announcements)"
-              onChange={(e) => onUpdateAuthor(cIdx, 'name', e.target.value)}
-            />
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#191a1d', padding: '6px 10px', borderRadius: '4px' }}>
+          <i className="fa-solid fa-user" style={{ fontSize: '12px', color: 'var(--discord-text-muted)' }} />
+          <input
+            type="text"
+            className="bare-input"
+            style={{ flex: 1, fontSize: '12px', fontWeight: 600, color: '#fff' }}
+            value={container.author?.name || ''}
+            placeholder="Author Name (e.g. Server Announcements)"
+            onChange={(e) => onUpdateAuthor(cIdx, 'name', e.target.value)}
+          />
         </div>
       )}
 
@@ -316,24 +191,6 @@ export function ContainerCard({
           placeholder="Footer Text"
           onChange={(e) => onUpdateFooter(cIdx, 'text', e.target.value)}
         />
-        <button
-          type="button"
-          onClick={() => {
-            const current = container.footer?.icon_url || '';
-            const next = window.prompt('Footer Icon URL:', current);
-            if (next !== null) onUpdateFooter(cIdx, 'icon_url', next);
-          }}
-          title={container.footer?.icon_url ? `Footer Icon: ${container.footer.icon_url}` : 'Set Footer Icon URL'}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: container.footer?.icon_url ? 'var(--discord-cyan)' : 'var(--discord-text-muted)',
-            cursor: 'pointer',
-            fontSize: '12px'
-          }}
-        >
-          <i className="fa-regular fa-image" />
-        </button>
       </div>
     </div>
   );

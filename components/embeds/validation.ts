@@ -3,7 +3,8 @@ import {
   DiscordV2MessagePayload,
   DiscordModalPayload,
   DiscordV2ValidationResult,
-  PartialEmojiObject
+  PartialEmojiObject,
+  DiscordInnerComponent
 } from './types';
 
 /**
@@ -267,7 +268,7 @@ export function buildDiscordV2MessagePayload(
 
     // Header section (Author / Title / Description / Thumbnail)
     let headerMarkdown = '';
-    if (c.author?.name) headerMarkdown += `*${c.author.name}*\n`;
+    if (c.author?.name) headerMarkdown += `__**${c.author.name}**__\n`;
     if (c.title) headerMarkdown += `**${c.title}**\n`;
     if (c.description) headerMarkdown += c.description;
     headerMarkdown = headerMarkdown.trim();
@@ -587,30 +588,35 @@ export function parseDiscordPayloadToState(parsedInput: unknown): { messageConte
         const childAccMedia = childAcc?.media as Record<string, unknown> | undefined;
         const childCompsInner = child.components as Record<string, unknown>[] | undefined;
 
+        // Helper to extract author, title, description from header markdown
+        const parseHeaderLines = (rawContent: string) => {
+          const lines = rawContent.split('\n');
+          let lineIdx = 0;
+          if (lines[lineIdx] && lines[lineIdx].startsWith('__**') && lines[lineIdx].endsWith('**__')) {
+            c17.author = { name: lines[lineIdx].slice(4, -4), icon_url: '' };
+            lineIdx++;
+          } else if (lines[lineIdx] && lines[lineIdx].startsWith('*') && lines[lineIdx].endsWith('*') && !lines[lineIdx].startsWith('**')) {
+            c17.author = { name: lines[lineIdx].slice(1, -1), icon_url: '' };
+            lineIdx++;
+          }
+          if (lines[lineIdx] && lines[lineIdx].startsWith('**') && lines[lineIdx].endsWith('**')) {
+            c17.title = lines[lineIdx].slice(2, -2);
+            lineIdx++;
+          }
+          c17.description = lines.slice(lineIdx).join('\n');
+        };
+
         // Header Section with Thumbnail Accessory
         if (child.type === 9 && childCompsInner && childCompsInner[0] && !c17.title && !c17.description) {
           const rawContent = (childCompsInner[0].content as string) || '';
-          const lines = rawContent.split('\n');
-          if (lines[0] && lines[0].startsWith('**') && lines[0].endsWith('**')) {
-            c17.title = lines[0].slice(2, -2);
-            c17.description = lines.slice(1).join('\n');
-          } else {
-            c17.description = rawContent;
-          }
+          parseHeaderLines(rawContent);
           if (childAccMedia?.url || childAcc?.url) {
             c17.thumbnail = (childAccMedia?.url as string) || (childAcc?.url as string);
           }
         }
         // Plain Header Text Display
         else if (child.type === 10 && !c17.title && !c17.description && typeof child.content === 'string' && !child.content.startsWith('-# ')) {
-          const rawContent = child.content;
-          const lines = rawContent.split('\n');
-          if (lines[0] && lines[0].startsWith('**') && lines[0].endsWith('**')) {
-            c17.title = lines[0].slice(2, -2);
-            c17.description = lines.slice(1).join('\n');
-          } else {
-            c17.description = rawContent;
-          }
+          parseHeaderLines(child.content);
         }
         // Large Image via Media Gallery
         else if (child.type === 12 && Array.isArray(child.items) && !c17.image) {
@@ -629,7 +635,7 @@ export function parseDiscordPayloadToState(parsedInput: unknown): { messageConte
         }
         // Inner components
         else {
-          c17.components.push(child as unknown as any);
+          c17.components.push(child as unknown as DiscordInnerComponent);
         }
       });
 

@@ -1,12 +1,11 @@
 import React, { useRef, useEffect } from 'react';
 import { Type17Container, DiscordInnerComponent, DiscordButtonComponent } from '../../types';
-import { NormalMessageBox } from '../common/NormalMessageBox';
 import { ContainerCard } from '../containers/ContainerCard';
 import { EmojiItem } from '../../emoji-data';
 
 interface EditTabProps {
-  messageContent: string;
-  setMessageContent: React.Dispatch<React.SetStateAction<string>>;
+  messageContent?: string;
+  setMessageContent?: React.Dispatch<React.SetStateAction<string>>;
   containers: Type17Container[];
   setContainers: React.Dispatch<React.SetStateAction<Type17Container[]>>;
   onOpenEmojiPicker: (
@@ -29,8 +28,6 @@ interface EditTabProps {
 }
 
 export function EditTab({
-  messageContent,
-  setMessageContent,
   containers,
   setContainers,
   onOpenEmojiPicker,
@@ -114,8 +111,6 @@ export function EditTab({
           // ignore focus error
         }
       }, 10);
-    } else {
-      setMessageContent((prev) => prev + insertStr);
     }
   };
 
@@ -309,7 +304,6 @@ export function EditTab({
 
   const handleClearCanvas = () => {
     if (!confirm('Clear all containers and reset message?')) return;
-    setMessageContent('');
     setContainers([]);
     onDirtyChange?.();
   };
@@ -373,14 +367,7 @@ export function EditTab({
     <div className="tab-content-area" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '12px' }}>
       <div className="wysiwyg-canvas-wrapper">
         <div className="wysiwyg-board">
-          {/* 1. Normal Message Sender Box */}
-          <NormalMessageBox
-            messageContent={messageContent}
-            setMessageContent={setMessageContent}
-            onOpenEmojiPicker={(e, cb) => onOpenEmojiPicker(e, cb || insertEmojiAtCursor)}
-          />
-
-          {/* 2. Type 17 Containers List */}
+          {/* Type 17 Containers List */}
           <div id="wysiwyg-containers-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {containers.map((container, cIdx) => (
               <ContainerCard

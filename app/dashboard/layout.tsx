@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { api, UserProfileData } from '@/lib/api';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { Navbar } from '@/components/dashboard/Navbar';
-import { ShieldAlert, ArrowRight, ChevronDown, PanelLeft } from 'lucide-react';
+import { ShieldAlert, ArrowRight, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function DashboardLayout({
   children,
@@ -119,53 +119,53 @@ export default function DashboardLayout({
       <div className="fixed top-[-15%] left-[-10%] w-[45vw] h-[45vw] bg-red-600/5 blur-[160px] rounded-full pointer-events-none" />
       <div className="fixed bottom-[-15%] right-[-10%] w-[40vw] h-[40vw] bg-red-950/10 blur-[180px] rounded-full pointer-events-none" />
 
-      {/* Floating Restore Controls for Collapsed Header & Sidebar */}
-      {headerCollapsed && (
-        <button
-          type="button"
-          onClick={() => setHeaderCollapsed(false)}
-          className="fixed top-3 right-6 z-50 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#161618]/90 border border-white/20 text-xs font-mono text-zinc-300 hover:text-white hover:border-red-500/50 backdrop-blur-md shadow-2xl transition-all cursor-pointer"
-          title="Restore Header Bar"
-        >
-          <ChevronDown size={14} className="text-red-400" />
-          <span>Show Header</span>
-        </button>
-      )}
+      {/* Sidebar Edge Center Toggle Button */}
+      <button
+        type="button"
+        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+        className="hidden md:flex fixed top-1/2 -translate-y-1/2 z-50 items-center justify-center w-5 h-12 bg-[#18181b] hover:bg-red-600 text-zinc-400 hover:text-white border border-l-0 border-white/20 rounded-r-md shadow-2xl transition-all duration-300 ease-in-out cursor-pointer group"
+        style={{ left: sidebarCollapsed ? '0px' : '256px' }}
+        title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+        aria-label={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+      >
+        {sidebarCollapsed ? (
+          <ChevronRight size={13} className="transition-transform group-hover:scale-110" />
+        ) : (
+          <ChevronLeft size={13} className="transition-transform group-hover:scale-110" />
+        )}
+      </button>
 
-      {sidebarCollapsed && (
-        <button
-          type="button"
-          onClick={() => setSidebarCollapsed(false)}
-          className="hidden md:flex fixed top-3 left-6 z-50 items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#161618]/90 border border-white/20 text-xs font-mono text-zinc-300 hover:text-white hover:border-red-500/50 backdrop-blur-md shadow-2xl transition-all cursor-pointer"
-          title="Restore Sidebar"
-        >
-          <PanelLeft size={14} className="text-red-400" />
-          <span>Show Sidebar</span>
-        </button>
-      )}
+      {/* Header Edge Center Toggle Button */}
+      <button
+        type="button"
+        onClick={() => setHeaderCollapsed(!headerCollapsed)}
+        className="fixed left-1/2 -translate-x-1/2 z-50 flex items-center justify-center w-14 h-4.5 bg-[#18181b] hover:bg-red-600 text-zinc-400 hover:text-white border border-t-0 border-white/20 rounded-b-md shadow-2xl transition-all duration-300 ease-in-out cursor-pointer group"
+        style={{ top: headerCollapsed ? '0px' : '64px' }}
+        title={headerCollapsed ? 'Expand Header' : 'Collapse Header'}
+        aria-label={headerCollapsed ? 'Expand Header' : 'Collapse Header'}
+      >
+        {headerCollapsed ? (
+          <ChevronDown size={13} className="transition-transform group-hover:scale-110" />
+        ) : (
+          <ChevronUp size={13} className="transition-transform group-hover:scale-110" />
+        )}
+      </button>
 
       {/* Sidebar Navigation */}
       <Sidebar
         user={user}
         isCollapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
 
       {/* Main App Container */}
-      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'md:pl-0' : 'md:pl-64'}`}>
+      <div className={`flex-1 flex flex-col min-w-0 min-h-screen transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'md:pl-0' : 'md:pl-64'}`}>
         {/* Top Navbar Bar Component */}
         {!headerCollapsed && (
-          <Navbar
-            user={user}
-            isSidebarCollapsed={sidebarCollapsed}
-            onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-            isHeaderCollapsed={headerCollapsed}
-            onToggleHeader={() => setHeaderCollapsed(true)}
-          />
+          <Navbar user={user} />
         )}
 
         {/* Dynamic Page Content */}
-        <main className="flex-1 p-6 md:p-8 w-full">
+        <main className="flex-1 flex flex-col min-w-0 min-h-0 p-3 md:p-5 w-full max-w-full">
           {children}
         </main>
       </div>

@@ -153,7 +153,7 @@ export default function EmbedsPage() {
   };
 
   return (
-    <div className="main-workspace" style={{ height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' }}>
+    <div className="main-workspace w-full" style={{ flex: 1, minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
       
       {/* Top Navigation Tabs Bar */}
       <header className="top-nav-bar">

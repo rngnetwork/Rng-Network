@@ -13,18 +13,16 @@ import {
   LogOut,
   Menu,
   X,
-  ChevronRight,
-  PanelLeftClose
+  ChevronRight
 } from 'lucide-react';
 import { api, UserProfileData } from '@/lib/api';
 
 interface SidebarProps {
   user: UserProfileData | null;
   isCollapsed?: boolean;
-  onToggleCollapse?: () => void;
 }
 
-export function Sidebar({ user, isCollapsed = false, onToggleCollapse }: SidebarProps) {
+export function Sidebar({ user, isCollapsed = false }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -118,16 +116,6 @@ export function Sidebar({ user, isCollapsed = false, onToggleCollapse }: Sidebar
             </span>
             <span className="text-[11px] text-zinc-400 font-medium">Control Center</span>
           </div>
-          {onToggleCollapse && (
-            <button
-              type="button"
-              onClick={onToggleCollapse}
-              title="Collapse Sidebar"
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors ml-auto"
-            >
-              <PanelLeftClose size={17} />
-            </button>
-          )}
         </div>
 
         {/* Navigation Items */}

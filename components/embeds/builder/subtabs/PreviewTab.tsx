@@ -4,15 +4,111 @@ import React from 'react';
 import { Type17Container, DiscordButtonComponent, DiscordSelectComponent, DiscordMediaGalleryComponent } from '../../types';
 
 interface PreviewTabProps {
-  messageContent: string;
+  messageContent?: string;
   containers: Type17Container[];
 }
 
 export function PreviewTab({
-  messageContent,
   containers
 }: PreviewTabProps) {
-  // Simple markdown renderer for live Discord preview
+  // Comprehensive markdown tokenizer for live Discord preview
+  const parseInlineMarkdown = (lineText: string): React.ReactNode[] => {
+    if (!lineText) return [];
+    const regex = /(`[^`]+`)|(\|\|[\s\S]+?\|\|)|(__\*\*(?:[\s\S]+?)\*\*__)|(\*\*__(?:[\s\S]+?)__\*\*)|(\*\*\*(?:[\s\S]+?)\*\*\*)|(\*\*(?:[\s\S]+?)\*\*)|(__(?:[\s\S]+?)__)|(~~(?:[\s\S]+?)~~)|(\*[^*]+?\*)|(_[^_]+?_)/g;
+    const elements: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(lineText)) !== null) {
+      if (match.index > lastIndex) {
+        elements.push(lineText.substring(lastIndex, match.index));
+      }
+      const token = match[0];
+      const key = `${match.index}_${token}`;
+
+      if (token.startsWith('`') && token.endsWith('`')) {
+        elements.push(
+          <code
+            key={key}
+            style={{
+              background: '#1e1f22',
+              padding: '1px 5px',
+              borderRadius: '3px',
+              fontFamily: 'monospace',
+              fontSize: '12px',
+              color: '#e0e0e0'
+            }}
+          >
+            {token.slice(1, -1)}
+          </code>
+        );
+      } else if (token.startsWith('||') && token.endsWith('||')) {
+        elements.push(
+          <span
+            key={key}
+            style={{
+              background: '#202225',
+              color: '#dbdee1',
+              padding: '1px 5px',
+              borderRadius: '3px',
+              cursor: 'pointer'
+            }}
+          >
+            {token.slice(2, -2)}
+          </span>
+        );
+      } else if ((token.startsWith('__**') && token.endsWith('**__')) || (token.startsWith('**__') && token.endsWith('__**'))) {
+        elements.push(
+          <u key={key}>
+            <strong style={{ fontWeight: 700, color: '#fff' }}>
+              {token.slice(4, -4)}
+            </strong>
+          </u>
+        );
+      } else if (token.startsWith('***') && token.endsWith('***')) {
+        elements.push(
+          <strong key={key} style={{ fontWeight: 700, color: '#fff' }}>
+            <em>{token.slice(3, -3)}</em>
+          </strong>
+        );
+      } else if (token.startsWith('**') && token.endsWith('**')) {
+        elements.push(
+          <strong key={key} style={{ fontWeight: 700, color: '#fff' }}>
+            {token.slice(2, -2)}
+          </strong>
+        );
+      } else if (token.startsWith('__') && token.endsWith('__')) {
+        elements.push(
+          <u key={key}>
+            {token.slice(2, -2)}
+          </u>
+        );
+      } else if (token.startsWith('~~') && token.endsWith('~~')) {
+        elements.push(
+          <s key={key} style={{ opacity: 0.75 }}>
+            {token.slice(2, -2)}
+          </s>
+        );
+      } else if ((token.startsWith('*') && token.endsWith('*')) || (token.startsWith('_') && token.endsWith('_'))) {
+        elements.push(
+          <em key={key}>
+            {token.slice(1, -1)}
+          </em>
+        );
+      } else {
+        elements.push(token);
+      }
+
+      lastIndex = regex.lastIndex;
+    }
+
+    if (lastIndex < lineText.length) {
+      elements.push(lineText.substring(lastIndex));
+    }
+
+    return elements;
+  };
+
   const renderDiscordMarkdown = (text: string) => {
     if (!text) return null;
     const lines = text.split('\n');
@@ -20,33 +116,47 @@ export function PreviewTab({
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
         {lines.map((line, idx) => {
-          let formattedLine: React.ReactNode = line;
+          let formattedLine: React.ReactNode;
 
           if (line.startsWith('### ')) {
-            formattedLine = <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '2px 0', color: '#fff' }}>{line.replace('### ', '')}</h3>;
+            formattedLine = (
+              <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '2px 0', color: '#fff' }}>
+                {parseInlineMarkdown(line.replace('### ', ''))}
+              </h3>
+            );
           } else if (line.startsWith('## ')) {
-            formattedLine = <h2 style={{ fontSize: '17px', fontWeight: 800, margin: '3px 0', color: '#fff' }}>{line.replace('## ', '')}</h2>;
+            formattedLine = (
+              <h2 style={{ fontSize: '17px', fontWeight: 800, margin: '3px 0', color: '#fff' }}>
+                {parseInlineMarkdown(line.replace('## ', ''))}
+              </h2>
+            );
           } else if (line.startsWith('# ')) {
-            formattedLine = <h1 style={{ fontSize: '20px', fontWeight: 800, margin: '4px 0', color: '#fff' }}>{line.replace('# ', '')}</h1>;
+            formattedLine = (
+              <h1 style={{ fontSize: '20px', fontWeight: 800, margin: '4px 0', color: '#fff' }}>
+                {parseInlineMarkdown(line.replace('# ', ''))}
+              </h1>
+            );
           } else if (line.startsWith('> ')) {
             formattedLine = (
               <div style={{ borderLeft: '4px solid #4e5058', paddingLeft: '8px', color: '#dbdee1' }}>
-                {line.replace('> ', '')}
+                {parseInlineMarkdown(line.replace('> ', ''))}
               </div>
             );
           } else if (line.startsWith('-# ')) {
             formattedLine = (
               <span style={{ fontSize: '11px', color: '#949ba4' }}>
-                {line.replace('-# ', '')}
+                {parseInlineMarkdown(line.replace('-# ', ''))}
               </span>
             );
-          } else if (line.startsWith('• ') || line.startsWith('- ')) {
+          } else if (line.startsWith('• ') || line.startsWith('- ') || line.startsWith('* ')) {
             formattedLine = (
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
                 <span style={{ color: 'var(--discord-cyan)' }}>•</span>
-                <span>{line.replace(/^([•-]\s*)/, '')}</span>
+                <span>{parseInlineMarkdown(line.replace(/^([•\-*]\s*)/, ''))}</span>
               </div>
             );
+          } else {
+            formattedLine = parseInlineMarkdown(line);
           }
 
           return <div key={idx}>{formattedLine}</div>;
@@ -57,7 +167,7 @@ export function PreviewTab({
 
   return (
     <div className="tab-content-area" style={{ flex: 1, padding: '16px', overflowY: 'auto' }}>
-      <div className="preview-board-container" style={{ maxWidth: '720px', margin: '0 auto' }}>
+      <div className="preview-board-container" style={{ width: '100%', maxWidth: '900px', margin: '0 auto' }}>
         {/* Discord Authentic Message Container */}
         <div className="discord-message" style={{ display: 'flex', gap: '14px', padding: '12px 16px', background: '#313338', borderRadius: '8px' }}>
           {/* Bot Avatar */}
@@ -103,13 +213,6 @@ export function PreviewTab({
               </span>
             </div>
 
-            {/* Normal Text Content */}
-            {messageContent && (
-              <div style={{ fontSize: '14px', color: '#dbdee1', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
-                {renderDiscordMarkdown(messageContent)}
-              </div>
-            )}
-
             {/* Type 17 Containers */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {containers.map((container, cIdx) => (
@@ -134,18 +237,10 @@ export function PreviewTab({
                     </div>
                   )}
 
-                  {/* Author Header */}
+                  {/* Author Header (Underline & Bold) */}
                   {container.author?.name && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {container.author.icon_url && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={container.author.icon_url}
-                          alt="Author Icon"
-                          style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }}
-                        />
-                      )}
-                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#fff' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, textDecoration: 'underline', color: '#fff' }}>
                         {container.author.name}
                       </span>
                     </div>
@@ -403,14 +498,6 @@ export function PreviewTab({
                   {/* Footer */}
                   {container.footer?.text && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#949ba4', marginTop: '4px' }}>
-                      {container.footer.icon_url && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={container.footer.icon_url}
-                          alt="Footer Icon"
-                          style={{ width: '14px', height: '14px', borderRadius: '50%', objectFit: 'cover' }}
-                        />
-                      )}
                       <span>{container.footer.text}</span>
                     </div>
                   )}

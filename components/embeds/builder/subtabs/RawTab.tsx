@@ -5,15 +5,14 @@ import Editor from '@monaco-editor/react';
 import { Type17Container } from '../../types';
 import {
   buildDiscordV2MessagePayload,
-  buildDiscordModalPayload,
   parseDiscordPayloadToState
 } from '../../validation';
 
 interface RawTabProps {
   containers: Type17Container[];
   setContainers: React.Dispatch<React.SetStateAction<Type17Container[]>>;
-  messageContent: string;
-  setMessageContent: React.Dispatch<React.SetStateAction<string>>;
+  messageContent?: string;
+  setMessageContent?: React.Dispatch<React.SetStateAction<string>>;
   onDirtyChange?: () => void;
 }
 
@@ -24,24 +23,15 @@ export function RawTab({
   setMessageContent,
   onDirtyChange
 }: RawTabProps) {
-  const [rawPayloadMode, setRawPayloadMode] = useState<'message' | 'modal'>('message');
   const [userEditedJson, setUserEditedJson] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
 
   const defaultJsonText = React.useMemo(() => {
-    const payload = rawPayloadMode === 'message'
-      ? buildDiscordV2MessagePayload(containers, messageContent)
-      : buildDiscordModalPayload(containers);
+    const payload = buildDiscordV2MessagePayload(containers, messageContent);
     return JSON.stringify(payload, null, 2);
-  }, [containers, messageContent, rawPayloadMode]);
+  }, [containers, messageContent]);
 
   const rawJsonText = userEditedJson ?? defaultJsonText;
-
-  const handleModeChange = (mode: 'message' | 'modal') => {
-    setRawPayloadMode(mode);
-    setUserEditedJson(null);
-    setParseError(null);
-  };
 
   const handleCopyJson = () => {
     navigator.clipboard.writeText(rawJsonText).then(() => {
@@ -54,7 +44,9 @@ export function RawTab({
       const parsed = JSON.parse(rawJsonText);
       const { messageContent: newContent, containers: newContainers } = parseDiscordPayloadToState(parsed);
 
-      setMessageContent(newContent);
+      if (setMessageContent) {
+        setMessageContent(newContent);
+      }
       setContainers(newContainers);
       setUserEditedJson(null);
       setParseError(null);
@@ -68,54 +60,15 @@ export function RawTab({
 
   return (
     <div className="tab-content-area" style={{ flex: 1, padding: '16px', overflowY: 'auto' }}>
-      <div className="raw-editor-container" style={{ maxWidth: '1080px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div className="raw-editor-container" style={{ width: '100%', maxWidth: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         
-        {/* Top Control Bar: Modes + Actions */}
+        {/* Top Control Bar: Title Badge + Actions */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', background: '#1e1f22', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '10px 14px' }}>
-          {/* Mode Switchers */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
-              type="button"
-              className={`raw-mode-btn ${rawPayloadMode === 'message' ? 'active' : ''}`}
-              onClick={() => handleModeChange('message')}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '6px',
-                fontSize: '12px',
-                background: rawPayloadMode === 'message' ? 'var(--discord-cyan)' : 'rgba(255,255,255,0.06)',
-                color: rawPayloadMode === 'message' ? '#000' : '#fff',
-                border: 'none',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <i className="fa-solid fa-message" />
-              <span>Message V2 Payload</span>
-            </button>
-            <button
-              type="button"
-              className={`raw-mode-btn ${rawPayloadMode === 'modal' ? 'active' : ''}`}
-              onClick={() => handleModeChange('modal')}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '6px',
-                fontSize: '12px',
-                background: rawPayloadMode === 'modal' ? '#fbbf24' : 'rgba(255,255,255,0.06)',
-                color: rawPayloadMode === 'modal' ? '#000' : '#fff',
-                border: 'none',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <i className="fa-solid fa-window-maximize" />
-              <span>Modal Components View</span>
-            </button>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              <i className="fa-solid fa-code" style={{ color: 'var(--discord-cyan)' }} />
+              <span>Discord Components V2 Payload (flags: 32768)</span>
+            </span>
           </div>
 
           {/* Action Buttons */}
@@ -161,7 +114,7 @@ export function RawTab({
           }}
         >
           <Editor
-            height="580px"
+            height="620px"
             defaultLanguage="json"
             language="json"
             theme="vs-dark"
@@ -172,13 +125,14 @@ export function RawTab({
               fontSize: 13,
               fontFamily: "'Fira Code', 'JetBrains Mono', Consolas, monospace",
               lineNumbers: 'on',
-              scrollBeyondLastLine: false,
+              scrollBeyondLastLine: true,
+              stickyScroll: { enabled: false },
               automaticLayout: true,
               tabSize: 2,
               wordWrap: 'on',
               formatOnPaste: true,
               formatOnType: true,
-              padding: { top: 14, bottom: 14 },
+              padding: { top: 14, bottom: 48 },
               suggest: {
                 showWords: false
               }
