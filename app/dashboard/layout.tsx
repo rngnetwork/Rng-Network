@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { api, UserProfileData } from '@/lib/api';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { Navbar } from '@/components/dashboard/Navbar';
-import { ShieldAlert, ArrowRight } from 'lucide-react';
+import { ShieldAlert, ArrowRight, ChevronDown, PanelLeft } from 'lucide-react';
 
 export default function DashboardLayout({
   children,
@@ -15,6 +15,8 @@ export default function DashboardLayout({
   const router = useRouter();
   const [user, setUser] = useState<UserProfileData | null>(null);
   const [authState, setAuthState] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
 
   useEffect(() => {
     const loadSession = async () => {
@@ -117,13 +119,50 @@ export default function DashboardLayout({
       <div className="fixed top-[-15%] left-[-10%] w-[45vw] h-[45vw] bg-red-600/5 blur-[160px] rounded-full pointer-events-none" />
       <div className="fixed bottom-[-15%] right-[-10%] w-[40vw] h-[40vw] bg-red-950/10 blur-[180px] rounded-full pointer-events-none" />
 
+      {/* Floating Restore Controls for Collapsed Header & Sidebar */}
+      {headerCollapsed && (
+        <button
+          type="button"
+          onClick={() => setHeaderCollapsed(false)}
+          className="fixed top-3 right-6 z-50 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#161618]/90 border border-white/20 text-xs font-mono text-zinc-300 hover:text-white hover:border-red-500/50 backdrop-blur-md shadow-2xl transition-all cursor-pointer"
+          title="Restore Header Bar"
+        >
+          <ChevronDown size={14} className="text-red-400" />
+          <span>Show Header</span>
+        </button>
+      )}
+
+      {sidebarCollapsed && (
+        <button
+          type="button"
+          onClick={() => setSidebarCollapsed(false)}
+          className="hidden md:flex fixed top-3 left-6 z-50 items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#161618]/90 border border-white/20 text-xs font-mono text-zinc-300 hover:text-white hover:border-red-500/50 backdrop-blur-md shadow-2xl transition-all cursor-pointer"
+          title="Restore Sidebar"
+        >
+          <PanelLeft size={14} className="text-red-400" />
+          <span>Show Sidebar</span>
+        </button>
+      )}
+
       {/* Sidebar Navigation */}
-      <Sidebar user={user} />
+      <Sidebar
+        user={user}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
 
       {/* Main App Container */}
-      <div className="flex-1 flex flex-col md:pl-64 min-w-0">
+      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'md:pl-0' : 'md:pl-64'}`}>
         {/* Top Navbar Bar Component */}
-        <Navbar user={user} />
+        {!headerCollapsed && (
+          <Navbar
+            user={user}
+            isSidebarCollapsed={sidebarCollapsed}
+            onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+            isHeaderCollapsed={headerCollapsed}
+            onToggleHeader={() => setHeaderCollapsed(true)}
+          />
+        )}
 
         {/* Dynamic Page Content */}
         <main className="flex-1 p-6 md:p-8 w-full">

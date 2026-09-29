@@ -13,15 +13,18 @@ import {
   LogOut,
   Menu,
   X,
-  ChevronRight
+  ChevronRight,
+  PanelLeftClose
 } from 'lucide-react';
 import { api, UserProfileData } from '@/lib/api';
 
 interface SidebarProps {
   user: UserProfileData | null;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-export function Sidebar({ user }: SidebarProps) {
+export function Sidebar({ user, isCollapsed = false, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -115,6 +118,16 @@ export function Sidebar({ user }: SidebarProps) {
             </span>
             <span className="text-[11px] text-zinc-400 font-medium">Control Center</span>
           </div>
+          {onToggleCollapse && (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              title="Collapse Sidebar"
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors ml-auto"
+            >
+              <PanelLeftClose size={17} />
+            </button>
+          )}
         </div>
 
         {/* Navigation Items */}
@@ -246,7 +259,7 @@ export function Sidebar({ user }: SidebarProps) {
       </div>
 
       {/* Desktop Persistent Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 h-screen fixed top-0 left-0 bg-[#0c0c0c]/80 backdrop-blur-2xl border-r border-white/10 z-40">
+      <aside className={`hidden md:flex flex-col w-64 h-screen fixed top-0 left-0 bg-[#0c0c0c]/80 backdrop-blur-2xl border-r border-white/10 z-40 transition-transform duration-300 ease-in-out ${isCollapsed ? '-translate-x-full' : 'translate-x-0'}`}>
         {navContent}
       </aside>
 

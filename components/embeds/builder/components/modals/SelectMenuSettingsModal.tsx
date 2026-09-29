@@ -43,8 +43,6 @@ export function SelectMenuSettingsModal({
 }: SelectMenuSettingsModalProps) {
   const [customId, setCustomId] = useState(comp.custom_id || comp.id || '');
   const [placeholder, setPlaceholder] = useState(comp.placeholder || '');
-  const [minValues, setMinValues] = useState<number>(comp.min_values ?? 1);
-  const [maxValues, setMaxValues] = useState<number>(comp.max_values ?? 1);
   const [disabled, setDisabled] = useState<boolean>(Boolean(comp.disabled));
   const [options, setOptions] = useState<SelectOption[]>(
     comp.options && comp.options.length > 0
@@ -129,8 +127,6 @@ export function SelectMenuSettingsModal({
       ...comp,
       custom_id: customId.trim() || comp.custom_id || `select_${Date.now()}`,
       placeholder: placeholder.trim() || undefined,
-      min_values: Math.max(0, Math.min(25, Number(minValues) || 1)),
-      max_values: Math.max(1, Math.min(25, Number(maxValues) || 1)),
       disabled,
       options: comp.type === 3 ? options : undefined
     };
@@ -222,42 +218,16 @@ export function SelectMenuSettingsModal({
               </div>
             </div>
 
-            {/* Row 2: Min/Max Values & Disabled Toggle */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', alignItems: 'flex-end' }}>
-              <div className="form-group">
-                <label className="form-label">Min Values (0-25)</label>
+            {/* Disabled State Toggle */}
+            <div className="form-group" style={{ display: 'flex', alignItems: 'center', height: '36px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#dbdee1' }}>
                 <input
-                  type="number"
-                  min={0}
-                  max={25}
-                  className="form-input"
-                  value={minValues}
-                  onChange={(e) => setMinValues(Number(e.target.value))}
+                  type="checkbox"
+                  checked={disabled}
+                  onChange={(e) => setDisabled(e.target.checked)}
                 />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Max Values (1-25)</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={25}
-                  className="form-input"
-                  value={maxValues}
-                  onChange={(e) => setMaxValues(Number(e.target.value))}
-                />
-              </div>
-
-              <div className="form-group" style={{ display: 'flex', alignItems: 'center', height: '38px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#dbdee1' }}>
-                  <input
-                    type="checkbox"
-                    checked={disabled}
-                    onChange={(e) => setDisabled(e.target.checked)}
-                  />
-                  <span>Disabled State</span>
-                </label>
-              </div>
+                <span>Disabled State</span>
+              </label>
             </div>
 
             {/* Options Management (Only for Type 3 String Select) */}
