@@ -364,106 +364,109 @@ export function EditTab({
   };
 
   return (
-    <div className="tab-content-area" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '12px' }}>
-      <div className="wysiwyg-canvas-wrapper">
-        <div className="wysiwyg-board">
-          {/* Type 17 Containers List */}
-          <div id="wysiwyg-containers-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {containers.map((container, cIdx) => (
-              <ContainerCard
-                key={container.id || cIdx}
-                cIdx={cIdx}
-                totalContainers={containers.length}
-                container={container}
-                isAuthorCollapsed={Boolean(collapsedAuthors[cIdx])}
-                onUpdateAccent={handleUpdateAccent}
-                onToggleSpoiler={handleToggleSpoiler}
-                onToggleAuthorCollapse={handleToggleAuthorCollapse}
-                onMoveContainer={handleMoveContainer}
-                onRemoveContainer={handleRemoveContainer}
-                onUpdateAuthor={handleUpdateAuthor}
-                onUpdateTitle={handleUpdateTitle}
-                onUpdateDescription={handleUpdateDescription}
-                onUpdateThumbnail={handleUpdateThumbnail}
-                onUpdateImage={handleUpdateImage}
-                onUpdateFooter={handleUpdateFooter}
-                onAddField={handleAddField}
-                onUpdateField={handleUpdateField}
-                onRemoveField={handleRemoveField}
-                onUpdateComponent={handleUpdateComponent}
-                onRemoveComponent={handleRemoveComponent}
-                onDuplicateComponent={handleDuplicateComponent}
-                onOpenButtonModal={onOpenButtonModal}
-                onOpenPaletteModal={onOpenPaletteModal}
-                onContainerDragStart={handleContainerDragStart}
-                onContainerDragOver={handleContainerDragOver}
-                onContainerDrop={handleContainerDrop}
-                onCompDragStart={handleCompDragStart}
-                onCompDragOver={handleCompDragOver}
-                onCompDrop={handleCompDrop}
-                draggedComp={draggedComp}
-                dragOverComp={dragOverComp}
-              />
-            ))}
+    <div className="tab-content-area" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden', minHeight: 0 }}>
+      {/* Scrollable Canvas Area */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', minHeight: 0 }}>
+        <div className="wysiwyg-canvas-wrapper" style={{ minHeight: 'auto' }}>
+          <div className="wysiwyg-board" style={{ borderRadius: 'var(--radius-md)', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            {/* Type 17 Containers List */}
+            <div id="wysiwyg-containers-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {containers.map((container, cIdx) => (
+                <ContainerCard
+                  key={container.id || cIdx}
+                  cIdx={cIdx}
+                  totalContainers={containers.length}
+                  container={container}
+                  isAuthorCollapsed={Boolean(collapsedAuthors[cIdx])}
+                  onUpdateAccent={handleUpdateAccent}
+                  onToggleSpoiler={handleToggleSpoiler}
+                  onToggleAuthorCollapse={handleToggleAuthorCollapse}
+                  onMoveContainer={handleMoveContainer}
+                  onRemoveContainer={handleRemoveContainer}
+                  onUpdateAuthor={handleUpdateAuthor}
+                  onUpdateTitle={handleUpdateTitle}
+                  onUpdateDescription={handleUpdateDescription}
+                  onUpdateThumbnail={handleUpdateThumbnail}
+                  onUpdateImage={handleUpdateImage}
+                  onUpdateFooter={handleUpdateFooter}
+                  onAddField={handleAddField}
+                  onUpdateField={handleUpdateField}
+                  onRemoveField={handleRemoveField}
+                  onUpdateComponent={handleUpdateComponent}
+                  onRemoveComponent={handleRemoveComponent}
+                  onDuplicateComponent={handleDuplicateComponent}
+                  onOpenButtonModal={onOpenButtonModal}
+                  onOpenPaletteModal={onOpenPaletteModal}
+                  onContainerDragStart={handleContainerDragStart}
+                  onContainerDragOver={handleContainerDragOver}
+                  onContainerDrop={handleContainerDrop}
+                  onCompDragStart={handleCompDragStart}
+                  onCompDragOver={handleCompDragOver}
+                  onCompDrop={handleCompDrop}
+                  draggedComp={draggedComp}
+                  dragOverComp={dragOverComp}
+                />
+              ))}
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* 3. Bottom Controls Bar */}
-        <div className="wysiwyg-bottom-bar">
-          <button
-            type="button"
-            className="btn-ctrl-cyan"
-            onClick={handleAddContainer}
-            title="Add another Type 17 Container"
-          >
-            <i className="fa-solid fa-plus" /> Container
-          </button>
-          <button
-            type="button"
-            className="btn-ctrl-blue"
-            onClick={() => handleAddActionRow(0)}
-            title="Add Action Row"
-          >
-            <i className="fa-solid fa-plus" /> Action Row
-          </button>
-          <button
-            type="button"
-            className="btn-ctrl-purple"
-            onClick={() => onOpenPaletteModal(0)}
-            title="Insert Discord Component Types"
-          >
-            <i className="fa-solid fa-cubes" /> + UI Components
-          </button>
-          <button
-            type="button"
-            className="btn-ctrl-green"
-            onClick={onOpenLoadModal}
-            title="Load Template or Preset"
-          >
-            <i className="fa-solid fa-folder-open" /> Load
-          </button>
-          <button
-            type="button"
-            className="btn-ctrl-red"
-            onClick={handleClearCanvas}
-            title="Clear Builder"
-          >
-            Clear
-          </button>
-          <button
-            type="button"
-            className="btn-ctrl-emoji"
-            onMouseDown={(e) => {
-              e.preventDefault();
-            }}
-            onClick={(e) => {
-              onOpenEmojiPicker(e, insertEmojiAtCursor);
-            }}
-            title="Open Discord Emoji Picker"
-          >
-            <i className="fa-regular fa-face-smile" />
-          </button>
-        </div>
+      {/* Permanently Docked Bottom Controls Bar */}
+      <div className="wysiwyg-bottom-bar" style={{ flexShrink: 0, position: 'relative', bottom: 0, zIndex: 30, width: '100%', borderTop: '1px solid rgba(255, 255, 255, 0.12)' }}>
+        <button
+          type="button"
+          className="btn-ctrl-cyan"
+          onClick={handleAddContainer}
+          title="Add another Type 17 Container"
+        >
+          <i className="fa-solid fa-plus" /> Container
+        </button>
+        <button
+          type="button"
+          className="btn-ctrl-blue"
+          onClick={() => handleAddActionRow(0)}
+          title="Add Action Row"
+        >
+          <i className="fa-solid fa-plus" /> Action Row
+        </button>
+        <button
+          type="button"
+          className="btn-ctrl-purple"
+          onClick={() => onOpenPaletteModal(0)}
+          title="Insert Discord Component Types"
+        >
+          <i className="fa-solid fa-cubes" /> + UI Components
+        </button>
+        <button
+          type="button"
+          className="btn-ctrl-green"
+          onClick={onOpenLoadModal}
+          title="Load Template or Preset"
+        >
+          <i className="fa-solid fa-folder-open" /> Load
+        </button>
+        <button
+          type="button"
+          className="btn-ctrl-red"
+          onClick={handleClearCanvas}
+          title="Clear Builder"
+        >
+          Clear
+        </button>
+        <button
+          type="button"
+          className="btn-ctrl-emoji"
+          onMouseDown={(e) => {
+            e.preventDefault();
+          }}
+          onClick={(e) => {
+            onOpenEmojiPicker(e, insertEmojiAtCursor);
+          }}
+          title="Open Discord Emoji Picker"
+        >
+          <i className="fa-regular fa-face-smile" />
+        </button>
       </div>
     </div>
   );

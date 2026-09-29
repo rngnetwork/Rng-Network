@@ -70,15 +70,6 @@ export function ContainerFields({
                 placeholder="Field Value (Markdown)"
                 onChange={(e) => onUpdateField(cIdx, fIdx, 'value', e.target.value)}
               />
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10.5px', color: 'var(--discord-text-muted)', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={f.inline !== false}
-                  onChange={(e) => onUpdateField(cIdx, fIdx, 'inline', e.target.checked)}
-                />
-                <span>Inline Field</span>
-              </label>
             </div>
           ))}
         </div>
