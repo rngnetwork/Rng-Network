@@ -2,7 +2,7 @@ export type ComponentType =
   | 1   // ACTION_ROW
   | 2   // BUTTON
   | 3   // STRING_SELECT
-  | 4   // TEXT_INPUT
+  | 4   // TEXT_INPUT (Modal Only)
   | 5   // USER_SELECT
   | 6   // ROLE_SELECT
   | 7   // MENTIONABLE_SELECT
@@ -14,13 +14,13 @@ export type ComponentType =
   | 13  // FILE
   | 14  // SEPARATOR
   | 17  // CONTAINER
-  | 18  // LABEL
-  | 19  // FILE_UPLOAD
-  | 21  // RADIO_GROUP
-  | 22  // CHECKBOX_GROUP
-  | 23; // CHECKBOX
+  | 18  // LABEL (Modal Only)
+  | 19  // FILE_UPLOAD (Modal Only)
+  | 21  // RADIO_GROUP (Modal Only)
+  | 22  // CHECKBOX_GROUP (Modal Only)
+  | 23; // CHECKBOX (Modal Only)
 
-export type ButtonStyle = 1 | 2 | 3 | 4 | 5; // 1: Primary Blurple, 2: Secondary Grey, 3: Success Green, 4: Danger Red, 5: Link
+export type ButtonStyle = 1 | 2 | 3 | 4 | 5; // 1: Primary (Blurple), 2: Secondary (Grey), 3: Success (Green), 4: Danger (Red), 5: Link (URL)
 
 export interface PartialEmojiObject {
   id?: string;
@@ -32,7 +32,7 @@ export interface DiscordButtonComponent {
   type: 2;
   id?: string;
   style: ButtonStyle;
-  label: string;
+  label?: string;
   emoji?: string | PartialEmojiObject;
   custom_id?: string;
   url?: string;
@@ -43,8 +43,9 @@ export interface SelectOption {
   label: string;
   value: string;
   description?: string;
-  emoji?: string;
+  emoji?: string | PartialEmojiObject;
   default?: boolean;
+  selected?: boolean;
 }
 
 export interface DiscordSelectComponent {
@@ -57,8 +58,92 @@ export interface DiscordSelectComponent {
   disabled?: boolean;
   options?: SelectOption[];
   channel_types?: number[];
+  default_values?: { id: string; type: 'user' | 'role' | 'channel' }[];
 }
 
+export type DiscordActionRowChild = DiscordButtonComponent | DiscordSelectComponent;
+
+export interface DiscordActionRowComponent {
+  type: 1;
+  id?: string;
+  label?: string;
+  items?: DiscordActionRowChild[];
+  components?: DiscordActionRowChild[];
+}
+
+export interface DiscordTextDisplayComponent {
+  type: 10;
+  id?: string;
+  text?: string;
+  content?: string;
+}
+
+export type SectionAccessoryButton = DiscordButtonComponent;
+
+export interface SectionAccessoryThumbnail {
+  type: 11;
+  id?: string;
+  media: { url: string };
+  url?: string;
+}
+
+export interface LegacySectionAccessory {
+  type: 'thumbnail' | 'button';
+  url?: string;
+  label?: string;
+  emoji?: string;
+}
+
+export interface DiscordSectionComponent {
+  type: 9;
+  id?: string;
+  text?: string;
+  components?: DiscordTextDisplayComponent[];
+  accessory?:
+    | DiscordButtonComponent
+    | DiscordThumbnailComponent
+    | LegacySectionAccessory
+    | { type: number; media?: { url: string }; url?: string };
+}
+
+export interface DiscordThumbnailComponent {
+  type: 11;
+  id?: string;
+  url?: string;
+  media?: { url: string };
+}
+
+export interface DiscordMediaItem {
+  media: { url: string };
+  description?: string;
+  spoiler?: boolean;
+}
+
+export interface DiscordMediaGalleryComponent {
+  type: 12;
+  id?: string;
+  items: (string | DiscordMediaItem)[];
+}
+
+export interface DiscordFileComponent {
+  type: 13;
+  id?: string;
+  filename?: string;
+  filesize?: string;
+  url?: string;
+  file?: { url: string };
+}
+
+export interface DiscordSeparatorComponent {
+  type: 14;
+  id?: string;
+  divider?: boolean;
+  spacing: 1 | 2; // 1 = small, 2 = large
+}
+
+// ---------------------------------------------------------------------------
+// Modal-Only Interactive Components (Discord Forms)
+// ---------------------------------------------------------------------------
 export interface DiscordTextInputComponent {
   type: 4;
   id?: string;
@@ -68,51 +153,9 @@ export interface DiscordTextInputComponent {
   placeholder?: string;
   required?: boolean;
   value?: string;
-}
-
-export interface DiscordSectionComponent {
-  type: 9;
-  id?: string;
-  text: string;
-  accessory?: {
-    type: 'thumbnail' | 'button';
-    url?: string;
-    label?: string;
-    emoji?: string;
-  };
-}
-
-export interface DiscordTextDisplayComponent {
-  type: 10;
-  id?: string;
-  text: string;
-}
-
-export interface DiscordThumbnailComponent {
-  type: 11;
-  id?: string;
-  url: string;
-}
-
-export interface DiscordMediaGalleryComponent {
-  type: 12;
-  id?: string;
-  items: string[];
-}
-
-export interface DiscordFileComponent {
-  type: 13;
-  id?: string;
-  filename: string;
-  filesize?: string;
-  url?: string;
-}
-
-export interface DiscordSeparatorComponent {
-  type: 14;
-  id?: string;
-  divider: boolean;
-  spacing: 1 | 2; // 1 = small, 2 = large
+  paragraph?: boolean;
+  min_length?: number;
+  max_length?: number;
 }
 
 export interface DiscordLabelComponent {
@@ -121,7 +164,7 @@ export interface DiscordLabelComponent {
   label: string;
   description?: string;
   required?: boolean;
-  component?: any;
+  component?: unknown;
 }
 
 export interface RadioOption {
@@ -160,13 +203,9 @@ export interface DiscordCheckboxComponent {
   checked?: boolean;
 }
 
-export interface DiscordActionRowComponent {
-  type: 1;
-  id?: string;
-  label?: string;
-  items: (DiscordButtonComponent | DiscordSelectComponent)[];
-}
-
+// ---------------------------------------------------------------------------
+// Inner & Container Component Unions
+// ---------------------------------------------------------------------------
 export type DiscordInnerComponent =
   | DiscordActionRowComponent
   | DiscordButtonComponent
@@ -232,4 +271,46 @@ export interface CustomComponentPreset {
   description: string;
   component: DiscordInnerComponent;
   createdAt?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Validation & Serialization Specifications
+// ---------------------------------------------------------------------------
+export interface DiscordV2RulesValidation {
+  flags: boolean;
+  noLegacy: boolean;
+  actionRowsWrapped: boolean;
+  partialEmoji: boolean;
+  sectionAccessories: boolean;
+  mediaObjects: boolean;
+  attachmentProtocol: boolean;
+  spacingEnums: boolean;
+}
+
+export interface DiscordV2ValidationResult {
+  rules: DiscordV2RulesValidation;
+  totalCount: number;
+  isAllPassed: boolean;
+}
+
+export interface DiscordV2ContainerPayload {
+  type: 17;
+  accent_color: number;
+  spoiler: boolean;
+  components: unknown[];
+}
+
+export interface DiscordV2MessagePayload {
+  flags: 32768;
+  content?: string;
+  components: DiscordV2ContainerPayload[];
+}
+
+export interface DiscordModalPayload {
+  type: 9;
+  data: {
+    title: string;
+    custom_id: string;
+    components: unknown[];
+  };
 }
