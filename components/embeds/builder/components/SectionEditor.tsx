@@ -17,102 +17,76 @@ export function SectionEditor({
   onUpdateComponent
 }: SectionEditorProps) {
   const currentText = comp.text || (comp.components && comp.components[0]?.content) || '';
-  const accessory = comp.accessory as any;
-  const accessoryType = accessory?.type === 2 || accessory?.type === 'button' ? 'button' : 'thumbnail';
-  const accessoryUrl = accessory?.media?.url || accessory?.url || '';
-  const accessoryLabel = accessory?.label || 'Action';
-
-  const handleUpdate = (patch: Partial<DiscordSectionComponent>) => {
-    onUpdateComponent(cIdx, compIdx, { ...comp, ...patch });
-  };
+  const accessory = comp.accessory;
+  const accessoryUrl = accessory && 'media' in accessory && accessory.media?.url ? accessory.media.url : (accessory && 'url' in accessory && typeof accessory.url === 'string' ? accessory.url : '');
 
   const handleTextChange = (text: string) => {
-    handleUpdate({
+    onUpdateComponent(cIdx, compIdx, {
+      ...comp,
       text,
       components: [{ type: 10, content: text }]
     });
   };
 
-  const handleAccessoryTypeChange = (type: 'thumbnail' | 'button') => {
-    if (type === 'thumbnail') {
-      handleUpdate({
-        accessory: {
-          type: 11,
-          media: { url: accessoryUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100' }
-        }
-      });
-    } else {
-      handleUpdate({
-        accessory: {
-          type: 2,
-          style: 1,
-          label: accessoryLabel || 'Section Button',
-          custom_id: `sec_btn_${Date.now()}`
-        } as any
-      });
-    }
-  };
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      <div>
-        <label style={{ fontSize: '10.5px', color: 'var(--discord-text-muted)' }}>Section Content (Markdown)</label>
+    <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+      {/* Markdown Text Area (Left Column) */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <label style={{ fontSize: '10.5px', color: 'var(--discord-text-muted)' }}>
+          Section Markdown Text
+        </label>
         <textarea
           className="bare-input"
-          style={{ width: '100%', fontSize: '12px', background: '#1e1f22', padding: '6px 8px', borderRadius: '4px', minHeight: '50px' }}
+          style={{
+            width: '100%',
+            fontSize: '12.5px',
+            background: '#1e1f22',
+            padding: '8px 10px',
+            borderRadius: '4px',
+            minHeight: '64px',
+            resize: 'vertical',
+            lineHeight: 1.45
+          }}
           value={currentText}
-          placeholder="Section markdown text..."
+          placeholder="Section markdown text (click settings for emoji & options)..."
           onChange={(e) => handleTextChange(e.target.value)}
         />
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <span style={{ fontSize: '11px', color: 'var(--discord-text-muted)' }}>Accessory:</span>
-        <button
-          type="button"
-          className={`btn-style-chip ${accessoryType === 'thumbnail' ? 'active' : ''}`}
-          style={{ padding: '4px 8px', fontSize: '11px' }}
-          onClick={() => handleAccessoryTypeChange('thumbnail')}
-        >
+      {/* Thumbnail Accessory (Right Column) */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+        <label style={{ fontSize: '10.5px', color: 'var(--discord-text-muted)' }}>
           Thumbnail
-        </button>
-        <button
-          type="button"
-          className={`btn-style-chip ${accessoryType === 'button' ? 'active' : ''}`}
-          style={{ padding: '4px 8px', fontSize: '11px' }}
-          onClick={() => handleAccessoryTypeChange('button')}
+        </label>
+        <div
+          style={{
+            width: '64px',
+            height: '64px',
+            borderRadius: '6px',
+            background: '#1e1f22',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            flexShrink: 0
+          }}
+          title={accessoryUrl ? "Thumbnail Accessory Preview" : "No thumbnail configured (use Settings to add)"}
         >
-          Button
-        </button>
-
-        {accessoryType === 'thumbnail' ? (
-          <input
-            type="text"
-            className="bare-input"
-            style={{ flex: 1, fontSize: '11.5px', background: '#1e1f22', padding: '5px 8px', borderRadius: '4px' }}
-            value={accessoryUrl}
-            placeholder="Thumbnail Image URL..."
-            onChange={(e) => handleUpdate({
-              accessory: { type: 11, media: { url: e.target.value } }
-            })}
-          />
-        ) : (
-          <input
-            type="text"
-            className="bare-input"
-            style={{ flex: 1, fontSize: '11.5px', background: '#1e1f22', padding: '5px 8px', borderRadius: '4px' }}
-            value={accessoryLabel}
-            placeholder="Button Label..."
-            onChange={(e) => handleUpdate({
-              accessory: {
-                type: 2,
-                style: 1,
-                label: e.target.value,
-                custom_id: accessory?.custom_id || `sec_btn_${Date.now()}`
-              } as any
-            })}
-          />
-        )}
+          {accessoryUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={accessoryUrl}
+              alt="Section Thumbnail"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={(e) => {
+                (e.currentTarget as HTMLElement).style.display = 'none';
+              }}
+            />
+          ) : (
+            <i className="fa-solid fa-image" style={{ color: 'rgba(255,255,255,0.2)', fontSize: '18px' }} />
+          )}
+        </div>
       </div>
     </div>
   );

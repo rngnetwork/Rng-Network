@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Type17Container, DiscordButtonComponent, DiscordSelectComponent } from '../../types';
+import { Type17Container, DiscordButtonComponent, DiscordSelectComponent, DiscordMediaGalleryComponent } from '../../types';
 
 interface PreviewTabProps {
   messageContent: string;
@@ -272,17 +272,18 @@ export function PreviewTab({
                       );
                     }
 
-                    // Separator
+                    // Separator (Type 14)
                     if (comp.type === 14) {
                       const isDivider = comp.divider !== false;
-                      const spacing = comp.spacing === 2 ? 14 : 8;
+                      const marginY = comp.spacing === 2 ? 12 : 6;
                       return (
                         <div
                           key={comp.id || compIdx}
                           style={{
-                            margin: `${spacing}px 0`,
+                            margin: `${marginY}px 0`,
                             height: isDivider ? '1px' : '0px',
-                            background: isDivider ? 'rgba(255,255,255,0.1)' : 'transparent'
+                            background: isDivider ? 'rgba(255,255,255,0.12)' : 'transparent',
+                            width: '100%'
                           }}
                         />
                       );
@@ -294,6 +295,104 @@ export function PreviewTab({
                       return (
                         <div key={comp.id || compIdx} style={{ fontSize: '13px', color: '#dbdee1' }}>
                           {renderDiscordMarkdown(text)}
+                        </div>
+                      );
+                    }
+                    // Section (Type 9)
+                    if (comp.type === 9) {
+                      const text = comp.text || (comp.components && comp.components[0]?.content) || '';
+                      const acc = comp.accessory;
+                      const accessoryUrl = acc && 'media' in acc && acc.media?.url ? acc.media.url : (acc && 'url' in acc && typeof acc.url === 'string' ? acc.url : '');
+                      return (
+                        <div
+                          key={comp.id || compIdx}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            justifyContent: 'space-between',
+                            gap: '12px',
+                            marginTop: '4px'
+                          }}
+                        >
+                          <div style={{ flex: 1, minWidth: 0, fontSize: '13.5px', color: '#dbdee1', lineHeight: '1.4' }}>
+                            {renderDiscordMarkdown(text)}
+                          </div>
+                          {accessoryUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={accessoryUrl}
+                              alt="Section Thumbnail"
+                              style={{
+                                width: '64px',
+                                height: '64px',
+                                borderRadius: '4px',
+                                objectFit: 'cover',
+                                flexShrink: 0
+                              }}
+                            />
+                          )}
+                        </div>
+                      );
+                    }
+
+                    // Media Gallery (Type 12)
+                    if (comp.type === 12) {
+                      const gallery = comp as DiscordMediaGalleryComponent;
+                      const rawItems = gallery.items || [];
+                      const urls = rawItems
+                        .map((item) => (typeof item === 'string' ? item : item?.media?.url || ''))
+                        .filter(Boolean);
+
+                      if (urls.length === 0) return null;
+
+                      const gridCols =
+                        urls.length === 1
+                          ? '1fr'
+                          : urls.length === 2
+                          ? '1fr 1fr'
+                          : 'repeat(auto-fit, minmax(130px, 1fr))';
+
+                      return (
+                        <div
+                          key={comp.id || compIdx}
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: gridCols,
+                            gap: '4px',
+                            borderRadius: '8px',
+                            overflow: 'hidden',
+                            marginTop: '6px',
+                            maxHeight: '300px'
+                          }}
+                        >
+                          {urls.map((url, uIdx) => (
+                            <div
+                              key={uIdx}
+                              style={{
+                                background: '#1e1f22',
+                                minHeight: urls.length === 1 ? '160px' : '100px',
+                                maxHeight: '220px',
+                                overflow: 'hidden',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={url}
+                                alt={`Gallery item ${uIdx + 1}`}
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'cover'
+                                }}
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLElement).style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          ))}
                         </div>
                       );
                     }

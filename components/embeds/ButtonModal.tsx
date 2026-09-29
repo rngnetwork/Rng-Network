@@ -94,13 +94,14 @@ export function ButtonModal({
         style={{
           position: 'fixed',
           inset: 0,
-          zIndex: 999999,
-          backdropFilter: 'blur(14px)',
+          zIndex: 100000,
+          backdropFilter: 'blur(10px)',
           background: 'rgba(0, 0, 0, 0.75)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '16px'
+          padding: '20px',
+          overflowY: 'auto'
         }}
         onClick={(e) => {
           if (e.target === e.currentTarget) onClose();
@@ -111,11 +112,15 @@ export function ButtonModal({
           style={{
             maxWidth: '520px',
             width: '100%',
+            maxHeight: 'min(88vh, 650px)',
             margin: 'auto',
             background: '#313338',
             border: '1px solid rgba(255, 255, 255, 0.09)',
             boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
-            borderRadius: '12px'
+            borderRadius: '12px',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
           }}
         >
           <div className="modal-header" style={{ background: '#2b2d31', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -127,7 +132,7 @@ export function ButtonModal({
               <i className="fa-solid fa-xmark" />
             </button>
           </div>
-          <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '18px 20px' }}>
+          <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '18px 20px', overflowY: 'auto' }}>
             
             <div className="form-group">
               <label className="form-label">Button Label / Text</label>
@@ -141,7 +146,7 @@ export function ButtonModal({
             </div>
 
             <div className="form-group">
-              <label className="form-label">Button Style & Color (Discord V2 Types)</label>
+              <label className="form-label">Button Type</label>
               <div className="btn-style-selector-row">
                 <button
                   type="button"
@@ -188,7 +193,7 @@ export function ButtonModal({
                   type="text"
                   className="form-input"
                   style={{ width: '100px', textAlign: 'center', fontSize: '15px' }}
-                  placeholder="😃"
+                  placeholder=""
                   value={emojiStr}
                   onChange={(e) => setEmojiStr(e.target.value)}
                 />

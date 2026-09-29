@@ -26,13 +26,14 @@ export function PaletteModal({
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 999999,
-        backdropFilter: 'blur(14px)',
+        zIndex: 100000,
+        backdropFilter: 'blur(10px)',
         background: 'rgba(0, 0, 0, 0.75)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '16px'
+        padding: '20px',
+        overflowY: 'auto'
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -43,23 +44,27 @@ export function PaletteModal({
         style={{
           maxWidth: '880px',
           width: '100%',
+          maxHeight: 'min(88vh, 650px)',
           margin: 'auto',
           background: '#313338',
           border: '1px solid rgba(255, 255, 255, 0.09)',
           boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
-          borderRadius: '12px'
+          borderRadius: '12px',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden'
         }}
       >
         <div className="modal-header" style={{ background: '#2b2d31', borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
           <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <i className="fa-solid fa-cubes" style={{ color: '#5865F2' }} />
-            <span>Insert Component (Type 1 to 23)</span>
+            <span>Insert Component (Discord Components V2)</span>
           </div>
           <button className="btn-container-close" onClick={onClose}>
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
-        <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+        <div className="modal-body" style={{ maxHeight: 'calc(min(88vh, 650px) - 60px)', overflowY: 'auto' }}>
           
           {/* Section 1: Message Layout & Containers */}
           <div className="modal-section-title">1. Message Layout & Containers (V2 Supported)</div>
@@ -171,56 +176,6 @@ export function PaletteModal({
               <span className="type-card-desc">Channel picker, wrapped in Action Row.</span>
             </div>
           </div>
-
-          {/* Section 4: Modal-Only Components */}
-          <div className="modal-section-title" style={{ color: '#fbbf24' }}>4. Modal-Only Components (Discord Interactive Forms)</div>
-          <div className="modal-section-callout">
-            <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: '13px' }} />
-            <span>These components are strictly modal-only and are excluded from Discord V2 Message payloads.</span>
-          </div>
-          <div className="types-23-grid">
-            <div className="type-select-card" onClick={() => handleSelect(4)}>
-              <div className="type-card-top">
-                <span className="type-card-name">Text Input</span>
-                <span className="type-scope-badge scope-modal">Modal Only</span>
-                <span className="type-number-pill">Type 4</span>
-              </div>
-              <span className="type-card-desc">Modal text field.</span>
-            </div>
-            <div className="type-select-card" onClick={() => handleSelect(18)}>
-              <div className="type-card-top">
-                <span className="type-card-name">Label</span>
-                <span className="type-scope-badge scope-modal">Modal Only</span>
-                <span className="type-number-pill">Type 18</span>
-              </div>
-              <span className="type-card-desc">Modal layout wrapper.</span>
-            </div>
-            <div className="type-select-card" onClick={() => handleSelect(21)}>
-              <div className="type-card-top">
-                <span className="type-card-name">Radio Group</span>
-                <span className="type-scope-badge scope-modal">Modal Only</span>
-                <span className="type-number-pill">Type 21</span>
-              </div>
-              <span className="type-card-desc">Single-choice radio options.</span>
-            </div>
-            <div className="type-select-card" onClick={() => handleSelect(22)}>
-              <div className="type-card-top">
-                <span className="type-card-name">Checkbox Group</span>
-                <span className="type-scope-badge scope-modal">Modal Only</span>
-                <span className="type-number-pill">Type 22</span>
-              </div>
-              <span className="type-card-desc">Multiple toggle checkboxes.</span>
-            </div>
-            <div className="type-select-card" onClick={() => handleSelect(23)}>
-              <div className="type-card-top">
-                <span className="type-card-name">Checkbox</span>
-                <span className="type-scope-badge scope-modal">Modal Only</span>
-                <span className="type-number-pill">Type 23</span>
-              </div>
-              <span className="type-card-desc">Single toggleable component.</span>
-            </div>
-          </div>
-
         </div>
       </div>
     </div>

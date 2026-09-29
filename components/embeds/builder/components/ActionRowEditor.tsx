@@ -46,6 +46,47 @@ export function ActionRowEditor({
     onUpdateComponent(cIdx, compIdx, updated);
   };
 
+  const handleShiftLeft = (e: React.MouseEvent, bIdx: number) => {
+    e.stopPropagation();
+    if (bIdx <= 0) return;
+    const updatedItems = [...items];
+    const temp = updatedItems[bIdx - 1];
+    updatedItems[bIdx - 1] = updatedItems[bIdx];
+    updatedItems[bIdx] = temp;
+    onUpdateComponent(cIdx, compIdx, {
+      ...comp,
+      items: updatedItems
+    });
+  };
+
+  const handleShiftRight = (e: React.MouseEvent, bIdx: number) => {
+    e.stopPropagation();
+    if (bIdx >= items.length - 1) return;
+    const updatedItems = [...items];
+    const temp = updatedItems[bIdx + 1];
+    updatedItems[bIdx + 1] = updatedItems[bIdx];
+    updatedItems[bIdx] = temp;
+    onUpdateComponent(cIdx, compIdx, {
+      ...comp,
+      items: updatedItems
+    });
+  };
+
+  const handleLabelChange = (bIdx: number, newLabel: string) => {
+    const updatedItems = [...items];
+    const targetItem = updatedItems[bIdx];
+    if (targetItem && targetItem.type === 2) {
+      updatedItems[bIdx] = {
+        ...targetItem,
+        label: newLabel
+      };
+      onUpdateComponent(cIdx, compIdx, {
+        ...comp,
+        items: updatedItems
+      });
+    }
+  };
+
   const handleRemoveButton = (e: React.MouseEvent, bIdx: number) => {
     e.stopPropagation();
     const updatedItems = [...items];
@@ -83,20 +124,121 @@ export function ActionRowEditor({
             <div
               key={btn.id || bIdx}
               className={`btn-style-chip ${styleClass}`}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', padding: '6px 12px' }}
-              onClick={() => onOpenButtonModal(cIdx, comp.id || `row_${compIdx}`, bIdx, btn)}
-              title="Click to customize button style, emoji, and ID"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                userSelect: 'none'
+              }}
             >
-              {emojiDisplay && <span>{emojiDisplay}</span>}
-              <span style={{ fontWeight: 600 }}>{btn.label || 'Button'}</span>
-              {btn.style === 5 && <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: '10px' }} />}
+              {/* Shift Left */}
+              <button
+                type="button"
+                disabled={bIdx === 0}
+                onClick={(e) => handleShiftLeft(e, bIdx)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: bIdx === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)',
+                  cursor: bIdx === 0 ? 'default' : 'pointer',
+                  padding: '2px 3px',
+                  fontSize: '11px',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+                title="Shift Left"
+              >
+                <i className="fa-solid fa-chevron-left" />
+              </button>
+
+              {/* Shift Right */}
+              <button
+                type="button"
+                disabled={bIdx === items.length - 1}
+                onClick={(e) => handleShiftRight(e, bIdx)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: bIdx === items.length - 1 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)',
+                  cursor: bIdx === items.length - 1 ? 'default' : 'pointer',
+                  padding: '2px 3px',
+                  fontSize: '11px',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+                title="Shift Right"
+              >
+                <i className="fa-solid fa-chevron-right" />
+              </button>
+
+              {/* Emoji if present */}
+              {emojiDisplay && <span style={{ fontSize: '14px', lineHeight: 1 }}>{emojiDisplay}</span>}
+
+              {/* Inline Label Editing */}
+              <input
+                type="text"
+                value={btn.label || ''}
+                placeholder="Button"
+                onChange={(e) => handleLabelChange(bIdx, e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: 'rgba(0, 0, 0, 0.25)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  borderRadius: '3px',
+                  color: '#fff',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  padding: '2px 6px',
+                  width: `${Math.max(60, ((btn.label || 'Button').length + 2) * 8)}px`,
+                  maxWidth: '160px',
+                  outline: 'none'
+                }}
+                title="Edit button text inline"
+              />
+
+              {btn.style === 5 && <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: '10px', opacity: 0.8 }} />}
+
+              {/* Settings Button */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenButtonModal(cIdx, comp.id || `row_${compIdx}`, bIdx, btn);
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'rgba(255,255,255,0.75)',
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                  fontSize: '11px',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+                title="Button Settings (Style, ID, Link, Emoji)"
+              >
+                <i className="fa-solid fa-gear" />
+              </button>
+
+              {/* Remove Button */}
               <button
                 type="button"
                 onClick={(e) => handleRemoveButton(e, bIdx)}
-                style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', marginLeft: '4px', padding: 0 }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'rgba(255,255,255,0.6)',
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                  fontSize: '11px',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
                 title="Remove Button"
               >
-                <i className="fa-solid fa-xmark" style={{ fontSize: '11px' }} />
+                <i className="fa-solid fa-xmark" />
               </button>
             </div>
           );

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Type17Container, DiscordButtonComponent, DiscordInnerComponent } from './types';
+import { Type17Container, DiscordButtonComponent, DiscordActionRowComponent, DiscordInnerComponent } from './types';
 import { ChannelItem, ServerItem } from '@/lib/api';
 import { EmojiItem } from './emoji-data';
 
@@ -141,22 +141,20 @@ export function MessageBuilder({
     }
 
     if (typeNum === 2) {
-      // Auto-wrap button in Action Row
-      let actionRow = target.components.find((c) => c.type === 1 && (c.items?.length || 0) < 5) as any;
-      if (!actionRow) {
-        actionRow = {
-          type: 1,
-          id: `row_${Date.now()}`,
-          label: `ROW ${target.components.filter((c) => c.type === 1).length + 1}`,
-          items: []
-        };
-        target.components.push(actionRow);
-      }
-      actionRow.items.push({
-        type: 2,
-        style: 1,
-        label: `Button ${actionRow.items.length + 1}`,
-        custom_id: `btn_${Date.now()}`
+      // Adding Button (Type 2) via palette creates a new Action Row containing the button and appends it
+      const newRowId = `row_${Date.now()}`;
+      target.components.push({
+        type: 1,
+        id: newRowId,
+        label: `ROW ${target.components.filter((c) => c.type === 1).length + 1}`,
+        items: [
+          {
+            type: 2,
+            style: 1,
+            label: 'Button',
+            custom_id: `btn_${Date.now()}`
+          }
+        ]
       });
       setContainers(updated);
       onDirtyChange?.();
@@ -261,13 +259,15 @@ export function MessageBuilder({
   // Save Button Modal
   const handleSaveButtonModal = (updated: DiscordButtonComponent) => {
     if (!editingButton) return;
-    const { cIdx, bIdx } = editingButton;
+    const { cIdx, rowId, bIdx } = editingButton;
     const updContainers = [...containers];
     const container = updContainers[cIdx];
     if (!container) return;
 
-    // Find Action Row that contains this button
-    const actionRow = container.components.find((c) => c.type === 1) as any;
+    // Find Action Row that contains this button by matching rowId
+    const actionRow = container.components.find(
+      (c): c is DiscordActionRowComponent => c.type === 1 && c.id === rowId
+    );
     if (actionRow && actionRow.items && actionRow.items[bIdx]) {
       actionRow.items[bIdx] = updated;
       setContainers(updContainers);
@@ -340,6 +340,7 @@ export function MessageBuilder({
           onOpenEmojiPicker={handleOpenEmojiPicker}
           onOpenPaletteModal={handleOpenPalette}
           onOpenButtonModal={handleOpenButtonModal}
+          onOpenLoadModal={() => setIsLoadModalOpen(true)}
           onDirtyChange={onDirtyChange}
           draggedComp={draggedComp}
           setDraggedComp={setDraggedComp}

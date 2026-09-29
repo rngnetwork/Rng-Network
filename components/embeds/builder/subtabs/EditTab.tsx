@@ -17,6 +17,7 @@ interface EditTabProps {
   ) => void;
   onOpenPaletteModal: (cIdx: number) => void;
   onOpenButtonModal: (cIdx: number, rowId: string, bIdx: number, data: DiscordButtonComponent) => void;
+  onOpenLoadModal?: () => void;
   onDirtyChange?: () => void;
   // Drag and Drop
   draggedComp: { cIdx: number; compIdx: number } | null;
@@ -37,6 +38,7 @@ export function EditTab({
   onOpenEmojiPicker,
   onOpenPaletteModal,
   onOpenButtonModal,
+  onOpenLoadModal,
   onDirtyChange,
   draggedComp,
   setDraggedComp,
@@ -366,9 +368,17 @@ export function EditTab({
             type="button"
             className="btn-ctrl-purple"
             onClick={() => onOpenPaletteModal(0)}
-            title="Insert Discord Component Types 1 to 23"
+            title="Insert Discord Component Types"
           >
             <i className="fa-solid fa-cubes" /> + UI Components
+          </button>
+          <button
+            type="button"
+            className="btn-ctrl-green"
+            onClick={onOpenLoadModal}
+            title="Load Template or Preset"
+          >
+            <i className="fa-solid fa-folder-open" /> Load
           </button>
           <button
             type="button"
