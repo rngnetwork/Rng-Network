@@ -1,12 +1,34 @@
 "use client";
 
-import React, { useState } from 'react';
-import Editor from '@monaco-editor/react';
+import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { Type17Container } from '../../types';
 import {
   buildDiscordV2MessagePayload,
   parseDiscordPayloadToState
 } from '../../validation';
+
+// SSR-safe dynamic Monaco Editor import
+const Editor = dynamic(() => import('@monaco-editor/react'), {
+  ssr: false,
+  loading: () => (
+    <div
+      style={{
+        height: '620px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#0a0a0f',
+        color: '#949ba4',
+        fontSize: '13px',
+        fontFamily: "'Fira Code', 'JetBrains Mono', Consolas, monospace"
+      }}
+    >
+      <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '10px', color: '#EC4899' }} />
+      <span>Loading Monaco JSON Editor...</span>
+    </div>
+  )
+});
 
 interface RawTabProps {
   containers: Type17Container[];
@@ -25,6 +47,14 @@ export function RawTab({
 }: RawTabProps) {
   const [userEditedJson, setUserEditedJson] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   const defaultJsonText = React.useMemo(() => {
     const payload = buildDiscordV2MessagePayload(containers, messageContent);
@@ -54,15 +84,48 @@ export function RawTab({
       setUserEditedJson(null);
       setParseError(null);
       onDirtyChange?.();
-      alert('Successfully applied JSON payload to the Message Builder canvas!');
+      setToast({
+        type: 'success',
+        message: 'Successfully applied JSON payload to the Message Builder canvas!'
+      });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setParseError(`Failed to apply JSON: ${msg}`);
+      setToast({
+        type: 'error',
+        message: `Syntax/Schema Error: ${msg}`
+      });
     }
   };
 
   return (
-    <div className="tab-content-area" style={{ flex: 1, padding: '16px', overflowY: 'auto' }}>
+    <div className="tab-content-area" style={{ flex: 1, padding: '16px', overflowY: 'auto', position: 'relative' }}>
+      {/* Toast Notification Banner */}
+      {toast && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            zIndex: 9999,
+            padding: '12px 20px',
+            borderRadius: '10px',
+            background: toast.type === 'success' ? '#064e3b' : '#7f1d1d',
+            border: `1px solid ${toast.type === 'success' ? '#059669' : '#dc2626'}`,
+            color: '#fff',
+            fontSize: '13px',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+          }}
+        >
+          <i className={toast.type === 'success' ? 'fa-solid fa-circle-check text-emerald-400' : 'fa-solid fa-circle-exclamation text-red-400'} />
+          <span>{toast.message}</span>
+        </div>
+      )}
+
       <div className="raw-editor-container" style={{ width: '100%', maxWidth: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         
         {/* Top Control Bar: Title Badge + Actions */}
