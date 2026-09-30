@@ -16,6 +16,7 @@ import { EditTab } from './builder/subtabs/EditTab';
 import { PreviewTab } from './builder/subtabs/PreviewTab';
 import { RawTab } from './builder/subtabs/RawTab';
 import { DispatchTab } from './builder/subtabs/DispatchTab';
+import { TemplatesTab } from './builder/subtabs/TemplatesTab';
 
 export interface MessageBuilderProps {
   containers: Type17Container[];
@@ -54,7 +55,7 @@ export function MessageBuilder({
   onSelectServer,
   onDispatchPayload
 }: MessageBuilderProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'edit' | 'preview' | 'raw' | 'dispatch'>('edit');
+  const [activeSubTab, setActiveSubTab] = useState<'edit' | 'preview' | 'raw' | 'dispatch' | 'templates'>('edit');
 
   // Modals state
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
@@ -313,6 +314,14 @@ export function MessageBuilder({
             <i className="fa-solid fa-paper-plane text-[#E11D2E]" />
             <span>Dispatch</span>
           </button>
+          <button
+            type="button"
+            className={`sub-tab-btn ${activeSubTab === 'templates' ? 'active' : ''}`}
+            onClick={() => setActiveSubTab('templates')}
+          >
+            <i className="fa-solid fa-layer-group text-amber-400" />
+            <span>Templates</span>
+          </button>
         </div>
 
         <div className="hidden sm:flex items-center gap-3">
@@ -383,6 +392,27 @@ export function MessageBuilder({
           availableServers={availableServers}
           onSelectServer={onSelectServer}
           onDispatchPayload={onDispatchPayload}
+        />
+      )}
+
+      {/* SUB-TAB 5: DISCORD TEMPLATES GALLERY */}
+      {activeSubTab === 'templates' && (
+        <TemplatesTab
+          currentBuilderState={{
+            message: { content: messageContent },
+            type17Containers: containers
+          }}
+          onLoadTemplate={(presetState) => {
+            if (presetState.message?.content !== undefined) {
+              setMessageContent(presetState.message.content);
+            }
+            if (presetState.type17Containers) {
+              setContainers(presetState.type17Containers);
+            }
+            onLoadTemplate?.(presetState);
+            onDirtyChange?.();
+          }}
+          serverId={serverId}
         />
       )}
 
