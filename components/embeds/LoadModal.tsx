@@ -253,10 +253,7 @@ export function LoadModal({
             <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <i className="fa-solid fa-cloud-arrow-down" style={{ color: '#4ade80', fontSize: '14px' }} />
             </div>
-            <span>Load Templates & Components</span>
-            <span className="component-modal-badge" style={{ background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#4ade80' }}>
-              Presets Catalog
-            </span>
+            <span>Load Templates</span>
           </div>
           <button className="btn-container-close" onClick={onClose} type="button">
             <i className="fa-solid fa-xmark" />
@@ -280,22 +277,6 @@ export function LoadModal({
           >
             <i className="fa-solid fa-layer-group" style={{ marginRight: '6px' }} />
             Pre-built Templates ({sampleTemplates.length})
-          </button>
-          <button
-            type="button"
-            className={`btn-style-chip ${activeTab === 'components' ? 'active' : ''}`}
-            onClick={() => setActiveTab('components')}
-            style={{
-              padding: '6px 16px',
-              fontSize: '12.5px',
-              borderRadius: '8px',
-              border: activeTab === 'components' ? '1px solid #22c55e' : '1px solid rgba(255,255,255,0.1)',
-              background: activeTab === 'components' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(0,0,0,0.3)',
-              color: activeTab === 'components' ? '#4ade80' : '#949ba4'
-            }}
-          >
-            <i className="fa-solid fa-puzzle-piece" style={{ marginRight: '6px' }} />
-            Component Presets ({sampleComponents.length})
           </button>
         </div>
 

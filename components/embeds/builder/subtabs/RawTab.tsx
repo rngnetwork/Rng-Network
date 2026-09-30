@@ -88,7 +88,6 @@ export function RawTab({
             <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#fff' }}>
               Discord Components V2 Payload
             </span>
-            <span className="component-modal-badge pink">Flags: 32768</span>
           </div>
 
           {/* Action Buttons */}
