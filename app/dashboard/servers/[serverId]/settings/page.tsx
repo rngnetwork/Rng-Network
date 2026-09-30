@@ -19,6 +19,7 @@ import {
 import { api, ServerDetail, ChannelItem, UpdateServerSettingsPayload } from '@/lib/api';
 import { Toggle } from '@/components/ui/Toggle';
 import { UnsavedChangesBar } from '@/components/ui/UnsavedChangesBar';
+import { GlassmorphicDropdown, DropdownOption } from '@/components/ui/GlassmorphicDropdown';
 
 interface ServerSettingsForm {
   name: string;
@@ -143,6 +144,29 @@ export default function ServerSettingsPage() {
   const textChannels = useMemo(() => {
     return channels.filter(c => c.type === 0).sort((a, b) => a.position - b.position);
   }, [channels]);
+
+  const afkChannelOptions: DropdownOption[] = useMemo(() => [
+    { value: '', label: 'No Inactive Channel' },
+    ...voiceChannels.map(c => ({
+      value: c.id,
+      label: `🔊 #${c.name}`,
+      description: `Voice Channel: ${c.id}`
+    }))
+  ], [voiceChannels]);
+
+  const afkTimeoutOptions: DropdownOption<number>[] = useMemo(() => AFK_TIMEOUT_OPTIONS.map(opt => ({
+    value: opt.value,
+    label: opt.label
+  })), []);
+
+  const systemChannelOptions: DropdownOption[] = useMemo(() => [
+    { value: '', label: 'No System Channel' },
+    ...textChannels.map(c => ({
+      value: c.id,
+      label: `# ${c.name}`,
+      description: `Text Channel: ${c.id}`
+    }))
+  ], [textChannels]);
 
   // Dirty checking
   const isDirty = useMemo(() => {
@@ -570,18 +594,13 @@ export default function ServerSettingsPage() {
                 <Volume2 size={14} className="text-red-400" />
                 Inactive Channel
               </label>
-              <select
+              <GlassmorphicDropdown
                 value={formData.afkChannelId}
-                onChange={e => setFormData(prev => ({ ...prev, afkChannelId: e.target.value }))}
-                className="w-full px-4 py-3 rounded-2xl bg-black/60 border border-white/10 focus:border-red-500 text-white text-sm outline-none transition-all cursor-pointer"
-              >
-                <option value="">No Inactive Channel</option>
-                {voiceChannels.map(c => (
-                  <option key={c.id} value={c.id}>
-                    🔊 #{c.name}
-                  </option>
-                ))}
-              </select>
+                options={afkChannelOptions}
+                onChange={val => setFormData(prev => ({ ...prev, afkChannelId: String(val) }))}
+                placeholder="Select Inactive Channel..."
+                searchable={afkChannelOptions.length > 5}
+              />
               <span className="text-xs text-zinc-500">
                 Automatically moves inactive members to this voice channel.
               </span>
@@ -592,20 +611,13 @@ export default function ServerSettingsPage() {
               <label className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-300">
                 Inactive Timeout
               </label>
-              <select
+              <GlassmorphicDropdown
                 value={formData.afkTimeout}
+                options={afkTimeoutOptions}
                 disabled={!isAfkActive}
-                onChange={e => setFormData(prev => ({ ...prev, afkTimeout: Number(e.target.value) }))}
-                className={`w-full px-4 py-3 rounded-2xl bg-black/60 border border-white/10 text-white text-sm outline-none transition-all ${
-                  isAfkActive ? 'focus:border-red-500 cursor-pointer' : 'cursor-not-allowed'
-                }`}
-              >
-                {AFK_TIMEOUT_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                onChange={val => setFormData(prev => ({ ...prev, afkTimeout: Number(val) }))}
+                placeholder="Select Inactive Timeout..."
+              />
               <span className="text-xs text-zinc-500">
                 {isAfkActive
                   ? "Duration of inactivity before moving to the inactive channel."
@@ -622,18 +634,13 @@ export default function ServerSettingsPage() {
               <MessageSquare size={14} className="text-red-400" />
               System Messages Channel
             </label>
-            <select
+            <GlassmorphicDropdown
               value={formData.systemChannelId}
-              onChange={e => setFormData(prev => ({ ...prev, systemChannelId: e.target.value }))}
-              className="w-full px-4 py-3 rounded-2xl bg-black/60 border border-white/10 focus:border-red-500 text-white text-sm outline-none transition-all cursor-pointer"
-            >
-              <option value="">No System Channel</option>
-              {textChannels.map(c => (
-                <option key={c.id} value={c.id}>
-                  # {c.name}
-                </option>
-              ))}
-            </select>
+              options={systemChannelOptions}
+              onChange={val => setFormData(prev => ({ ...prev, systemChannelId: String(val) }))}
+              placeholder="Select System Channel..."
+              searchable={systemChannelOptions.length > 5}
+            />
             <span className="text-xs text-zinc-500">
               The text channel where Discord posts member events, boost alerts, and setup reminders.
             </span>
