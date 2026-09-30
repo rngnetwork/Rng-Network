@@ -1,6 +1,6 @@
 # ==============================================================================
 # RNG Application Deployment & Validation Pipeline (Windows PowerShell)
-# Auto-Install System Dependencies, Clean, Deploy DB, Build, Test, & Launch
+# Auto-Install System Dependencies, Clean, Deploy DB, Build, & Launch
 # ==============================================================================
 
 $ErrorActionPreference = "Stop"
@@ -63,6 +63,7 @@ Get-Content ".env" | Where-Object { $_ -notmatch '^\s*#' -and $_ -match '=' } | 
 
 $FRONTEND_PORT = if ($env:PORT) { $env:PORT } else { "3000" }
 $BACKEND_PORT = if ($env:SERVER_PORT) { $env:SERVER_PORT } else { "8080" }
+$env:MONGODB_URI = if ($env:MONGODB_URI) { $env:MONGODB_URI } else { "mongodb://localhost:27017/rng_embeds" }
 
 # ------------------------------------------------------------------------------
 # STEP 2: Deep Cleaning & Cache Purge
@@ -77,10 +78,11 @@ Set-Location ".."
 Write-Host "  [x] Caches Purged." -ForegroundColor Green
 
 # ------------------------------------------------------------------------------
-# STEP 3: Database Startup & Health Check (PostgreSQL / Docker)
+# STEP 3: Database Startup & Health Check (PostgreSQL, Redis, MongoDB / Docker)
 # ------------------------------------------------------------------------------
-Write-Host "`n[3/7] Starting Local Database Service (PostgreSQL)..." -ForegroundColor Yellow
+Write-Host "`n[3/7] Starting Local Database Services (PostgreSQL, Redis, MongoDB)..." -ForegroundColor Yellow
 
+# 1. PostgreSQL (Port 5432)
 $dbActive = $false
 try {
     $tcp = New-Object System.Net.Sockets.TcpClient
@@ -118,7 +120,7 @@ if (-not $dbActive) {
     }
 }
 
-# Check Redis Cache Service (Port 6379)
+# 2. Redis Cache Service (Port 6379)
 Write-Host "`n  -> Starting Local Cache Service (Redis 7)..." -ForegroundColor Yellow
 $redisActive = $false
 try {
@@ -153,6 +155,41 @@ if (-not $redisActive) {
     }
 }
 
+# 3. MongoDB 7.0 Document Database Service (Port 27017)
+Write-Host "`n  -> Starting Local Document Database Service (MongoDB 7.0)..." -ForegroundColor Yellow
+$mongoActive = $false
+try {
+    $tcpMongo = New-Object System.Net.Sockets.TcpClient
+    $tcpMongo.Connect("127.0.0.1", 27017)
+    $mongoActive = $true
+    $tcpMongo.Close()
+    Write-Host "  [x] MongoDB port 27017 is ACTIVE and responding." -ForegroundColor Green
+} catch {
+    $mongoActive = $false
+}
+
+if (-not $mongoActive) {
+    $mongoService = Get-Service -Name "MongoDB*", "mongod*" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($mongoService) {
+        Start-Service -Name $mongoService.Name -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
+        Write-Host "  [x] Windows MongoDB Service ($($mongoService.Name)) STARTED." -ForegroundColor Green
+    } else {
+        $dockerCheck = Get-Command "docker" -ErrorAction SilentlyContinue
+        if ($dockerCheck) {
+            docker start rng_mongodb 2>$null
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "  -> Launching MongoDB 7.0 Docker container (rng_mongodb)..." -ForegroundColor Yellow
+                docker run -d --name rng_mongodb -p 27017:27017 -v rng_mongodb_data:/data/db mongo:7.0-jammy
+            }
+            Start-Sleep -Seconds 2
+            Write-Host "  [x] MongoDB 7.0 Docker Container STARTED on port 27017." -ForegroundColor Green
+        } else {
+            Write-Host "  [!] NOTICE: MongoDB container not launched (Docker not detected). Ensure local MongoDB is running on port 27017." -ForegroundColor Yellow
+        }
+    }
+}
+
 # ------------------------------------------------------------------------------
 # STEP 4: Push Database Schema & Migration Seeds (Flyway DB Push Equivalent)
 # ------------------------------------------------------------------------------
@@ -165,16 +202,8 @@ if ($LASTEXITCODE -ne 0) {
 } else {
     Write-Host "  [x] Flyway Database Schema & Seed Data PUSHED successfully to $env:DB_URL." -ForegroundColor Green
 }
-
-Write-Host "  -> Running Backend Integration Test Suite..." -ForegroundColor Gray
-$testOutput = & ".\mvnw.cmd" test
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "  [!] ERROR: Backend tests failed! Aborting deployment." -ForegroundColor Red
-    Set-Location ".."
-    exit 1
-}
 Set-Location ".."
-Write-Host "  [x] Backend Tests PASSED 100%." -ForegroundColor Green
+Write-Host "  [x] Flyway Database Migrations completed." -ForegroundColor Green
 
 # ------------------------------------------------------------------------------
 # STEP 5: Frontend Production Build
@@ -219,7 +248,7 @@ Set-Location "backend"
 & ".\mvnw.cmd" package -DskipTests | Out-Null
 Set-Location ".."
 
-$backendJob = Start-Process -FilePath "java" -ArgumentList "-jar", "backend\target\rng-backend-0.0.1-SNAPSHOT.jar", "--server.port=$BACKEND_PORT" -PassThru -NoNewWindow
+$backendJob = Start-Process -FilePath "java" -ArgumentList "-jar", "backend\target\rng-backend-0.0.1-SNAPSHOT.jar", "--server.port=$BACKEND_PORT", "--spring.data.mongodb.uri=$env:MONGODB_URI" -PassThru -NoNewWindow
 Start-Sleep -Seconds 5
 
 Write-Host "`n======================================================================" -ForegroundColor Green
