@@ -31,18 +31,21 @@ export function SelectMenuEditor({
       {/* Dropdown Box Simulator (Click opens settings) */}
       <div
         onClick={onOpenSettings}
+        className="group transition-all duration-200 hover:border-red-500/40"
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: '#1e1f22',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '4px',
-          padding: '8px 12px',
+          background: 'rgba(20, 22, 28, 0.85)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          borderRadius: '8px',
+          padding: '10px 14px',
           cursor: onOpenSettings ? 'pointer' : 'default',
           color: comp.placeholder ? '#dbdee1' : 'var(--discord-text-muted)',
-          fontSize: '12.5px',
-          userSelect: 'none'
+          fontSize: '13px',
+          userSelect: 'none',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.35)'
         }}
         title={onOpenSettings ? "Click to configure in Settings" : undefined}
       >
@@ -51,11 +54,11 @@ export function SelectMenuEditor({
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {comp.type === 3 && (
-            <span style={{ fontSize: '10.5px', color: 'var(--discord-text-muted)' }}>
+            <span style={{ fontSize: '11px', color: 'var(--discord-text-muted)' }}>
               ({options.length} {options.length === 1 ? 'option' : 'options'})
             </span>
           )}
-          <i className="fa-solid fa-chevron-down" style={{ fontSize: '10px', color: 'var(--discord-text-muted)' }} />
+          <i className="fa-solid fa-chevron-down" style={{ fontSize: '11px', color: 'var(--discord-text-muted)' }} />
         </div>
       </div>
 
