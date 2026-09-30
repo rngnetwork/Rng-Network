@@ -597,6 +597,274 @@ export const api = {
     return { success: true, message: 'Access request submitted for review.' };
   },
 
+  // ---------------------------------------------------------------------------
+  // Discord Components V2 Embed Dispatch & Template APIs (§8.3)
+  // ---------------------------------------------------------------------------
+  async dispatchEmbedJson(payload: DispatchEmbedPayload, token?: string): Promise<ApiResponseEnvelope<DispatchResponseData>> {
+    const effectiveToken = token || getStoredAccessToken();
+    const inferredType: DispatchType = payload.dispatchType || (payload.webhookUrl ? 'IMMEDIATE_WEBHOOK' : (payload.scheduledTime ? 'SCHEDULED_BOT' : 'IMMEDIATE_BOT'));
+    const normalizedPayload = {
+      ...payload,
+      dispatchType: inferredType,
+    };
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(`${API_BASE}/api/v1/embeds/dispatch`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify(normalizedPayload),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Dispatch failed');
+        return data;
+      },
+      () => {
+        const mockSnowflake = generateMockSnowflake();
+        const dispatchId = 'dsp_' + Math.random().toString(36).substring(2, 10);
+        const logEntry: DispatchLogData = {
+          id: 'log_' + Math.random().toString(36).substring(2, 10),
+          dispatchId,
+          type: payload.webhookUrl ? 'IMMEDIATE_WEBHOOK' : (payload.scheduledTime ? 'SCHEDULED_BOT' : 'IMMEDIATE_BOT'),
+          status: payload.scheduledTime ? 'SCHEDULED' : 'SUCCESS',
+          serverId: payload.serverId,
+          channelId: payload.channelId || 'simulated_channel',
+          operatorId: 1,
+          operatorUsername: 'operator@rng.com',
+          discordMessageId: mockSnowflake,
+          latencyMs: 38,
+          timestamp: new Date().toISOString(),
+        };
+        const logs = getLocalStored<DispatchLogData[]>('rng_dispatch_logs', []);
+        setLocalStored('rng_dispatch_logs', [logEntry, ...logs]);
+        return {
+          dispatchId,
+          status: payload.scheduledTime ? 'SCHEDULED' : 'SUCCESS',
+          timestamp: new Date().toISOString(),
+          channelId: payload.channelId,
+          discordMessageId: mockSnowflake,
+          isScheduled: Boolean(payload.scheduledTime),
+          latencyMs: 38,
+        };
+      },
+      'Immediate message dispatched via offline local simulation.'
+    );
+  },
+
+  async dispatchEmbedMultipart(formData: FormData, token?: string): Promise<ApiResponseEnvelope<DispatchResponseData>> {
+    const effectiveToken = token || getStoredAccessToken();
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(`${API_BASE}/api/v1/embeds/dispatch/multipart`, {
+          method: 'POST',
+          headers: {
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+          body: formData,
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Multipart dispatch failed');
+        return data;
+      },
+      () => {
+        const mockSnowflake = generateMockSnowflake();
+        const dispatchId = 'dsp_mp_' + Math.random().toString(36).substring(2, 10);
+        return {
+          dispatchId,
+          status: 'SUCCESS',
+          timestamp: new Date().toISOString(),
+          discordMessageId: mockSnowflake,
+          latencyMs: 54,
+        };
+      },
+      'Multipart attachment payload dispatched via offline local simulation.'
+    );
+  },
+
+  async scheduleEmbedDispatch(payload: DispatchEmbedPayload, token?: string): Promise<ApiResponseEnvelope<DispatchResponseData>> {
+    const effectiveToken = token || getStoredAccessToken();
+    const normalizedPayload = {
+      ...payload,
+      dispatchType: payload.dispatchType || 'SCHEDULED_BOT',
+    };
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(`${API_BASE}/api/v1/embeds/dispatch/schedule`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify(normalizedPayload),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Schedule request failed');
+        return data;
+      },
+      () => {
+        const dispatchId = 'dsp_sch_' + Math.random().toString(36).substring(2, 10);
+        const logEntry: DispatchLogData = {
+          id: 'log_' + Math.random().toString(36).substring(2, 10),
+          dispatchId,
+          type: 'SCHEDULED_BOT',
+          status: 'SCHEDULED',
+          serverId: payload.serverId,
+          channelId: payload.channelId || 'scheduled_channel',
+          operatorId: 1,
+          operatorUsername: 'operator@rng.com',
+          latencyMs: 12,
+          timestamp: new Date().toISOString(),
+        };
+        const logs = getLocalStored<DispatchLogData[]>('rng_dispatch_logs', []);
+        setLocalStored('rng_dispatch_logs', [logEntry, ...logs]);
+        return {
+          dispatchId,
+          status: 'SCHEDULED',
+          timestamp: new Date().toISOString(),
+          channelId: payload.channelId,
+          isScheduled: true,
+          latencyMs: 12,
+        };
+      },
+      'Message dispatch scheduled successfully in offline simulation queue.'
+    );
+  },
+
+  async cancelScheduledEmbedDispatch(dispatchId: string, token?: string): Promise<ApiResponseEnvelope<boolean>> {
+    const effectiveToken = token || getStoredAccessToken();
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(`${API_BASE}/api/v1/embeds/dispatch/schedule/${dispatchId}`, {
+          method: 'DELETE',
+          headers: {
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Cancel scheduled dispatch failed');
+        return data;
+      },
+      () => {
+        const logs = getLocalStored<DispatchLogData[]>('rng_dispatch_logs', []);
+        setLocalStored(
+          'rng_dispatch_logs',
+          logs.map((l) => (l.dispatchId === dispatchId ? { ...l, status: 'CANCELLED' } : l))
+        );
+        return true;
+      },
+      'Scheduled task cancelled in offline simulation storage.'
+    );
+  },
+
+  async testDryRun(payload: DryRunPayload, token?: string): Promise<ApiResponseEnvelope<DryRunValidationReportData>> {
+    const effectiveToken = token || getStoredAccessToken();
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(`${API_BASE}/api/v1/embeds/dispatch/test`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Dry run test failed');
+        return data;
+      },
+      () => ({
+        valid: true,
+        errors: [],
+        warnings: [],
+        containerCount: 1,
+        totalComponentCount: 3,
+        totalActionRows: 1,
+        cumulativeCharCount: 180,
+        actionRowCount: 1,
+        characterCount: 180,
+        permissions: {
+          viewChannel: true,
+          sendMessages: true,
+          embedLinks: true,
+          attachFiles: true,
+        },
+        resolvedBotPermissions: ['VIEW_CHANNEL', 'SEND_MESSAGES', 'EMBED_LINKS', 'ATTACH_FILES'],
+      }),
+      'Pre-flight simulation validation report generated.'
+    );
+  },
+
+  async fetchDispatchLogs(
+    params?: { serverId?: string; status?: string; page?: number; size?: number },
+    token?: string
+  ): Promise<ApiResponseEnvelope<PageData<DispatchLogData>>> {
+    const effectiveToken = token || getStoredAccessToken();
+    const query = new URLSearchParams();
+    if (params?.serverId) query.set('serverId', params.serverId);
+    if (params?.status) query.set('status', params.status);
+    if (params?.page !== undefined) query.set('page', String(params.page));
+    if (params?.size !== undefined) query.set('size', String(params.size));
+
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(`${API_BASE}/api/v1/embeds/logs?${query.toString()}`, {
+          method: 'GET',
+          headers: {
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch logs');
+        return data;
+      },
+      () => {
+        const stored = getLocalStored<DispatchLogData[]>('rng_dispatch_logs', []);
+        return {
+          content: stored,
+          totalElements: stored.length,
+          totalPages: Math.ceil(stored.length / (params?.size || 20)) || 1,
+          size: params?.size || 20,
+          number: params?.page || 0,
+          first: true,
+          last: true,
+          empty: stored.length === 0,
+        };
+      }
+    );
+  },
+
+  async fetchDispatchChannels(serverId: string, token?: string): Promise<ApiResponseEnvelope<ChannelItem[]>> {
+    const effectiveToken = token || getStoredAccessToken();
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(`${API_BASE}/api/v1/embeds/channels?serverId=${serverId}`, {
+          method: 'GET',
+          headers: {
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch dispatch channels');
+        return data;
+      },
+      () => [
+        { id: '1395381163585175724', name: 'announcements', type: 0, position: 0, parentId: null },
+        { id: '1395381163585175725', name: 'general-chat', type: 0, position: 1, parentId: null },
+        { id: '1395381163585175726', name: 'dev-logs', type: 0, position: 2, parentId: null },
+      ]
+    );
+  },
+
+
 // ---------------------------------------------------------------------------
 // Offline Fallback Helpers (§8.3)
 // ---------------------------------------------------------------------------
