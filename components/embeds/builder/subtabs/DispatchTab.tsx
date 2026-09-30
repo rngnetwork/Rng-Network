@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Type17Container } from '../../types';
+import React, { useState, useMemo } from 'react';
+import { Type17Container, ClientValidationReport } from '../../types';
 import { ChannelItem, ServerItem } from '@/lib/api';
+import { GlassmorphicDropdown, DropdownOption } from '@/components/ui/GlassmorphicDropdown';
+import { validateContainers } from '../../validation';
 
 interface DispatchLogEntry {
   id: string;
@@ -32,6 +34,7 @@ interface DispatchTabProps {
 
 export function DispatchTab({
   containers,
+  messageContent = '',
   serverId,
   serverName,
   serverChannels = [],
@@ -60,6 +63,11 @@ export function DispatchTab({
   const [isSchedulerModalOpen, setIsSchedulerModalOpen] = useState(false);
   const [isDispatching, setIsDispatching] = useState(false);
 
+  // Pre-Flight Validation Report
+  const validationReport: ClientValidationReport = useMemo(() => {
+    return validateContainers(containers, messageContent);
+  }, [containers, messageContent]);
+
   // 3. Dispatch Logs State
   const [logs, setLogs] = useState<DispatchLogEntry[]>([
     {
@@ -75,6 +83,31 @@ export function DispatchTab({
   const activeChannelId = serverChannels.length > 0
     ? (serverChannels.some((c) => c.id === selectedChannel) ? selectedChannel : serverChannels[0].id)
     : selectedChannel;
+
+  const serverDropdownOptions: DropdownOption[] = useMemo(() => {
+    if (availableServers && availableServers.length > 0) {
+      return availableServers.map((srv) => ({
+        value: srv.id,
+        label: srv.name,
+        description: `Server ID: ${srv.id}`,
+        badge: srv.totalCount ? `${srv.totalCount} members` : undefined
+      }));
+    }
+    return [
+      { value: "server_rng_hq", label: "RNG Network Official HQ", description: "Primary Command Guild" },
+      { value: "server_community", label: "RNG Community Guild", description: "Public Discussion" },
+      { value: "server_dev", label: "RNG Bot Development Lab", description: "Testing & Staging" }
+    ];
+  }, [availableServers]);
+
+  const channelDropdownOptions: DropdownOption[] = useMemo(() => {
+    return (serverChannels || []).map((ch) => ({
+      value: ch.id,
+      label: `#${ch.name}`,
+      description: `Channel ID: ${ch.id}`,
+      badge: ch.type === 2 ? 'Voice' : 'Text'
+    }));
+  }, [serverChannels]);
 
   const handleServerChange = (newServerId: string) => {
     setSelectedServer(newServerId);
@@ -195,37 +228,13 @@ export function DispatchTab({
                   <span style={{ fontSize: '11px', color: '#949ba4', fontFamily: 'monospace', marginLeft: 'auto' }}>ID: {serverId}</span>
                 </div>
               ) : (
-                <div style={{ position: 'relative' }}>
-                  <select
-                    className="form-input"
-                    value={selectedServer}
-                    onChange={(e) => handleServerChange(e.target.value)}
-                    style={{
-                      height: '42px',
-                      background: '#090a0d',
-                      border: '1px solid rgba(255,255,255,0.12)',
-                      color: '#fff',
-                      borderRadius: '8px',
-                      padding: '0 12px',
-                      width: '100%',
-                      fontSize: '13px'
-                    }}
-                  >
-                    {availableServers.length > 0 ? (
-                      availableServers.map((srv) => (
-                        <option key={srv.id} value={srv.id}>
-                          {srv.name} (ID: {srv.id})
-                        </option>
-                      ))
-                    ) : (
-                      <>
-                        <option value="server_rng_hq">RNG Network Official HQ</option>
-                        <option value="server_community">RNG Community Guild</option>
-                        <option value="server_dev">RNG Bot Development Lab</option>
-                      </>
-                    )}
-                  </select>
-                </div>
+                <GlassmorphicDropdown
+                  value={selectedServer}
+                  options={serverDropdownOptions}
+                  onChange={(val) => handleServerChange(String(val))}
+                  placeholder="Select Discord Server..."
+                  searchable={serverDropdownOptions.length > 5}
+                />
               )}
             </div>
 
@@ -235,27 +244,13 @@ export function DispatchTab({
                 Select your channel:
               </label>
               {serverChannels && serverChannels.length > 0 ? (
-                <select
-                  className="form-input"
+                <GlassmorphicDropdown
                   value={activeChannelId}
-                  onChange={(e) => setSelectedChannel(e.target.value)}
-                  style={{
-                    height: '42px',
-                    background: '#090a0d',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    color: '#fff',
-                    borderRadius: '8px',
-                    padding: '0 12px',
-                    width: '100%',
-                    fontSize: '13px'
-                  }}
-                >
-                  {serverChannels.map((ch) => (
-                    <option key={ch.id} value={ch.id}>
-                      #{ch.name} (ID: {ch.id})
-                    </option>
-                  ))}
-                </select>
+                  options={channelDropdownOptions}
+                  onChange={(val) => setSelectedChannel(String(val))}
+                  placeholder="Select Discord Channel..."
+                  searchable={channelDropdownOptions.length > 5}
+                />
               ) : (
                 <input
                   type="text"
@@ -417,11 +412,194 @@ export function DispatchTab({
             </div>
           )}
 
+          {/* Pre-Flight Diagnostic Card */}
+          <div
+            style={{
+              background: 'rgba(18, 19, 26, 0.75)',
+              border: `1px solid ${validationReport.valid ? 'rgba(34, 197, 94, 0.25)' : 'rgba(239, 68, 68, 0.35)'}`,
+              borderRadius: '12px',
+              padding: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px',
+              boxShadow: validationReport.valid
+                ? '0 4px 20px rgba(34, 197, 94, 0.08)'
+                : '0 4px 20px rgba(239, 68, 68, 0.12)'
+            }}
+          >
+            {/* Header: Title + Status Pill */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i
+                  className={validationReport.valid ? 'fa-solid fa-shield-check text-emerald-400' : 'fa-solid fa-triangle-exclamation text-red-400'}
+                  style={{ fontSize: '15px' }}
+                />
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>
+                  Pre-Flight Diagnostic Card
+                </span>
+                <span style={{ fontSize: '11px', color: '#949ba4', fontFamily: 'monospace' }}>
+                  Discord Components V2
+                </span>
+              </div>
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  padding: '3px 10px',
+                  borderRadius: '6px',
+                  letterSpacing: '0.04em',
+                  background: validationReport.valid ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                  color: validationReport.valid ? '#4ade80' : '#f87171',
+                  border: `1px solid ${validationReport.valid ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`
+                }}
+              >
+                {validationReport.valid ? '✓ COMPLIANT' : `✕ ${validationReport.violations.length} VIOLATION${validationReport.violations.length === 1 ? '' : 'S'}`}
+              </span>
+            </div>
+
+            {/* Live Capacity Progress Bars */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+              {/* Containers: max 10 */}
+              <div style={{ background: '#0b0c10', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '6px' }}>
+                  <span style={{ color: '#949ba4' }}>Containers</span>
+                  <span style={{ color: validationReport.totalContainers > 10 ? '#ef4444' : '#fff', fontWeight: 600 }}>
+                    {validationReport.totalContainers} / 10
+                  </span>
+                </div>
+                <div style={{ height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${Math.min(100, (validationReport.totalContainers / 10) * 100)}%`,
+                      background: validationReport.totalContainers > 10 ? '#ef4444' : validationReport.totalContainers >= 8 ? '#f59e0b' : '#3b82f6',
+                      borderRadius: '3px',
+                      transition: 'width 0.3s ease'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Total Message Components: max 40 */}
+              <div style={{ background: '#0b0c10', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '6px' }}>
+                  <span style={{ color: '#949ba4' }}>Components</span>
+                  <span style={{ color: validationReport.totalComponents > 40 ? '#ef4444' : '#fff', fontWeight: 600 }}>
+                    {validationReport.totalComponents} / 40
+                  </span>
+                </div>
+                <div style={{ height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${Math.min(100, (validationReport.totalComponents / 40) * 100)}%`,
+                      background: validationReport.totalComponents > 40 ? '#ef4444' : validationReport.totalComponents >= 35 ? '#f59e0b' : '#10b981',
+                      borderRadius: '3px',
+                      transition: 'width 0.3s ease'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Action Rows: max 5 */}
+              <div style={{ background: '#0b0c10', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '6px' }}>
+                  <span style={{ color: '#949ba4' }}>Action Rows</span>
+                  <span style={{ color: validationReport.totalActionRows > 5 ? '#ef4444' : '#fff', fontWeight: 600 }}>
+                    {validationReport.totalActionRows} / 5
+                  </span>
+                </div>
+                <div style={{ height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${Math.min(100, (validationReport.totalActionRows / 5) * 100)}%`,
+                      background: validationReport.totalActionRows > 5 ? '#ef4444' : validationReport.totalActionRows >= 4 ? '#f59e0b' : '#8b5cf6',
+                      borderRadius: '3px',
+                      transition: 'width 0.3s ease'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Characters: max 4000 */}
+              <div style={{ background: '#0b0c10', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '6px' }}>
+                  <span style={{ color: '#949ba4' }}>Characters</span>
+                  <span style={{ color: validationReport.cumulativeCharacters > 4000 ? '#ef4444' : '#fff', fontWeight: 600 }}>
+                    {validationReport.cumulativeCharacters} / 4000
+                  </span>
+                </div>
+                <div style={{ height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${Math.min(100, (validationReport.cumulativeCharacters / 4000) * 100)}%`,
+                      background: validationReport.cumulativeCharacters > 4000 ? '#ef4444' : validationReport.cumulativeCharacters >= 3500 ? '#f59e0b' : '#ec4899',
+                      borderRadius: '3px',
+                      transition: 'width 0.3s ease'
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Violation Details Drawer */}
+            {validationReport.violations.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingTop: '6px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#f87171', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <i className="fa-solid fa-circle-exclamation" />
+                  <span>Validation Violations:</span>
+                </div>
+                {validationReport.violations.map((v, vIdx) => (
+                  <div
+                    key={vIdx}
+                    style={{
+                      fontSize: '11.5px',
+                      padding: '6px 10px',
+                      background: v.severity === 'ERROR' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                      border: `1px solid ${v.severity === 'ERROR' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '9.5px',
+                        fontWeight: 800,
+                        padding: '1px 5px',
+                        borderRadius: '3px',
+                        background: v.severity === 'ERROR' ? '#ef4444' : '#f59e0b',
+                        color: '#fff'
+                      }}
+                    >
+                      {v.severity}
+                    </span>
+                    <span style={{ fontFamily: 'monospace', color: '#949ba4' }}>{v.code}:</span>
+                    <span style={{ color: '#dbdee1' }}>{v.message}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Button dispatchMessage = new messageSend(); */}
+          {(!validationReport.valid || (validationReport.totalContainers === 0 && !messageContent.trim())) && (
+            <div style={{ fontSize: '12px', color: '#f87171', textAlign: 'center', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              <i className="fa-solid fa-lock" />
+              <span>
+                {validationReport.totalContainers === 0 && !messageContent.trim()
+                  ? 'Dispatch locked: Payload is empty. Add at least one container or text display.'
+                  : 'Dispatch locked: Resolve all pre-flight errors to enable message dispatch.'}
+              </span>
+            </div>
+          )}
           <button
             type="button"
             onClick={handleDispatch}
-            disabled={isDispatching}
+            disabled={isDispatching || !validationReport.valid || (validationReport.totalContainers === 0 && !messageContent.trim())}
             style={{
               padding: '13px 24px',
               fontSize: '13.5px',
@@ -436,8 +614,8 @@ export function DispatchTab({
               color: '#fff',
               border: '1px solid rgba(255, 255, 255, 0.2)',
               borderRadius: '10px',
-              cursor: isDispatching ? 'not-allowed' : 'pointer',
-              opacity: isDispatching ? 0.7 : 1,
+              cursor: isDispatching || !validationReport.valid || (validationReport.totalContainers === 0 && !messageContent.trim()) ? 'not-allowed' : 'pointer',
+              opacity: isDispatching || !validationReport.valid || (validationReport.totalContainers === 0 && !messageContent.trim()) ? 0.5 : 1,
               transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
               boxShadow: scheduleEnabler
                 ? '0 6px 20px rgba(245, 158, 11, 0.4)'
