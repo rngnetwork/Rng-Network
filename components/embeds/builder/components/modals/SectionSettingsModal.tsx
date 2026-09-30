@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { DiscordSectionComponent } from '../../../types';
 import { DiscordEmojiPicker } from '../../../DiscordEmojiPicker';
 import { EmojiItem } from '../../../emoji-data';
@@ -18,24 +18,36 @@ export function SectionSettingsModal({
   comp,
   onSave
 }: SectionSettingsModalProps) {
+  if (!isOpen) return null;
+
+  return (
+    <SectionSettingsModalContent
+      comp={comp}
+      onClose={onClose}
+      onSave={onSave}
+    />
+  );
+}
+
+function SectionSettingsModalContent({
+  comp,
+  onClose,
+  onSave
+}: {
+  comp: DiscordSectionComponent;
+  onClose: () => void;
+  onSave: (updated: DiscordSectionComponent) => void;
+}) {
+  const initialAcc = comp.accessory;
+  const initialUrl = initialAcc && 'media' in initialAcc && initialAcc.media?.url
+    ? initialAcc.media.url
+    : (initialAcc && 'url' in initialAcc && typeof initialAcc.url === 'string' ? initialAcc.url : '');
+
   const [customId, setCustomId] = useState(comp.id || '');
-  const [text, setText] = useState('');
-  const [thumbnailUrl, setThumbnailUrl] = useState('');
+  const [text, setText] = useState(comp.text || (comp.components && comp.components[0]?.content) || '');
+  const [thumbnailUrl, setThumbnailUrl] = useState(initialUrl);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [emojiTriggerRect, setEmojiTriggerRect] = useState<DOMRect | null>(null);
-
-  useEffect(() => {
-    if (isOpen) {
-      setCustomId(comp.id || '');
-      const initialText = comp.text || (comp.components && comp.components[0]?.content) || '';
-      setText(initialText);
-      const acc = comp.accessory;
-      const initialUrl = acc && 'media' in acc && acc.media?.url ? acc.media.url : (acc && 'url' in acc && typeof acc.url === 'string' ? acc.url : '');
-      setThumbnailUrl(initialUrl);
-    }
-  }, [isOpen, comp]);
-
-  if (!isOpen) return null;
 
   const handleOpenEmojiPicker = (e: React.MouseEvent<HTMLButtonElement>) => {
     setEmojiTriggerRect(e.currentTarget.getBoundingClientRect());
@@ -68,18 +80,6 @@ export function SectionSettingsModal({
     <>
       <div
         className="modal-overlay open"
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 100000,
-          backdropFilter: 'blur(10px)',
-          background: 'rgba(0, 0, 0, 0.75)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px',
-          overflowY: 'auto'
-        }}
         onClick={(e) => {
           if (e.target === e.currentTarget) onClose();
         }}
@@ -87,36 +87,35 @@ export function SectionSettingsModal({
         <div
           className="modal-dialog"
           style={{
-            maxWidth: '560px',
+            maxWidth: '580px',
             width: '100%',
-            maxHeight: 'min(88vh, 650px)',
-            margin: 'auto',
-            background: '#313338',
-            border: '1px solid rgba(255, 255, 255, 0.09)',
-            boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
-            borderRadius: '12px',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden'
+            boxShadow: '0 30px 80px rgba(0, 0, 0, 0.9), 0 0 35px rgba(245, 158, 11, 0.12)'
           }}
         >
-          <div className="modal-header" style={{ background: '#2b2d31', borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
-            <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <i className="fa-solid fa-layer-group" style={{ color: '#5865F2' }} />
-              <span>Section Settings (Type 9)</span>
+          <div className="modal-header">
+            <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <i className="fa-solid fa-layer-group" style={{ color: '#fcd34d', fontSize: '14px' }} />
+              </div>
+              <span>Section Settings</span>
+              <span className="component-modal-badge amber">Type 9 • Section</span>
             </div>
-            <button className="btn-container-close" onClick={onClose}>
+            <button className="btn-container-close" onClick={onClose} type="button">
               <i className="fa-solid fa-xmark" />
             </button>
           </div>
 
-          <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '18px 20px', overflowY: 'auto' }}>
+          <div className="modal-body">
             {/* Custom ID */}
             <div className="form-group">
-              <label className="form-label">Custom ID</label>
+              <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Custom ID</span>
+                <span style={{ fontSize: '11px', color: '#949ba4', fontWeight: 400 }}>Unique identifier</span>
+              </label>
               <input
                 type="text"
                 className="form-input"
+                style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}
                 placeholder="e.g. section_rules_1"
                 value={customId}
                 onChange={(e) => setCustomId(e.target.value)}
@@ -126,11 +125,21 @@ export function SectionSettingsModal({
             {/* Markdown Text Area with Emoji Trigger */}
             <div className="form-group">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <label className="form-label" style={{ margin: 0 }}>Markdown Text</label>
+                <label className="form-label" style={{ margin: 0 }}>Markdown Text Content</label>
                 <button
                   type="button"
-                  className="btn-open-picker-pill"
-                  style={{ padding: '2px 8px', fontSize: '11px' }}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    borderRadius: '6px',
+                    padding: '3px 8px',
+                    fontSize: '11.5px',
+                    color: '#fbbf24',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px'
+                  }}
                   onClick={handleOpenEmojiPicker}
                 >
                   <i className="fa-regular fa-face-smile" /> Emoji
@@ -138,7 +147,7 @@ export function SectionSettingsModal({
               </div>
               <textarea
                 className="form-input"
-                style={{ minHeight: '80px', resize: 'vertical' }}
+                style={{ minHeight: '90px', resize: 'vertical', lineHeight: 1.5 }}
                 placeholder="Enter markdown content..."
                 value={text}
                 onChange={(e) => setText(e.target.value)}
@@ -165,14 +174,15 @@ export function SectionSettingsModal({
                   style={{
                     width: '64px',
                     height: '64px',
-                    borderRadius: '6px',
-                    background: '#1e1f22',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    background: '#111216',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     overflow: 'hidden',
-                    flexShrink: 0
+                    flexShrink: 0,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
                   }}
                 >
                   {thumbnailUrl ? (
@@ -193,22 +203,21 @@ export function SectionSettingsModal({
             </div>
 
             {/* Footer Buttons */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+            <div className="modal-footer" style={{ padding: '14px 0 0 0', background: 'transparent' }}>
               <button
-              type="button"
-              className="sub-tab-btn"
-              style={{ padding: '8px 20px', borderRadius: '4px', background: 'rgba(255,255,255,0.08)' }}
-              onClick={onClose}
+                type="button"
+                className="modal-btn-cancel"
+                onClick={onClose}
               >
-              Cancel
+                Cancel
               </button>
               <button
                 type="button"
-                className="btn-dispatch-submit"
-                style={{ width: 'auto', padding: '8px 20px' }}
+                className="modal-btn-save"
                 onClick={handleSave}
               >
-                Save Changes
+                <i className="fa-solid fa-check" />
+                <span>Save Changes</span>
               </button>
             </div>
           </div>

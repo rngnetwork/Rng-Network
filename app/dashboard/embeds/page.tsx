@@ -138,7 +138,7 @@ export default function EmbedsPage() {
             className={`main-tab-btn ${activeTopTab === 'builder' ? 'active' : ''}`}
             onClick={() => setActiveTopTab('builder')}
           >
-            <i className="fa-solid fa-cube" />
+            <i className="fa-solid fa-cube text-red-500" />
             <span>Components V2 Builder</span>
           </button>
           <button
@@ -146,9 +146,20 @@ export default function EmbedsPage() {
             className={`main-tab-btn ${activeTopTab === 'templates' ? 'active' : ''}`}
             onClick={() => setActiveTopTab('templates')}
           >
-            <i className="fa-solid fa-layer-group" />
+            <i className="fa-solid fa-layer-group text-amber-400" />
             <span>Templates</span>
           </button>
+        </div>
+
+        <div className="top-nav-actions">
+          <div className="status-pill">
+            <span className="status-indicator-dot" />
+            <span>Engine Active (Flags: 32768)</span>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-md bg-white/[0.04] border border-white/[0.08] text-[11.5px] text-zinc-400 font-mono">
+            <span className="text-red-400 font-bold">{containers.length}</span>
+            <span>Container{containers.length === 1 ? '' : 's'}</span>
+          </div>
         </div>
       </header>
 

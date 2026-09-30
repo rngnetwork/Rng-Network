@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { TemplateItem, Type17Container } from './types';
 
 interface TemplatesTabProps {
@@ -189,22 +189,19 @@ export function TemplatesTab({
   allowSearch = true
 }: TemplatesTabProps) {
   const [search, setSearch] = useState('');
-  const [userTemplates, setUserTemplates] = useState<TemplateItem[]>([]);
+  const [userTemplates, setUserTemplates] = useState<TemplateItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY_TEMPLATES);
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return [];
+  });
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateBadge, setNewTemplateBadge] = useState('Custom');
   const [newTemplateDesc, setNewTemplateDesc] = useState('');
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY_TEMPLATES);
-      if (stored) {
-        setUserTemplates(JSON.parse(stored));
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
 
   const handleSaveCurrentAsTemplate = () => {
     if (!newTemplateName.trim()) {
@@ -406,6 +403,7 @@ export function TemplatesTab({
               <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <i className="fa-solid fa-bookmark" style={{ color: 'var(--color-primary)' }} />
                 <span>Save Template</span>
+                <span className="component-modal-badge red">CUSTOM PRESET</span>
               </div>
               <button className="btn-container-close" onClick={() => setIsCreateModalOpen(false)}>
                 <i className="fa-solid fa-xmark" />
@@ -448,17 +446,17 @@ export function TemplatesTab({
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                 <button
                   type="button"
-                  className="btn-header-action"
+                  className="modal-btn-cancel"
                   onClick={() => setIsCreateModalOpen(false)}
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  className="btn-dispatch-submit"
-                  style={{ width: 'auto', padding: '8px 20px' }}
+                  className="modal-btn-save"
                   onClick={handleSaveCurrentAsTemplate}
                 >
+                  <i className="fa-solid fa-check" style={{ marginRight: '6px' }} />
                   Save Template
                 </button>
               </div>

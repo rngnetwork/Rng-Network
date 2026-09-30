@@ -286,7 +286,7 @@ export function MessageBuilder({
             className={`sub-tab-btn ${activeSubTab === 'edit' ? 'active' : ''}`}
             onClick={() => setActiveSubTab('edit')}
           >
-            <i className="fa-solid fa-pen-to-square" />
+            <i className="fa-solid fa-pen-to-square text-[#00A8FC]" />
             <span>Edit</span>
           </button>
           <button
@@ -294,7 +294,7 @@ export function MessageBuilder({
             className={`sub-tab-btn ${activeSubTab === 'preview' ? 'active' : ''}`}
             onClick={() => setActiveSubTab('preview')}
           >
-            <i className="fa-brands fa-discord" />
+            <i className="fa-brands fa-discord text-[#5865F2]" />
             <span>Preview</span>
           </button>
           <button
@@ -302,7 +302,7 @@ export function MessageBuilder({
             className={`sub-tab-btn ${activeSubTab === 'raw' ? 'active' : ''}`}
             onClick={() => setActiveSubTab('raw')}
           >
-            <i className="fa-solid fa-code" />
+            <i className="fa-solid fa-code text-[#EC4899]" />
             <span>Raw</span>
           </button>
           <button
@@ -310,9 +310,23 @@ export function MessageBuilder({
             className={`sub-tab-btn ${activeSubTab === 'dispatch' ? 'active' : ''}`}
             onClick={() => setActiveSubTab('dispatch')}
           >
-            <i className="fa-solid fa-paper-plane" />
+            <i className="fa-solid fa-paper-plane text-[#E11D2E]" />
             <span>Dispatch</span>
           </button>
+        </div>
+
+        <div className="hidden sm:flex items-center gap-3">
+          {serverName && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.04] border border-white/[0.08] text-[11px] text-zinc-300 font-medium">
+              <i className="fa-brands fa-discord text-[#5865F2]" />
+              <span className="truncate max-w-[140px]">{serverName}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-white/[0.04] border border-white/[0.08] text-[11px] text-zinc-400 font-mono">
+            <span className="text-zinc-200 font-semibold">{containers.length}</span> Container{containers.length === 1 ? '' : 's'}
+            <span className="text-zinc-600">•</span>
+            <span className="text-zinc-200 font-semibold">{containers.reduce((acc, c) => acc + (c.components?.length || 0), 0)}</span> Components
+          </div>
         </div>
       </nav>
 

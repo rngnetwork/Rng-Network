@@ -153,27 +153,31 @@ export function DispatchTab({
       <div style={{ maxWidth: '880px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         
         {/* Heading & Subheading */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <i className="fa-solid fa-paper-plane" style={{ color: 'var(--discord-cyan)', fontSize: '18px' }} />
-            <span>{heading}</span>
-          </h1>
-          <p style={{ fontSize: '13px', color: 'var(--discord-text-muted)', margin: 0 }}>
-            {subheading}
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(225, 29, 46, 0.12)', border: '1px solid rgba(225, 29, 46, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 24px rgba(225, 29, 46, 0.25)' }}>
+            <i className="fa-solid fa-paper-plane" style={{ color: '#E11D2E', fontSize: '18px' }} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+            <h1 style={{ fontSize: '20px', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', margin: 0 }}>
+              {heading}
+            </h1>
+            <p style={{ fontSize: '12.5px', color: '#949ba4', margin: 0 }}>
+              {subheading}
+            </p>
+          </div>
         </div>
 
         {/* Dispatch Form Card */}
         <div
           style={{
-            background: '#1e1f22',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '12px',
-            padding: '20px',
+            background: 'rgba(13, 14, 18, 0.95)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '16px',
+            padding: '24px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '18px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+            gap: '20px',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.7)'
           }}
         >
           {/* Dropdown Servers & Dropdown Channels */}
@@ -185,8 +189,8 @@ export function DispatchTab({
                 Select your Server:
               </label>
               {serverId ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', height: '42px', padding: '0 12px', background: '#111214', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', fontSize: '13px' }}>
-                  <i className="fa-solid fa-server" style={{ color: 'var(--discord-cyan)' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', height: '42px', padding: '0 12px', background: '#090a0d', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', color: '#fff', fontSize: '13px' }}>
+                  <i className="fa-brands fa-discord text-indigo-400" />
                   <span style={{ fontWeight: 600 }}>{serverName || 'Active Discord Server'}</span>
                   <span style={{ fontSize: '11px', color: '#949ba4', fontFamily: 'monospace', marginLeft: 'auto' }}>ID: {serverId}</span>
                 </div>
@@ -198,10 +202,10 @@ export function DispatchTab({
                     onChange={(e) => handleServerChange(e.target.value)}
                     style={{
                       height: '42px',
-                      background: '#111214',
-                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: '#090a0d',
+                      border: '1px solid rgba(255,255,255,0.12)',
                       color: '#fff',
-                      borderRadius: '6px',
+                      borderRadius: '8px',
                       padding: '0 12px',
                       width: '100%',
                       fontSize: '13px'
@@ -237,10 +241,10 @@ export function DispatchTab({
                   onChange={(e) => setSelectedChannel(e.target.value)}
                   style={{
                     height: '42px',
-                    background: '#111214',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    background: '#090a0d',
+                    border: '1px solid rgba(255,255,255,0.12)',
                     color: '#fff',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     padding: '0 12px',
                     width: '100%',
                     fontSize: '13px'
@@ -261,10 +265,10 @@ export function DispatchTab({
                   onChange={(e) => setSelectedChannel(e.target.value)}
                   style={{
                     height: '42px',
-                    background: '#111214',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    background: '#090a0d',
+                    border: '1px solid rgba(255,255,255,0.12)',
                     color: '#fff',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     padding: '0 12px',
                     width: '100%',
                     fontSize: '13px'
@@ -280,17 +284,19 @@ export function DispatchTab({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '12px 14px',
-              background: '#111214',
-              border: '1px solid rgba(255,255,255,0.06)',
-              borderRadius: '8px'
+              padding: '14px 16px',
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '10px'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <i className="fa-regular fa-clock" style={{ color: scheduleEnabler ? '#fbbf24' : 'var(--discord-text-muted)', fontSize: '16px' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: scheduleEnabler ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.05)', border: scheduleEnabler ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(255, 255, 255, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <i className="fa-regular fa-clock" style={{ color: scheduleEnabler ? '#fbbf24' : '#949ba4', fontSize: '15px' }} />
+              </div>
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>Enable Scheduler</div>
-                <div style={{ fontSize: '11px', color: 'var(--discord-text-muted)' }}>
+                <div style={{ fontSize: '11px', color: '#949ba4' }}>
                   {scheduleEnabler
                     ? `Dispatch scheduled for ${selectedDate} at ${selectedTime}`
                     : 'Send immediately upon click'}
@@ -304,13 +310,15 @@ export function DispatchTab({
                   type="button"
                   onClick={() => setIsSchedulerModalOpen(true)}
                   style={{
-                    fontSize: '11px',
-                    color: 'var(--discord-cyan)',
-                    background: 'rgba(0, 168, 252, 0.1)',
-                    border: '1px solid rgba(0, 168, 252, 0.3)',
-                    borderRadius: '4px',
-                    padding: '4px 8px',
-                    cursor: 'pointer'
+                    fontSize: '11.5px',
+                    color: '#fbbf24',
+                    background: 'rgba(245, 158, 11, 0.12)',
+                    border: '1px solid rgba(245, 158, 11, 0.35)',
+                    borderRadius: '6px',
+                    padding: '5px 10px',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    transition: 'all 0.2s ease'
                   }}
                 >
                   Edit Schedule Time
@@ -330,7 +338,8 @@ export function DispatchTab({
                   border: 'none',
                   cursor: 'pointer',
                   transition: 'background 0.2s ease',
-                  padding: '2px'
+                  padding: '2px',
+                  boxShadow: scheduleEnabler ? '0 0 12px rgba(35, 165, 90, 0.4)' : 'none'
                 }}
                 title={scheduleEnabler ? 'Disable Scheduler' : 'Enable Scheduler'}
               >
@@ -356,10 +365,10 @@ export function DispatchTab({
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
                 gap: '12px',
-                padding: '14px',
-                background: 'rgba(251, 191, 36, 0.04)',
-                border: '1px solid rgba(251, 191, 36, 0.2)',
-                borderRadius: '8px'
+                padding: '16px',
+                background: 'rgba(245, 158, 11, 0.05)',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
+                borderRadius: '10px'
               }}
             >
               {/* new DateSelector() */}
@@ -373,11 +382,11 @@ export function DispatchTab({
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
                   style={{
-                    height: '38px',
-                    background: '#111214',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    height: '40px',
+                    background: '#090a0d',
+                    border: '1px solid rgba(255,255,255,0.12)',
                     color: '#fff',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     padding: '0 10px',
                     fontSize: '12.5px'
                   }}
@@ -395,11 +404,11 @@ export function DispatchTab({
                   value={selectedTime}
                   onChange={(e) => setSelectedTime(e.target.value)}
                   style={{
-                    height: '38px',
-                    background: '#111214',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    height: '40px',
+                    background: '#090a0d',
+                    border: '1px solid rgba(255,255,255,0.12)',
                     color: '#fff',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     padding: '0 10px',
                     fontSize: '12.5px'
                   }}
@@ -414,21 +423,25 @@ export function DispatchTab({
             onClick={handleDispatch}
             disabled={isDispatching}
             style={{
-              padding: '12px 20px',
-              fontSize: '14px',
+              padding: '13px 24px',
+              fontSize: '13.5px',
               fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '10px',
-              background: scheduleEnabler ? '#f59e0b' : 'var(--discord-blurple)',
+              background: scheduleEnabler
+                ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+                : 'linear-gradient(135deg, #E11D2E 0%, #b80710 100%)',
               color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              borderRadius: '10px',
               cursor: isDispatching ? 'not-allowed' : 'pointer',
               opacity: isDispatching ? 0.7 : 1,
-              transition: 'background 0.15s ease, transform 0.1s ease',
-              boxShadow: '0 4px 14px rgba(0,0,0,0.3)'
+              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+              boxShadow: scheduleEnabler
+                ? '0 6px 20px rgba(245, 158, 11, 0.4)'
+                : '0 6px 20px rgba(225, 29, 46, 0.45)'
             }}
           >
             {isDispatching ? (
@@ -453,17 +466,6 @@ export function DispatchTab({
         {isSchedulerModalOpen && (
           <div
             className="modal-overlay open"
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 100000,
-              backdropFilter: 'blur(8px)',
-              background: 'rgba(0, 0, 0, 0.7)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '20px'
-            }}
             onClick={(e) => {
               if (e.target === e.currentTarget) setIsSchedulerModalOpen(false);
             }}
@@ -471,72 +473,70 @@ export function DispatchTab({
             <div
               className="modal-dialog"
               style={{
-                maxWidth: '440px',
+                maxWidth: '460px',
                 width: '100%',
-                background: '#2b2d31',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '10px',
-                padding: '20px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '16px',
-                boxShadow: '0 20px 50px rgba(0,0,0,0.8)'
+                boxShadow: '0 30px 80px rgba(0,0,0,0.9), 0 0 35px rgba(245, 158, 11, 0.12)'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <i className="fa-regular fa-calendar-days" style={{ color: '#fbbf24' }} />
+              <div className="modal-header">
+                <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <i className="fa-regular fa-calendar-days" style={{ color: '#fbbf24', fontSize: '14px' }} />
+                  </div>
                   <span>Configure Scheduler</span>
-                </span>
+                </div>
                 <button
                   type="button"
+                  className="btn-container-close"
                   onClick={() => setIsSchedulerModalOpen(false)}
-                  style={{ background: 'none', border: 'none', color: 'var(--discord-text-muted)', cursor: 'pointer', fontSize: '14px' }}
                 >
                   <i className="fa-solid fa-xmark" />
                 </button>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div>
-                  <label style={{ fontSize: '12px', color: '#dbdee1', marginBottom: '4px', display: 'block' }}>DateSelector:</label>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">DateSelector</label>
                   <input
                     type="date"
                     className="form-input"
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    style={{ width: '100%', height: '38px', background: '#1e1f22', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '0 10px' }}
+                    style={{ height: '40px' }}
                   />
                 </div>
-                <div>
-                  <label style={{ fontSize: '12px', color: '#dbdee1', marginBottom: '4px', display: 'block' }}>TimeSelector:</label>
+                <div className="form-group">
+                  <label className="form-label">TimeSelector</label>
                   <input
                     type="time"
                     className="form-input"
                     value={selectedTime}
                     onChange={(e) => setSelectedTime(e.target.value)}
-                    style={{ width: '100%', height: '38px', background: '#1e1f22', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '0 10px' }}
+                    style={{ height: '40px' }}
                   />
                 </div>
-              </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
-                <button
-                  type="button"
-                  onClick={() => setIsSchedulerModalOpen(false)}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '6px',
-                    background: 'var(--discord-blurple)',
-                    color: '#fff',
-                    border: 'none',
-                    fontWeight: 600,
-                    fontSize: '12px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Done
-                </button>
+                <div className="modal-footer" style={{ padding: '10px 0 0 0', background: 'transparent' }}>
+                  <button
+                    type="button"
+                    className="modal-btn-cancel"
+                    onClick={() => setIsSchedulerModalOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="modal-btn-save"
+                    onClick={() => setIsSchedulerModalOpen(false)}
+                    style={{
+                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                      boxShadow: '0 4px 14px rgba(245, 158, 11, 0.4)'
+                    }}
+                  >
+                    <i className="fa-solid fa-check" />
+                    <span>Done</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -557,22 +557,24 @@ function DispatchLogsViewer({
   return (
     <div
       style={{
-        background: '#111214',
-        border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: '12px',
-        padding: '18px',
+        background: 'rgba(13, 14, 18, 0.95)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        borderRadius: '16px',
+        padding: '20px 24px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px',
-        boxShadow: '0 4px 18px rgba(0,0,0,0.3)'
+        gap: '14px',
+        boxShadow: '0 12px 36px rgba(0,0,0,0.6)'
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <i className="fa-solid fa-list-check" style={{ color: 'var(--discord-cyan)' }} />
+        <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: 'rgba(0, 168, 252, 0.12)', border: '1px solid rgba(0, 168, 252, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <i className="fa-solid fa-list-check" style={{ color: '#38bdf8', fontSize: '13px' }} />
+          </div>
           <span>DispatchLogsViewer</span>
-          <span style={{ fontSize: '11px', color: 'var(--discord-text-muted)', fontWeight: 500 }}>
-            ({logs.length} event{logs.length === 1 ? '' : 's'})
+          <span style={{ fontSize: '11px', color: '#949ba4', fontWeight: 500, fontFamily: 'monospace', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px' }}>
+            {logs.length} event{logs.length === 1 ? '' : 's'}
           </span>
         </div>
         {logs.length > 0 && (
@@ -581,7 +583,7 @@ function DispatchLogsViewer({
             className="comp-tool-btn"
             onClick={onClear}
             title="Clear Log History"
-            style={{ fontSize: '11px', width: 'auto', padding: '3px 10px' }}
+            style={{ fontSize: '11.5px', width: 'auto', padding: '4px 12px', borderRadius: '6px' }}
           >
             Clear Logs
           </button>
@@ -593,13 +595,13 @@ function DispatchLogsViewer({
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',
-          maxHeight: '260px',
+          maxHeight: '280px',
           overflowY: 'auto',
           paddingRight: '4px'
         }}
       >
         {logs.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '24px 10px', color: 'var(--discord-text-muted)', fontSize: '12.5px' }}>
+          <div style={{ textAlign: 'center', padding: '32px 10px', color: '#949ba4', fontSize: '13px' }}>
             No dispatches executed yet. Send an embed message above to view live dispatch logs.
           </div>
         ) : (
@@ -611,16 +613,16 @@ function DispatchLogsViewer({
                 alignItems: 'flex-start',
                 justifyContent: 'space-between',
                 gap: '12px',
-                padding: '10px 12px',
-                background: '#18191c',
-                border: '1px solid rgba(255,255,255,0.04)',
-                borderRadius: '6px',
-                fontSize: '12px'
+                padding: '12px 14px',
+                background: '#08090c',
+                border: '1px solid rgba(255,255,255,0.05)',
+                borderRadius: '8px',
+                fontSize: '12.5px'
               }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <span style={{ fontFamily: 'monospace', color: '#949ba4', fontSize: '11px' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', color: '#949ba4', fontSize: '11px' }}>
                     [{item.timestamp}]
                   </span>
                   <span style={{ fontWeight: 600, color: '#fff' }}>
@@ -630,17 +632,17 @@ function DispatchLogsViewer({
                     {item.channel}
                   </span>
                 </div>
-                <div style={{ color: '#dbdee1', fontSize: '11.5px', wordBreak: 'break-word' }}>
+                <div style={{ color: '#dbdee1', fontSize: '12px', wordBreak: 'break-word', lineHeight: 1.4 }}>
                   {item.message}
                 </div>
               </div>
 
               <span
                 style={{
-                  fontSize: '10px',
+                  fontSize: '10.5px',
                   fontWeight: 700,
-                  padding: '2px 8px',
-                  borderRadius: '10px',
+                  padding: '3px 9px',
+                  borderRadius: '6px',
                   letterSpacing: '0.04em',
                   background:
                     item.status === 'SUCCESS'
@@ -652,21 +654,20 @@ function DispatchLogsViewer({
                       : 'rgba(239, 68, 68, 0.15)',
                   color:
                     item.status === 'SUCCESS'
-                      ? '#23a55a'
+                      ? '#4ade80'
                       : item.status === 'SCHEDULED'
                       ? '#fbbf24'
                       : item.status === 'PENDING'
-                      ? '#5865f2'
-                      : '#ef4444',
-                  border: `1px solid ${
+                      ? '#a5b4fc'
+                      : '#f87171',
+                  border:
                     item.status === 'SUCCESS'
-                      ? 'rgba(35, 165, 90, 0.3)'
+                      ? '1px solid rgba(35, 165, 90, 0.35)'
                       : item.status === 'SCHEDULED'
-                      ? 'rgba(251, 191, 36, 0.3)'
+                      ? '1px solid rgba(251, 191, 36, 0.35)'
                       : item.status === 'PENDING'
-                      ? 'rgba(88, 101, 242, 0.3)'
-                      : 'rgba(239, 68, 68, 0.3)'
-                  }`
+                      ? '1px solid rgba(88, 101, 242, 0.35)'
+                      : '1px solid rgba(239, 68, 68, 0.35)'
                 }}
               >
                 {item.status}

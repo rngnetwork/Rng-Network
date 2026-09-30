@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { DiscordButtonComponent, ButtonStyle } from './types';
 import { DiscordEmojiPicker } from './DiscordEmojiPicker';
 import { EmojiItem } from './emoji-data';
@@ -12,40 +12,48 @@ interface ButtonModalProps {
   onSave: (updated: DiscordButtonComponent) => void;
 }
 
+function getInitialEmojiStr(emoji: DiscordButtonComponent['emoji']): string {
+  if (typeof emoji === 'string') return emoji;
+  if (emoji && typeof emoji === 'object') {
+    return emoji.id ? `<${emoji.animated ? 'a' : ''}:${emoji.name}:${emoji.id}>` : (emoji.name || '');
+  }
+  return '';
+}
+
 export function ButtonModal({
   isOpen,
   onClose,
   buttonData,
   onSave
 }: ButtonModalProps) {
-  const [label, setLabel] = useState('');
-  const [style, setStyle] = useState<ButtonStyle>(1);
-  const [emojiStr, setEmojiStr] = useState('');
-  const [customId, setCustomId] = useState('');
-  const [url, setUrl] = useState('');
-  const [disabled, setDisabled] = useState(false);
+  if (!isOpen || !buttonData) return null;
+
+  return (
+    <ButtonModalContent
+      buttonData={buttonData}
+      onClose={onClose}
+      onSave={onSave}
+    />
+  );
+}
+
+function ButtonModalContent({
+  buttonData,
+  onClose,
+  onSave
+}: {
+  buttonData: DiscordButtonComponent;
+  onClose: () => void;
+  onSave: (updated: DiscordButtonComponent) => void;
+}) {
+  const [label, setLabel] = useState(buttonData.label || '');
+  const [style, setStyle] = useState<ButtonStyle>(buttonData.style || 1);
+  const [emojiStr, setEmojiStr] = useState(() => getInitialEmojiStr(buttonData.emoji));
+  const [customId, setCustomId] = useState(buttonData.custom_id || '');
+  const [url, setUrl] = useState(buttonData.url || '');
+  const [disabled, setDisabled] = useState(Boolean(buttonData.disabled));
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [emojiTriggerRect, setEmojiTriggerRect] = useState<DOMRect | null>(null);
-
-  useEffect(() => {
-    if (buttonData) {
-      setLabel(buttonData.label || '');
-      setStyle(buttonData.style || 1);
-      if (typeof buttonData.emoji === 'string') {
-        setEmojiStr(buttonData.emoji);
-      } else if (buttonData.emoji && typeof buttonData.emoji === 'object') {
-        const emo = buttonData.emoji;
-        setEmojiStr(emo.id ? `<${emo.animated ? 'a' : ''}:${emo.name}:${emo.id}>` : (emo.name || ''));
-      } else {
-        setEmojiStr('');
-      }
-      setCustomId(buttonData.custom_id || '');
-      setUrl(buttonData.url || '');
-      setDisabled(Boolean(buttonData.disabled));
-    }
-  }, [buttonData, isOpen]);
-
-  if (!isOpen || !buttonData) return null;
 
   const handleOpenEmojiPicker = (e: React.MouseEvent<HTMLButtonElement>) => {
     setEmojiTriggerRect(e.currentTarget.getBoundingClientRect());
@@ -91,18 +99,6 @@ export function ButtonModal({
     <>
       <div
         className="modal-overlay open"
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 100000,
-          backdropFilter: 'blur(10px)',
-          background: 'rgba(0, 0, 0, 0.75)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px',
-          overflowY: 'auto'
-        }}
         onClick={(e) => {
           if (e.target === e.currentTarget) onClose();
         }}
@@ -110,29 +106,24 @@ export function ButtonModal({
         <div
           className="modal-dialog"
           style={{
-            maxWidth: '520px',
+            maxWidth: '560px',
             width: '100%',
-            maxHeight: 'min(88vh, 650px)',
-            margin: 'auto',
-            background: '#313338',
-            border: '1px solid rgba(255, 255, 255, 0.09)',
-            boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
-            borderRadius: '12px',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden'
+            boxShadow: '0 30px 80px rgba(0, 0, 0, 0.9), 0 0 35px rgba(88, 101, 242, 0.12)'
           }}
         >
-          <div className="modal-header" style={{ background: '#2b2d31', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <i className="fa-solid fa-gamepad" style={{ color: '#5865F2' }} />
-              <span>Customize Discord Button (Type 2)</span>
+          <div className="modal-header">
+            <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(88, 101, 242, 0.15)', border: '1px solid rgba(88, 101, 242, 0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <i className="fa-solid fa-gamepad" style={{ color: '#a5b4fc', fontSize: '14px' }} />
+              </div>
+              <span>Button Settings</span>
+              <span className="component-modal-badge blurple">Type 2 • Button</span>
             </div>
-            <button className="btn-container-close" onClick={onClose}>
+            <button className="btn-container-close" onClick={onClose} type="button">
               <i className="fa-solid fa-xmark" />
             </button>
           </div>
-          <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '18px 20px', overflowY: 'auto' }}>
+          <div className="modal-body">
             
             <div className="form-group">
               <label className="form-label">Button Label / Text</label>
@@ -146,42 +137,107 @@ export function ButtonModal({
             </div>
 
             <div className="form-group">
-              <label className="form-label">Button Type</label>
-              <div className="btn-style-selector-row">
+              <label className="form-label">Button Style (Discord Specification)</label>
+              <div className="btn-style-selector-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '6px' }}>
                 <button
                   type="button"
                   className={`btn-style-chip btn-style-1 ${style === 1 ? 'active' : ''}`}
                   onClick={() => setStyle(1)}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11.5px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: style === 1 ? '#5865F2' : 'rgba(88, 101, 242, 0.15)',
+                    border: style === 1 ? '1px solid #7983f5' : '1px solid rgba(88, 101, 242, 0.3)',
+                    color: style === 1 ? '#fff' : '#a5b4fc',
+                    boxShadow: style === 1 ? '0 0 14px rgba(88, 101, 242, 0.4)' : 'none',
+                    transition: 'all 0.2s ease'
+                  }}
                 >
-                  Primary (Blurple)
+                  Primary
                 </button>
                 <button
                   type="button"
                   className={`btn-style-chip btn-style-2 ${style === 2 ? 'active' : ''}`}
                   onClick={() => setStyle(2)}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11.5px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: style === 2 ? '#4e5058' : 'rgba(255, 255, 255, 0.08)',
+                    border: style === 2 ? '1px solid #6d6f78' : '1px solid rgba(255, 255, 255, 0.12)',
+                    color: '#fff',
+                    boxShadow: style === 2 ? '0 0 14px rgba(78, 80, 88, 0.4)' : 'none',
+                    transition: 'all 0.2s ease'
+                  }}
                 >
-                  Secondary (Grey)
+                  Secondary
                 </button>
                 <button
                   type="button"
                   className={`btn-style-chip btn-style-3 ${style === 3 ? 'active' : ''}`}
                   onClick={() => setStyle(3)}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11.5px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: style === 3 ? '#23a55a' : 'rgba(35, 165, 90, 0.15)',
+                    border: style === 3 ? '1px solid #2dc76d' : '1px solid rgba(35, 165, 90, 0.3)',
+                    color: style === 3 ? '#fff' : '#4ade80',
+                    boxShadow: style === 3 ? '0 0 14px rgba(35, 165, 90, 0.4)' : 'none',
+                    transition: 'all 0.2s ease'
+                  }}
                 >
-                  Success (Green)
+                  Success
                 </button>
                 <button
                   type="button"
                   className={`btn-style-chip btn-style-4 ${style === 4 ? 'active' : ''}`}
                   onClick={() => setStyle(4)}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11.5px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: style === 4 ? '#da373c' : 'rgba(218, 55, 60, 0.15)',
+                    border: style === 4 ? '1px solid #f23f43' : '1px solid rgba(218, 55, 60, 0.3)',
+                    color: style === 4 ? '#fff' : '#f87171',
+                    boxShadow: style === 4 ? '0 0 14px rgba(218, 55, 60, 0.4)' : 'none',
+                    transition: 'all 0.2s ease'
+                  }}
                 >
-                  Danger (Red)
+                  Danger
                 </button>
                 <button
                   type="button"
                   className={`btn-style-chip btn-style-5 ${style === 5 ? 'active' : ''}`}
                   onClick={() => setStyle(5)}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11.5px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: style === 5 ? '#4e5058' : 'rgba(255, 255, 255, 0.08)',
+                    border: style === 5 ? '1px solid #6d6f78' : '1px solid rgba(255, 255, 255, 0.12)',
+                    color: '#fff',
+                    boxShadow: style === 5 ? '0 0 14px rgba(78, 80, 88, 0.4)' : 'none',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px'
+                  }}
                 >
-                  Link (URL)
+                  <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: '10px' }} />
+                  <span>Link</span>
                 </button>
               </div>
             </div>
@@ -193,34 +249,60 @@ export function ButtonModal({
                   type="text"
                   className="form-input"
                   style={{ width: '100px', textAlign: 'center', fontSize: '15px' }}
-                  placeholder=""
+                  placeholder="✨"
                   value={emojiStr}
                   onChange={(e) => setEmojiStr(e.target.value)}
                 />
                 <button
                   type="button"
-                  className="btn-open-picker-pill"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    color: '#fbbf24',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
                   onClick={handleOpenEmojiPicker}
                 >
                   <i className="fa-regular fa-face-smile" /> Pick Discord Emoji
                 </button>
-                <div className="quick-emojis-list">
-                  <span className="quick-emoji-chip" onClick={() => setEmojiStr('😃')}>😃</span>
-                  <span className="quick-emoji-chip" onClick={() => setEmojiStr('🚀')}>🚀</span>
-                  <span className="quick-emoji-chip" onClick={() => setEmojiStr('⚡')}>⚡</span>
-                  <span className="quick-emoji-chip" onClick={() => setEmojiStr('🔥')}>🔥</span>
-                  <span className="quick-emoji-chip" onClick={() => setEmojiStr('<:pepe_hype:10182738491823>')}>🐸</span>
-                  <span className="quick-emoji-chip" onClick={() => setEmojiStr('<a:nitro_boost:98765432109876>')}>🚀</span>
+                <div className="quick-emojis-list" style={{ display: 'flex', gap: '4px' }}>
+                  {['😃', '🚀', '⚡', '🔥'].map((emo) => (
+                    <span
+                      key={emo}
+                      className="quick-emoji-chip"
+                      onClick={() => setEmojiStr(emo)}
+                      style={{
+                        padding: '4px 8px',
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '13px'
+                      }}
+                    >
+                      {emo}
+                    </span>
+                  ))}
                 </div>
               </div>
             </div>
 
             {style !== 5 ? (
               <div className="form-group">
-                <label className="form-label">Custom ID (Event Handler Identifier)</label>
+                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Custom ID</span>
+                  <span style={{ fontSize: '11px', color: '#949ba4', fontWeight: 400 }}>Event Handler ID</span>
+                </label>
                 <input
                   type="text"
                   className="form-input"
+                  style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}
                   placeholder="e.g. verify_member_btn"
                   value={customId}
                   onChange={(e) => setCustomId(e.target.value)}
@@ -239,23 +321,34 @@ export function ButtonModal({
               </div>
             )}
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', color: '#fff', cursor: 'pointer' }}>
+            <div className="modal-footer" style={{ padding: '14px 0 0 0', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#dbdee1', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={disabled}
                   onChange={(e) => setDisabled(e.target.checked)}
+                  style={{ accentColor: '#E11D2E', width: '15px', height: '15px' }}
                 />
                 <span>Disabled Button State</span>
               </label>
-              <button
-                type="button"
-                className="btn-dispatch-submit"
-                style={{ width: 'auto', padding: '8px 20px' }}
-                onClick={handleSave}
-              >
-                Save Button
-              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="modal-btn-cancel"
+                  onClick={onClose}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="modal-btn-save"
+                  onClick={handleSave}
+                >
+                  <i className="fa-solid fa-check" />
+                  <span>Save Button</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

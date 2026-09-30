@@ -33,9 +33,12 @@ export function RawTab({
 
   const rawJsonText = userEditedJson ?? defaultJsonText;
 
+  const [copied, setCopied] = useState(false);
+
   const handleCopyJson = () => {
     navigator.clipboard.writeText(rawJsonText).then(() => {
-      alert('Discord Components V2 JSON payload copied to clipboard!');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     });
   };
 
@@ -63,12 +66,29 @@ export function RawTab({
       <div className="raw-editor-container" style={{ width: '100%', maxWidth: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         
         {/* Top Control Bar: Title Badge + Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', background: '#1e1f22', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '10px 14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-              <i className="fa-solid fa-code" style={{ color: 'var(--discord-cyan)' }} />
-              <span>Discord Components V2 Payload (flags: 32768)</span>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+            background: 'rgba(14, 15, 20, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '12px',
+            padding: '12px 18px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '30px', height: '30px', borderRadius: '6px', background: 'rgba(236, 72, 153, 0.15)', border: '1px solid rgba(236, 72, 153, 0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <i className="fa-solid fa-code" style={{ color: '#f472b6', fontSize: '13px' }} />
+            </div>
+            <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#fff' }}>
+              Discord Components V2 Payload
             </span>
+            <span className="component-modal-badge pink">Flags: 32768</span>
           </div>
 
           {/* Action Buttons */}
@@ -78,18 +98,32 @@ export function RawTab({
               className="btn-header-action"
               onClick={handleCopyJson}
               title="Copy JSON Payload"
+              style={{
+                borderRadius: '8px',
+                padding: '7px 14px',
+                background: copied ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255,255,255,0.06)',
+                borderColor: copied ? 'rgba(34, 197, 94, 0.4)' : 'rgba(255,255,255,0.12)',
+                color: copied ? '#4ade80' : '#fff'
+              }}
             >
-              <i className="fa-regular fa-copy" />
-              <span>Copy JSON</span>
+              <i className={copied ? 'fa-solid fa-check' : 'fa-regular fa-copy'} />
+              <span>{copied ? 'Copied!' : 'Copy JSON'}</span>
             </button>
             <button
               type="button"
               className="btn-header-action"
               onClick={handleApplyToCanvas}
-              style={{ color: 'var(--discord-cyan)', borderColor: 'rgba(0, 168, 252, 0.4)' }}
+              style={{
+                borderRadius: '8px',
+                padding: '7px 16px',
+                color: '#38bdf8',
+                background: 'rgba(0, 168, 252, 0.12)',
+                borderColor: 'rgba(0, 168, 252, 0.4)',
+                boxShadow: '0 0 12px rgba(0, 168, 252, 0.2)'
+              }}
               title="Parse & Apply JSON to Builder Canvas"
             >
-              <i className="fa-solid fa-check" />
+              <i className="fa-solid fa-wand-magic-sparkles" />
               <span>Apply to Canvas</span>
             </button>
           </div>
@@ -97,7 +131,7 @@ export function RawTab({
 
         {/* Error Banner */}
         {parseError && (
-          <div style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.35)', color: '#ef4444', padding: '10px 14px', borderRadius: '6px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.35)', color: '#ef4444', padding: '10px 14px', borderRadius: '8px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <i className="fa-solid fa-circle-exclamation" />
             <span>{parseError}</span>
           </div>
@@ -106,11 +140,11 @@ export function RawTab({
         {/* Monaco JSON Code Editor */}
         <div
           style={{
-            background: '#1e1f22',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '8px',
+            background: '#0a0a0f',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '12px',
             overflow: 'hidden',
-            boxShadow: '0 4px 18px rgba(0,0,0,0.35)'
+            boxShadow: '0 12px 36px rgba(0,0,0,0.6)'
           }}
         >
           <Editor
@@ -132,7 +166,7 @@ export function RawTab({
               wordWrap: 'on',
               formatOnPaste: true,
               formatOnType: true,
-              padding: { top: 14, bottom: 48 },
+              padding: { top: 16, bottom: 48 },
               suggest: {
                 showWords: false
               }

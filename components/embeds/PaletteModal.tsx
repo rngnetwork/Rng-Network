@@ -23,18 +23,6 @@ export function PaletteModal({
   return (
     <div
       className="modal-overlay open"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 100000,
-        backdropFilter: 'blur(10px)',
-        background: 'rgba(0, 0, 0, 0.75)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-        overflowY: 'auto'
-      }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -44,27 +32,22 @@ export function PaletteModal({
         style={{
           maxWidth: '880px',
           width: '100%',
-          maxHeight: 'min(88vh, 650px)',
-          margin: 'auto',
-          background: '#313338',
-          border: '1px solid rgba(255, 255, 255, 0.09)',
-          boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
-          borderRadius: '12px',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden'
+          boxShadow: '0 30px 80px rgba(0, 0, 0, 0.9), 0 0 40px rgba(139, 92, 246, 0.12)'
         }}
       >
-        <div className="modal-header" style={{ background: '#2b2d31', borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
-          <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <i className="fa-solid fa-cubes" style={{ color: '#5865F2' }} />
-            <span>Insert Component (Discord Components V2)</span>
+        <div className="modal-header">
+          <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(139, 92, 246, 0.15)', border: '1px solid rgba(139, 92, 246, 0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <i className="fa-solid fa-cubes" style={{ color: '#c4b5fd', fontSize: '14px' }} />
+            </div>
+            <span>Insert Component</span>
+            <span className="component-modal-badge purple">Components V2 Catalog</span>
           </div>
-          <button className="btn-container-close" onClick={onClose}>
+          <button className="btn-container-close" onClick={onClose} type="button">
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
-        <div className="modal-body" style={{ maxHeight: 'calc(min(88vh, 650px) - 60px)', overflowY: 'auto' }}>
+        <div className="modal-body" style={{ maxHeight: 'calc(min(88vh, 680px) - 60px)', overflowY: 'auto' }}>
           
           {/* Section 1: Message Layout & Containers */}
           <div className="modal-section-title">Message Layout & Containers</div>
@@ -107,14 +90,14 @@ export function PaletteModal({
                 <span className="type-card-name">Media Gallery</span>
                 <span className="type-number-pill">Type 12</span>
               </div>
-              <span className="type-card-desc">1–10 media items using '{`{ media: { url } }`}' structure.</span>
+              <span className="type-card-desc">1–10 media items using &apos;{`{ media: { url } }`}&apos; structure.</span>
             </div>
             <div className="type-select-card" onClick={() => handleSelect(13)}>
               <div className="type-card-top">
                 <span className="type-card-name">File Attachment</span>
                 <span className="type-number-pill">Type 13</span>
               </div>
-              <span className="type-card-desc">Attached file card using 'attachment://filename' protocol.</span>
+              <span className="type-card-desc">Attached file card using &apos;attachment://filename&apos; protocol.</span>
             </div>
           </div>
 

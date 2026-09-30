@@ -72,18 +72,6 @@ export function MediaGallerySettingsModal({
   return (
     <div
       className="modal-overlay open"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 100000,
-        backdropFilter: 'blur(10px)',
-        background: 'rgba(0, 0, 0, 0.75)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-        overflowY: 'auto'
-      }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -91,34 +79,19 @@ export function MediaGallerySettingsModal({
       <div
         className="modal-dialog"
         style={{
-          maxWidth: '580px',
+          maxWidth: '600px',
           width: '100%',
-          maxHeight: 'min(88vh, 680px)',
-          margin: 'auto',
-          background: '#313338',
-          border: '1px solid rgba(255, 255, 255, 0.09)',
-          boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
-          borderRadius: '12px',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden'
+          boxShadow: '0 30px 80px rgba(0, 0, 0, 0.9), 0 0 35px rgba(236, 72, 153, 0.12)'
         }}
       >
         {/* Header */}
-        <div
-          className="modal-header"
-          style={{
-            background: '#2b2d31',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-            padding: '14px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}
-        >
-          <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <i className="fa-solid fa-images" style={{ color: '#5865F2' }} />
-            <span>Media Gallery Settings (Type 12)</span>
+        <div className="modal-header">
+          <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(236, 72, 153, 0.15)', border: '1px solid rgba(236, 72, 153, 0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <i className="fa-solid fa-images" style={{ color: '#f472b6', fontSize: '14px' }} />
+            </div>
+            <span>Media Gallery Settings</span>
+            <span className="component-modal-badge pink">Type 12 • Max 4 Items</span>
           </div>
           <button className="btn-container-close" onClick={onClose} type="button">
             <i className="fa-solid fa-xmark" />
@@ -319,30 +292,21 @@ export function MediaGallerySettingsModal({
           )}
 
           {/* Modal Footer Actions */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '10px',
-              paddingTop: '12px',
-              borderTop: '1px solid rgba(255, 255, 255, 0.06)'
-            }}
-          >
+          <div className="modal-footer" style={{ padding: '14px 0 0 0', background: 'transparent' }}>
             <button
               type="button"
-              className="sub-tab-btn"
-              style={{ padding: '8px 20px', borderRadius: '4px', background: 'rgba(255,255,255,0.08)' }}
+              className="modal-btn-cancel"
               onClick={onClose}
             >
               Cancel
             </button>
             <button
               type="button"
-              className="btn-dispatch-submit"
-              style={{ width: 'auto', padding: '8px 20px' }}
+              className="modal-btn-save"
               onClick={handleSave}
             >
-              Save Changes
+              <i className="fa-solid fa-check" />
+              <span>Save Changes</span>
             </button>
           </div>
         </div>

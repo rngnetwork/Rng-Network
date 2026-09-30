@@ -37,18 +37,6 @@ export function SeparatorSettingsModal({
   return (
     <div
       className="modal-overlay open"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 100000,
-        backdropFilter: 'blur(10px)',
-        background: 'rgba(0, 0, 0, 0.75)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-        overflowY: 'auto'
-      }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -58,32 +46,17 @@ export function SeparatorSettingsModal({
         style={{
           maxWidth: '560px',
           width: '100%',
-          maxHeight: 'min(88vh, 650px)',
-          margin: 'auto',
-          background: '#313338',
-          border: '1px solid rgba(255, 255, 255, 0.09)',
-          boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
-          borderRadius: '12px',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden'
+          boxShadow: '0 30px 80px rgba(0, 0, 0, 0.9), 0 0 35px rgba(139, 92, 246, 0.12)'
         }}
       >
         {/* Modal Header */}
-        <div
-          className="modal-header"
-          style={{
-            background: '#2b2d31',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-            padding: '14px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}
-        >
-          <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <i className="fa-solid fa-arrows-split-up-and-left" style={{ color: '#5865F2' }} />
-            <span>Separator Settings (Type 14)</span>
+        <div className="modal-header">
+          <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(139, 92, 246, 0.15)', border: '1px solid rgba(139, 92, 246, 0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <i className="fa-solid fa-arrows-split-up-and-left" style={{ color: '#c4b5fd', fontSize: '14px' }} />
+            </div>
+            <span>Separator Settings</span>
+            <span className="component-modal-badge purple">Type 14</span>
           </div>
           <button className="btn-container-close" onClick={onClose} type="button">
             <i className="fa-solid fa-xmark" />
@@ -91,13 +64,17 @@ export function SeparatorSettingsModal({
         </div>
 
         {/* Modal Body */}
-        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '18px 20px', overflowY: 'auto' }}>
+        <div className="modal-body">
           {/* Custom ID */}
           <div className="form-group">
-            <label className="form-label">Custom ID</label>
+            <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Custom ID</span>
+              <span style={{ fontSize: '11px', color: '#949ba4', fontWeight: 400 }}>Unique identifier</span>
+            </label>
             <input
               type="text"
               className="form-input"
+              style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}
               placeholder="e.g. sep_section_divider"
               value={customId}
               onChange={(e) => setCustomId(e.target.value)}
@@ -106,112 +83,86 @@ export function SeparatorSettingsModal({
 
           {/* Separator Type: Line vs Empty Space */}
           <div className="form-group">
-            <label className="form-label">Separator Type</label>
+            <label className="form-label">Separator Mode</label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <button
-                type="button"
-                className={`btn-style-chip ${isDivider ? 'active' : ''}`}
+              <div
+                className={`modal-radio-card ${isDivider ? 'active' : ''}`}
                 onClick={() => setIsDivider(true)}
-                style={{
-                  padding: '10px 14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  fontSize: '12.5px',
-                  fontWeight: 600,
-                  borderRadius: '6px',
-                  cursor: 'pointer'
-                }}
               >
-                <i className="fa-solid fa-minus" />
-                Line Divider
-              </button>
-              <button
-                type="button"
-                className={`btn-style-chip ${!isDivider ? 'active' : ''}`}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: isDivider ? '#c4b5fd' : '#fff', fontWeight: 600, fontSize: '13px' }}>
+                  <i className="fa-solid fa-minus" />
+                  <span>Line Divider</span>
+                </div>
+                <span style={{ fontSize: '11px', color: '#949ba4', lineHeight: 1.3 }}>
+                  Renders a visible 1px horizontal rule
+                </span>
+              </div>
+              <div
+                className={`modal-radio-card ${!isDivider ? 'active' : ''}`}
                 onClick={() => setIsDivider(false)}
-                style={{
-                  padding: '10px 14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  fontSize: '12.5px',
-                  fontWeight: 600,
-                  borderRadius: '6px',
-                  cursor: 'pointer'
-                }}
               >
-                <i className="fa-solid fa-border-none" />
-                Empty Space
-              </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: !isDivider ? '#c4b5fd' : '#fff', fontWeight: 600, fontSize: '13px' }}>
+                  <i className="fa-solid fa-border-none" />
+                  <span>Empty Space</span>
+                </div>
+                <span style={{ fontSize: '11px', color: '#949ba4', lineHeight: 1.3 }}>
+                  Invisible spacing gap between components
+                </span>
+              </div>
             </div>
           </div>
 
           {/* Spacing: Small (1, 4px) vs Large (2, 20px) */}
           <div className="form-group">
-            <label className="form-label">Spacing</label>
+            <label className="form-label">Spacing Interval</label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <button
-                type="button"
-                className={`btn-style-chip ${spacing === 1 ? 'active' : ''}`}
+              <div
+                className={`modal-radio-card ${spacing === 1 ? 'active' : ''}`}
                 onClick={() => setSpacing(1)}
-                style={{
-                  padding: '10px 14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  fontSize: '12.5px',
-                  fontWeight: 600,
-                  borderRadius: '6px',
-                  cursor: 'pointer'
-                }}
               >
-                Small (1 &bull; 4px)
-              </button>
-              <button
-                type="button"
-                className={`btn-style-chip ${spacing === 2 ? 'active' : ''}`}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: spacing === 1 ? '#c4b5fd' : '#fff', fontWeight: 600, fontSize: '13px' }}>
+                  <i className="fa-solid fa-compress" />
+                  <span>Small Spacing</span>
+                </div>
+                <span style={{ fontSize: '11px', color: '#949ba4' }}>
+                  Spacing 1 (4px padding)
+                </span>
+              </div>
+              <div
+                className={`modal-radio-card ${spacing === 2 ? 'active' : ''}`}
                 onClick={() => setSpacing(2)}
-                style={{
-                  padding: '10px 14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  fontSize: '12.5px',
-                  fontWeight: 600,
-                  borderRadius: '6px',
-                  cursor: 'pointer'
-                }}
               >
-                Large (2 &bull; 20px)
-              </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: spacing === 2 ? '#c4b5fd' : '#fff', fontWeight: 600, fontSize: '13px' }}>
+                  <i className="fa-solid fa-expand" />
+                  <span>Large Spacing</span>
+                </div>
+                <span style={{ fontSize: '11px', color: '#949ba4' }}>
+                  Spacing 2 (20px padding)
+                </span>
+              </div>
             </div>
           </div>
 
           {/* Separator Preview */}
           <div className="form-group">
-            <label className="form-label">Separator Preview</label>
+            <label className="form-label">Live Simulation Preview</label>
             <div
               style={{
                 background: '#1e1f22',
-                borderRadius: '6px',
-                padding: '14px 16px',
+                borderRadius: '8px',
+                padding: '16px',
                 border: '1px solid rgba(255, 255, 255, 0.08)'
               }}
             >
               <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.35)', marginBottom: '8px' }}>
-                Content above separator
+                Content block above separator
               </div>
               {isDivider ? (
-                <div style={{ padding: spacing === 2 ? '10px 0' : '4px 0', width: '100%' }}>
+                <div style={{ padding: spacing === 2 ? '12px 0' : '4px 0', width: '100%' }}>
                   <div
                     style={{
                       height: '1px',
-                      background: 'rgba(255, 255, 255, 0.15)',
+                      background: 'rgba(255, 255, 255, 0.18)',
                       width: '100%'
                     }}
                   />
@@ -219,7 +170,7 @@ export function SeparatorSettingsModal({
               ) : (
                 <div
                   style={{
-                    height: spacing === 2 ? '24px' : '14px',
+                    height: spacing === 2 ? '26px' : '14px',
                     width: '100%',
                     borderRadius: '4px',
                     border: '1px dashed rgba(255, 255, 255, 0.15)',
@@ -236,36 +187,27 @@ export function SeparatorSettingsModal({
                 </div>
               )}
               <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.35)', marginTop: '8px' }}>
-                Content below separator
+                Content block below separator
               </div>
             </div>
           </div>
 
           {/* Modal Footer Actions */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '10px',
-              paddingTop: '12px',
-              borderTop: '1px solid rgba(255, 255, 255, 0.06)'
-            }}
-          >
+          <div className="modal-footer" style={{ padding: '14px 0 0 0', background: 'transparent' }}>
             <button
               type="button"
-              className="sub-tab-btn"
-              style={{ padding: '8px 20px', borderRadius: '4px', background: 'rgba(255,255,255,0.08)' }}
+              className="modal-btn-cancel"
               onClick={onClose}
             >
               Cancel
             </button>
             <button
               type="button"
-              className="btn-dispatch-submit"
-              style={{ width: 'auto', padding: '8px 20px' }}
+              className="modal-btn-save"
               onClick={handleSave}
             >
-              Save Changes
+              <i className="fa-solid fa-check" />
+              <span>Save Changes</span>
             </button>
           </div>
         </div>

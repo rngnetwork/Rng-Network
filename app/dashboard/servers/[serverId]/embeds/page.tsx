@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import '@/components/embeds/embed-builder.css';
-import { Type17Container, DiscordInnerComponent } from '@/components/embeds/types';
+import { Type17Container } from '@/components/embeds/types';
 import { MessageBuilder } from '@/components/embeds/MessageBuilder';
 import { UnsavedChangesBar } from '@/components/ui/UnsavedChangesBar';
 import { api, ServerDetail, ChannelItem } from '@/lib/api';
@@ -168,28 +168,6 @@ export default function ServerEmbedsPage() {
     setIsDirty(true);
   };
 
-  // Insert component from catalog into builder (1-click green button)
-  const handleInsertComponentFromCatalog = (item: number | DiscordInnerComponent) => {
-    setIsDirty(true);
-    const newComp = typeof item === 'number'
-      ? ({ type: item as DiscordInnerComponent['type'], id: `comp_${Date.now()}` } as DiscordInnerComponent)
-      : JSON.parse(JSON.stringify(item));
-
-    if (containers.length === 0) {
-      setContainers([
-        {
-          id: `c17_${Date.now()}`,
-          accentColor: '#E11D2E',
-          isSpoiler: false,
-          components: [newComp]
-        }
-      ]);
-    } else {
-      const upd = [...containers];
-      upd[0].components.push(newComp);
-      setContainers(upd);
-    }
-  };
 
   if (loading) {
     return (
@@ -200,20 +178,51 @@ export default function ServerEmbedsPage() {
   }
 
   return (
-    <div className="embed-builder-root" style={{ minHeight: '800px', display: 'flex', flexDirection: 'column' }}>
+    <div className="main-workspace w-full" style={{ height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' }}>
+      {/* Top Header Bar for Scoped Server */}
+      <header className="top-nav-bar">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-black/50 border border-white/10 shadow-inner">
+            <i className="fa-brands fa-discord text-indigo-400 text-sm" />
+            <span className="text-xs font-bold text-white tracking-wide">
+              {server?.name || `Server ${serverId}`}
+            </span>
+            <span className="text-[10px] font-mono text-zinc-400 bg-white/5 border border-white/5 px-2 py-0.5 rounded">
+              {channels.length} channels
+            </span>
+          </div>
+          <div className="hidden md:flex items-center gap-2 text-xs text-zinc-400">
+            <span className="text-zinc-600">•</span>
+            <span>Components V2 Scoped Server Dispatch</span>
+          </div>
+        </div>
+
+        <div className="top-nav-actions">
+          <div className="status-pill">
+            <span className="status-indicator-dot" />
+            <span>Server Synced</span>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-md bg-white/[0.04] border border-white/[0.08] text-[11.5px] text-zinc-400 font-mono">
+            <span className="text-red-400 font-bold">{containers.length}</span>
+            <span>Container{containers.length === 1 ? '' : 's'}</span>
+          </div>
+        </div>
+      </header>
+
       {/* Main Tab Panels */}
-        <MessageBuilder
-          containers={containers}
-          setContainers={handleSetContainers}
-          messageContent={messageContent}
-          setMessageContent={handleSetMessageContent}
-          onLoadTemplate={handleLoadTemplate}
-          onDirtyChange={() => setIsDirty(true)}
-          serverId={serverId}
-          serverName={server?.name}
-          serverChannels={channels}
-          serverEmojis={serverEmojis}
-        />
+      <MessageBuilder
+        containers={containers}
+        setContainers={handleSetContainers}
+        messageContent={messageContent}
+        setMessageContent={handleSetMessageContent}
+        onLoadTemplate={handleLoadTemplate}
+        onDirtyChange={() => setIsDirty(true)}
+        serverId={serverId}
+        serverName={server?.name}
+        serverChannels={channels}
+        serverEmojis={serverEmojis}
+      />
+
       {/* Floating Discord-styled Unsaved Changes Action Bar */}
       <UnsavedChangesBar
         isDirty={isDirty}

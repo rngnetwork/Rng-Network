@@ -158,7 +158,7 @@ export function LoadModal({
       desc: 'Row with Blurple, Grey, Green, Danger Red, and Link buttons.',
       comp: {
         type: 1,
-        id: `row_${Date.now()}`,
+        id: 'sample_row_action',
         label: 'ACTION CONTROLS',
         items: [
           { type: 2, style: 1, label: 'Primary', custom_id: 'btn_1' },
@@ -175,8 +175,8 @@ export function LoadModal({
       desc: 'Interactive dropdown with custom options and emoji badges.',
       comp: {
         type: 3,
-        id: `sel_${Date.now()}`,
-        custom_id: `menu_${Date.now()}`,
+        id: 'sample_sel_menu',
+        custom_id: 'menu_interactive',
         placeholder: 'Choose your selection...',
         options: [
           { label: 'Option Alpha', value: 'opt_alpha', emoji: '⭐', description: 'Primary recommendation', default: true },
@@ -191,7 +191,7 @@ export function LoadModal({
       desc: 'Section layout pairing markdown content with thumbnail media.',
       comp: {
         type: 9,
-        id: `sec_${Date.now()}`,
+        id: 'sample_sec_card',
         text: '### Featured Network Perks\nUnlock exclusive commands, custom roles, and priority server access.',
         accessory: {
           type: 'thumbnail',
@@ -205,7 +205,7 @@ export function LoadModal({
       desc: 'Horizontal visual divider line with clean spacing.',
       comp: {
         type: 14,
-        id: `sep_${Date.now()}`,
+        id: 'sample_sep_divider',
         divider: true,
         spacing: 2
       }
@@ -216,7 +216,7 @@ export function LoadModal({
       desc: 'Discord Components V2 content card supporting rich markdown syntax.',
       comp: {
         type: 10,
-        id: `txt_${Date.now()}`,
+        id: 'sample_txt_content',
         text: '### 🛡️ Autonomous Discord Protection\n> Real-time anti-nuke and moderation controls enabled.\n*Powered by RNG Control Center.*'
       }
     }
@@ -245,19 +245,20 @@ export function LoadModal({
         style={{
           maxWidth: '680px',
           width: '100%',
-          margin: 'auto',
-          background: '#313338',
-          border: '1px solid rgba(255, 255, 255, 0.09)',
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.85)',
-          borderRadius: '12px'
+          boxShadow: '0 30px 80px rgba(0, 0, 0, 0.9), 0 0 35px rgba(34, 197, 94, 0.12)'
         }}
       >
-        <div className="modal-header" style={{ background: '#2b2d31', borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
-          <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <i className="fa-solid fa-cloud-arrow-down" style={{ color: '#23A55A' }} />
+        <div className="modal-header">
+          <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <i className="fa-solid fa-cloud-arrow-down" style={{ color: '#4ade80', fontSize: '14px' }} />
+            </div>
             <span>Load Templates & Components</span>
+            <span className="component-modal-badge" style={{ background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#4ade80' }}>
+              Presets Catalog
+            </span>
           </div>
-          <button className="btn-container-close" onClick={onClose}>
+          <button className="btn-container-close" onClick={onClose} type="button">
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
@@ -373,7 +374,9 @@ export function LoadModal({
                     className="btn-ctrl-green"
                     style={{ padding: '5px 12px', fontSize: '11.5px', borderRadius: '6px', whiteSpace: 'nowrap' }}
                     onClick={() => {
-                      onLoadComponent(item.comp);
+                      const cloned = JSON.parse(JSON.stringify(item.comp));
+                      cloned.id = `${item.comp.id}_${Date.now()}`;
+                      onLoadComponent(cloned);
                       onClose();
                     }}
                   >
