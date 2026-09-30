@@ -4,7 +4,12 @@ import {
   DiscordModalPayload,
   DiscordV2ValidationResult,
   PartialEmojiObject,
-  DiscordInnerComponent
+  DiscordInnerComponent,
+  DiscordContainerChildComponent,
+  DiscordV2ContainerPayload,
+  DiscordTopLevelComponent,
+  ClientValidationReport,
+  ClientValidationViolation
 } from './types';
 
 /**
@@ -264,7 +269,7 @@ export function buildDiscordV2MessagePayload(
       if (!isNaN(parsed)) accentDec = parsed;
     }
 
-    const cComponents: unknown[] = [];
+    const cComponents: DiscordContainerChildComponent[] = [];
 
     // Header section (Author / Title / Description / Thumbnail)
     let headerMarkdown = '';
@@ -316,7 +321,7 @@ export function buildDiscordV2MessagePayload(
     (c.components || []).forEach((comp) => {
       const serialized = serializeMessageComponent(comp as unknown as Record<string, unknown>);
       if (serialized) {
-        cComponents.push(serialized);
+        cComponents.push(serialized as unknown as DiscordContainerChildComponent);
       }
     });
 
@@ -328,18 +333,27 @@ export function buildDiscordV2MessagePayload(
       });
     }
 
-    return {
+    const containerPayload: DiscordV2ContainerPayload = {
       type: 17 as const,
       accent_color: accentDec,
       spoiler: Boolean(c.isSpoiler),
       components: cComponents
     };
+    return containerPayload;
   });
 
+  const topLevelComponents: DiscordTopLevelComponent[] = [];
+  if (messageContent && messageContent.trim()) {
+    topLevelComponents.push({
+      type: 10,
+      content: messageContent.trim()
+    });
+  }
+  containerList.forEach((c) => topLevelComponents.push(c));
+
   return {
-    content: messageContent || undefined,
     flags: 32768,
-    components: containerList
+    components: topLevelComponents
   };
 }
 
@@ -562,6 +576,11 @@ export function parseDiscordPayloadToState(parsedInput: unknown): { messageConte
     if (!itemUnknown || typeof itemUnknown !== 'object') return;
     const item = itemUnknown as Record<string, unknown>;
 
+    if (item.type === 10 && typeof item.content === 'string' && !messageContent) {
+      messageContent = item.content;
+      return;
+    }
+
     if (item.type === 17) {
       const hexColor = item.accent_color !== undefined
         ? `#${(item.accent_color as number).toString(16).padStart(6, '0')}`
@@ -644,4 +663,227 @@ export function parseDiscordPayloadToState(parsedInput: unknown): { messageConte
   });
 
   return { messageContent, containers: loadedContainers };
+}
+
+/**
+ * Comprehensive client-side pre-flight validator enforcing Discord Components V2 structural boundaries:
+ * - Cumulative character ceiling <= 4000
+ * - Container count: 1 <= count <= 10 (or 0 if messageContent provided)
+ * - Nested child components <= 30 per container
+ * - Action Rows <= 5 per message/container
+ * - Button rules (Style 5 URL vs Styles 1-4 custom_id)
+ * - Returns ClientValidationReport with compiled payload
+ */
+export function validateContainers(
+  containers: Type17Container[],
+  messageContent?: string
+): ClientValidationReport {
+  const violations: ClientValidationViolation[] = [];
+  const safeContainers = Array.isArray(containers) ? containers : [];
+  const totalContainers = safeContainers.length;
+  let totalComponents = 0;
+  let totalActionRows = 0;
+  let cumulativeCharacters = (messageContent || '').length;
+
+  if (totalContainers === 0 && (!messageContent || !messageContent.trim())) {
+    violations.push({
+      code: 'EMPTY_PAYLOAD',
+      message: 'Payload must contain at least one container or a text display message.',
+      severity: 'ERROR'
+    });
+  }
+
+  if (totalContainers > 10) {
+    violations.push({
+      code: 'MAX_CONTAINERS_EXCEEDED',
+      message: `Payload contains ${totalContainers} containers. Discord Components V2 allows a maximum of 10 containers.`,
+      severity: 'ERROR'
+    });
+  }
+
+  safeContainers.forEach((container, cIdx) => {
+    // Container-level characters
+    if (container.title) cumulativeCharacters += container.title.length;
+    if (container.description) cumulativeCharacters += container.description.length;
+    if (container.author?.name) cumulativeCharacters += container.author.name.length;
+    if (container.footer?.text) cumulativeCharacters += container.footer.text.length;
+
+    // Fields characters
+    if (Array.isArray(container.fields)) {
+      container.fields.forEach((f) => {
+        if (f.name) cumulativeCharacters += f.name.length;
+        if (f.value) cumulativeCharacters += f.value.length;
+      });
+    }
+
+    const childComponents = Array.isArray(container.components) ? container.components : [];
+    totalComponents += childComponents.length;
+
+    if (childComponents.length > 30) {
+      violations.push({
+        code: 'CONTAINER_CHILD_LIMIT_EXCEEDED',
+        message: `Container #${cIdx + 1} contains ${childComponents.length} child components (maximum 30 allowed).`,
+        path: `containers[${cIdx}]`,
+        severity: 'ERROR'
+      });
+    }
+
+    let containerActionRows = 0;
+    childComponents.forEach((comp, compIdx) => {
+      const rec = comp as unknown as Record<string, unknown>;
+      const compType = Number(rec.type);
+
+      if (compType === 10) {
+        const textContent = typeof rec.content === 'string' ? rec.content : (typeof rec.text === 'string' ? rec.text : '');
+        cumulativeCharacters += textContent.length;
+      }
+
+      if (compType === 9) {
+        if (Array.isArray(rec.components) && rec.components.length > 0) {
+          rec.components.forEach((subComp: unknown) => {
+            const subRec = (subComp && typeof subComp === 'object' ? subComp : {}) as Record<string, unknown>;
+            const subText = typeof subRec.content === 'string' ? subRec.content : (typeof subRec.text === 'string' ? subRec.text : '');
+            cumulativeCharacters += subText.length;
+          });
+        } else if (typeof rec.text === 'string') {
+          cumulativeCharacters += rec.text.length;
+        }
+        const acc = rec.accessory as Record<string, unknown> | undefined;
+        if (acc && Number(acc.type) === 2) {
+          if (typeof acc.label === 'string') cumulativeCharacters += acc.label.length;
+          const style = Number(acc.style || 1);
+          if (style === 5) {
+            const url = typeof acc.url === 'string' ? acc.url.trim() : '';
+            if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) {
+              violations.push({
+                code: 'INVALID_BUTTON_URL',
+                message: `Section accessory link button in Container #${cIdx + 1} requires a valid http/https URL.`,
+                path: `containers[${cIdx}].components[${compIdx}].accessory`,
+                severity: 'ERROR'
+              });
+            }
+          } else {
+            const customId = typeof acc.custom_id === 'string' ? acc.custom_id : (typeof acc.id === 'string' ? acc.id : '');
+            if (!customId || customId.length > 100) {
+              violations.push({
+                code: 'INVALID_BUTTON_CUSTOM_ID',
+                message: `Section accessory button in Container #${cIdx + 1} must have a custom_id (1-100 characters).`,
+                path: `containers[${cIdx}].components[${compIdx}].accessory`,
+                severity: 'ERROR'
+              });
+            }
+          }
+        }
+      }
+
+      if (compType === 1) {
+        containerActionRows++;
+        totalActionRows++;
+        const buttons = Array.isArray(rec.items) ? rec.items : (Array.isArray(rec.components) ? rec.components : []);
+        if (buttons.length > 5) {
+          violations.push({
+            code: 'ACTION_ROW_OVERFLOW',
+            message: `Action Row in Container #${cIdx + 1} contains ${buttons.length} buttons (maximum 5 allowed).`,
+            path: `containers[${cIdx}].components[${compIdx}]`,
+            severity: 'ERROR'
+          });
+        }
+
+        buttons.forEach((btnUnknown, bIdx) => {
+          const itemRec = btnUnknown as Record<string, unknown>;
+          const itemType = Number(itemRec.type || 2);
+          if (itemType === 3) {
+            if (typeof itemRec.placeholder === 'string') cumulativeCharacters += itemRec.placeholder.length;
+            if (Array.isArray(itemRec.options)) {
+              itemRec.options.forEach((opt: unknown) => {
+                const optRec = (opt && typeof opt === 'object' ? opt : {}) as Record<string, unknown>;
+                if (typeof optRec.label === 'string') cumulativeCharacters += optRec.label.length;
+                if (typeof optRec.description === 'string') cumulativeCharacters += optRec.description.length;
+              });
+            }
+            return;
+          }
+          if (typeof itemRec.label === 'string') cumulativeCharacters += itemRec.label.length;
+          const style = Number(itemRec.style || 1);
+          if (style === 5) {
+            const url = typeof itemRec.url === 'string' ? itemRec.url.trim() : '';
+            if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) {
+              violations.push({
+                code: 'INVALID_BUTTON_URL',
+                message: `Link button #${bIdx + 1} in Container #${cIdx + 1} requires a valid http/https URL.`,
+                path: `containers[${cIdx}].components[${compIdx}].buttons[${bIdx}]`,
+                severity: 'ERROR'
+              });
+            }
+          } else {
+            const customId = typeof itemRec.custom_id === 'string' ? itemRec.custom_id : (typeof itemRec.id === 'string' ? itemRec.id : '');
+            if (!customId || customId.length > 100) {
+              violations.push({
+                code: 'INVALID_BUTTON_CUSTOM_ID',
+                message: `Interactive button #${bIdx + 1} in Container #${cIdx + 1} must have a custom_id (1-100 characters).`,
+                path: `containers[${cIdx}].components[${compIdx}].buttons[${bIdx}]`,
+                severity: 'ERROR'
+              });
+            }
+          }
+        });
+      }
+
+      if (compType === 3) {
+        if (typeof rec.placeholder === 'string') cumulativeCharacters += rec.placeholder.length;
+        if (Array.isArray(rec.options)) {
+          rec.options.forEach((opt: unknown) => {
+            const optRec = (opt && typeof opt === 'object' ? opt : {}) as Record<string, unknown>;
+            if (typeof optRec.label === 'string') cumulativeCharacters += optRec.label.length;
+            if (typeof optRec.description === 'string') cumulativeCharacters += optRec.description.length;
+          });
+        }
+      }
+    });
+
+    if (containerActionRows > 5) {
+      violations.push({
+        code: 'ACTION_ROWS_PER_CONTAINER_EXCEEDED',
+        message: `Container #${cIdx + 1} contains ${containerActionRows} Action Rows (maximum 5 allowed).`,
+        path: `containers[${cIdx}]`,
+        severity: 'ERROR'
+      });
+    }
+  });
+
+  if (totalActionRows > 5) {
+    violations.push({
+      code: 'TOTAL_ACTION_ROWS_EXCEEDED',
+      message: `Payload contains ${totalActionRows} total Action Rows across all containers (maximum 5 allowed).`,
+      severity: 'ERROR'
+    });
+  }
+
+  if (totalComponents > 40) {
+    violations.push({
+      code: 'MAX_COMPONENTS_EXCEEDED',
+      message: `Payload contains ${totalComponents} total components across all containers. Discord Components V2 allows a maximum of 40 components.`,
+      severity: 'ERROR'
+    });
+  }
+
+  if (cumulativeCharacters > 4000) {
+    violations.push({
+      code: 'CHARACTER_LIMIT_EXCEEDED',
+      message: `Cumulative character count (${cumulativeCharacters}) exceeds Discord limit of 4000.`,
+      severity: 'ERROR'
+    });
+  }
+
+  const compiledPayload = buildDiscordV2MessagePayload(safeContainers, messageContent);
+
+  return {
+    valid: violations.filter((v) => v.severity === 'ERROR').length === 0,
+    violations,
+    totalContainers,
+    totalComponents,
+    totalActionRows,
+    cumulativeCharacters,
+    compiledPayload
+  };
 }
