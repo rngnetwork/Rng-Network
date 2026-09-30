@@ -802,7 +802,7 @@ export function getFrequentlyUsedEmojis(): EmojiItem[] {
       ].filter(Boolean);
     }
     return JSON.parse(stored);
-  } catch (err) {
+  } catch {
     return [];
   }
 }
@@ -819,7 +819,7 @@ export function recordEmojiUsage(emoji: EmojiItem): void {
     filtered.unshift(emoji);
     const capped = filtered.slice(0, 18);
     localStorage.setItem(LOCAL_STORAGE_KEY_RECENT_EMOJIS, JSON.stringify(capped));
-  } catch (err) {
+  } catch {
     // Non-fatal
   }
 }
@@ -907,7 +907,7 @@ export function getServerEmojis(serverId?: string, serverName?: string): EmojiIt
       const parsed = JSON.parse(stored);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
-  } catch (err) {}
+  } catch {}
   return getDefaultServerEmojis(serverId, serverName);
 }
 

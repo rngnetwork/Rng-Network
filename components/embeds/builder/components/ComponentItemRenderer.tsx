@@ -203,7 +203,7 @@ export function ComponentItemRenderer({
             cIdx={cIdx}
             compIdx={compIdx}
             comp={comp as DiscordActionRowComponent}
-            onUpdateComponent={onUpdateComponent as any}
+            onUpdateComponent={(c, i, updated) => onUpdateComponent(c, i, updated)}
             onOpenButtonModal={onOpenButtonModal}
           />
         )}
@@ -212,7 +212,7 @@ export function ComponentItemRenderer({
             cIdx={cIdx}
             compIdx={compIdx}
             comp={comp as DiscordSelectComponent}
-            onUpdateComponent={onUpdateComponent as any}
+            onUpdateComponent={(c, i, updated) => onUpdateComponent(c, i, updated)}
             onOpenSettings={() => setIsSelectSettingsOpen(true)}
           />
         )}
@@ -221,7 +221,7 @@ export function ComponentItemRenderer({
             cIdx={cIdx}
             compIdx={compIdx}
             comp={comp as DiscordSectionComponent}
-            onUpdateComponent={onUpdateComponent as any}
+            onUpdateComponent={(c, i, updated) => onUpdateComponent(c, i, updated)}
           />
         )}
         {comp.type === 10 && (
@@ -229,7 +229,7 @@ export function ComponentItemRenderer({
             cIdx={cIdx}
             compIdx={compIdx}
             comp={comp as DiscordTextDisplayComponent}
-            onUpdateComponent={onUpdateComponent as any}
+            onUpdateComponent={(c, i, updated) => onUpdateComponent(c, i, updated)}
           />
         )}
         {comp.type === 14 && (
@@ -237,7 +237,7 @@ export function ComponentItemRenderer({
             cIdx={cIdx}
             compIdx={compIdx}
             comp={comp as DiscordSeparatorComponent}
-            onUpdateComponent={onUpdateComponent as any}
+            onUpdateComponent={(c, i, updated) => onUpdateComponent(c, i, updated)}
             onOpenSettings={() => setIsSeparatorSettingsOpen(true)}
           />
         )}
@@ -246,7 +246,7 @@ export function ComponentItemRenderer({
             cIdx={cIdx}
             compIdx={compIdx}
             comp={comp as DiscordMediaGalleryComponent}
-            onUpdateComponent={onUpdateComponent as any}
+            onUpdateComponent={(c, i, updated) => onUpdateComponent(c, i, updated)}
             onOpenSettings={() => setIsMediaGallerySettingsOpen(true)}
           />
         )}
@@ -255,7 +255,7 @@ export function ComponentItemRenderer({
             cIdx={cIdx}
             compIdx={compIdx}
             comp={comp as DiscordFileComponent}
-            onUpdateComponent={onUpdateComponent as any}
+            onUpdateComponent={(c, i, updated) => onUpdateComponent(c, i, updated)}
           />
         )}
         {isModalOnly && (
