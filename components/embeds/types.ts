@@ -244,7 +244,7 @@ export interface Type17Container {
 }
 
 export interface MessageBuilderState {
-  activeSubTab: 'edit' | 'preview' | 'raw' | 'dispatch';
+  activeSubTab: 'edit' | 'preview' | 'raw' | 'dispatch' | 'templates';
   rawPayloadMode: 'message' | 'modal';
   message: {
     content: string;
@@ -257,6 +257,8 @@ export interface TemplateItem {
   name: string;
   description: string;
   badge: string;
+  category?: string;
+  tags?: string[];
   createdAt?: string;
   state: {
     message: { content: string };
@@ -293,17 +295,30 @@ export interface DiscordV2ValidationResult {
   isAllPassed: boolean;
 }
 
+export type DiscordContainerChildComponent =
+  | DiscordActionRowComponent
+  | DiscordTextDisplayComponent
+  | DiscordSectionComponent
+  | DiscordMediaGalleryComponent
+  | DiscordSeparatorComponent
+  | DiscordFileComponent;
+
 export interface DiscordV2ContainerPayload {
   type: 17;
   accent_color: number;
   spoiler: boolean;
-  components: unknown[];
+  components: DiscordContainerChildComponent[];
 }
+
+export type DiscordTopLevelComponent =
+  | DiscordV2ContainerPayload
+  | DiscordTextDisplayComponent
+  | DiscordActionRowComponent;
 
 export interface DiscordV2MessagePayload {
   flags: 32768;
   content?: string;
-  components: DiscordV2ContainerPayload[];
+  components: DiscordTopLevelComponent[];
 }
 
 export interface DiscordModalPayload {
@@ -313,4 +328,55 @@ export interface DiscordModalPayload {
     custom_id: string;
     components: unknown[];
   };
+}
+
+export interface ClientValidationViolation {
+  code: string;
+  message: string;
+  path?: string;
+  severity: 'ERROR' | 'WARNING';
+}
+
+export interface ClientValidationReport {
+  valid: boolean;
+  violations: ClientValidationViolation[];
+  totalContainers: number;
+  totalComponents: number;
+  totalActionRows: number;
+  cumulativeCharacters: number;
+  compiledPayload: DiscordV2MessagePayload;
+}
+
+export interface BackendEmbedTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  serverId: string;
+  authorId: number;
+  authorUsername?: string;
+  tags: string[];
+  category: string;
+  public: boolean;
+  active: boolean;
+  version: number;
+  payloadJson: Record<string, unknown>;
+  payload?: Record<string, unknown>;
+  components: unknown[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BackendDispatchLog {
+  id: string;
+  dispatchId: string;
+  type: 'IMMEDIATE_BOT' | 'IMMEDIATE_WEBHOOK' | 'SCHEDULED_BOT';
+  status: 'SUCCESS' | 'FAILED' | 'PENDING' | 'RETRYING' | 'SCHEDULED' | 'CANCELLED';
+  serverId: string;
+  channelId: string;
+  operatorId: number;
+  operatorUsername?: string;
+  discordMessageId?: string;
+  errorMessage?: string;
+  latencyMs?: number;
+  timestamp: string;
 }
