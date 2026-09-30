@@ -864,6 +864,300 @@ export const api = {
     );
   },
 
+  // ---------------------------------------------------------------------------
+  // Embed Template CRUD APIs
+  // ---------------------------------------------------------------------------
+  async fetchEmbedTemplates(
+    params?: { serverId?: string; category?: string; tag?: string; page?: number; size?: number },
+    token?: string
+  ): Promise<ApiResponseEnvelope<PageData<TemplateData>>> {
+    const effectiveToken = token || getStoredAccessToken();
+    const query = new URLSearchParams();
+    if (params?.serverId) query.set('serverId', params.serverId);
+    if (params?.category) query.set('category', params.category);
+    if (params?.tag) query.set('tag', params.tag);
+    if (params?.page !== undefined) query.set('page', String(params.page));
+    if (params?.size !== undefined) query.set('size', String(params.size));
+
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(`${API_BASE}/api/v1/embeds/templates?${query.toString()}`, {
+          method: 'GET',
+          headers: {
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch templates');
+        return data;
+      },
+      () => {
+        const stored = getLocalStored<TemplateData[]>('rng_embed_templates', []);
+        return {
+          content: stored,
+          totalElements: stored.length,
+          totalPages: Math.ceil(stored.length / (params?.size || 20)) || 1,
+          size: params?.size || 20,
+          number: params?.page || 0,
+          first: true,
+          last: true,
+          empty: stored.length === 0,
+        };
+      }
+    );
+  },
+
+  async fetchEmbedTemplateById(id: string, token?: string): Promise<ApiResponseEnvelope<TemplateData>> {
+    const effectiveToken = token || getStoredAccessToken();
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(`${API_BASE}/api/v1/embeds/templates/${id}`, {
+          method: 'GET',
+          headers: {
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Template not found');
+        return data;
+      },
+      () => {
+        const stored = getLocalStored<TemplateData[]>('rng_embed_templates', []);
+        const found = stored.find((t) => t.id === id);
+        if (!found) throw new Error(`Template with id ${id} not found in offline store`);
+        return found;
+      }
+    );
+  },
+
+  async createEmbedTemplate(payload: CreateTemplatePayload, token?: string): Promise<ApiResponseEnvelope<TemplateData>> {
+    const effectiveToken = token || getStoredAccessToken();
+    const targetPayload = payload.payload || payload.payloadJson || {};
+    const isPublicVal = payload.isPublic ?? payload.publicTemplate ?? false;
+    const normalizedBody = {
+      ...payload,
+      payload: targetPayload,
+      payloadJson: targetPayload,
+      isPublic: isPublicVal,
+      publicTemplate: isPublicVal,
+    };
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(`${API_BASE}/api/v1/embeds/templates`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify(normalizedBody),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to create template');
+        return data;
+      },
+      () => {
+        const created: TemplateData = {
+          id: 'tmpl_' + Math.random().toString(36).substring(2, 10),
+          name: payload.name,
+          description: payload.description,
+          serverId: payload.serverId,
+          authorId: 1,
+          authorUsername: 'operator@rng.com',
+          tags: payload.tags || [],
+          category: payload.category || 'GENERAL',
+          public: isPublicVal,
+          active: true,
+          version: 1,
+          payloadJson: targetPayload,
+          components: payload.components || [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        const stored = getLocalStored<TemplateData[]>('rng_embed_templates', []);
+        setLocalStored('rng_embed_templates', [created, ...stored]);
+        return created;
+      },
+      'Template created successfully in local simulation storage.'
+    );
+  },
+
+  async updateEmbedTemplate(id: string, payload: UpdateTemplatePayload, token?: string): Promise<ApiResponseEnvelope<TemplateData>> {
+    const effectiveToken = token || getStoredAccessToken();
+    const targetPayload = payload.payload || payload.payloadJson;
+    const isPublicVal = payload.isPublic ?? payload.publicTemplate;
+    const normalizedBody = {
+      ...payload,
+      ...(targetPayload ? { payload: targetPayload, payloadJson: targetPayload } : {}),
+      ...(isPublicVal !== undefined ? { isPublic: isPublicVal, publicTemplate: isPublicVal } : {}),
+    };
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(`${API_BASE}/api/v1/embeds/templates/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify(normalizedBody),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to update template');
+        return data;
+      },
+      () => {
+        const stored = getLocalStored<TemplateData[]>('rng_embed_templates', []);
+        const idx = stored.findIndex((t) => t.id === id);
+        if (idx === -1) throw new Error(`Template ${id} not found`);
+        const updated: TemplateData = {
+          ...stored[idx],
+          name: payload.name ?? stored[idx].name,
+          description: payload.description ?? stored[idx].description,
+          category: payload.category ?? stored[idx].category,
+          tags: payload.tags ?? stored[idx].tags,
+          public: isPublicVal ?? stored[idx].public,
+          active: payload.active ?? stored[idx].active,
+          payloadJson: targetPayload ?? stored[idx].payloadJson,
+          components: payload.components ?? stored[idx].components,
+          version: stored[idx].version + 1,
+          updatedAt: new Date().toISOString(),
+        };
+        stored[idx] = updated;
+        setLocalStored('rng_embed_templates', stored);
+        return updated;
+      },
+      'Template updated successfully in local simulation storage.'
+    );
+  },
+
+  async deleteEmbedTemplate(id: string, token?: string): Promise<ApiResponseEnvelope<boolean>> {
+    const effectiveToken = token || getStoredAccessToken();
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(`${API_BASE}/api/v1/embeds/templates/${id}`, {
+          method: 'DELETE',
+          headers: {
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to delete template');
+        return data;
+      },
+      () => {
+        const stored = getLocalStored<TemplateData[]>('rng_embed_templates', []);
+        setLocalStored('rng_embed_templates', stored.filter((t) => t.id !== id));
+        return true;
+      },
+      'Template deleted from local simulation storage.'
+    );
+  },
+
+  async exportEmbedTemplate(id: string, token?: string): Promise<ApiResponseEnvelope<Record<string, unknown>>> {
+    const effectiveToken = token || getStoredAccessToken();
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(`${API_BASE}/api/v1/embeds/templates/${id}/export`, {
+          method: 'GET',
+          headers: {
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to export template');
+        return data;
+      },
+      () => {
+        const stored = getLocalStored<TemplateData[]>('rng_embed_templates', []);
+        const found = stored.find((t) => t.id === id);
+        if (!found) throw new Error(`Template ${id} not found`);
+        return {
+          schema: 'https://rng.gg/schemas/embed-v2.json',
+          name: found.name,
+          category: found.category,
+          tags: found.tags,
+          payloadJson: found.payloadJson,
+        };
+      }
+    );
+  },
+
+  async importEmbedTemplate(templateJson: Record<string, unknown>, token?: string): Promise<ApiResponseEnvelope<TemplateData>> {
+    const effectiveToken = token || getStoredAccessToken();
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(`${API_BASE}/api/v1/embeds/templates/import`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify(templateJson),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to import template');
+        return data;
+      },
+      () => {
+        const created: TemplateData = {
+          id: 'tmpl_imp_' + Math.random().toString(36).substring(2, 10),
+          name: String(templateJson.name || 'Imported Template'),
+          description: String(templateJson.description || 'Imported from JSON payload'),
+          serverId: String(templateJson.serverId || 'local_server'),
+          authorId: 1,
+          authorUsername: 'operator@rng.com',
+          tags: Array.isArray(templateJson.tags) ? (templateJson.tags as string[]) : [],
+          category: String(templateJson.category || 'IMPORTED'),
+          public: false,
+          active: true,
+          version: 1,
+          payloadJson: (templateJson.payloadJson as Record<string, unknown>) || {},
+          components: Array.isArray(templateJson.components) ? templateJson.components : [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        const stored = getLocalStored<TemplateData[]>('rng_embed_templates', []);
+        setLocalStored('rng_embed_templates', [created, ...stored]);
+        return created;
+      },
+      'Template imported successfully into local simulation storage.'
+    );
+  },
+
+  // ---------------------------------------------------------------------------
+  // Canonical Spec §5.9 Method Aliases
+  // ---------------------------------------------------------------------------
+  dispatchEmbed(payload: DispatchEmbedPayload, token?: string) {
+    return this.dispatchEmbedJson(payload, token);
+  },
+  scheduleDispatch(payload: DispatchEmbedPayload, token?: string) {
+    return this.scheduleEmbedDispatch(payload, token);
+  },
+  cancelScheduledDispatch(dispatchId: string, token?: string) {
+    return this.cancelScheduledEmbedDispatch(dispatchId, token);
+  },
+  validateDryRun(payload: DryRunPayload, token?: string) {
+    return this.testDryRun(payload, token);
+  },
+  fetchTemplates(params?: { serverId?: string; category?: string; tag?: string; page?: number; size?: number }, token?: string) {
+    return this.fetchEmbedTemplates(params, token);
+  },
+  saveTemplate(payload: CreateTemplatePayload & { id?: string }, token?: string) {
+    return payload.id ? this.updateEmbedTemplate(payload.id, payload, token) : this.createEmbedTemplate(payload, token);
+  },
+  deleteTemplate(id: string, token?: string) {
+    return this.deleteEmbedTemplate(id, token);
+  },
+  fetchDispatchableChannels(serverId: string, token?: string) {
+    return this.fetchDispatchChannels(serverId, token);
+  },
+};
 
 // ---------------------------------------------------------------------------
 // Offline Fallback Helpers (§8.3)
