@@ -5,8 +5,6 @@ import { useParams } from 'next/navigation';
 import '@/components/embeds/embed-builder.css';
 import { Type17Container, DiscordInnerComponent } from '@/components/embeds/types';
 import { MessageBuilder } from '@/components/embeds/MessageBuilder';
-import { TemplatesTab } from '@/components/embeds/TemplatesTab';
-import { ComponentsTab } from '@/components/embeds/ComponentsTab';
 import { UnsavedChangesBar } from '@/components/ui/UnsavedChangesBar';
 import { api, ServerDetail, ChannelItem } from '@/lib/api';
 import { getServerEmojis } from '@/components/embeds/emoji-data';
@@ -58,7 +56,7 @@ export default function ServerEmbedsPage() {
   const [loading, setLoading] = useState(true);
 
   // Top level active tab: 'builder' | 'templates' | 'components'
-  const [activeTopTab, setActiveTopTab] = useState<'builder' | 'templates' | 'components'>('builder');
+
 
   // Active message content & Type 17 Containers
   const [messageContent, setMessageContent] = useState<string>(INITIAL_SERVER_SAMPLE_STATE.messageContent);
@@ -168,12 +166,10 @@ export default function ServerEmbedsPage() {
     setMessageContent(state.message?.content || '');
     setContainers(JSON.parse(JSON.stringify(state.type17Containers || [])));
     setIsDirty(true);
-    setActiveTopTab('builder');
   };
 
   // Insert component from catalog into builder (1-click green button)
   const handleInsertComponentFromCatalog = (item: number | DiscordInnerComponent) => {
-    setActiveTopTab('builder');
     setIsDirty(true);
     const newComp = typeof item === 'number'
       ? ({ type: item as DiscordInnerComponent['type'], id: `comp_${Date.now()}` } as DiscordInnerComponent)
@@ -205,48 +201,7 @@ export default function ServerEmbedsPage() {
 
   return (
     <div className="embed-builder-root" style={{ minHeight: '800px', display: 'flex', flexDirection: 'column' }}>
-      
-      {/* Top Navigation Bar: [ Message Builder ] [ Templates ] [ Components ] */}
-      <header className="builder-top-nav" style={{ flexWrap: 'wrap', gap: '12px' }}>
-        <div className="main-tabs-cluster">
-          <button
-            type="button"
-            className={`main-tab-btn ${activeTopTab === 'builder' ? 'active' : ''}`}
-            onClick={() => setActiveTopTab('builder')}
-          >
-            <i className="fa-solid fa-code" />
-            <span>Message Builder</span>
-          </button>
-          <button
-            type="button"
-            className={`main-tab-btn ${activeTopTab === 'templates' ? 'active' : ''}`}
-            onClick={() => setActiveTopTab('templates')}
-          >
-            <i className="fa-solid fa-layer-group" />
-            <span>Templates</span>
-          </button>
-          <button
-            type="button"
-            className={`main-tab-btn ${activeTopTab === 'components' ? 'active' : ''}`}
-            onClick={() => setActiveTopTab('components')}
-          >
-            <i className="fa-solid fa-puzzle-piece" />
-            <span>Components</span>
-          </button>
-        </div>
-
-        {server && (
-          <div className="top-nav-actions" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div className="status-pill" style={{ background: 'rgba(225, 29, 46, 0.1)', borderColor: 'rgba(225, 29, 46, 0.3)', color: '#FF3B4D' }}>
-              <i className="fa-solid fa-server" />
-              <span>{server.name}</span>
-            </div>
-          </div>
-        )}
-      </header>
-
       {/* Main Tab Panels */}
-      {activeTopTab === 'builder' && (
         <MessageBuilder
           containers={containers}
           setContainers={handleSetContainers}
@@ -259,32 +214,6 @@ export default function ServerEmbedsPage() {
           serverChannels={channels}
           serverEmojis={serverEmojis}
         />
-      )}
-
-      {activeTopTab === 'templates' && (
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          <TemplatesTab
-            currentBuilderState={{
-              message: { content: messageContent },
-              type17Containers: containers
-            }}
-            onLoadTemplate={handleLoadTemplate}
-            allowCreate={false}
-            allowSearch={false}
-          />
-        </div>
-      )}
-
-      {activeTopTab === 'components' && (
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          <ComponentsTab
-            onInsertComponent={handleInsertComponentFromCatalog}
-            allowCreate={false}
-            allowSearch={false}
-          />
-        </div>
-      )}
-
       {/* Floating Discord-styled Unsaved Changes Action Bar */}
       <UnsavedChangesBar
         isDirty={isDirty}

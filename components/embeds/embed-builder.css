@@ -403,7 +403,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 3px;
+  border-radius: 4px;
 }
 .btn-container-close:hover {
   color: #ff5b69;

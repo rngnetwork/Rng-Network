@@ -377,14 +377,14 @@ export function SelectMenuSettingsModal({
                 borderTop: '1px solid rgba(255, 255, 255, 0.06)'
               }}
             >
-              <button
-                type="button"
-                className="btn-container-close"
-                style={{ padding: '8px 16px', borderRadius: '4px', background: 'rgba(255,255,255,0.08)' }}
-                onClick={onClose}
-              >
-                Cancel
-              </button>
+            <button
+              type="button"
+              className="sub-tab-btn"
+              style={{ padding: '8px 20px', borderRadius: '4px', background: 'rgba(255,255,255,0.08)' }}
+              onClick={onClose}
+            >
+              Cancel
+            </button>
               <button
                 type="button"
                 className="btn-dispatch-submit"
