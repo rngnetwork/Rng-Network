@@ -9,6 +9,7 @@ interface PreviewTabProps {
 }
 
 export function PreviewTab({
+  messageContent,
   containers
 }: PreviewTabProps) {
   // Comprehensive markdown tokenizer for live Discord preview
@@ -212,6 +213,13 @@ export function PreviewTab({
                 Today at {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
+
+            {/* Lead-in Message Content (Rendered as Discord Text Display) */}
+            {messageContent && messageContent.trim() && (
+              <div style={{ fontSize: '15px', color: '#dbdee1', lineHeight: '1.375', marginBottom: '8px', wordBreak: 'break-word' }}>
+                {renderDiscordMarkdown(messageContent)}
+              </div>
+            )}
 
             {/* Type 17 Containers */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
