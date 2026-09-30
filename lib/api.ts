@@ -123,6 +123,129 @@ export interface ChannelItem {
   parentId: string | null;
 }
 
+// ---------------------------------------------------------------------------
+// Embed Builder & Discord Components V2 Dispatch Contracts
+// ---------------------------------------------------------------------------
+export type DispatchType = 'IMMEDIATE_BOT' | 'IMMEDIATE_WEBHOOK' | 'SCHEDULED_BOT';
+
+export interface DispatchEmbedPayload {
+  serverId: string;
+  channelId?: string;
+  webhookUrl?: string;
+  dispatchType?: DispatchType;
+  payload: Record<string, unknown>;
+  dryRun?: boolean;
+  scheduledTime?: string;
+}
+
+export interface DispatchResponseData {
+  dispatchId: string;
+  status: string;
+  timestamp: string;
+  channelId?: string;
+  discordMessageId?: string;
+  isScheduled?: boolean;
+  errorMessage?: string;
+  latencyMs?: number;
+}
+
+export interface DryRunPayload {
+  serverId: string;
+  channelId?: string;
+  payload: Record<string, unknown>;
+}
+
+export interface BotPermissionCheck {
+  viewChannel: boolean;
+  sendMessages: boolean;
+  embedLinks: boolean;
+  attachFiles: boolean;
+}
+
+export interface DryRunValidationReportData {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  containerCount: number;
+  totalComponentCount: number;
+  totalActionRows: number;
+  cumulativeCharCount: number;
+  actionRowCount?: number;
+  characterCount?: number;
+  permissions?: BotPermissionCheck;
+  resolvedBotPermissions?: string[];
+}
+
+export interface PageData<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  first: boolean;
+  last: boolean;
+  empty: boolean;
+}
+
+export interface TemplateData {
+  id: string;
+  name: string;
+  description?: string;
+  serverId: string;
+  authorId: number;
+  authorUsername?: string;
+  tags: string[];
+  category: string;
+  public: boolean;
+  active: boolean;
+  version: number;
+  payloadJson: Record<string, unknown>;
+  components: unknown[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTemplatePayload {
+  name: string;
+  description?: string;
+  serverId: string;
+  category?: string;
+  tags?: string[];
+  isPublic?: boolean;
+  publicTemplate?: boolean;
+  payload?: Record<string, unknown>;
+  payloadJson?: Record<string, unknown>;
+  components?: unknown[];
+}
+
+export interface UpdateTemplatePayload {
+  name?: string;
+  description?: string;
+  category?: string;
+  tags?: string[];
+  isPublic?: boolean;
+  publicTemplate?: boolean;
+  active?: boolean;
+  payload?: Record<string, unknown>;
+  payloadJson?: Record<string, unknown>;
+  components?: unknown[];
+}
+
+export interface DispatchLogData {
+  id: string;
+  dispatchId: string;
+  type: string;
+  status: string;
+  serverId: string;
+  channelId: string;
+  operatorId: number;
+  operatorUsername?: string;
+  discordMessageId?: string;
+  errorMessage?: string;
+  latencyMs?: number;
+  timestamp: string;
+}
+
 export interface UpdateServerSettingsPayload {
   name: string;
   description?: string | null;
@@ -473,4 +596,56 @@ export const api = {
     await new Promise((r) => setTimeout(r, 600));
     return { success: true, message: 'Access request submitted for review.' };
   },
-};
+
+// ---------------------------------------------------------------------------
+// Offline Fallback Helpers (§8.3)
+// ---------------------------------------------------------------------------
+export function generateMockSnowflake(): string {
+  const DISCORD_EPOCH = BigInt("1420070400000");
+  const now = BigInt(Date.now());
+  const timestamp = (now - DISCORD_EPOCH) << BigInt(22);
+  const random = BigInt(Math.floor(Math.random() * 0x3fffff));
+  return (timestamp | random).toString();
+}
+
+function getStoredAccessToken(): string {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('accessToken') || '';
+}
+
+function getLocalStored<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function setLocalStored<T>(key: string, value: T): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    console.warn(`[LocalStorage] Failed to persist ${key}:`, e);
+  }
+}
+
+export async function requestWithFallback<T>(
+  requestFn: () => Promise<ApiResponseEnvelope<T>>,
+  fallbackFn: () => T | Promise<T>,
+  fallbackMessage: string = 'Operation executed via offline local simulation.'
+): Promise<ApiResponseEnvelope<T>> {
+  try {
+    return await requestFn();
+  } catch (error: unknown) {
+    console.warn('[OfflineFallback] Backend unavailable or failed, utilizing offline simulation:', error);
+    const data = await fallbackFn();
+    return {
+      success: true,
+      message: fallbackMessage,
+      data,
+    };
+  }
+}
