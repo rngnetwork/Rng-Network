@@ -89,6 +89,20 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ApiResponse<Void>> handleBadRequest(BadRequestException ex) {
+        log.warn("Bad request: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(InternalServerException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInternalServerException(InternalServerException ex) {
+        log.error("Internal server exception: {}", ex.getMessage(), ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
     @ExceptionHandler(ServiceUnavailableException.class)
     public ResponseEntity<ApiResponse<Void>> handleServiceUnavailable(ServiceUnavailableException ex) {
         log.warn("Service unavailable: {}", ex.getMessage());
