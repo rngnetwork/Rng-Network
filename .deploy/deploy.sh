@@ -25,7 +25,7 @@ echo "======================================================================"
 
 # Detect if systemd is active as PID 1 (avoids container warning messages)
 has_systemd() {
-    [ -d /run/systemd/system ] && command -v systemctl &>/dev/null
+    [ "$(ps -p 1 -o comm= 2>/dev/null)" = "systemd" ] && command -v systemctl &>/dev/null
 }
 
 # Universal TCP port probe (Bash /dev/tcp with nc fallback)
