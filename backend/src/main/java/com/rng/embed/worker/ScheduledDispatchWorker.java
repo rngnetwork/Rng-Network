@@ -58,6 +58,8 @@ public class ScheduledDispatchWorker {
         this.redisTemplate = redisTemplate;
     }
 
+    private boolean redisWarned = false;
+
     @Scheduled(fixedDelay = 5000)
     public void processScheduledQueue() {
         if (redisTemplate == null) {
@@ -65,9 +67,21 @@ public class ScheduledDispatchWorker {
         }
 
         String workerLockId = UUID.randomUUID().toString();
-        Boolean acquired = redisTemplate.opsForValue().setIfAbsent(POLLER_LOCK_KEY, workerLockId, Duration.ofSeconds(LOCK_TTL_SECONDS));
-        if (!Boolean.TRUE.equals(acquired)) {
-            return; // Another worker instance is currently polling
+        try {
+            Boolean acquired = redisTemplate.opsForValue().setIfAbsent(POLLER_LOCK_KEY, workerLockId, Duration.ofSeconds(LOCK_TTL_SECONDS));
+            if (!Boolean.TRUE.equals(acquired)) {
+                return; // Another worker instance is currently polling
+            }
+            if (redisWarned) {
+                log.info("Redis connection established. Scheduled dispatch poller active.");
+                redisWarned = false;
+            }
+        } catch (Exception e) {
+            if (!redisWarned) {
+                log.warn("Redis connection unavailable for scheduled dispatch poller ({}). Scheduled queue processing paused until Redis reconnects.", e.getMessage());
+                redisWarned = true;
+            }
+            return;
         }
 
         try {
