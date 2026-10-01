@@ -1,6 +1,18 @@
 const rawBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 const API_BASE = rawBase.replace(/\/api\/v1\/?$/, '').replace(/\/$/, '');
 
+export class ApiHttpError extends Error {
+  status: number;
+  data?: unknown;
+
+  constructor(message: string, status: number, data?: unknown) {
+    super(message);
+    this.name = 'ApiHttpError';
+    this.status = status;
+    this.data = data;
+  }
+}
+
 export interface ApiResponseEnvelope<T> {
   success: boolean;
   message: string;
@@ -713,8 +725,10 @@ export const api = {
           }
         }
 
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'Dispatch failed');
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new ApiHttpError(data.message || `Dispatch failed with status ${response.status}`, response.status, data);
+        }
         return data;
       },
       () => {
@@ -785,8 +799,10 @@ export const api = {
           }
         }
 
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'Multipart dispatch failed');
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new ApiHttpError(data.message || `Multipart dispatch failed with status ${response.status}`, response.status, data);
+        }
         return data;
       },
       () => {
@@ -846,8 +862,10 @@ export const api = {
           }
         }
 
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'Schedule request failed');
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new ApiHttpError(data.message || `Schedule request failed with status ${response.status}`, response.status, data);
+        }
         return data;
       },
       () => {
@@ -1389,6 +1407,9 @@ export async function requestWithFallback<T>(
   try {
     return await requestFn();
   } catch (error: unknown) {
+    if (error instanceof ApiHttpError) {
+      throw error;
+    }
     console.warn('[OfflineFallback] Backend unavailable or failed, utilizing offline simulation:', error);
     const data = await fallbackFn();
     return {

@@ -37,6 +37,7 @@ export interface MessageBuilderProps {
     isScheduled: boolean;
     scheduleTime?: string;
   }) => Promise<void> | void;
+  lockServer?: boolean;
 }
 
 export function MessageBuilder({
@@ -52,7 +53,8 @@ export function MessageBuilder({
   serverEmojis = [],
   availableServers = [],
   onSelectServer,
-  onDispatchPayload
+  onDispatchPayload,
+  lockServer = false
 }: MessageBuilderProps) {
   const [activeSubTab, setActiveSubTab] = useState<'edit' | 'preview' | 'raw' | 'dispatch' | 'templates'>('edit');
 
@@ -391,6 +393,7 @@ export function MessageBuilder({
           availableServers={availableServers}
           onSelectServer={onSelectServer}
           onDispatchPayload={onDispatchPayload}
+          lockServer={lockServer}
         />
       )}
 

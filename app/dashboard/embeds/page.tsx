@@ -228,8 +228,10 @@ export default function EmbedsPage() {
           availableServers={servers}
           serverChannels={serverChannels}
           serverId={selectedServerId}
+          serverName={servers.find((s) => s.id === selectedServerId)?.name}
           onSelectServer={handleSelectServer}
           onDispatchPayload={handleDispatchPayload}
+          lockServer={false}
         />
       )}
 

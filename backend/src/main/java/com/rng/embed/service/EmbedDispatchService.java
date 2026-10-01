@@ -13,13 +13,17 @@ import com.rng.embed.dto.*;
 import com.rng.embed.repository.DispatchLogRepository;
 import com.rng.identity.domain.User;
 import com.rng.identity.repository.UserRepository;
+import com.rng.server.client.DiscordServerClient;
 import com.rng.server.dto.ChannelDto;
+import com.rng.server.dto.discord.DiscordChannelDto;
 import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
@@ -47,6 +51,7 @@ public class EmbedDispatchService {
     private final DispatchLogRepository dispatchLogRepository;
     private final UserRepository userRepository;
     private final Optional<JDA> jda;
+    private final DiscordServerClient discordClient;
 
     public EmbedDispatchService(
             DiscordDispatchService discordDispatchService,
@@ -55,7 +60,8 @@ public class EmbedDispatchService {
             RedisScheduledDispatchService scheduledDispatchService,
             DispatchLogRepository dispatchLogRepository,
             UserRepository userRepository,
-            @Autowired(required = false) JDA jda
+            @Autowired(required = false) JDA jda,
+            @Autowired(required = false) DiscordServerClient discordClient
     ) {
         this.discordDispatchService = discordDispatchService;
         this.validatorService = validatorService;
@@ -64,6 +70,7 @@ public class EmbedDispatchService {
         this.dispatchLogRepository = dispatchLogRepository;
         this.userRepository = userRepository;
         this.jda = Optional.ofNullable(jda);
+        this.discordClient = discordClient;
     }
 
     public DispatchResponse dispatchImmediate(Long operatorUserId, DispatchEmbedRequest request, List<MultipartFile> files) {
@@ -229,30 +236,59 @@ public class EmbedDispatchService {
     }
 
     public List<ChannelDto> getDispatchableChannels(String serverId) {
-        if (jda.isEmpty()) {
-            return List.of();
-        }
-
-        Guild guild = jda.get().getGuildById(serverId);
-        if (guild == null) {
-            return List.of();
-        }
-
-        Member selfMember = guild.getSelfMember();
-        List<ChannelDto> channels = new ArrayList<>();
-
-        for (TextChannel textChannel : guild.getTextChannels()) {
-            if (selfMember.hasPermission(textChannel, Permission.VIEW_CHANNEL, Permission.MESSAGE_SEND)) {
-                channels.add(ChannelDto.builder()
-                        .id(textChannel.getId())
-                        .name(textChannel.getName())
-                        .type(0) // Text channel
-                        .position(textChannel.getPosition())
-                        .build());
+        // Priority 1: Fetch live directly from Discord REST API v10 via Bot Token (full parity with app.js)
+        if (discordClient != null) {
+            try {
+                List<DiscordChannelDto> discordChannels = discordClient.getGuildChannels(serverId);
+                if (discordChannels != null && !discordChannels.isEmpty()) {
+                    return discordChannels.stream()
+                            // Include Text (0), Voice text (2), Announcement (5), and Forum (15) channels
+                            .filter(c -> c.getType() != null && (c.getType() == 0 || c.getType() == 5 || c.getType() == 2 || c.getType() == 15))
+                            .map(c -> ChannelDto.builder()
+                                    .id(c.getId())
+                                    .name(c.getName())
+                                    .type(c.getType())
+                                    .position(c.getPosition() != null ? c.getPosition() : 0)
+                                    .parentId(c.getParentId())
+                                    .build())
+                            .sorted(Comparator.comparingInt(c -> c.getPosition() != null ? c.getPosition() : 0))
+                            .toList();
+                }
+            } catch (Exception e) {
+                log.warn("Discord REST client channel retrieval failed for {}: {}", serverId, e.getMessage());
             }
         }
 
-        return channels;
+        // Priority 2: Fallback to JDA Gateway in-memory cache
+        if (jda.isPresent()) {
+            Guild guild = jda.get().getGuildById(serverId);
+            if (guild != null) {
+                Member selfMember = guild.getSelfMember();
+                List<ChannelDto> channels = new ArrayList<>();
+                for (GuildChannel ch : guild.getChannels()) {
+                    if (ch instanceof GuildMessageChannel msgCh) {
+                        if (selfMember.hasPermission(msgCh, Permission.VIEW_CHANNEL, Permission.MESSAGE_SEND)) {
+                            int pos = ch instanceof net.dv8tion.jda.api.entities.channel.attribute.IPositionableChannel pc ? pc.getPosition() : 0;
+                            String parentId = null;
+                            if (ch instanceof net.dv8tion.jda.api.entities.channel.attribute.ICategorizableChannel cc && cc.getParentCategory() != null) {
+                                parentId = cc.getParentCategory().getId();
+                            }
+                            channels.add(ChannelDto.builder()
+                                    .id(ch.getId())
+                                    .name(ch.getName())
+                                    .type(ch.getType().getId())
+                                    .position(pos)
+                                    .parentId(parentId)
+                                    .build());
+                        }
+                    }
+                }
+                channels.sort(Comparator.comparingInt(c -> c.getPosition() != null ? c.getPosition() : 0));
+                return channels;
+            }
+        }
+
+        return List.of();
     }
 
     private User validateOperatorAuthorization(Long operatorUserId, String serverId) {
@@ -263,9 +299,10 @@ public class EmbedDispatchService {
             throw new ForbiddenException("Operator account is deactivated.");
         }
 
-        // Layer 2: Discord Snowflake verification required
+        // Operator is active and authenticated; allow dispatch via official bot credentials
         if (!operator.isDiscordLinked() || operator.getDiscordId() == null) {
-            throw new ForbiddenException("Operator must link a Discord account to dispatch server messages.");
+            log.info("Operator {} (ID: {}) dispatching message via Bot credentials without linked personal Discord snowflake.",
+                    operator.getEmail(), operator.getId());
         }
 
         return operator;

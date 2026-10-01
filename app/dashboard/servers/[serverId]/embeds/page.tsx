@@ -247,6 +247,7 @@ export default function ServerEmbedsPage() {
         serverChannels={channels}
         serverEmojis={serverEmojis}
         onDispatchPayload={handleDispatchPayload}
+        lockServer={true}
       />
 
       {/* Floating Discord-styled Unsaved Changes Action Bar */}

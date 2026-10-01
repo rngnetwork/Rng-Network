@@ -29,6 +29,7 @@ interface DispatchTabProps {
     isScheduled: boolean;
     scheduleTime?: string;
   }) => Promise<void> | void;
+  lockServer?: boolean;
 }
 
 export function DispatchTab({
@@ -39,7 +40,8 @@ export function DispatchTab({
   serverChannels = [],
   availableServers = [],
   onSelectServer,
-  onDispatchPayload
+  onDispatchPayload,
+  lockServer = false
 }: DispatchTabProps) {
   // 1. Heading & Subheading
   const heading = "Dispatch Embed Message!";
@@ -59,7 +61,7 @@ export function DispatchTab({
   const [isDispatching, setIsDispatching] = useState(false);
 
   // Derived Server & Channel Selection (computed purely during render)
-  const selectedServer = serverId || userSelectedServer || (availableServers.length > 0 ? availableServers[0].id : 'server_rng_hq');
+  const selectedServer = userSelectedServer || serverId || (availableServers.length > 0 ? availableServers[0].id : '');
 
   const activeChannelId = useMemo(() => {
     if (userSelectedChannel && serverChannels.some((c) => c.id === userSelectedChannel)) {
@@ -68,7 +70,7 @@ export function DispatchTab({
     if (serverChannels.length > 0) {
       return serverChannels[0].id;
     }
-    return userSelectedChannel || 'channel_announcements';
+    return userSelectedChannel || '';
   }, [userSelectedChannel, serverChannels]);
 
   // Pre-Flight Validation Report
@@ -105,12 +107,26 @@ export function DispatchTab({
   }, [availableServers]);
 
   const channelDropdownOptions: DropdownOption[] = useMemo(() => {
-    return (serverChannels || []).map((ch) => ({
-      value: ch.id,
-      label: `#${ch.name}`,
-      description: `Channel ID: ${ch.id}`,
-      badge: ch.type === 2 ? 'Voice' : 'Text'
-    }));
+    return (serverChannels || []).map((ch) => {
+      let badge = 'Text';
+      let icon = '#';
+      if (ch.type === 5) {
+        badge = 'Announcement';
+        icon = '📢';
+      } else if (ch.type === 2) {
+        badge = 'Voice';
+        icon = '🔊';
+      } else if (ch.type === 15) {
+        badge = 'Forum';
+        icon = '💬';
+      }
+      return {
+        value: ch.id,
+        label: `${icon} ${ch.name}`,
+        description: `Channel ID: ${ch.id}`,
+        badge
+      };
+    });
   }, [serverChannels]);
 
   const handleServerChange = (newServerId: string) => {
@@ -226,7 +242,7 @@ export function DispatchTab({
               <label style={{ fontSize: '12px', fontWeight: 600, color: '#dbdee1' }}>
                 Select your Server:
               </label>
-              {serverId ? (
+              {lockServer ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', height: '42px', padding: '0 12px', background: '#090a0d', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', color: '#fff', fontSize: '13px' }}>
                   <i className="fa-brands fa-discord text-indigo-400" />
                   <span style={{ fontWeight: 600 }}>{serverName || 'Active Discord Server'}</span>
