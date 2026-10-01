@@ -15,9 +15,4 @@ public interface DiscordDispatchService {
      * Dispatch Discord Components V2 message to a target channel using bot credentials.
      */
     JsonNode dispatchToChannel(String channelId, Map<String, Object> payload, List<Resource> fileAttachments);
-
-    /**
-     * Dispatch Discord Components V2 message to an incoming webhook endpoint.
-     */
-    JsonNode dispatchToWebhook(String webhookId, String webhookToken, Map<String, Object> payload, List<Resource> fileAttachments);
 }

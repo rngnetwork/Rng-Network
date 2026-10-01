@@ -44,7 +44,7 @@ class DiscordDispatchServiceTest {
 
         assertThatThrownBy(() -> invalidTokenService.dispatchToChannel("12345", Map.of(), null))
                 .isInstanceOf(UnauthorizedException.class)
-                .hasMessageContaining("Discord Bot Token is unconfigured or blank");
+                .hasMessageContaining("Discord Bot Token (DISCORD_BOT_TOKEN) is not configured");
     }
 
     @Test

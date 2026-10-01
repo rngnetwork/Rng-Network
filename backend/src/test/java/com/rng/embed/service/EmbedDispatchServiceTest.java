@@ -8,7 +8,6 @@ import com.rng.embed.dto.DispatchEmbedRequest;
 import com.rng.embed.dto.DispatchResponse;
 import com.rng.embed.dto.DryRunValidationResponse;
 import com.rng.embed.repository.DispatchLogRepository;
-import com.rng.embed.security.WebhookCryptoService;
 import com.rng.identity.domain.User;
 import com.rng.identity.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,9 +46,6 @@ class EmbedDispatchServiceTest {
     @Mock
     private UserRepository userRepository;
 
-    @Mock
-    private WebhookCryptoService cryptoService;
-
     private final ObjectMapper objectMapper = new ObjectMapper();
     private EmbedDispatchService dispatchService;
 
@@ -62,7 +58,6 @@ class EmbedDispatchServiceTest {
                 scheduledDispatchService,
                 dispatchLogRepository,
                 userRepository,
-                cryptoService,
                 null
         );
     }
@@ -80,7 +75,7 @@ class EmbedDispatchServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(unlinkedUser));
 
         DispatchEmbedRequest request = new DispatchEmbedRequest(
-                "guild_1", "chan_1", DispatchType.IMMEDIATE, null, null, Map.of("flags", 32768), null
+                "guild_1", "chan_1", DispatchType.IMMEDIATE, null, Map.of("flags", 32768), null
         );
 
         assertThatThrownBy(() -> dispatchService.dispatchImmediate(1L, request, null))
@@ -107,7 +102,7 @@ class EmbedDispatchServiceTest {
                 .thenReturn(objectMapper.readTree("{\"id\":\"1122334455\"}"));
 
         DispatchEmbedRequest request = new DispatchEmbedRequest(
-                "guild_1", "chan_1", DispatchType.IMMEDIATE, null, null, Map.of("flags", 32768), null
+                "guild_1", "chan_1", DispatchType.IMMEDIATE, null, Map.of("flags", 32768), null
         );
 
         DispatchResponse response = dispatchService.dispatchImmediate(1L, request, null);

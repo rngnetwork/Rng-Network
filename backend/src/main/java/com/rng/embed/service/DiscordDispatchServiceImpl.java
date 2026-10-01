@@ -74,24 +74,14 @@ public class DiscordDispatchServiceImpl implements DiscordDispatchService {
     public JsonNode dispatchToChannel(String channelId, Map<String, Object> payload, List<Resource> fileAttachments) {
         String url = DISCORD_API_BASE + "/channels/" + channelId + "/messages";
         String token = cleanToken(botToken);
-        if (token.isBlank()) {
-            throw new UnauthorizedException("Discord Bot Token is unconfigured or blank.");
+        if (token.isBlank() || token.equalsIgnoreCase("your-discord-bot-token")) {
+            throw new UnauthorizedException("Discord Bot Token (DISCORD_BOT_TOKEN) is not configured in .env. Please set a valid Discord Bot Token.");
         }
 
         return executeWithRetry(() -> {
             RestClient.RequestBodySpec requestSpec = restClient.post()
                     .uri(url)
                     .header(HttpHeaders.AUTHORIZATION, "Bot " + token);
-            return sendRequest(requestSpec, payload, fileAttachments);
-        });
-    }
-
-    @Override
-    public JsonNode dispatchToWebhook(String webhookId, String webhookToken, Map<String, Object> payload, List<Resource> fileAttachments) {
-        String url = DISCORD_API_BASE + "/webhooks/" + webhookId + "/" + webhookToken + "?wait=true&with_components=true";
-
-        return executeWithRetry(() -> {
-            RestClient.RequestBodySpec requestSpec = restClient.post().uri(url);
             return sendRequest(requestSpec, payload, fileAttachments);
         });
     }
@@ -157,6 +147,9 @@ public class DiscordDispatchServiceImpl implements DiscordDispatchService {
                     Thread.currentThread().interrupt();
                     throw new InternalServerException("Dispatch interrupted during rate-limit backoff", ie);
                 }
+            } catch (HttpClientErrorException.Unauthorized e) {
+                log.error("Discord API 401 Unauthorized - Invalid or expired bot credentials: {}", e.getMessage());
+                throw new UnauthorizedException("Discord API rejected bot credentials (401 Unauthorized). Please check DISCORD_BOT_TOKEN in .env and verify the bot is in the server.");
             } catch (HttpClientErrorException.BadRequest e) {
                 throw new BadRequestException("Discord rejected payload (400 Bad Request): " + e.getResponseBodyAsString());
             } catch (HttpClientErrorException.Forbidden e) {

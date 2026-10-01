@@ -19,7 +19,6 @@ public record ScheduledTaskDto(
     DispatchType dispatchType,
     Instant scheduledFor,
     Map<String, Object> payload,
-    String webhookUrl,
     int attemptCount,
     Instant createdAt,
     String lastError

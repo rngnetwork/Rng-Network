@@ -23,5 +23,7 @@ public interface DispatchLogRepository extends MongoRepository<DispatchLog, Stri
 
     Page<DispatchLog> findByUserIdOrderByTimestampDesc(String userId, Pageable pageable);
 
+    Page<DispatchLog> findByStatusOrderByTimestampDesc(DispatchStatus status, Pageable pageable);
+
     long countByStatus(DispatchStatus status);
 }

@@ -138,7 +138,7 @@ public class EmbedTemplateService {
                 .orElseThrow(() -> new UnauthorizedException("Authenticated operator record not found."));
 
         boolean isAuthor = String.valueOf(operatorUserId).equals(template.getAuthorId());
-        boolean isHighCommand = operator.getRole().contains("HIGH_COMMAND") || operator.getRole().contains("SUPER_ADMIN");
+        boolean isHighCommand = com.rng.identity.domain.PersonnelHierarchy.isHighCommand(operator);
         if (!isAuthor && !isHighCommand) {
             throw new ForbiddenException("Only the original template author or High Command may delete this template.");
         }

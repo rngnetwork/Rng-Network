@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Payload requesting immediate, scheduled, or webhook dispatch of a Discord V2 embed.
+ * Payload requesting immediate or scheduled bot dispatch of a Discord V2 embed.
  */
 public record DispatchEmbedRequest(
     @NotBlank(message = "serverId is required")
@@ -22,8 +22,6 @@ public record DispatchEmbedRequest(
     DispatchType dispatchType,
 
     Instant scheduledFor,
-
-    String webhookUrl,
 
     @NotNull(message = "payload is required")
     Map<String, Object> payload,

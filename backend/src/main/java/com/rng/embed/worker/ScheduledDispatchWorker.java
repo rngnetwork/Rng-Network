@@ -126,13 +126,7 @@ public class ScheduledDispatchWorker {
         // 3. Dispatch execution
         long start = System.currentTimeMillis();
         try {
-            JsonNode result;
-            if (task.webhookUrl() != null && !task.webhookUrl().isBlank()) {
-                String[] parts = parseWebhookUrl(task.webhookUrl());
-                result = discordDispatchService.dispatchToWebhook(parts[0], parts[1], task.payload(), null);
-            } else {
-                result = discordDispatchService.dispatchToChannel(task.channelId(), task.payload(), null);
-            }
+            JsonNode result = discordDispatchService.dispatchToChannel(task.channelId(), task.payload(), null);
 
             long latency = System.currentTimeMillis() - start;
             String messageSnowflake = result != null && result.has("id") ? result.get("id").asText() : null;
@@ -186,20 +180,5 @@ public class ScheduledDispatchWorker {
             }
             dispatchLogRepository.save(logEntry);
         }
-    }
-
-    private String[] parseWebhookUrl(String webhookUrl) {
-        // Discord Webhook format: https://discord.com/api/webhooks/{webhookId}/{webhookToken}
-        String clean = webhookUrl.trim();
-        int idx = clean.indexOf("/webhooks/");
-        if (idx == -1) {
-            throw new IllegalArgumentException("Invalid Discord webhook URL format: " + webhookUrl);
-        }
-        String sub = clean.substring(idx + "/webhooks/".length());
-        String[] parts = sub.split("/");
-        if (parts.length < 2) {
-            throw new IllegalArgumentException("Invalid Discord webhook URL format: " + webhookUrl);
-        }
-        return new String[]{parts[0], parts[1]};
     }
 }

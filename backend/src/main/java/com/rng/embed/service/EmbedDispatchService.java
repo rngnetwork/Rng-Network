@@ -11,7 +11,6 @@ import com.rng.embed.domain.DispatchStatus;
 import com.rng.embed.domain.DispatchType;
 import com.rng.embed.dto.*;
 import com.rng.embed.repository.DispatchLogRepository;
-import com.rng.embed.security.WebhookCryptoService;
 import com.rng.identity.domain.User;
 import com.rng.identity.repository.UserRepository;
 import com.rng.server.dto.ChannelDto;
@@ -47,7 +46,6 @@ public class EmbedDispatchService {
     private final RedisScheduledDispatchService scheduledDispatchService;
     private final DispatchLogRepository dispatchLogRepository;
     private final UserRepository userRepository;
-    private final WebhookCryptoService cryptoService;
     private final Optional<JDA> jda;
 
     public EmbedDispatchService(
@@ -57,7 +55,6 @@ public class EmbedDispatchService {
             RedisScheduledDispatchService scheduledDispatchService,
             DispatchLogRepository dispatchLogRepository,
             UserRepository userRepository,
-            WebhookCryptoService cryptoService,
             @Autowired(required = false) JDA jda
     ) {
         this.discordDispatchService = discordDispatchService;
@@ -66,12 +63,11 @@ public class EmbedDispatchService {
         this.scheduledDispatchService = scheduledDispatchService;
         this.dispatchLogRepository = dispatchLogRepository;
         this.userRepository = userRepository;
-        this.cryptoService = cryptoService;
         this.jda = Optional.ofNullable(jda);
     }
 
     public DispatchResponse dispatchImmediate(Long operatorUserId, DispatchEmbedRequest request, List<MultipartFile> files) {
-        User operator = validateOperatorAuthorization(operatorUserId, request.serverId(), request.dispatchType());
+        User operator = validateOperatorAuthorization(operatorUserId, request.serverId());
 
         // 1. Rate limit quota check
         rateLimiterService.checkRateLimits(request.serverId(), request.channelId(), String.valueOf(operatorUserId));
@@ -87,13 +83,7 @@ public class EmbedDispatchService {
 
         // 4. Outbound dispatch execution
         long start = System.currentTimeMillis();
-        JsonNode responseNode;
-        if (request.dispatchType() == DispatchType.WEBHOOK) {
-            String[] parts = cryptoService.parseAndValidateWebhookUrl(request.webhookUrl());
-            responseNode = discordDispatchService.dispatchToWebhook(parts[0], parts[1], request.payload(), resources);
-        } else {
-            responseNode = discordDispatchService.dispatchToChannel(request.channelId(), request.payload(), resources);
-        }
+        JsonNode responseNode = discordDispatchService.dispatchToChannel(request.channelId(), request.payload(), resources);
         long latency = System.currentTimeMillis() - start;
         String messageSnowflake = responseNode != null && responseNode.has("id") ? responseNode.get("id").asText() : null;
 
@@ -118,15 +108,17 @@ public class EmbedDispatchService {
 
         return DispatchResponse.builder()
                 .dispatchId(dispatchId)
-                .discordMessageId(messageSnowflake)
                 .status(DispatchStatus.SUCCESS)
+                .discordMessageId(messageSnowflake)
                 .timestamp(Instant.now())
                 .latencyMs(latency)
                 .build();
     }
 
     public DispatchResponse scheduleDispatch(Long operatorUserId, DispatchEmbedRequest request) {
-        User operator = validateOperatorAuthorization(operatorUserId, request.serverId(), request.dispatchType());
+        User operator = validateOperatorAuthorization(operatorUserId, request.serverId());
+
+        rateLimiterService.checkRateLimits(request.serverId(), request.channelId(), String.valueOf(operatorUserId));
 
         Instant minAllowedTime = Instant.now().plus(Duration.ofMinutes(2)).minusSeconds(5);
         if (request.scheduledFor() == null || request.scheduledFor().isBefore(minAllowedTime)) {
@@ -165,7 +157,6 @@ public class EmbedDispatchService {
                 .dispatchType(request.dispatchType())
                 .scheduledFor(request.scheduledFor())
                 .payload(request.payload())
-                .webhookUrl(request.webhookUrl())
                 .createdAt(Instant.now())
                 .build();
         scheduledDispatchService.scheduleTask(task);
@@ -188,58 +179,57 @@ public class EmbedDispatchService {
                 .orElseThrow(() -> new UnauthorizedException("Authenticated operator not found."));
 
         boolean isAuthor = String.valueOf(operatorUserId).equals(logEntry.getUserId());
-        boolean isHighCommand = operator.getRole().contains("HIGH_COMMAND") || operator.getRole().contains("SUPER_ADMIN");
+        boolean isHighCommand = com.rng.identity.domain.PersonnelHierarchy.isHighCommand(operator);
+
         if (!isAuthor && !isHighCommand) {
-            throw new ForbiddenException("Only the author or High Command may cancel this scheduled dispatch.");
+            throw new ForbiddenException("Only the author or High Command may cancel a scheduled dispatch.");
         }
 
-        scheduledDispatchService.cancelTask(dispatchId);
-
+        boolean removed = scheduledDispatchService.cancelTask(dispatchId);
         logEntry.setStatus(DispatchStatus.CANCELLED);
-        logEntry.setErrorMessage("Manually cancelled by operator: " + operator.getEmail());
+        logEntry.setErrorMessage("Dispatch cancelled by operator " + operator.getEmail());
         dispatchLogRepository.save(logEntry);
 
-        log.info("Cancelled scheduled dispatch {} by operator {}", dispatchId, operator.getEmail());
-        return true;
+        log.info("Operator {} cancelled scheduled dispatch {}", operator.getEmail(), dispatchId);
+        return removed;
     }
 
     public DryRunValidationResponse testDryRun(Long operatorUserId, DryRunValidationRequest request) {
-        validateOperatorAuthorization(operatorUserId, request.serverId(), DispatchType.IMMEDIATE);
+        validateOperatorAuthorization(operatorUserId, request.serverId());
         return validatorService.validate(request.serverId(), request.channelId(), request.payload());
     }
 
     public Page<DispatchLogResponse> getDispatchLogs(String serverId, DispatchStatus status, Pageable pageable) {
-        Page<DispatchLog> logs;
+        Page<DispatchLog> page;
         if (serverId != null && !serverId.isBlank() && status != null) {
-            logs = dispatchLogRepository.findByServerIdAndStatusOrderByTimestampDesc(serverId, status, pageable);
+            page = dispatchLogRepository.findByServerIdAndStatusOrderByTimestampDesc(serverId, status, pageable);
         } else if (serverId != null && !serverId.isBlank()) {
-            logs = dispatchLogRepository.findByServerIdOrderByTimestampDesc(serverId, pageable);
+            page = dispatchLogRepository.findByServerIdOrderByTimestampDesc(serverId, pageable);
+        } else if (status != null) {
+            page = dispatchLogRepository.findByStatusOrderByTimestampDesc(status, pageable);
         } else {
-            logs = dispatchLogRepository.findAll(pageable);
+            page = dispatchLogRepository.findAll(pageable);
         }
 
-        return logs.map(l -> DispatchLogResponse.builder()
-                .id(l.getId())
-                .dispatchId(l.getDispatchId())
-                .userId(l.getUserId())
-                .userEmail(l.getUserEmail())
-                .serverId(l.getServerId())
-                .serverName(l.getServerName())
-                .channelId(l.getChannelId())
-                .channelName(l.getChannelName())
-                .dispatchType(l.getDispatchType())
-                .status(l.getStatus())
-                .discordMessageId(l.getDiscordMessageId())
-                .errorMessage(l.getErrorMessage())
-                .latencyMs(l.getLatencyMs())
-                .payloadSnapshot(l.getPayloadSnapshot())
-                .scheduledFor(l.getScheduledFor())
-                .timestamp(l.getTimestamp())
+        return page.map(logItem -> DispatchLogResponse.builder()
+                .id(logItem.getId())
+                .dispatchId(logItem.getDispatchId())
+                .serverId(logItem.getServerId())
+                .channelId(logItem.getChannelId())
+                .userId(logItem.getUserId())
+                .userEmail(logItem.getUserEmail())
+                .dispatchType(logItem.getDispatchType())
+                .status(logItem.getStatus())
+                .discordMessageId(logItem.getDiscordMessageId())
+                .latencyMs(logItem.getLatencyMs())
+                .errorMessage(logItem.getErrorMessage())
+                .scheduledFor(logItem.getScheduledFor())
+                .timestamp(logItem.getTimestamp())
                 .build());
     }
 
     public List<ChannelDto> getDispatchableChannels(String serverId) {
-        if (jda.isEmpty() || jda.get().getStatus() != JDA.Status.CONNECTED) {
+        if (jda.isEmpty()) {
             return List.of();
         }
 
@@ -265,16 +255,16 @@ public class EmbedDispatchService {
         return channels;
     }
 
-    private User validateOperatorAuthorization(Long operatorUserId, String serverId, DispatchType dispatchType) {
+    private User validateOperatorAuthorization(Long operatorUserId, String serverId) {
         User operator = userRepository.findById(operatorUserId)
-                .orElseThrow(() -> new UnauthorizedException("Authenticated operator record not found."));
+                .orElseThrow(() -> new UnauthorizedException("Authenticated operator record not found. Please log in again."));
 
         if (!operator.isActive()) {
             throw new ForbiddenException("Operator account is deactivated.");
         }
 
-        // Layer 2: Discord Snowflake verification required for non-webhook dispatches
-        if (dispatchType != DispatchType.WEBHOOK && (!operator.isDiscordLinked() || operator.getDiscordId() == null)) {
+        // Layer 2: Discord Snowflake verification required
+        if (!operator.isDiscordLinked() || operator.getDiscordId() == null) {
             throw new ForbiddenException("Operator must link a Discord account to dispatch server messages.");
         }
 
