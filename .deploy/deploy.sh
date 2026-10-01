@@ -40,9 +40,7 @@ check_port() {
 ensure_docker_container() {
     local name=$1
     local port=$2
-    local image=$3
-    shift 3
-    local extra_args=("$@")
+    shift 2
 
     if check_port "$port"; then
         return 0
@@ -66,8 +64,8 @@ ensure_docker_container() {
         docker rm -f "$name" >/dev/null 2>&1 || true
     fi
 
-    echo "  -> Launching fresh Docker container '${name}' (${image})..."
-    docker run -d --name "$name" -p "${port}:${port}" "${extra_args[@]}" "$image" >/dev/null 2>&1 || true
+    echo "  -> Launching fresh Docker container '${name}'..."
+    docker run -d --name "$name" -p "${port}:${port}" "$@" >/dev/null 2>&1 || true
 }
 
 # ------------------------------------------------------------------------------
@@ -86,6 +84,11 @@ if command -v apt-get &> /dev/null; then
         echo "  -> Node.js not found. Installing Node.js 20.x via apt-get..."
         curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
         sudo apt-get install -y nodejs
+    fi
+    # Check Redis
+    if ! command -v redis-server &> /dev/null && ! command -v docker &> /dev/null; then
+        echo "  -> Redis not found. Installing redis-server via apt-get..."
+        sudo apt-get update && sudo apt-get install -y redis-server 2>/dev/null || true
     fi
     # Check PostgreSQL
     if ! command -v psql &> /dev/null && ! command -v docker &> /dev/null; then
@@ -155,11 +158,12 @@ else
     fi
     if ! check_port 5432 && command -v docker &> /dev/null; then
         echo "  -> Starting PostgreSQL Docker container (rng_postgres)..."
-        ensure_docker_container "rng_postgres" "5432" "postgres:16-alpine" \
+        ensure_docker_container "rng_postgres" "5432" \
             -e "POSTGRES_DB=${DB_NAME:-rng_db}" \
             -e "POSTGRES_USER=${DB_USERNAME:-postgres}" \
             -e "POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}" \
-            -v rng_postgres_data:/var/lib/postgresql/data
+            -v rng_postgres_data:/var/lib/postgresql/data \
+            postgres:16-alpine
     fi
 fi
 
@@ -199,8 +203,9 @@ else
     fi
     if ! check_port 6379 && command -v docker &> /dev/null; then
         echo "  -> Starting Redis 7 Docker container (rng_redis)..."
-        ensure_docker_container "rng_redis" "6379" "redis:7.2-alpine" \
+        ensure_docker_container "rng_redis" "6379" \
             -v rng_redis_data:/data \
+            redis:7.2-alpine \
             redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     fi
 fi
@@ -236,8 +241,9 @@ else
     fi
     if ! check_port 27017 && command -v docker &> /dev/null; then
         echo "  -> Starting MongoDB Docker container (rng_mongodb)..."
-        ensure_docker_container "rng_mongodb" "27017" "mongo:7.0-jammy" \
-            -v rng_mongodb_data:/data/db
+        ensure_docker_container "rng_mongodb" "27017" \
+            -v rng_mongodb_data:/data/db \
+            mongo:7.0-jammy
     fi
 fi
 

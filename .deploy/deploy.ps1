@@ -31,7 +31,7 @@ function Test-PortActive ($portNumber, $hostAddress = "127.0.0.1") {
     }
 }
 
-function Ensure-DockerContainer ($name, $port, $image, $extraArgs) {
+function Ensure-DockerContainer ($name, $port, $runArgs) {
     if (Test-PortActive -portNumber $port) {
         return $true
     }
@@ -55,8 +55,8 @@ function Ensure-DockerContainer ($name, $port, $image, $extraArgs) {
         docker rm -f $name 2>$null | Out-Null
     }
 
-    Write-Host "  -> Launching fresh Docker container '$name' ($image)..." -ForegroundColor Yellow
-    $cmdArgs = @("run", "-d", "--name", $name, "-p", "${port}:${port}") + $extraArgs + @($image)
+    Write-Host "  -> Launching fresh Docker container '$name'..." -ForegroundColor Yellow
+    $cmdArgs = @("run", "-d", "--name", $name, "-p", "${port}:${port}") + $runArgs
     & docker $cmdArgs 2>$null | Out-Null
     return $true
 }
@@ -144,7 +144,7 @@ if (Test-PortActive -portNumber 5432) {
         Start-Service -Name $pgService.Name -ErrorAction SilentlyContinue
     }
     if (-not (Test-PortActive -portNumber 5432)) {
-        Ensure-DockerContainer -name "rng_postgres" -port 5432 -image "postgres:16-alpine" -extraArgs @("-e", "POSTGRES_DB=rng_db", "-e", "POSTGRES_USER=postgres", "-e", "POSTGRES_PASSWORD=postgres", "-v", "rng_postgres_data:/var/lib/postgresql/data")
+        Ensure-DockerContainer -name "rng_postgres" -port 5432 -runArgs @("-e", "POSTGRES_DB=rng_db", "-e", "POSTGRES_USER=postgres", "-e", "POSTGRES_PASSWORD=postgres", "-v", "rng_postgres_data:/var/lib/postgresql/data", "postgres:16-alpine")
     }
 }
 
@@ -173,7 +173,7 @@ if (Test-PortActive -portNumber 6379) {
         Start-Service -Name $redisService.Name -ErrorAction SilentlyContinue
     }
     if (-not (Test-PortActive -portNumber 6379)) {
-        Ensure-DockerContainer -name "rng_redis" -port 6379 -image "redis:7.2-alpine" -extraArgs @("-v", "rng_redis_data:/data", "redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru")
+        Ensure-DockerContainer -name "rng_redis" -port 6379 -runArgs @("-v", "rng_redis_data:/data", "redis:7.2-alpine", "redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru")
     }
 }
 
@@ -202,7 +202,7 @@ if (Test-PortActive -portNumber 27017) {
         Start-Service -Name $mongoService.Name -ErrorAction SilentlyContinue
     }
     if (-not (Test-PortActive -portNumber 27017)) {
-        Ensure-DockerContainer -name "rng_mongodb" -port 27017 -image "mongo:7.0-jammy" -extraArgs @("-v", "rng_mongodb_data:/data/db")
+        Ensure-DockerContainer -name "rng_mongodb" -port 27017 -runArgs @("-v", "rng_mongodb_data:/data/db", "mongo:7.0-jammy")
     }
 }
 
