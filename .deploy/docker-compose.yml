@@ -1,7 +1,7 @@
 version: '3.8'
 
 # ==============================================================================
-# RNG Full-Stack Containerized Orchestration (PostgreSQL + Backend + Frontend)
+# RNG Full-Stack Containerized Orchestration (PostgreSQL + Redis + MongoDB + Backend + Frontend)
 # ==============================================================================
 
 services:
@@ -51,7 +51,28 @@ services:
       - rng_network
 
   # ----------------------------------------------------------------------------
-  # 3. Spring Boot 3.2.4 Backend Service
+  # 3. MongoDB 7.0 Document Store Service (Embed Templates & Telemetry)
+  # ----------------------------------------------------------------------------
+  mongodb:
+    image: mongo:7.0-jammy
+    container_name: rng_mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE:-rng_embeds}
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rng_network
+
+  # ----------------------------------------------------------------------------
+  # 4. Spring Boot 3.2.4 Backend Service
   # ----------------------------------------------------------------------------
   backend:
     build:
@@ -68,6 +89,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/rng_embeds}
       JWT_SECRET: ${JWT_SECRET:-rngSecretKeyForJwtSigningMustBeAtLeast32BytesLongForHmacSha256!}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-google-client-id-placeholder}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-google-client-secret-placeholder}
@@ -81,6 +103,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mongodb:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8080/error || exit 1"]
       interval: 10s
@@ -90,7 +114,7 @@ services:
       - rng_network
 
   # ----------------------------------------------------------------------------
-  # 3. Next.js 16 Frontend Service
+  # 5. Next.js 16 Frontend Service
   # ----------------------------------------------------------------------------
   frontend:
     build:
@@ -123,6 +147,8 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  mongodb_data:
     driver: local
 
 networks:

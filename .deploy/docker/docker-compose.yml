@@ -1,7 +1,7 @@
 version: '3.8'
 
 # ==============================================================================
-# RNG Full-Stack Containerized Orchestration (PostgreSQL + Backend + Frontend)
+# RNG Full-Stack Containerized Orchestration (PostgreSQL + Redis + MongoDB + Backend + Frontend)
 # ==============================================================================
 
 services:
@@ -31,7 +31,27 @@ services:
       - rng_network
 
   # ----------------------------------------------------------------------------
-  # 2. MongoDB 7.0 Document Store Service (Embed Templates & Telemetry)
+  # 2. Redis 7 Distributed In-Memory Cache Service
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7.2-alpine
+    container_name: rng_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - rng_network
+
+  # ----------------------------------------------------------------------------
+  # 3. MongoDB 7.0 Document Store Service (Embed Templates & Telemetry)
   # ----------------------------------------------------------------------------
   mongodb:
     image: mongo:7.0-jammy
@@ -40,7 +60,7 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE:-rng_db}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE:-rng_embeds}
     volumes:
       - mongodb_data:/data/db
     healthcheck:
@@ -52,7 +72,7 @@ services:
       - rng_network
 
   # ----------------------------------------------------------------------------
-  # 3. Spring Boot 3.2.4 Backend Service
+  # 4. Spring Boot 3.2.4 Backend Service
   # ----------------------------------------------------------------------------
   backend:
     build:
@@ -67,7 +87,9 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-rng_db}
       DB_USERNAME: ${DB_USERNAME:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/rng_db}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/rng_embeds}
       JWT_SECRET: ${JWT_SECRET:-rngSecretKeyForJwtSigningMustBeAtLeast32BytesLongForHmacSha256!}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-google-client-id-placeholder}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-google-client-secret-placeholder}
@@ -78,6 +100,8 @@ services:
       - "8080:8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       mongodb:
         condition: service_healthy
@@ -90,7 +114,7 @@ services:
       - rng_network
 
   # ----------------------------------------------------------------------------
-  # 4. Next.js 16 Frontend Service
+  # 5. Next.js 16 Frontend Service
   # ----------------------------------------------------------------------------
   frontend:
     build:
@@ -121,6 +145,8 @@ services:
 # ------------------------------------------------------------------------------
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local
   mongodb_data:
     driver: local

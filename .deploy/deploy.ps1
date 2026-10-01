@@ -11,6 +11,57 @@ Write-Host "         RNG APPLICATION AUTOMATED DEPLOYMENT & VALIDATION          
 Write-Host "======================================================================" -ForegroundColor Cyan
 
 # ------------------------------------------------------------------------------
+# Helper Functions: TCP Port Probe, Docker Container Auto-Recovery
+# ------------------------------------------------------------------------------
+
+function Test-PortActive ($portNumber, $hostAddress = "127.0.0.1") {
+    try {
+        $tcp = New-Object System.Net.Sockets.TcpClient
+        $connect = $tcp.BeginConnect($hostAddress, $portNumber, $null, $null)
+        $wait = $connect.AsyncWaitHandle.WaitOne(1000, $false)
+        if (-not $wait) {
+            $tcp.Close()
+            return $false
+        }
+        $tcp.EndConnect($connect)
+        $tcp.Close()
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Ensure-DockerContainer ($name, $port, $image, $extraArgs) {
+    if (Test-PortActive -portNumber $port) {
+        return $true
+    }
+    $dockerCmd = Get-Command "docker" -ErrorAction SilentlyContinue
+    if (-not $dockerCmd) {
+        return $false
+    }
+
+    # Check if a container with this name exists
+    $existing = docker ps -a --filter "name=^/${name}$" --format "{{.Names}}" 2>$null
+    if ($existing -eq $name) {
+        Write-Host "  -> Found existing container '$name', attempting start..." -ForegroundColor Yellow
+        docker start $name 2>$null | Out-Null
+        for ($i = 0; $i -lt 3; $i++) {
+            if (Test-PortActive -portNumber $port) {
+                return $true
+            }
+            Start-Sleep -Seconds 1
+        }
+        Write-Host "  -> Container '$name' unresponsive; recreating..." -ForegroundColor Yellow
+        docker rm -f $name 2>$null | Out-Null
+    }
+
+    Write-Host "  -> Launching fresh Docker container '$name' ($image)..." -ForegroundColor Yellow
+    $cmdArgs = @("run", "-d", "--name", $name, "-p", "${port}:${port}") + $extraArgs + @($image)
+    & docker $cmdArgs 2>$null | Out-Null
+    return $true
+}
+
+# ------------------------------------------------------------------------------
 # STEP 0: System Dependency Verification & Auto-Installer (Java, Node, Postgres)
 # ------------------------------------------------------------------------------
 Write-Host "`n[0/7] Verifying System Environment Dependencies..." -ForegroundColor Yellow
@@ -83,111 +134,90 @@ Write-Host "  [x] Caches Purged." -ForegroundColor Green
 Write-Host "`n[3/7] Starting Local Database Services (PostgreSQL, Redis, MongoDB)..." -ForegroundColor Yellow
 
 # 1. PostgreSQL (Port 5432)
-$dbActive = $false
-try {
-    $tcp = New-Object System.Net.Sockets.TcpClient
-    $tcp.Connect("127.0.0.1", 5432)
-    $dbActive = $true
-    $tcp.Close()
-    Write-Host "  [x] Database port 5432 is ACTIVE and responding." -ForegroundColor Green
-} catch {
-    $dbActive = $false
-}
-
-if (-not $dbActive) {
-    Write-Host "  -> Port 5432 not responding. Attempting to start PostgreSQL Windows Service..." -ForegroundColor Yellow
+Write-Host "  -> Verifying PostgreSQL Database Service (Port 5432)..." -ForegroundColor Yellow
+if (Test-PortActive -portNumber 5432) {
+    Write-Host "  [x] PostgreSQL Database Service is already ACTIVE on port 5432." -ForegroundColor Green
+} else {
     $pgService = Get-Service -Name "postgresql*" -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($pgService) {
+        Write-Host "  -> Starting Windows PostgreSQL Service ($($pgService.Name))..." -ForegroundColor Yellow
         Start-Service -Name $pgService.Name -ErrorAction SilentlyContinue
-        Start-Sleep -Seconds 3
-        Write-Host "  [x] Windows PostgreSQL Service ($($pgService.Name)) STARTED." -ForegroundColor Green
-    } else {
-        Write-Host "  -> Windows PostgreSQL service not found. Checking Docker..." -ForegroundColor Yellow
-        $dockerCheck = Get-Command "docker" -ErrorAction SilentlyContinue
-        if ($dockerCheck) {
-            docker start rng_postgres 2>$null
-            if ($LASTEXITCODE -ne 0) {
-                Write-Host "  -> Launching PostgreSQL Docker container (rng_postgres)..." -ForegroundColor Yellow
-                docker run -d --name rng_postgres -p 5432:5432 -e POSTGRES_DB=rng_db -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres postgres:16-alpine
-            }
-            Start-Sleep -Seconds 3
-        } else {
-            Write-Host "  [!] PostgreSQL not installed or running. Installing via winget..." -ForegroundColor Yellow
-            if (Get-Command "winget" -ErrorAction SilentlyContinue) {
-                winget install --id PostgreSQL.PostgreSQL --accept-source-agreements --accept-package-agreements
-            }
-        }
     }
+    if (-not (Test-PortActive -portNumber 5432)) {
+        Ensure-DockerContainer -name "rng_postgres" -port 5432 -image "postgres:16-alpine" -extraArgs @("-e", "POSTGRES_DB=rng_db", "-e", "POSTGRES_USER=postgres", "-e", "POSTGRES_PASSWORD=postgres", "-v", "rng_postgres_data:/var/lib/postgresql/data")
+    }
+}
+
+Write-Host "  -> Waiting for PostgreSQL readiness on port 5432..." -ForegroundColor Yellow
+$pgRetries = 20
+$pgCount = 0
+while (-not (Test-PortActive -portNumber 5432) -and ($pgCount -lt $pgRetries)) {
+    Start-Sleep -Seconds 1
+    $pgCount++
+}
+
+if (Test-PortActive -portNumber 5432) {
+    Write-Host "  [x] PostgreSQL Database Service is ACTIVE and accepting connections on port 5432." -ForegroundColor Green
+} else {
+    Write-Host "  [!] ERROR: PostgreSQL did not respond on port 5432 after $pgRetries seconds." -ForegroundColor Red
 }
 
 # 2. Redis Cache Service (Port 6379)
-Write-Host "`n  -> Starting Local Cache Service (Redis 7)..." -ForegroundColor Yellow
-$redisActive = $false
-try {
-    $tcpRedis = New-Object System.Net.Sockets.TcpClient
-    $tcpRedis.Connect("127.0.0.1", 6379)
-    $redisActive = $true
-    $tcpRedis.Close()
-    Write-Host "  [x] Redis Cache port 6379 is ACTIVE and responding." -ForegroundColor Green
-} catch {
-    $redisActive = $false
-}
-
-if (-not $redisActive) {
+Write-Host "`n  -> Verifying Redis Cache Service (Port 6379)..." -ForegroundColor Yellow
+if (Test-PortActive -portNumber 6379) {
+    Write-Host "  [x] Redis Cache Service is already ACTIVE on port 6379." -ForegroundColor Green
+} else {
     $redisService = Get-Service -Name "redis*", "memurai*" -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($redisService) {
+        Write-Host "  -> Starting Windows Redis Service ($($redisService.Name))..." -ForegroundColor Yellow
         Start-Service -Name $redisService.Name -ErrorAction SilentlyContinue
-        Start-Sleep -Seconds 2
-        Write-Host "  [x] Windows Redis Service ($($redisService.Name)) STARTED." -ForegroundColor Green
-    } else {
-        $dockerCheck = Get-Command "docker" -ErrorAction SilentlyContinue
-        if ($dockerCheck) {
-            docker start rng_redis 2>$null
-            if ($LASTEXITCODE -ne 0) {
-                Write-Host "  -> Launching Redis 7 Docker container (rng_redis)..." -ForegroundColor Yellow
-                docker run -d --name rng_redis -p 6379:6379 redis:7.2-alpine redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
-            }
-            Start-Sleep -Seconds 2
-            Write-Host "  [x] Redis 7 Docker Container STARTED on port 6379." -ForegroundColor Green
-        } else {
-            Write-Host "  [!] NOTICE: Redis container not launched (Docker not detected). Application will utilize in-memory fallback cache." -ForegroundColor Yellow
-        }
     }
+    if (-not (Test-PortActive -portNumber 6379)) {
+        Ensure-DockerContainer -name "rng_redis" -port 6379 -image "redis:7.2-alpine" -extraArgs @("-v", "rng_redis_data:/data", "redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru")
+    }
+}
+
+Write-Host "  -> Waiting for Redis readiness on port 6379..." -ForegroundColor Yellow
+$redisRetries = 15
+$redisCount = 0
+while (-not (Test-PortActive -portNumber 6379) -and ($redisCount -lt $redisRetries)) {
+    Start-Sleep -Seconds 1
+    $redisCount++
+}
+
+if (Test-PortActive -portNumber 6379) {
+    Write-Host "  [x] Redis Cache Service is ACTIVE and accepting connections on port 6379." -ForegroundColor Green
+} else {
+    Write-Host "  [!] NOTICE: Redis not detected on port 6379 after $redisRetries seconds. Application will utilize in-memory fallback cache." -ForegroundColor Yellow
 }
 
 # 3. MongoDB 7.0 Document Database Service (Port 27017)
-Write-Host "`n  -> Starting Local Document Database Service (MongoDB 7.0)..." -ForegroundColor Yellow
-$mongoActive = $false
-try {
-    $tcpMongo = New-Object System.Net.Sockets.TcpClient
-    $tcpMongo.Connect("127.0.0.1", 27017)
-    $mongoActive = $true
-    $tcpMongo.Close()
-    Write-Host "  [x] MongoDB port 27017 is ACTIVE and responding." -ForegroundColor Green
-} catch {
-    $mongoActive = $false
-}
-
-if (-not $mongoActive) {
+Write-Host "`n  -> Verifying MongoDB Document Database Service (Port 27017)..." -ForegroundColor Yellow
+if (Test-PortActive -portNumber 27017) {
+    Write-Host "  [x] MongoDB Database Service is already ACTIVE on port 27017." -ForegroundColor Green
+} else {
     $mongoService = Get-Service -Name "MongoDB*", "mongod*" -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($mongoService) {
+        Write-Host "  -> Starting Windows MongoDB Service ($($mongoService.Name))..." -ForegroundColor Yellow
         Start-Service -Name $mongoService.Name -ErrorAction SilentlyContinue
-        Start-Sleep -Seconds 2
-        Write-Host "  [x] Windows MongoDB Service ($($mongoService.Name)) STARTED." -ForegroundColor Green
-    } else {
-        $dockerCheck = Get-Command "docker" -ErrorAction SilentlyContinue
-        if ($dockerCheck) {
-            docker start rng_mongodb 2>$null
-            if ($LASTEXITCODE -ne 0) {
-                Write-Host "  -> Launching MongoDB 7.0 Docker container (rng_mongodb)..." -ForegroundColor Yellow
-                docker run -d --name rng_mongodb -p 27017:27017 -v rng_mongodb_data:/data/db mongo:7.0-jammy
-            }
-            Start-Sleep -Seconds 2
-            Write-Host "  [x] MongoDB 7.0 Docker Container STARTED on port 27017." -ForegroundColor Green
-        } else {
-            Write-Host "  [!] NOTICE: MongoDB container not launched (Docker not detected). Ensure local MongoDB is running on port 27017." -ForegroundColor Yellow
-        }
     }
+    if (-not (Test-PortActive -portNumber 27017)) {
+        Ensure-DockerContainer -name "rng_mongodb" -port 27017 -image "mongo:7.0-jammy" -extraArgs @("-v", "rng_mongodb_data:/data/db")
+    }
+}
+
+Write-Host "  -> Waiting for MongoDB readiness on port 27017..." -ForegroundColor Yellow
+$mongoRetries = 20
+$mongoCount = 0
+while (-not (Test-PortActive -portNumber 27017) -and ($mongoCount -lt $mongoRetries)) {
+    Start-Sleep -Seconds 1
+    $mongoCount++
+}
+
+if (Test-PortActive -portNumber 27017) {
+    Write-Host "  [x] MongoDB Database Service is ACTIVE and accepting connections on port 27017." -ForegroundColor Green
+} else {
+    Write-Host "  [!] WARNING: MongoDB did not respond on port 27017 after $mongoRetries seconds. Ensure Docker or mongod service is running." -ForegroundColor Yellow
 }
 
 # ------------------------------------------------------------------------------
@@ -195,15 +225,19 @@ if (-not $mongoActive) {
 # ------------------------------------------------------------------------------
 Write-Host "`n[4/7] Pushing Database Schema & Migrations (Flyway DB Push)..." -ForegroundColor Yellow
 
-Set-Location "backend"
-& ".\mvnw.cmd" compile flyway:repair flyway:migrate "-Dflyway.url=$env:DB_URL" "-Dflyway.user=$env:DB_USERNAME" "-Dflyway.password=$env:DB_PASSWORD"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "  [!] NOTICE: Direct PostgreSQL migration skipped. Using test DB mode..." -ForegroundColor Yellow
+if (Test-PortActive -portNumber 5432) {
+    Set-Location "backend"
+    & ".\mvnw.cmd" compile flyway:repair flyway:migrate "-Dflyway.url=$env:DB_URL" "-Dflyway.user=$env:DB_USERNAME" "-Dflyway.password=$env:DB_PASSWORD"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  [!] NOTICE: Direct PostgreSQL migration skipped. Using test DB mode..." -ForegroundColor Yellow
+    } else {
+        Write-Host "  [x] Flyway Database Schema & Seed Data PUSHED successfully to $env:DB_URL." -ForegroundColor Green
+    }
+    Set-Location ".."
+    Write-Host "  [x] Flyway Database Migrations completed." -ForegroundColor Green
 } else {
-    Write-Host "  [x] Flyway Database Schema & Seed Data PUSHED successfully to $env:DB_URL." -ForegroundColor Green
+    Write-Host "  [!] SKIPPING Flyway Migrations: PostgreSQL is not active on port 5432." -ForegroundColor Yellow
 }
-Set-Location ".."
-Write-Host "  [x] Flyway Database Migrations completed." -ForegroundColor Green
 
 # ------------------------------------------------------------------------------
 # STEP 5: Frontend Production Build
@@ -248,8 +282,35 @@ Set-Location "backend"
 & ".\mvnw.cmd" package -DskipTests | Out-Null
 Set-Location ".."
 
-$backendJob = Start-Process -FilePath "java" -ArgumentList "-jar", "backend\target\rng-backend-0.0.1-SNAPSHOT.jar", "--server.port=$BACKEND_PORT", "--spring.data.mongodb.uri=$env:MONGODB_URI" -PassThru -NoNewWindow
-Start-Sleep -Seconds 5
+Write-Host "  -> Launching Backend API on http://localhost:$BACKEND_PORT..." -ForegroundColor Yellow
+$backendJob = Start-Process -FilePath "java" -ArgumentList "-jar", "backend\target\rng-backend-0.0.1-SNAPSHOT.jar", "--server.port=$BACKEND_PORT", "--spring.data.mongodb.uri=$env:MONGODB_URI" -PassThru -NoNewWindow -RedirectStandardOutput "backend.log" -RedirectStandardError "backend_err.log"
+
+Write-Host "  -> Backend process spawned (PID: $($backendJob.Id)). Waiting for health check..." -ForegroundColor Yellow
+
+$backendRetries = 40
+$backendCount = 0
+while (-not (Test-PortActive -portNumber $BACKEND_PORT) -and ($backendCount -lt $backendRetries)) {
+    if ($backendJob.HasExited) {
+        Write-Host "  [!] CRITICAL ERROR: Backend process died prematurely with exit code $($backendJob.ExitCode)!" -ForegroundColor Red
+        if (Test-Path "backend_err.log") {
+            Write-Host "  [!] backend_err.log tail:" -ForegroundColor Red
+            Get-Content "backend_err.log" -Tail 30
+        }
+        if (Test-Path "backend.log") {
+            Write-Host "  [!] backend.log tail:" -ForegroundColor Red
+            Get-Content "backend.log" -Tail 30
+        }
+        exit 1
+    }
+    Start-Sleep -Seconds 1
+    $backendCount++
+}
+
+if (Test-PortActive -portNumber $BACKEND_PORT) {
+    Write-Host "  [x] Backend API is ACTIVE and listening on port $BACKEND_PORT." -ForegroundColor Green
+} else {
+    Write-Host "  [!] WARNING: Backend API did not respond on port $BACKEND_PORT within $backendRetries seconds." -ForegroundColor Yellow
+}
 
 Write-Host "`n======================================================================" -ForegroundColor Green
 Write-Host "       DEPLOYMENT SUCCESSFUL! APPLICATION IS NOW LIVE ON:" -ForegroundColor Green
