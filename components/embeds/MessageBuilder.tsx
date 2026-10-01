@@ -36,7 +36,6 @@ export interface MessageBuilderProps {
     channelId: string;
     isScheduled: boolean;
     scheduleTime?: string;
-    webhookUrl?: string;
   }) => Promise<void> | void;
 }
 

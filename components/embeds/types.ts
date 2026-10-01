@@ -369,7 +369,7 @@ export interface BackendEmbedTemplate {
 export interface BackendDispatchLog {
   id: string;
   dispatchId: string;
-  type: 'IMMEDIATE_BOT' | 'IMMEDIATE_WEBHOOK' | 'SCHEDULED_BOT';
+  type: 'IMMEDIATE_BOT' | 'SCHEDULED_BOT';
   status: 'SUCCESS' | 'FAILED' | 'PENDING' | 'RETRYING' | 'SCHEDULED' | 'CANCELLED';
   serverId: string;
   channelId: string;

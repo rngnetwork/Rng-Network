@@ -126,12 +126,11 @@ export interface ChannelItem {
 // ---------------------------------------------------------------------------
 // Embed Builder & Discord Components V2 Dispatch Contracts
 // ---------------------------------------------------------------------------
-export type DispatchType = 'IMMEDIATE_BOT' | 'IMMEDIATE_WEBHOOK' | 'SCHEDULED_BOT';
+export type DispatchType = 'IMMEDIATE_BOT' | 'SCHEDULED_BOT' | 'IMMEDIATE' | 'SCHEDULED';
 
 export interface DispatchEmbedPayload {
   serverId: string;
   channelId?: string;
-  webhookUrl?: string;
   dispatchType?: DispatchType;
   payload: Record<string, unknown>;
   dryRun?: boolean;
@@ -466,14 +465,37 @@ export const api = {
   // ---------------------------------------------------------------------------
   // Discord Server Management Endpoints
   // ---------------------------------------------------------------------------
-  async fetchServers(accessToken: string): Promise<ApiResponseEnvelope<ServerItem[]>> {
-    const response = await fetch(`${API_BASE}/api/v1/servers`, {
+  async fetchServers(accessToken?: string): Promise<ApiResponseEnvelope<ServerItem[]>> {
+    let token = accessToken || getStoredAccessToken();
+    let response = await fetch(`${API_BASE}/api/v1/servers`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       },
       credentials: 'include',
     });
+
+    if (response.status === 401) {
+      try {
+        const refreshRes = await this.refreshToken();
+        if (refreshRes.success && refreshRes.data?.accessToken) {
+          token = refreshRes.data.accessToken;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('accessToken', token);
+            localStorage.setItem('token', token);
+          }
+          response = await fetch(`${API_BASE}/api/v1/servers`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+            credentials: 'include',
+          });
+        }
+      } catch (e) {
+        console.warn('Token refresh failed during fetchServers:', e);
+      }
+    }
 
     const data = await response.json();
     if (!response.ok) {
@@ -482,14 +504,38 @@ export const api = {
     return data;
   },
 
-  async fetchServerDetails(accessToken: string, idOrSlug: string): Promise<ApiResponseEnvelope<ServerDetail>> {
-    const response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(idOrSlug)}`, {
+  async fetchServerDetails(accessToken?: string, idOrSlug?: string): Promise<ApiResponseEnvelope<ServerDetail>> {
+    let token = accessToken || getStoredAccessToken();
+    const targetId = idOrSlug || '';
+    let response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(targetId)}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       },
       credentials: 'include',
     });
+
+    if (response.status === 401) {
+      try {
+        const refreshRes = await this.refreshToken();
+        if (refreshRes.success && refreshRes.data?.accessToken) {
+          token = refreshRes.data.accessToken;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('accessToken', token);
+            localStorage.setItem('token', token);
+          }
+          response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(targetId)}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+            credentials: 'include',
+          });
+        }
+      } catch (e) {
+        console.warn('Token refresh failed during fetchServerDetails:', e);
+      }
+    }
 
     const data = await response.json();
     if (!response.ok) {
@@ -498,14 +544,38 @@ export const api = {
     return data;
   },
 
-  async fetchServerChannels(accessToken: string, idOrSlug: string): Promise<ApiResponseEnvelope<ChannelItem[]>> {
-    const response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(idOrSlug)}/channels`, {
+  async fetchServerChannels(accessToken?: string, idOrSlug?: string): Promise<ApiResponseEnvelope<ChannelItem[]>> {
+    let token = accessToken || getStoredAccessToken();
+    const targetId = idOrSlug || '';
+    let response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(targetId)}/channels`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       },
       credentials: 'include',
     });
+
+    if (response.status === 401) {
+      try {
+        const refreshRes = await this.refreshToken();
+        if (refreshRes.success && refreshRes.data?.accessToken) {
+          token = refreshRes.data.accessToken;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('accessToken', token);
+            localStorage.setItem('token', token);
+          }
+          response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(targetId)}/channels`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+            credentials: 'include',
+          });
+        }
+      } catch (e) {
+        console.warn('Token refresh failed during fetchServerChannels:', e);
+      }
+    }
 
     const data = await response.json();
     if (!response.ok) {
@@ -601,15 +671,15 @@ export const api = {
   // Discord Components V2 Embed Dispatch & Template APIs (§8.3)
   // ---------------------------------------------------------------------------
   async dispatchEmbedJson(payload: DispatchEmbedPayload, token?: string): Promise<ApiResponseEnvelope<DispatchResponseData>> {
-    const effectiveToken = token || getStoredAccessToken();
-    const inferredType: DispatchType = payload.dispatchType || (payload.webhookUrl ? 'IMMEDIATE_WEBHOOK' : (payload.scheduledTime ? 'SCHEDULED_BOT' : 'IMMEDIATE_BOT'));
+    let effectiveToken = token || getStoredAccessToken();
+    const inferredType: DispatchType = payload.dispatchType || (payload.scheduledTime ? 'SCHEDULED_BOT' : 'IMMEDIATE_BOT');
     const normalizedPayload = {
       ...payload,
       dispatchType: inferredType,
     };
     return requestWithFallback(
       async () => {
-        const response = await fetch(`${API_BASE}/api/v1/embeds/dispatch`, {
+        let response = await fetch(`${API_BASE}/api/v1/embeds/dispatch`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -618,6 +688,31 @@ export const api = {
           credentials: 'include',
           body: JSON.stringify(normalizedPayload),
         });
+
+        if (response.status === 401) {
+          try {
+            const refreshRes = await this.refreshToken();
+            if (refreshRes.success && refreshRes.data?.accessToken) {
+              effectiveToken = refreshRes.data.accessToken;
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('accessToken', effectiveToken);
+                localStorage.setItem('token', effectiveToken);
+              }
+              response = await fetch(`${API_BASE}/api/v1/embeds/dispatch`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${effectiveToken}`,
+                },
+                credentials: 'include',
+                body: JSON.stringify(normalizedPayload),
+              });
+            }
+          } catch (refreshErr) {
+            console.warn('Token refresh retry failed:', refreshErr);
+          }
+        }
+
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || 'Dispatch failed');
         return data;
@@ -628,7 +723,7 @@ export const api = {
         const logEntry: DispatchLogData = {
           id: 'log_' + Math.random().toString(36).substring(2, 10),
           dispatchId,
-          type: payload.webhookUrl ? 'IMMEDIATE_WEBHOOK' : (payload.scheduledTime ? 'SCHEDULED_BOT' : 'IMMEDIATE_BOT'),
+          type: payload.scheduledTime ? 'SCHEDULED_BOT' : 'IMMEDIATE_BOT',
           status: payload.scheduledTime ? 'SCHEDULED' : 'SUCCESS',
           serverId: payload.serverId,
           channelId: payload.channelId || 'simulated_channel',
@@ -655,10 +750,10 @@ export const api = {
   },
 
   async dispatchEmbedMultipart(formData: FormData, token?: string): Promise<ApiResponseEnvelope<DispatchResponseData>> {
-    const effectiveToken = token || getStoredAccessToken();
+    let effectiveToken = token || getStoredAccessToken();
     return requestWithFallback(
       async () => {
-        const response = await fetch(`${API_BASE}/api/v1/embeds/dispatch/multipart`, {
+        let response = await fetch(`${API_BASE}/api/v1/embeds/dispatch/multipart`, {
           method: 'POST',
           headers: {
             ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
@@ -666,6 +761,30 @@ export const api = {
           credentials: 'include',
           body: formData,
         });
+
+        if (response.status === 401) {
+          try {
+            const refreshRes = await this.refreshToken();
+            if (refreshRes.success && refreshRes.data?.accessToken) {
+              effectiveToken = refreshRes.data.accessToken;
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('accessToken', effectiveToken);
+                localStorage.setItem('token', effectiveToken);
+              }
+              response = await fetch(`${API_BASE}/api/v1/embeds/dispatch/multipart`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${effectiveToken}`,
+                },
+                credentials: 'include',
+                body: formData,
+              });
+            }
+          } catch (refreshErr) {
+            console.warn('Token refresh retry failed:', refreshErr);
+          }
+        }
+
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || 'Multipart dispatch failed');
         return data;
@@ -686,14 +805,14 @@ export const api = {
   },
 
   async scheduleEmbedDispatch(payload: DispatchEmbedPayload, token?: string): Promise<ApiResponseEnvelope<DispatchResponseData>> {
-    const effectiveToken = token || getStoredAccessToken();
+    let effectiveToken = token || getStoredAccessToken();
     const normalizedPayload = {
       ...payload,
       dispatchType: payload.dispatchType || 'SCHEDULED_BOT',
     };
     return requestWithFallback(
       async () => {
-        const response = await fetch(`${API_BASE}/api/v1/embeds/dispatch/schedule`, {
+        let response = await fetch(`${API_BASE}/api/v1/embeds/dispatch/schedule`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -702,6 +821,31 @@ export const api = {
           credentials: 'include',
           body: JSON.stringify(normalizedPayload),
         });
+
+        if (response.status === 401) {
+          try {
+            const refreshRes = await this.refreshToken();
+            if (refreshRes.success && refreshRes.data?.accessToken) {
+              effectiveToken = refreshRes.data.accessToken;
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('accessToken', effectiveToken);
+                localStorage.setItem('token', effectiveToken);
+              }
+              response = await fetch(`${API_BASE}/api/v1/embeds/dispatch/schedule`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${effectiveToken}`,
+                },
+                credentials: 'include',
+                body: JSON.stringify(normalizedPayload),
+              });
+            }
+          } catch (refreshErr) {
+            console.warn('Token refresh retry failed:', refreshErr);
+          }
+        }
+
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || 'Schedule request failed');
         return data;
@@ -842,17 +986,60 @@ export const api = {
   },
 
   async fetchDispatchChannels(serverId: string, token?: string): Promise<ApiResponseEnvelope<ChannelItem[]>> {
-    const effectiveToken = token || getStoredAccessToken();
+    let effectiveToken = token || getStoredAccessToken();
     return requestWithFallback(
       async () => {
-        const response = await fetch(`${API_BASE}/api/v1/embeds/channels?serverId=${serverId}`, {
+        let response = await fetch(`${API_BASE}/api/v1/embeds/channels?serverId=${encodeURIComponent(serverId)}`, {
           method: 'GET',
           headers: {
             ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
           },
           credentials: 'include',
         });
-        const data = await response.json();
+
+        if (response.status === 401) {
+          try {
+            const refreshRes = await this.refreshToken();
+            if (refreshRes.success && refreshRes.data?.accessToken) {
+              effectiveToken = refreshRes.data.accessToken;
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('accessToken', effectiveToken);
+                localStorage.setItem('token', effectiveToken);
+              }
+              response = await fetch(`${API_BASE}/api/v1/embeds/channels?serverId=${encodeURIComponent(serverId)}`, {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${effectiveToken}`,
+                },
+                credentials: 'include',
+              });
+            }
+          } catch (e) {
+            console.warn('Token refresh retry failed:', e);
+          }
+        }
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.data && Array.isArray(data.data) && data.data.length > 0) {
+            return data;
+          }
+        }
+
+        // Secondary fallback to server channels endpoint
+        const serverChRes = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(serverId)}/channels`, {
+          method: 'GET',
+          headers: {
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+        });
+
+        if (serverChRes.ok) {
+          return await serverChRes.json();
+        }
+
+        const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.message || 'Failed to fetch dispatch channels');
         return data;
       },
@@ -1172,7 +1359,7 @@ export function generateMockSnowflake(): string {
 
 function getStoredAccessToken(): string {
   if (typeof window === 'undefined') return '';
-  return localStorage.getItem('accessToken') || '';
+  return localStorage.getItem('accessToken') || localStorage.getItem('token') || '';
 }
 
 function getLocalStored<T>(key: string, fallback: T): T {
