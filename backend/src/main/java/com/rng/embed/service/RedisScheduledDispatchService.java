@@ -55,16 +55,16 @@ public class RedisScheduledDispatchService {
     }
 
     /**
-     * Enqueue a new scheduled dispatch task. Target time must be at least 2 minutes in the future.
+     * Enqueue a new scheduled dispatch task. Target time must be in the future.
      */
     public void scheduleTask(ScheduledTaskDto task) {
         if (redisTemplate == null) {
             throw new InternalServerException("Redis service is required for scheduled dispatch operations.");
         }
 
-        Instant minAllowedTime = Instant.now().plus(Duration.ofMinutes(2)).minusSeconds(5); // 5s tolerance buffer
+        Instant minAllowedTime = Instant.now().minusSeconds(15); // 15s clock skew / network latency tolerance buffer
         if (task.scheduledFor() == null || task.scheduledFor().isBefore(minAllowedTime)) {
-            throw new BadRequestException("Scheduled dispatch time must be at least 2 minutes in the future.");
+            throw new BadRequestException("Scheduled dispatch time must be in the future.");
         }
 
         try {

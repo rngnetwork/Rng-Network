@@ -121,22 +121,13 @@ export function EditTab({
       accentColor: '#00A8FC',
       isSpoiler: false,
       author: { name: '', icon_url: '' },
-      title: 'Container Title',
-      description: 'Describe the contents of this Type 17 Container...',
+      title: '',
+      description: '',
       fields: [],
       thumbnail: '',
       image: '',
       footer: { text: '', icon_url: '' },
-      components: [
-        {
-          type: 1,
-          id: `row_${Date.now()}`,
-          label: 'ACTIONS',
-          items: [
-            { type: 2, style: 1, label: 'Primary Action', custom_id: `btn_${Date.now()}` }
-          ]
-        }
-      ]
+      components: []
     };
     setContainers([...containers, newContainer]);
     onDirtyChange?.();

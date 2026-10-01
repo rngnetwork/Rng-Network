@@ -10,44 +10,6 @@ import { api, ServerDetail, ChannelItem } from '@/lib/api';
 import { getServerEmojis } from '@/components/embeds/emoji-data';
 import { buildDiscordV2MessagePayload } from '@/components/embeds/validation';
 
-const INITIAL_SERVER_SAMPLE_STATE = {
-  messageContent: "Welcome to this server! Powered by RNG Discord Components V2.",
-  containers: [
-    {
-      id: "c17_srv_init_1",
-      accentColor: "#E11D2E",
-      isSpoiler: false,
-      author: { name: "Server Broadcast", icon_url: "" },
-      title: "📡 Official Server Dispatch",
-      description: "Interactive server communication with official Type 17 Containers, Action Rows, Buttons, and Select Menus.",
-      fields: [
-        { name: "⚡ V2 Flags", value: "IS_COMPONENTS_V2 (32768)", inline: true },
-        { name: "🛡️ Channel Sync", value: "Live Server Integration", inline: true }
-      ],
-      thumbnail: "",
-      image: "",
-      footer: { text: "Server Management • Components V2 Specification", icon_url: "" },
-      components: [
-        {
-          type: 10 as const,
-          id: "txt_srv_desc",
-          text: "### 📢 Server Announcements & Information\n• Custom server emojis ready\n• Scheduled & instant message delivery\n• Load pre-built templates or components with 1-click"
-        },
-        {
-          type: 1 as const,
-          id: "row_srv_actions",
-          label: "QUICK ACTIONS",
-          items: [
-            { type: 2 as const, style: 3 as const, label: "Confirm Access", emoji: "✅", custom_id: "btn_server_verify" },
-            { type: 2 as const, style: 1 as const, label: "Server Guidelines", emoji: "📜", custom_id: "btn_server_rules" },
-            { type: 2 as const, style: 5 as const, label: "Portal", emoji: "🌐", url: "https://rng.gg" }
-          ]
-        }
-      ]
-    }
-  ]
-};
-
 export default function ServerEmbedsPage() {
   const params = useParams();
   const serverId = params?.serverId as string;
@@ -60,13 +22,13 @@ export default function ServerEmbedsPage() {
 
 
   // Active message content & Type 17 Containers
-  const [messageContent, setMessageContent] = useState<string>(INITIAL_SERVER_SAMPLE_STATE.messageContent);
-  const [containers, setContainers] = useState<Type17Container[]>(INITIAL_SERVER_SAMPLE_STATE.containers);
+  const [messageContent, setMessageContent] = useState<string>("");
+  const [containers, setContainers] = useState<Type17Container[]>([]);
 
   // Unsaved changes tracking
   const [savedState, setSavedState] = useState<{ messageContent: string; containers: Type17Container[] }>({
-    messageContent: INITIAL_SERVER_SAMPLE_STATE.messageContent,
-    containers: JSON.parse(JSON.stringify(INITIAL_SERVER_SAMPLE_STATE.containers))
+    messageContent: "",
+    containers: []
   });
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -203,7 +165,7 @@ export default function ServerEmbedsPage() {
   }
 
   return (
-    <div className="main-workspace w-full" style={{ height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' }}>
+    <div className="main-workspace w-full h-[calc(100vh-110px)] max-md:h-auto max-md:min-h-[calc(100vh-110px)] flex flex-col">
       {/* Top Header Bar for Scoped Server */}
       <header className="top-nav-bar">
         <div className="flex items-center gap-3">

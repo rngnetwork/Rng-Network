@@ -49,16 +49,16 @@ class RedisScheduledDispatchServiceTest {
     }
 
     @Test
-    @DisplayName("Enqueuing task scheduled under 2 minutes in future throws BadRequestException")
-    void scheduleTask_tooSoonThrows() {
+    @DisplayName("Enqueuing task scheduled in the past throws BadRequestException")
+    void scheduleTask_pastThrows() {
         ScheduledTaskDto task = ScheduledTaskDto.builder()
                 .dispatchId("dsp_1")
-                .scheduledFor(Instant.now().plusSeconds(30))
+                .scheduledFor(Instant.now().minusSeconds(60))
                 .build();
 
         assertThatThrownBy(() -> service.scheduleTask(task))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessageContaining("at least 2 minutes in the future");
+                .hasMessageContaining("must be in the future");
     }
 
     @Test

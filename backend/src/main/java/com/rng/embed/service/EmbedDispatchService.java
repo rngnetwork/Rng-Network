@@ -127,9 +127,9 @@ public class EmbedDispatchService {
 
         rateLimiterService.checkRateLimits(request.serverId(), request.channelId(), String.valueOf(operatorUserId));
 
-        Instant minAllowedTime = Instant.now().plus(Duration.ofMinutes(2)).minusSeconds(5);
+        Instant minAllowedTime = Instant.now().minusSeconds(15);
         if (request.scheduledFor() == null || request.scheduledFor().isBefore(minAllowedTime)) {
-            throw new BadRequestException("Scheduled dispatch time must be at least 2 minutes in the future.");
+            throw new BadRequestException("Scheduled dispatch time must be in the future.");
         }
 
         DryRunValidationResponse validation = validatorService.validate(request.serverId(), request.channelId(), request.payload());

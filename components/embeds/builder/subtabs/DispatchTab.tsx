@@ -52,11 +52,14 @@ export function DispatchTab({
   const [userSelectedChannel, setUserSelectedChannel] = useState<string>('');
   const [scheduleEnabler, setScheduleEnabler] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   });
-  const [selectedTime, setSelectedTime] = useState('12:00');
+  const [selectedTime, setSelectedTime] = useState(() => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 5);
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  });
   const [isSchedulerModalOpen, setIsSchedulerModalOpen] = useState(false);
   const [isDispatching, setIsDispatching] = useState(false);
 
@@ -142,7 +145,13 @@ export function DispatchTab({
   const handleDispatch = async () => {
     setIsDispatching(true);
     const now = new Date().toLocaleTimeString();
-    const scheduledDateTime = scheduleEnabler ? `${selectedDate}T${selectedTime}:00` : undefined;
+    let scheduledDateTime: string | undefined = undefined;
+    if (scheduleEnabler && selectedDate && selectedTime) {
+      const localParsed = new Date(`${selectedDate}T${selectedTime}`);
+      if (!isNaN(localParsed.getTime())) {
+        scheduledDateTime = localParsed.toISOString();
+      }
+    }
 
     const entryId = `dispatch_${Date.now()}`;
     const initialLog: DispatchLogEntry = {
@@ -223,6 +232,7 @@ export function DispatchTab({
 
         {/* Dispatch Form Card */}
         <div
+          className="dispatch-form-card"
           style={{
             background: 'rgba(13, 14, 18, 0.95)',
             border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -235,7 +245,7 @@ export function DispatchTab({
           }}
         >
           {/* Dropdown Servers & Dropdown Channels */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '16px' }}>
             
             {/* Dropdown Servers (new.serverSelector) */}
             <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -479,7 +489,7 @@ export function DispatchTab({
             </div>
 
             {/* Live Capacity Progress Bars */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '12px' }}>
               {/* Containers: max 10 */}
               <div style={{ background: '#0b0c10', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '6px' }}>

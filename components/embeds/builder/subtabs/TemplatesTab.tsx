@@ -334,6 +334,9 @@ export function TemplatesTab({
 
   const handleDeleteUserTemplate = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (typeof window !== 'undefined' && !window.confirm('Are you sure you want to delete this template?')) {
+      return;
+    }
     try {
       await api.deleteTemplate(id);
       showToast('Template deleted successfully.');
@@ -532,7 +535,7 @@ export function TemplatesTab({
       {/* Templates Grid */}
       <div className="templates-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
         {filtered.map((tmpl) => {
-          const isUserCreated = tmpl.id.startsWith('tmpl_user_') || tmpl.id.length > 20;
+          const isUserCreated = !DEFAULT_TEMPLATES.some((d) => d.id === tmpl.id);
           return (
             <div
               key={tmpl.id}
