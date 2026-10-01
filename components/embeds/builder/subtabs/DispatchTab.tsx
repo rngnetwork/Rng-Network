@@ -28,7 +28,6 @@ interface DispatchTabProps {
     channelId: string;
     isScheduled: boolean;
     scheduleTime?: string;
-    webhookUrl?: string;
   }) => Promise<void> | void;
 }
 
@@ -47,12 +46,8 @@ export function DispatchTab({
   const subheading = "Send this message to your selected server and channel";
 
   // 2. Form State
-  const [selectedServer, setSelectedServer] = useState<string>(
-    serverId || (availableServers.length > 0 ? availableServers[0].id : 'server_rng_hq')
-  );
-  const [selectedChannel, setSelectedChannel] = useState<string>(
-    serverChannels.length > 0 ? serverChannels[0].id : 'channel_announcements'
-  );
+  const [userSelectedServer, setUserSelectedServer] = useState<string>('');
+  const [userSelectedChannel, setUserSelectedChannel] = useState<string>('');
   const [scheduleEnabler, setScheduleEnabler] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => {
     const tomorrow = new Date();
@@ -62,6 +57,19 @@ export function DispatchTab({
   const [selectedTime, setSelectedTime] = useState('12:00');
   const [isSchedulerModalOpen, setIsSchedulerModalOpen] = useState(false);
   const [isDispatching, setIsDispatching] = useState(false);
+
+  // Derived Server & Channel Selection (computed purely during render)
+  const selectedServer = serverId || userSelectedServer || (availableServers.length > 0 ? availableServers[0].id : 'server_rng_hq');
+
+  const activeChannelId = useMemo(() => {
+    if (userSelectedChannel && serverChannels.some((c) => c.id === userSelectedChannel)) {
+      return userSelectedChannel;
+    }
+    if (serverChannels.length > 0) {
+      return serverChannels[0].id;
+    }
+    return userSelectedChannel || 'channel_announcements';
+  }, [userSelectedChannel, serverChannels]);
 
   // Pre-Flight Validation Report
   const validationReport: ClientValidationReport = useMemo(() => {
@@ -79,10 +87,6 @@ export function DispatchTab({
       message: 'Discord Components V2 Dispatch Engine initialized. Ready for dispatch.'
     }
   ]);
-
-  const activeChannelId = serverChannels.length > 0
-    ? (serverChannels.some((c) => c.id === selectedChannel) ? selectedChannel : serverChannels[0].id)
-    : selectedChannel;
 
   const serverDropdownOptions: DropdownOption[] = useMemo(() => {
     if (availableServers && availableServers.length > 0) {
@@ -110,7 +114,8 @@ export function DispatchTab({
   }, [serverChannels]);
 
   const handleServerChange = (newServerId: string) => {
-    setSelectedServer(newServerId);
+    setUserSelectedServer(newServerId);
+    setUserSelectedChannel('');
     onSelectServer?.(newServerId);
   };
 
@@ -247,7 +252,7 @@ export function DispatchTab({
                 <GlassmorphicDropdown
                   value={activeChannelId}
                   options={channelDropdownOptions}
-                  onChange={(val) => setSelectedChannel(String(val))}
+                  onChange={(val) => setUserSelectedChannel(String(val))}
                   placeholder="Select Discord Channel..."
                   searchable={channelDropdownOptions.length > 5}
                 />
@@ -256,8 +261,8 @@ export function DispatchTab({
                   type="text"
                   className="form-input"
                   placeholder="Enter Channel ID or name (e.g. 1395381163585175724)"
-                  value={selectedChannel}
-                  onChange={(e) => setSelectedChannel(e.target.value)}
+                  value={userSelectedChannel || activeChannelId}
+                  onChange={(e) => setUserSelectedChannel(e.target.value)}
                   style={{
                     height: '42px',
                     background: '#090a0d',

@@ -8,6 +8,7 @@ import { MessageBuilder } from '@/components/embeds/MessageBuilder';
 import { UnsavedChangesBar } from '@/components/ui/UnsavedChangesBar';
 import { api, ServerDetail, ChannelItem } from '@/lib/api';
 import { getServerEmojis } from '@/components/embeds/emoji-data';
+import { buildDiscordV2MessagePayload } from '@/components/embeds/validation';
 
 const INITIAL_SERVER_SAMPLE_STATE = {
   messageContent: "Welcome to this server! Powered by RNG Discord Components V2.",
@@ -169,6 +170,30 @@ export default function ServerEmbedsPage() {
   };
 
 
+  const handleDispatchPayload = async (data: {
+    serverId: string;
+    channelId: string;
+    isScheduled: boolean;
+    scheduleTime?: string;
+  }) => {
+    const payload = buildDiscordV2MessagePayload(containers, messageContent);
+    const targetServerId = data.serverId || serverId;
+    if (data.isScheduled) {
+      await api.scheduleEmbedDispatch({
+        serverId: targetServerId,
+        channelId: data.channelId,
+        payload: payload as unknown as Record<string, unknown>,
+        scheduledTime: data.scheduleTime,
+      });
+    } else {
+      await api.dispatchEmbedJson({
+        serverId: targetServerId,
+        channelId: data.channelId,
+        payload: payload as unknown as Record<string, unknown>,
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24 min-h-[400px]">
@@ -221,6 +246,7 @@ export default function ServerEmbedsPage() {
         serverName={server?.name}
         serverChannels={channels}
         serverEmojis={serverEmojis}
+        onDispatchPayload={handleDispatchPayload}
       />
 
       {/* Floating Discord-styled Unsaved Changes Action Bar */}

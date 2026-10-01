@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import '@/components/embeds/embed-builder.css';
 import { Type17Container } from '@/components/embeds/types';
 import { MessageBuilder } from '@/components/embeds/MessageBuilder';
 import { TemplatesTab } from '@/components/embeds/TemplatesTab';
-
 import { UnsavedChangesBar } from '@/components/ui/UnsavedChangesBar';
+import { api, ServerItem, ChannelItem } from '@/lib/api';
+import { buildDiscordV2MessagePayload } from '@/components/embeds/validation';
 
 const INITIAL_SAMPLE_STATE = {
   messageContent: "Welcome to the RNG Discord Components V2 control center.",
@@ -115,6 +116,69 @@ export default function EmbedsPage() {
   };
 
 
+  // Dynamic Servers and Channels state
+  const [servers, setServers] = useState<ServerItem[]>([]);
+  const [selectedServerId, setSelectedServerId] = useState<string>('');
+  const [serverChannels, setServerChannels] = useState<ChannelItem[]>([]);
+
+  const loadChannelsForServer = useCallback(async (srvId: string) => {
+    if (!srvId) return;
+    try {
+      const res = await api.fetchDispatchChannels(srvId);
+      if (res.success && res.data) {
+        setServerChannels(res.data);
+      }
+    } catch (e) {
+      console.warn('Failed to load channels for server:', srvId, e);
+    }
+  }, []);
+
+  useEffect(() => {
+    const initServers = async () => {
+      try {
+        const res = await api.fetchServers();
+        if (res.success && res.data && res.data.length > 0) {
+          setServers(res.data);
+          const firstId = res.data[0].id;
+          setSelectedServerId(firstId);
+          await loadChannelsForServer(firstId);
+        }
+      } catch (err) {
+        console.warn('Failed to load available servers:', err);
+      }
+    };
+    initServers();
+  }, [loadChannelsForServer]);
+
+  const handleSelectServer = async (newServerId: string) => {
+    setSelectedServerId(newServerId);
+    await loadChannelsForServer(newServerId);
+  };
+
+  const handleDispatchPayload = async (data: {
+    serverId: string;
+    channelId: string;
+    isScheduled: boolean;
+    scheduleTime?: string;
+  }) => {
+    const payload = buildDiscordV2MessagePayload(containers, messageContent);
+    const targetServerId = data.serverId || selectedServerId;
+    if (data.isScheduled) {
+      await api.scheduleEmbedDispatch({
+        serverId: targetServerId,
+        channelId: data.channelId,
+        payload: payload as unknown as Record<string, unknown>,
+        scheduledTime: data.scheduleTime,
+      });
+    } else {
+      await api.dispatchEmbedJson({
+        serverId: targetServerId,
+        channelId: data.channelId,
+        payload: payload as unknown as Record<string, unknown>,
+      });
+    }
+  };
+
   // Load a template into the builder
   const handleLoadTemplate = (state: { message: { content: string }; type17Containers: Type17Container[] }) => {
     if (isDirty) {
@@ -161,6 +225,11 @@ export default function EmbedsPage() {
           setMessageContent={handleSetMessageContent}
           onLoadTemplate={handleLoadTemplate}
           onDirtyChange={() => setIsDirty(true)}
+          availableServers={servers}
+          serverChannels={serverChannels}
+          serverId={selectedServerId}
+          onSelectServer={handleSelectServer}
+          onDispatchPayload={handleDispatchPayload}
         />
       )}
 
