@@ -556,7 +556,6 @@ export function DiscordEmojiPicker({
                           gap: '4px'
                         }}
                       >
-                        <i className="fa-solid fa-plus" /> Add Bot Emoji
                       </button>
                     </div>
                   </div>
