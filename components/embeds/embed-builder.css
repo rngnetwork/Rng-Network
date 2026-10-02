@@ -2224,7 +2224,8 @@ select.form-input option {
   padding-bottom: 6px;
 }
 
-.emoji-item-cell {
+.emoji-item-cell,
+.emoji-cell-btn {
   width: 36px;
   height: 36px;
   border-radius: 5px;
@@ -2241,13 +2242,15 @@ select.form-input option {
   position: relative;
 }
 
-.emoji-item-cell:hover {
+.emoji-item-cell:hover,
+.emoji-cell-btn:hover {
   background: #35373c;
   transform: scale(1.18);
   z-index: 2;
 }
 
-.emoji-item-cell:active {
+.emoji-item-cell:active,
+.emoji-cell-btn:active {
   transform: scale(0.95);
 }
 

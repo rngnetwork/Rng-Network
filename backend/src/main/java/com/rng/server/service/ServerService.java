@@ -542,22 +542,62 @@ public class ServerService {
                 .build();
     }
 
+    public String resolveGuildId(String idOrSlug) {
+        if (idOrSlug == null || idOrSlug.isBlank()) {
+            return idOrSlug;
+        }
+        if (idOrSlug.matches("\\d+")) {
+            return idOrSlug;
+        }
+        Optional<Server> server = serverRepository.findByIdOrSlug(idOrSlug);
+        if (server.isPresent()) {
+            return server.get().getId();
+        }
+        if (jda.isPresent() && jda.get().getStatus() == JDA.Status.CONNECTED) {
+            for (Guild g : jda.get().getGuilds()) {
+                String slug = generateUniqueSlug(g.getName(), g.getId());
+                if (slug.equalsIgnoreCase(idOrSlug)) {
+                    return g.getId();
+                }
+            }
+        }
+        try {
+            List<DiscordGuildDto> botGuilds = discordClient.getBotGuilds();
+            if (botGuilds != null) {
+                for (DiscordGuildDto bg : botGuilds) {
+                    String slug = generateUniqueSlug(bg.getName(), bg.getId());
+                    if (slug.equalsIgnoreCase(idOrSlug)) {
+                        return bg.getId();
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        return idOrSlug;
+    }
+
     @Cacheable(value = "emojis:server", key = "#idOrSlug")
     public List<DiscordEmojiDto> getServerEmojis(String idOrSlug) {
-        String guildId = serverRepository.findByIdOrSlug(idOrSlug)
-                .map(Server::getId)
-                .orElse(idOrSlug);
+        String guildId = resolveGuildId(idOrSlug);
+        if (guildId == null || !guildId.matches("\\d+")) {
+            log.warn("Cannot resolve valid Discord snowflake ID for server identifier: {}", idOrSlug);
+            return List.of();
+        }
 
         // 1. Try JDA Gateway cache
         if (jda.isPresent() && jda.get().getStatus() == JDA.Status.CONNECTED) {
-            Guild guild = jda.get().getGuildById(guildId);
-            if (guild != null) {
-                List<net.dv8tion.jda.api.entities.emoji.RichCustomEmoji> emojis = guild.getEmojis();
-                if (!emojis.isEmpty()) {
-                    return emojis.stream()
-                            .map(e -> DiscordEmojiDto.from(e.getId(), e.getName(), e.isAnimated()))
-                            .toList();
+            try {
+                Guild guild = jda.get().getGuildById(guildId);
+                if (guild != null) {
+                    List<net.dv8tion.jda.api.entities.emoji.RichCustomEmoji> emojis = guild.getEmojis();
+                    if (!emojis.isEmpty()) {
+                        return emojis.stream()
+                                .map(e -> DiscordEmojiDto.from(e.getId(), e.getName(), e.isAnimated()))
+                                .toList();
+                    }
                 }
+            } catch (Exception e) {
+                log.warn("JDA cache lookup failed for guild emojis {}: {}", guildId, e.getMessage());
             }
         }
 
@@ -570,7 +610,7 @@ public class ServerService {
                         .toList();
             }
         } catch (Exception e) {
-            log.warn("Failed to fetch server emojis for guild {}: {}", guildId, e.getMessage());
+            log.warn("Failed to fetch server emojis from Discord REST for guild {}: {}", guildId, e.getMessage());
         }
 
         return List.of();
@@ -578,7 +618,7 @@ public class ServerService {
 
     @Cacheable(value = "emojis:bot", key = "'all'")
     public List<DiscordEmojiDto> getBotEmojis() {
-        // 1. Resolve Application ID
+        // 1. Resolve Application ID and fetch application-scoped emojis
         String appId = null;
         if (jda.isPresent()) {
             try {
@@ -602,17 +642,42 @@ public class ServerService {
             }
         }
 
-        // 2. Fallback: Aggregate custom emojis from connected guilds if application emojis are empty
+        // 2. Fallback: Aggregate custom emojis from connected guilds via JDA
         if (jda.isPresent() && jda.get().getStatus() == JDA.Status.CONNECTED) {
-            List<DiscordEmojiDto> aggregated = new ArrayList<>();
-            for (Guild g : jda.get().getGuilds()) {
-                for (net.dv8tion.jda.api.entities.emoji.RichCustomEmoji e : g.getEmojis()) {
-                    aggregated.add(DiscordEmojiDto.from(e.getId(), e.getName(), e.isAnimated()));
-                    if (aggregated.size() >= 50) break;
+            try {
+                List<DiscordEmojiDto> aggregated = new ArrayList<>();
+                for (Guild g : jda.get().getGuilds()) {
+                    for (net.dv8tion.jda.api.entities.emoji.RichCustomEmoji e : g.getEmojis()) {
+                        aggregated.add(DiscordEmojiDto.from(e.getId(), e.getName(), e.isAnimated()));
+                        if (aggregated.size() >= 100) break;
+                    }
+                    if (aggregated.size() >= 100) break;
                 }
-                if (aggregated.size() >= 50) break;
+                if (!aggregated.isEmpty()) return aggregated;
+            } catch (Exception e) {
+                log.warn("Failed to aggregate bot emojis from JDA guilds: {}", e.getMessage());
             }
-            if (!aggregated.isEmpty()) return aggregated;
+        }
+
+        // 3. Fallback: Aggregate custom emojis via Discord REST if JDA is empty or disconnected
+        try {
+            List<DiscordGuildDto> botGuilds = discordClient.getBotGuilds();
+            if (botGuilds != null && !botGuilds.isEmpty()) {
+                List<DiscordEmojiDto> aggregated = new ArrayList<>();
+                for (DiscordGuildDto bg : botGuilds) {
+                    List<DiscordEmojiResponseDto> guildEmojis = discordClient.getGuildEmojis(bg.getId());
+                    if (guildEmojis != null) {
+                        for (DiscordEmojiResponseDto ge : guildEmojis) {
+                            aggregated.add(DiscordEmojiDto.from(ge.id(), ge.name(), ge.animated()));
+                            if (aggregated.size() >= 100) break;
+                        }
+                    }
+                    if (aggregated.size() >= 100) break;
+                }
+                if (!aggregated.isEmpty()) return aggregated;
+            }
+        } catch (Exception e) {
+            log.warn("Failed to aggregate bot emojis via Discord REST: {}", e.getMessage());
         }
 
         return List.of();

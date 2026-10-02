@@ -350,7 +350,7 @@ export function DiscordEmojiPicker({
                       <button
                         key={`${emoji.name}_${emoji.id || emoji.char}_${idx}`}
                         type="button"
-                        className="emoji-cell-btn"
+                        className="emoji-cell-btn emoji-item-cell"
                         onMouseEnter={() => setHoveredEmoji(emoji)}
                         onMouseLeave={() => setHoveredEmoji(null)}
                         onClick={() => handleEmojiSelect(emoji)}
@@ -362,6 +362,9 @@ export function DiscordEmojiPicker({
                             alt={emoji.name}
                             className="bot-emoji-img"
                             loading="lazy"
+                            onError={(e) => {
+                              e.currentTarget.style.opacity = '0.3';
+                            }}
                           />
                         ) : (
                           <span>{emoji.char}</span>
@@ -399,7 +402,7 @@ export function DiscordEmojiPicker({
                           <button
                             key={`server_${emoji.id}_${emoji.name}`}
                             type="button"
-                            className="emoji-cell-btn"
+                            className="emoji-cell-btn emoji-item-cell"
                             onMouseEnter={() => setHoveredEmoji(emoji)}
                             onMouseLeave={() => setHoveredEmoji(null)}
                             onClick={() => handleEmojiSelect(emoji)}
@@ -410,6 +413,9 @@ export function DiscordEmojiPicker({
                               alt={emoji.name}
                               className="bot-emoji-img"
                               loading="lazy"
+                              onError={(e) => {
+                                e.currentTarget.style.opacity = '0.3';
+                              }}
                             />
                           </button>
                         ))
@@ -459,7 +465,7 @@ export function DiscordEmojiPicker({
                       <button
                         key={`bot_${emoji.id}_${emoji.name}`}
                         type="button"
-                        className="emoji-cell-btn"
+                        className="emoji-cell-btn emoji-item-cell"
                         onMouseEnter={() => setHoveredEmoji(emoji)}
                         onMouseLeave={() => setHoveredEmoji(null)}
                         onClick={() => handleEmojiSelect(emoji)}
@@ -470,6 +476,9 @@ export function DiscordEmojiPicker({
                           alt={emoji.name}
                           className="bot-emoji-img"
                           loading="lazy"
+                          onError={(e) => {
+                            e.currentTarget.style.opacity = '0.3';
+                          }}
                         />
                       </button>
                     ))}
@@ -495,7 +504,7 @@ export function DiscordEmojiPicker({
                           <button
                             key={`${cat.id}_${emoji.name}_${idx}`}
                             type="button"
-                            className="emoji-cell-btn"
+                            className="emoji-cell-btn emoji-item-cell"
                             onMouseEnter={() => setHoveredEmoji(emoji)}
                             onMouseLeave={() => setHoveredEmoji(null)}
                             onClick={() => handleEmojiSelect(emoji)}

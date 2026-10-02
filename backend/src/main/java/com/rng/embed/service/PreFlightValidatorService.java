@@ -338,9 +338,8 @@ public class PreFlightValidatorService {
                     .build();
         }
 
-        Guild guild = jda.get().getGuildById(serverId);
-        if (guild == null) {
-            warnings.add("Guild " + serverId + " is not currently cached by the JDA Gateway daemon.");
+        if (serverId == null || !serverId.matches("\\d+")) {
+            log.warn("Server ID '{}' is not a valid numeric Discord snowflake; skipping in-memory permission check.", serverId);
             return BotPermissionCheck.builder()
                     .hasViewChannel(true)
                     .hasSendMessages(true)
@@ -348,36 +347,64 @@ public class PreFlightValidatorService {
                     .build();
         }
 
-        GuildChannel channel = guild.getGuildChannelById(channelId);
-        if (channel == null) {
-            warnings.add("Target channel " + channelId + " is not currently cached by JDA Gateway daemon; permissions will be verified live by Discord REST API.");
+        try {
+            Guild guild = jda.get().getGuildById(serverId);
+            if (guild == null) {
+                warnings.add("Guild " + serverId + " is not currently cached by the JDA Gateway daemon.");
+                return BotPermissionCheck.builder()
+                        .hasViewChannel(true)
+                        .hasSendMessages(true)
+                        .hasEmbedLinks(true)
+                        .build();
+            }
+
+            if (channelId == null || !channelId.matches("\\d+")) {
+                warnings.add("Channel ID '" + channelId + "' is not a valid snowflake; live permissions deferred.");
+                return BotPermissionCheck.builder()
+                        .hasViewChannel(true)
+                        .hasSendMessages(true)
+                        .hasEmbedLinks(true)
+                        .build();
+            }
+
+            GuildChannel channel = guild.getGuildChannelById(channelId);
+            if (channel == null) {
+                warnings.add("Target channel " + channelId + " is not currently cached by JDA Gateway daemon; permissions will be verified live by Discord REST API.");
+                return BotPermissionCheck.builder()
+                        .hasViewChannel(true)
+                        .hasSendMessages(true)
+                        .hasEmbedLinks(true)
+                        .build();
+            }
+
+            Member selfMember = guild.getSelfMember();
+            boolean hasView = selfMember.hasPermission(channel, Permission.VIEW_CHANNEL);
+            boolean hasSend = selfMember.hasPermission(channel, Permission.MESSAGE_SEND);
+            boolean hasEmbed = selfMember.hasPermission(channel, Permission.MESSAGE_EMBED_LINKS);
+
+            if (!hasView) {
+                errors.add("Bot lacks VIEW_CHANNEL permission in channel " + channelId);
+            }
+            if (!hasSend) {
+                errors.add("Bot lacks SEND_MESSAGES permission in channel " + channelId);
+            }
+            if (!hasEmbed) {
+                warnings.add("Bot lacks EMBED_LINKS permission; interactive Discord V2 containers may be rejected.");
+            }
+
+            return BotPermissionCheck.builder()
+                    .hasViewChannel(hasView)
+                    .hasSendMessages(hasSend)
+                    .hasEmbedLinks(hasEmbed)
+                    .build();
+        } catch (Exception e) {
+            log.warn("Error evaluating bot permissions via JDA for server {} and channel {}: {}", serverId, channelId, e.getMessage());
             return BotPermissionCheck.builder()
                     .hasViewChannel(true)
                     .hasSendMessages(true)
                     .hasEmbedLinks(true)
                     .build();
         }
-
-        Member selfMember = guild.getSelfMember();
-        boolean hasView = selfMember.hasPermission(channel, Permission.VIEW_CHANNEL);
-        boolean hasSend = selfMember.hasPermission(channel, Permission.MESSAGE_SEND);
-        boolean hasEmbed = selfMember.hasPermission(channel, Permission.MESSAGE_EMBED_LINKS);
-
-        if (!hasView) {
-            errors.add("Bot lacks VIEW_CHANNEL permission in channel " + channelId);
-        }
-        if (!hasSend) {
-            errors.add("Bot lacks SEND_MESSAGES permission in channel " + channelId);
-        }
-        if (!hasEmbed) {
-            warnings.add("Bot lacks EMBED_LINKS permission; interactive Discord V2 containers may be rejected.");
-        }
-
-        return BotPermissionCheck.builder()
-                .hasViewChannel(hasView)
-                .hasSendMessages(hasSend)
-                .hasEmbedLinks(hasEmbed)
-                .build();
     }
 
     private static class ComponentStats {

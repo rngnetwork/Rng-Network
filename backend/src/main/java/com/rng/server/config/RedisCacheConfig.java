@@ -37,6 +37,8 @@ public class RedisCacheConfig {
         cacheConfigs.put("guilds:summary", defaultConfig.entryTtl(Duration.ofSeconds(60)));
         cacheConfigs.put("guild:details", defaultConfig.entryTtl(Duration.ofSeconds(30)));
         cacheConfigs.put("guild:channels", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        cacheConfigs.put("emojis:server", defaultConfig.entryTtl(Duration.ofMinutes(10)));
+        cacheConfigs.put("emojis:bot", defaultConfig.entryTtl(Duration.ofMinutes(10)));
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)
@@ -47,6 +49,8 @@ public class RedisCacheConfig {
     @Bean
     @ConditionalOnMissingBean(RedisConnectionFactory.class)
     public CacheManager fallbackCacheManager() {
-        return new ConcurrentMapCacheManager("guilds:summary", "guild:details", "guild:channels");
+        ConcurrentMapCacheManager cacheManager = new ConcurrentMapCacheManager();
+        cacheManager.setAllowNullValues(false);
+        return cacheManager;
     }
 }

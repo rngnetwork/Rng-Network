@@ -14,8 +14,10 @@ import com.rng.embed.repository.DispatchLogRepository;
 import com.rng.identity.domain.User;
 import com.rng.identity.repository.UserRepository;
 import com.rng.server.client.DiscordServerClient;
+import com.rng.server.domain.Server;
 import com.rng.server.dto.ChannelDto;
 import com.rng.server.dto.discord.DiscordChannelDto;
+import com.rng.server.repository.ServerRepository;
 import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
@@ -52,6 +54,7 @@ public class EmbedDispatchService {
     private final UserRepository userRepository;
     private final Optional<JDA> jda;
     private final DiscordServerClient discordClient;
+    private final ServerRepository serverRepository;
 
     public EmbedDispatchService(
             DiscordDispatchService discordDispatchService,
@@ -63,6 +66,21 @@ public class EmbedDispatchService {
             @Autowired(required = false) JDA jda,
             @Autowired(required = false) DiscordServerClient discordClient
     ) {
+        this(discordDispatchService, validatorService, rateLimiterService, scheduledDispatchService,
+                dispatchLogRepository, userRepository, jda, discordClient, null);
+    }
+
+    public EmbedDispatchService(
+            DiscordDispatchService discordDispatchService,
+            PreFlightValidatorService validatorService,
+            RedisRateLimiterService rateLimiterService,
+            RedisScheduledDispatchService scheduledDispatchService,
+            DispatchLogRepository dispatchLogRepository,
+            UserRepository userRepository,
+            @Autowired(required = false) JDA jda,
+            @Autowired(required = false) DiscordServerClient discordClient,
+            @Autowired(required = false) ServerRepository serverRepository
+    ) {
         this.discordDispatchService = discordDispatchService;
         this.validatorService = validatorService;
         this.rateLimiterService = rateLimiterService;
@@ -71,16 +89,33 @@ public class EmbedDispatchService {
         this.userRepository = userRepository;
         this.jda = Optional.ofNullable(jda);
         this.discordClient = discordClient;
+        this.serverRepository = serverRepository;
+    }
+
+    public String resolveServerId(String serverIdOrSlug) {
+        if (serverIdOrSlug == null || serverIdOrSlug.isBlank()) {
+            return serverIdOrSlug;
+        }
+        if (serverIdOrSlug.matches("\\d+")) {
+            return serverIdOrSlug;
+        }
+        if (serverRepository != null) {
+            return serverRepository.findByIdOrSlug(serverIdOrSlug)
+                    .map(Server::getId)
+                    .orElse(serverIdOrSlug);
+        }
+        return serverIdOrSlug;
     }
 
     public DispatchResponse dispatchImmediate(Long operatorUserId, DispatchEmbedRequest request, List<MultipartFile> files) {
-        User operator = validateOperatorAuthorization(operatorUserId, request.serverId());
+        String resolvedServerId = resolveServerId(request.serverId());
+        User operator = validateOperatorAuthorization(operatorUserId, resolvedServerId);
 
         // 1. Rate limit quota check
-        rateLimiterService.checkRateLimits(request.serverId(), request.channelId(), String.valueOf(operatorUserId));
+        rateLimiterService.checkRateLimits(resolvedServerId, request.channelId(), String.valueOf(operatorUserId));
 
         // 2. Pre-flight validation check
-        DryRunValidationResponse validation = validatorService.validate(request.serverId(), request.channelId(), request.payload());
+        DryRunValidationResponse validation = validatorService.validate(resolvedServerId, request.channelId(), request.payload());
         if (!validation.isValid()) {
             throw new BadRequestException("Pre-flight validation failed: " + String.join("; ", validation.errors()));
         }
@@ -100,7 +135,7 @@ public class EmbedDispatchService {
                 .dispatchId(dispatchId)
                 .userId(String.valueOf(operatorUserId))
                 .userEmail(operator.getEmail())
-                .serverId(request.serverId())
+                .serverId(resolvedServerId)
                 .channelId(request.channelId())
                 .dispatchType(request.dispatchType())
                 .status(DispatchStatus.SUCCESS)
@@ -123,16 +158,17 @@ public class EmbedDispatchService {
     }
 
     public DispatchResponse scheduleDispatch(Long operatorUserId, DispatchEmbedRequest request) {
-        User operator = validateOperatorAuthorization(operatorUserId, request.serverId());
+        String resolvedServerId = resolveServerId(request.serverId());
+        User operator = validateOperatorAuthorization(operatorUserId, resolvedServerId);
 
-        rateLimiterService.checkRateLimits(request.serverId(), request.channelId(), String.valueOf(operatorUserId));
+        rateLimiterService.checkRateLimits(resolvedServerId, request.channelId(), String.valueOf(operatorUserId));
 
         Instant minAllowedTime = Instant.now().minusSeconds(15);
         if (request.scheduledFor() == null || request.scheduledFor().isBefore(minAllowedTime)) {
             throw new BadRequestException("Scheduled dispatch time must be in the future.");
         }
 
-        DryRunValidationResponse validation = validatorService.validate(request.serverId(), request.channelId(), request.payload());
+        DryRunValidationResponse validation = validatorService.validate(resolvedServerId, request.channelId(), request.payload());
         if (!validation.isValid()) {
             throw new BadRequestException("Pre-flight validation failed: " + String.join("; ", validation.errors()));
         }
@@ -144,7 +180,7 @@ public class EmbedDispatchService {
                 .dispatchId(dispatchId)
                 .userId(String.valueOf(operatorUserId))
                 .userEmail(operator.getEmail())
-                .serverId(request.serverId())
+                .serverId(resolvedServerId)
                 .channelId(request.channelId())
                 .dispatchType(request.dispatchType())
                 .status(DispatchStatus.QUEUED)
@@ -159,7 +195,7 @@ public class EmbedDispatchService {
                 .dispatchId(dispatchId)
                 .userId(String.valueOf(operatorUserId))
                 .userEmail(operator.getEmail())
-                .serverId(request.serverId())
+                .serverId(resolvedServerId)
                 .channelId(request.channelId())
                 .dispatchType(request.dispatchType())
                 .scheduledFor(request.scheduledFor())
@@ -202,8 +238,9 @@ public class EmbedDispatchService {
     }
 
     public DryRunValidationResponse testDryRun(Long operatorUserId, DryRunValidationRequest request) {
-        validateOperatorAuthorization(operatorUserId, request.serverId());
-        return validatorService.validate(request.serverId(), request.channelId(), request.payload());
+        String resolvedServerId = resolveServerId(request.serverId());
+        validateOperatorAuthorization(operatorUserId, resolvedServerId);
+        return validatorService.validate(resolvedServerId, request.channelId(), request.payload());
     }
 
     public Page<DispatchLogResponse> getDispatchLogs(String serverId, DispatchStatus status, Pageable pageable) {
@@ -236,16 +273,17 @@ public class EmbedDispatchService {
     }
 
     public List<ChannelDto> getDispatchableChannels(String serverId) {
+        String resolvedServerId = resolveServerId(serverId);
         // Priority 1: Fetch live directly from Discord REST API v10 via Bot Token (full parity with app.js)
         if (discordClient != null) {
             try {
-                List<DiscordChannelDto> discordChannels = discordClient.getGuildChannels(serverId);
+                List<DiscordChannelDto> discordChannels = discordClient.getGuildChannels(resolvedServerId);
                 if (discordChannels != null && !discordChannels.isEmpty()) {
                     return discordChannels.stream()
                             // Include Text (0), Voice text (2), Announcement (5), and Forum (15) channels
                             .filter(c -> c.getType() != null && (c.getType() == 0 || c.getType() == 5 || c.getType() == 2 || c.getType() == 15))
                             .map(c -> ChannelDto.builder()
-                                    .id(c.getId())
+                                     .id(c.getId())
                                     .name(c.getName())
                                     .type(c.getType())
                                     .position(c.getPosition() != null ? c.getPosition() : 0)
@@ -255,14 +293,15 @@ public class EmbedDispatchService {
                             .toList();
                 }
             } catch (Exception e) {
-                log.warn("Discord REST client channel retrieval failed for {}: {}", serverId, e.getMessage());
+                log.warn("Discord REST client channel retrieval failed for {}: {}", resolvedServerId, e.getMessage());
             }
         }
 
         // Priority 2: Fallback to JDA Gateway in-memory cache
-        if (jda.isPresent()) {
-            Guild guild = jda.get().getGuildById(serverId);
-            if (guild != null) {
+        if (jda.isPresent() && resolvedServerId != null && resolvedServerId.matches("\\d+")) {
+            try {
+                Guild guild = jda.get().getGuildById(resolvedServerId);
+                if (guild != null) {
                 Member selfMember = guild.getSelfMember();
                 List<ChannelDto> channels = new ArrayList<>();
                 for (GuildChannel ch : guild.getChannels()) {
@@ -286,7 +325,10 @@ public class EmbedDispatchService {
                 channels.sort(Comparator.comparingInt(c -> c.getPosition() != null ? c.getPosition() : 0));
                 return channels;
             }
+        } catch (Exception e) {
+            log.warn("JDA getGuildById failed for {}: {}", resolvedServerId, e.getMessage());
         }
+    }
 
         return List.of();
     }

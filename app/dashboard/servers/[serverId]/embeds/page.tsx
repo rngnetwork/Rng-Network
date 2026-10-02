@@ -7,7 +7,7 @@ import { Type17Container } from '@/components/embeds/types';
 import { MessageBuilder } from '@/components/embeds/MessageBuilder';
 import { UnsavedChangesBar } from '@/components/ui/UnsavedChangesBar';
 import { api, ServerDetail, ChannelItem } from '@/lib/api';
-import { EmojiItem, getServerEmojis } from '@/components/embeds/emoji-data';
+import { EmojiItem } from '@/components/embeds/emoji-data';
 import { buildDiscordV2MessagePayload } from '@/components/embeds/validation';
 
 export default function ServerEmbedsPage() {
@@ -47,33 +47,22 @@ export default function ServerEmbedsPage() {
       }
 
       try {
-        const [serverRes, channelsRes, serverEmojisRes, botEmojisRes] = await Promise.allSettled([
+        let targetId = serverId;
+        const [serverRes, channelsRes, botEmojisRes] = await Promise.allSettled([
           api.fetchServerDetails(token, serverId),
           api.fetchServerChannels(token, serverId),
-          api.fetchServerEmojis(serverId, token),
           api.fetchBotEmojis(token)
         ]);
 
         if (isMounted) {
           if (serverRes.status === 'fulfilled' && serverRes.value.success && serverRes.value.data) {
             setServer(serverRes.value.data);
+            if (serverRes.value.data.id) {
+              targetId = serverRes.value.data.id;
+            }
           }
           if (channelsRes.status === 'fulfilled' && channelsRes.value.success && channelsRes.value.data) {
             setChannels(channelsRes.value.data);
-          }
-          if (serverEmojisRes.status === 'fulfilled' && serverEmojisRes.value.success && serverEmojisRes.value.data) {
-            const mapped: EmojiItem[] = serverEmojisRes.value.data.map(e => ({
-              type: 'custom',
-              id: e.id,
-              name: e.name,
-              animated: e.animated,
-              url: e.url,
-              category: 'server',
-              keywords: [e.name, 'server']
-            }));
-            setServerEmojis(mapped);
-          } else {
-            setServerEmojis(getServerEmojis(serverId, server?.name));
           }
           if (botEmojisRes.status === 'fulfilled' && botEmojisRes.value.success && botEmojisRes.value.data) {
             const mapped: EmojiItem[] = botEmojisRes.value.data.map(e => ({
@@ -86,6 +75,24 @@ export default function ServerEmbedsPage() {
               keywords: [e.name, 'bot']
             }));
             setBotEmojis(mapped);
+          }
+        }
+
+        const serverEmojisRes = await api.fetchServerEmojis(targetId, token);
+        if (isMounted) {
+          if (serverEmojisRes.success && serverEmojisRes.data && serverEmojisRes.data.length > 0) {
+            const mapped: EmojiItem[] = serverEmojisRes.data.map(e => ({
+              type: 'custom',
+              id: e.id,
+              name: e.name,
+              animated: e.animated,
+              url: e.url,
+              category: 'server',
+              keywords: [e.name, 'server']
+            }));
+            setServerEmojis(mapped);
+          } else {
+            setServerEmojis([]);
           }
         }
       } catch (err) {
@@ -102,7 +109,7 @@ export default function ServerEmbedsPage() {
     return () => {
       isMounted = false;
     };
-  }, [serverId, server?.name]);
+  }, [serverId]);
 
   // Handle container and message edits
   const handleSetMessageContent: React.Dispatch<React.SetStateAction<string>> = (val) => {
@@ -164,7 +171,7 @@ export default function ServerEmbedsPage() {
     scheduleTime?: string;
   }) => {
     const payload = buildDiscordV2MessagePayload(containers, messageContent);
-    const targetServerId = data.serverId || serverId;
+    const targetServerId = (server && server.id) ? server.id : (data.serverId || serverId);
     if (data.isScheduled) {
       await api.scheduleEmbedDispatch({
         serverId: targetServerId,
@@ -230,7 +237,7 @@ export default function ServerEmbedsPage() {
         setMessageContent={handleSetMessageContent}
         onLoadTemplate={handleLoadTemplate}
         onDirtyChange={() => setIsDirty(true)}
-        serverId={serverId}
+        serverId={(server && server.id) ? server.id : serverId}
         serverName={server?.name}
         serverChannels={channels}
         serverEmojis={serverEmojis}
