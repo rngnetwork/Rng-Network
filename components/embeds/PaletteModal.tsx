@@ -92,13 +92,6 @@ export function PaletteModal({
               </div>
               <span className="type-card-desc">1–10 media items using &apos;{`{ media: { url } }`}&apos; structure.</span>
             </div>
-            <div className="type-select-card" onClick={() => handleSelect(13)}>
-              <div className="type-card-top">
-                <span className="type-card-name">File Attachment</span>
-                <span className="type-number-pill">Type 13</span>
-              </div>
-              <span className="type-card-desc">Attached file card using &apos;attachment://filename&apos; protocol.</span>
-            </div>
           </div>
 
           {/* Section 3: Interactive Controls */}
