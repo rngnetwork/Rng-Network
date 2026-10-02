@@ -18,4 +18,10 @@ public interface DiscordServerClient {
     void updateGuildSettings(String guildId, DiscordGuildPatchRequest request, String auditReason);
 
     void updateGuildWidget(String guildId, boolean enabled, String channelId, String auditReason);
+
+    List<com.rng.server.dto.discord.DiscordEmojiResponseDto> getGuildEmojis(String guildId);
+
+    List<com.rng.server.dto.discord.DiscordEmojiResponseDto> getApplicationEmojis(String applicationId);
+
+    String getApplicationId();
 }

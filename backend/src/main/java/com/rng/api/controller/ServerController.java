@@ -47,6 +47,12 @@ public class ServerController {
         return ResponseEntity.ok(ApiResponse.success(channels));
     }
 
+    @GetMapping("/{idOrSlug}/emojis")
+    public ResponseEntity<ApiResponse<List<com.rng.server.dto.DiscordEmojiDto>>> getServerEmojis(@PathVariable("idOrSlug") String idOrSlug) {
+        List<com.rng.server.dto.DiscordEmojiDto> emojis = serverService.getServerEmojis(idOrSlug);
+        return ResponseEntity.ok(ApiResponse.success(emojis));
+    }
+
     @PutMapping("/{idOrSlug}")
     public ResponseEntity<ApiResponse<ServerDetailDto>> updateServerSettings(
             Authentication authentication,

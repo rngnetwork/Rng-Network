@@ -13,6 +13,8 @@ import com.rng.server.dto.discord.DiscordChannelDto;
 import com.rng.server.dto.discord.DiscordGuildDetailDto;
 import com.rng.server.dto.discord.DiscordGuildDto;
 import com.rng.server.dto.discord.DiscordGuildPatchRequest;
+import com.rng.server.dto.DiscordEmojiDto;
+import com.rng.server.dto.discord.DiscordEmojiResponseDto;
 import com.rng.server.repository.ServerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -538,5 +540,81 @@ public class ServerService {
                 .boostCount(server.getPremiumSubscriptionCount())
                 .status("operational")
                 .build();
+    }
+
+    @Cacheable(value = "emojis:server", key = "#idOrSlug")
+    public List<DiscordEmojiDto> getServerEmojis(String idOrSlug) {
+        String guildId = serverRepository.findByIdOrSlug(idOrSlug)
+                .map(Server::getId)
+                .orElse(idOrSlug);
+
+        // 1. Try JDA Gateway cache
+        if (jda.isPresent() && jda.get().getStatus() == JDA.Status.CONNECTED) {
+            Guild guild = jda.get().getGuildById(guildId);
+            if (guild != null) {
+                List<net.dv8tion.jda.api.entities.emoji.RichCustomEmoji> emojis = guild.getEmojis();
+                if (!emojis.isEmpty()) {
+                    return emojis.stream()
+                            .map(e -> DiscordEmojiDto.from(e.getId(), e.getName(), e.isAnimated()))
+                            .toList();
+                }
+            }
+        }
+
+        // 2. Try Discord REST API v10
+        try {
+            List<DiscordEmojiResponseDto> restEmojis = discordClient.getGuildEmojis(guildId);
+            if (restEmojis != null && !restEmojis.isEmpty()) {
+                return restEmojis.stream()
+                        .map(e -> DiscordEmojiDto.from(e.id(), e.name(), e.animated()))
+                        .toList();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch server emojis for guild {}: {}", guildId, e.getMessage());
+        }
+
+        return List.of();
+    }
+
+    @Cacheable(value = "emojis:bot", key = "'all'")
+    public List<DiscordEmojiDto> getBotEmojis() {
+        // 1. Resolve Application ID
+        String appId = null;
+        if (jda.isPresent()) {
+            try {
+                appId = jda.get().retrieveApplicationInfo().complete().getId();
+            } catch (Exception ignored) {}
+        }
+        if (appId == null) {
+            appId = discordClient.getApplicationId();
+        }
+
+        if (appId != null) {
+            try {
+                List<DiscordEmojiResponseDto> appEmojis = discordClient.getApplicationEmojis(appId);
+                if (appEmojis != null && !appEmojis.isEmpty()) {
+                    return appEmojis.stream()
+                            .map(e -> DiscordEmojiDto.from(e.id(), e.name(), e.animated()))
+                            .toList();
+                }
+            } catch (Exception e) {
+                log.warn("Failed to fetch application emojis for bot: {}", e.getMessage());
+            }
+        }
+
+        // 2. Fallback: Aggregate custom emojis from connected guilds if application emojis are empty
+        if (jda.isPresent() && jda.get().getStatus() == JDA.Status.CONNECTED) {
+            List<DiscordEmojiDto> aggregated = new ArrayList<>();
+            for (Guild g : jda.get().getGuilds()) {
+                for (net.dv8tion.jda.api.entities.emoji.RichCustomEmoji e : g.getEmojis()) {
+                    aggregated.add(DiscordEmojiDto.from(e.getId(), e.getName(), e.isAnimated()));
+                    if (aggregated.size() >= 50) break;
+                }
+                if (aggregated.size() >= 50) break;
+            }
+            if (!aggregated.isEmpty()) return aggregated;
+        }
+
+        return List.of();
     }
 }
