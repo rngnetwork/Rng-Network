@@ -18,6 +18,4 @@ public interface DiscordServerClient {
     void updateGuildSettings(String guildId, DiscordGuildPatchRequest request, String auditReason);
 
     void updateGuildWidget(String guildId, boolean enabled, String channelId, String auditReason);
-
-    List<com.rng.server.dto.ServerRoleDto> getGuildRoles(String guildId);
 }

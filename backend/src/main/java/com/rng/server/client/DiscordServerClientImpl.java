@@ -5,12 +5,10 @@ import com.rng.common.exception.ForbiddenException;
 import com.rng.common.exception.ResourceNotFoundException;
 import com.rng.common.exception.ServiceUnavailableException;
 import com.rng.common.exception.UnauthorizedException;
-import com.rng.server.dto.ServerRoleDto;
 import com.rng.server.dto.discord.DiscordChannelDto;
 import com.rng.server.dto.discord.DiscordGuildDetailDto;
 import com.rng.server.dto.discord.DiscordGuildDto;
 import com.rng.server.dto.discord.DiscordGuildPatchRequest;
-import com.rng.server.dto.discord.DiscordRoleDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -140,36 +138,6 @@ public class DiscordServerClientImpl implements DiscordServerClient {
             return Arrays.asList(response.getBody());
         } catch (Exception e) {
             handleException("getGuildChannels for " + guildId, e);
-            return List.of();
-        }
-    }
-
-    @Override
-    public List<ServerRoleDto> getGuildRoles(String guildId) {
-        String url = DISCORD_API_BASE + "/guilds/" + guildId + "/roles";
-        try {
-            HttpEntity<Void> entity = new HttpEntity<>(createHeaders(null));
-            ResponseEntity<DiscordRoleDto[]> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.GET,
-                    entity,
-                    DiscordRoleDto[].class
-            );
-            if (response.getBody() == null) {
-                return List.of();
-            }
-            return Arrays.stream(response.getBody())
-                    .map(r -> ServerRoleDto.builder()
-                            .id(r.getId())
-                            .name(r.getName())
-                            .color(r.getColor() != null && r.getColor() != 0 ? String.format("#%06X", (0xFFFFFF & r.getColor())) : "#99AAB5")
-                            .position(r.getPosition() != null ? r.getPosition() : 0)
-                            .managed(Boolean.TRUE.equals(r.getManaged()))
-                            .assignableByBot(!Boolean.TRUE.equals(r.getManaged()))
-                            .build())
-                    .toList();
-        } catch (Exception e) {
-            handleException("getGuildRoles for " + guildId, e);
             return List.of();
         }
     }

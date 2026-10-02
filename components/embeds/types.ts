@@ -37,7 +37,6 @@ export interface DiscordButtonComponent {
   custom_id?: string;
   url?: string;
   disabled?: boolean;
-  action?: ComponentActionPayload;
 }
 
 export interface SelectOption {
@@ -47,7 +46,6 @@ export interface SelectOption {
   emoji?: string | PartialEmojiObject;
   default?: boolean;
   selected?: boolean;
-  action?: ComponentActionPayload;
 }
 
 export interface DiscordSelectComponent {
@@ -382,51 +380,3 @@ export interface BackendDispatchLog {
   latencyMs?: number;
   timestamp: string;
 }
-
-export type ComponentActionType = 'NONE' | 'ROLE' | 'REPLY' | 'TICKET' | 'MODAL' | 'DM';
-
-export type RoleActionSubtype = 'TOGGLE' | 'ADD' | 'REMOVE';
-
-export interface RoleActionConfig {
-  subtype: RoleActionSubtype;
-  roleId: string;
-  roleName?: string;
-  successMessage?: string;
-  removeMessage?: string;
-}
-
-export interface ReplyActionConfig {
-  ephemeral: boolean;
-  content: string;
-}
-
-export interface TicketActionConfig {
-  channelPrefix: string;
-  categoryId?: string;
-  supportRoleIds: string[];
-  welcomeMessage?: string;
-}
-
-export interface DmActionConfig {
-  content: string;
-}
-
-export interface ComponentActionPayload {
-  actionId?: string; // rng_act_<16_hex>
-  name?: string;
-  actionType: ComponentActionType;
-  roleConfig?: RoleActionConfig;
-  replyConfig?: ReplyActionConfig;
-  ticketConfig?: TicketActionConfig;
-  dmConfig?: DmActionConfig;
-}
-
-export interface GuildRoleOption {
-  id: string;
-  name: string;
-  color: string;
-  position: number;
-  managed: boolean;
-  assignableByBot: boolean;
-}
-

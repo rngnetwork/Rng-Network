@@ -1,26 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  DiscordButtonComponent,
-  ButtonStyle,
-  ComponentActionPayload,
-  ComponentActionType,
-  RoleActionSubtype,
-  GuildRoleOption,
-  PartialEmojiObject
-} from './types';
+import React, { useState } from 'react';
+import { DiscordButtonComponent, ButtonStyle } from './types';
 import { DiscordEmojiPicker } from './DiscordEmojiPicker';
 import { EmojiItem } from './emoji-data';
-import { GlassmorphicDropdown, DropdownOption } from '@/components/ui/GlassmorphicDropdown';
-import { api } from '@/lib/api';
 
 interface ButtonModalProps {
   isOpen: boolean;
   onClose: () => void;
   buttonData: DiscordButtonComponent | null;
   onSave: (updated: DiscordButtonComponent) => void;
-  serverId?: string;
 }
 
 function getInitialEmojiStr(emoji: DiscordButtonComponent['emoji']): string {
@@ -35,8 +24,7 @@ export function ButtonModal({
   isOpen,
   onClose,
   buttonData,
-  onSave,
-  serverId
+  onSave
 }: ButtonModalProps) {
   if (!isOpen || !buttonData) return null;
 
@@ -45,7 +33,6 @@ export function ButtonModal({
       buttonData={buttonData}
       onClose={onClose}
       onSave={onSave}
-      serverId={serverId}
     />
   );
 }
@@ -53,13 +40,11 @@ export function ButtonModal({
 function ButtonModalContent({
   buttonData,
   onClose,
-  onSave,
-  serverId
+  onSave
 }: {
   buttonData: DiscordButtonComponent;
   onClose: () => void;
   onSave: (updated: DiscordButtonComponent) => void;
-  serverId?: string;
 }) {
   const [label, setLabel] = useState(buttonData.label || '');
   const [style, setStyle] = useState<ButtonStyle>(buttonData.style || 1);
@@ -69,91 +54,6 @@ function ButtonModalContent({
   const [disabled, setDisabled] = useState(Boolean(buttonData.disabled));
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [emojiTriggerRect, setEmojiTriggerRect] = useState<DOMRect | null>(null);
-
-  // Action Configuration State
-  const initialActionType: ComponentActionType = buttonData.action?.actionType ||
-    (buttonData.custom_id?.startsWith('rng_act_') ? 'ROLE' : 'NONE');
-
-  const [actionType, setActionType] = useState<ComponentActionType>(initialActionType);
-  const [roleSubtype, setRoleSubtype] = useState<RoleActionSubtype>(
-    buttonData.action?.roleConfig?.subtype || 'TOGGLE'
-  );
-  const [roleId, setRoleId] = useState<string>(buttonData.action?.roleConfig?.roleId || '');
-  const [roleSuccessMessage, setRoleSuccessMessage] = useState<string>(
-    buttonData.action?.roleConfig?.successMessage || ''
-  );
-  const [roleRemoveMessage, setRoleRemoveMessage] = useState<string>(
-    buttonData.action?.roleConfig?.removeMessage || ''
-  );
-
-  const [replyEphemeral, setReplyEphemeral] = useState<boolean>(
-    buttonData.action?.replyConfig?.ephemeral ?? true
-  );
-  const [replyContent, setReplyContent] = useState<string>(
-    buttonData.action?.replyConfig?.content || ''
-  );
-
-  const [ticketPrefix, setTicketPrefix] = useState<string>(
-    buttonData.action?.ticketConfig?.channelPrefix || 'ticket-'
-  );
-  const [ticketWelcomeMessage, setTicketWelcomeMessage] = useState<string>(
-    buttonData.action?.ticketConfig?.welcomeMessage || ''
-  );
-
-  const [dmContent, setDmContent] = useState<string>(
-    buttonData.action?.dmConfig?.content || ''
-  );
-
-  // Live Server Roles Discovery
-  const [roles, setRoles] = useState<GuildRoleOption[]>([]);
-  const [isLoadingRoles, setIsLoadingRoles] = useState(Boolean(serverId));
-
-  useEffect(() => {
-    let isMounted = true;
-    if (!serverId) return;
-
-    void (async () => {
-      try {
-        const res = await api.fetchServerRoles(serverId);
-        if (isMounted && res.success && res.data) {
-          setRoles(res.data);
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.warn('Failed to load server roles for button customizer:', err);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingRoles(false);
-        }
-      }
-    })();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [serverId]);
-
-  const roleOptions: DropdownOption<string>[] = useMemo(() => {
-    return roles.map((r) => ({
-      value: r.id,
-      label: `@${r.name}`,
-      badge: !r.assignableByBot ? 'Higher than Bot' : undefined,
-      disabled: !r.assignableByBot,
-      icon: (
-        <span
-          style={{
-            width: 10,
-            height: 10,
-            borderRadius: '50%',
-            backgroundColor: r.color && r.color !== '#000000' ? r.color : '#99aab5',
-            display: 'inline-block',
-            marginRight: 6
-          }}
-        />
-      )
-    }));
-  }, [roles]);
 
   const handleOpenEmojiPicker = (e: React.MouseEvent<HTMLButtonElement>) => {
     setEmojiTriggerRect(e.currentTarget.getBoundingClientRect());
@@ -166,7 +66,7 @@ function ButtonModalContent({
   };
 
   const handleSave = () => {
-    let parsedEmoji: string | PartialEmojiObject | undefined = undefined;
+    let parsedEmoji: string | { name: string; id?: string; animated?: boolean } | undefined = undefined;
     if (emojiStr.trim()) {
       const match = emojiStr.trim().match(/<(a)?:([a-zA-Z0-9_]+):([0-9]+)>/);
       if (match) {
@@ -180,53 +80,6 @@ function ButtonModalContent({
       }
     }
 
-    let finalCustomId: string | undefined = undefined;
-    let finalUrl: string | undefined = undefined;
-    let actionPayload: ComponentActionPayload | undefined = undefined;
-
-    if (style === 5) {
-      finalUrl = url.trim() || 'https://discord.com';
-    } else if (actionType === 'NONE') {
-      finalCustomId = customId.trim() || `btn_${Date.now()}`;
-    } else {
-      const existingActionId = buttonData.action?.actionId ||
-        (buttonData.custom_id?.startsWith('rng_act_') ? buttonData.custom_id : undefined);
-      const actionId = existingActionId || `rng_act_${Date.now().toString(16)}${Math.random().toString(16).substring(2, 6)}`;
-      finalCustomId = actionId;
-
-      const selectedRole = roles.find((r) => r.id === roleId);
-
-      actionPayload = {
-        actionId,
-        name: `${label.trim() || 'Button'} - ${actionType}`,
-        actionType,
-        roleConfig: actionType === 'ROLE' ? {
-          subtype: roleSubtype,
-          roleId,
-          roleName: selectedRole?.name,
-          successMessage: roleSuccessMessage.trim() || undefined,
-          removeMessage: roleRemoveMessage.trim() || undefined
-        } : undefined,
-        replyConfig: actionType === 'REPLY' ? {
-          ephemeral: replyEphemeral,
-          content: replyContent.trim() || 'Interaction acknowledged.'
-        } : undefined,
-        ticketConfig: actionType === 'TICKET' ? {
-          channelPrefix: ticketPrefix.trim() || 'ticket-',
-          supportRoleIds: [],
-          welcomeMessage: ticketWelcomeMessage.trim() || undefined
-        } : undefined,
-        dmConfig: actionType === 'DM' ? {
-          content: dmContent.trim() || 'Notification from server bot.'
-        } : undefined
-      };
-
-      // Asynchronously persist to backend registry
-      api.saveServerAction(actionPayload, undefined, serverId).catch((err) => {
-        console.warn('Failed to save button server action:', err);
-      });
-    }
-
     const updated: DiscordButtonComponent = {
       type: 2,
       id: buttonData.id,
@@ -234,9 +87,8 @@ function ButtonModalContent({
       style,
       emoji: parsedEmoji,
       disabled,
-      custom_id: finalCustomId,
-      url: finalUrl,
-      action: actionPayload
+      custom_id: style !== 5 ? (customId.trim() || `btn_${Date.now()}`) : undefined,
+      url: style === 5 ? (url.trim() || 'https://discord.com') : undefined
     };
 
     onSave(updated);
@@ -254,11 +106,8 @@ function ButtonModalContent({
         <div
           className="modal-dialog"
           style={{
-            maxWidth: '600px',
+            maxWidth: '560px',
             width: '100%',
-            maxHeight: '85vh',
-            display: 'flex',
-            flexDirection: 'column',
             boxShadow: '0 30px 80px rgba(0, 0, 0, 0.9), 0 0 35px rgba(88, 101, 242, 0.12)'
           }}
         >
@@ -274,8 +123,8 @@ function ButtonModalContent({
               <i className="fa-solid fa-xmark" />
             </button>
           </div>
-
-          <div className="modal-body" style={{ overflowY: 'auto', flex: 1, paddingRight: '8px' }}>
+          <div className="modal-body">
+            
             <div className="form-group">
               <label className="form-label">Button Label / Text</label>
               <input
@@ -289,7 +138,7 @@ function ButtonModalContent({
 
             <div className="form-group">
               <label className="form-label">Button Style (Discord Specification)</label>
-              <div className="btn-style-selector-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(95px, 1fr))', gap: '6px' }}>
+              <div className="btn-style-selector-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '6px' }}>
                 <button
                   type="button"
                   className={`btn-style-chip btn-style-1 ${style === 1 ? 'active' : ''}`}
@@ -444,10 +293,24 @@ function ButtonModalContent({
               </div>
             </div>
 
-            {/* Link URL vs Interactive Action Engine */}
-            {style === 5 ? (
+            {style !== 5 ? (
               <div className="form-group">
-                <label className="form-label">Target URL (Link Button)</label>
+                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Custom ID</span>
+                  <span style={{ fontSize: '11px', color: '#949ba4', fontWeight: 400 }}>Event Handler ID</span>
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}
+                  placeholder="e.g. verify_member_btn"
+                  value={customId}
+                  onChange={(e) => setCustomId(e.target.value)}
+                />
+              </div>
+            ) : (
+              <div className="form-group">
+                <label className="form-label">Target URL (For Link Buttons)</label>
                 <input
                   type="text"
                   className="form-input"
@@ -455,225 +318,10 @@ function ButtonModalContent({
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                 />
-                <div style={{ fontSize: '11px', color: '#949ba4', marginTop: '6px' }}>
-                  Link buttons open external websites directly and do not dispatch bot interaction events.
-                </div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '6px' }}>
-                {/* Action Mode Selector */}
-                <div className="form-group">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <label className="form-label" style={{ margin: 0 }}>Button Action Handler</label>
-                    <span style={{ fontSize: '10.5px', color: '#38bdf8', fontWeight: 600 }}>Action Engine</span>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '6px' }}>
-                    {[
-                      { type: 'NONE', label: 'Custom ID', icon: 'fa-tag' },
-                      { type: 'ROLE', label: 'Role Assign', icon: 'fa-shield-halved' },
-                      { type: 'REPLY', label: 'Bot Reply', icon: 'fa-comment-dots' },
-                      { type: 'TICKET', label: 'Ticket', icon: 'fa-ticket' },
-                      { type: 'DM', label: 'Direct Msg', icon: 'fa-envelope' }
-                    ].map((item) => (
-                      <button
-                        key={item.type}
-                        type="button"
-                        onClick={() => setActionType(item.type as ComponentActionType)}
-                        style={{
-                          padding: '7px 6px',
-                          borderRadius: '6px',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '5px',
-                          background: actionType === item.type ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                          border: actionType === item.type ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
-                          color: actionType === item.type ? '#38bdf8' : '#dbdee1',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        <i className={`fa-solid ${item.icon}`} style={{ fontSize: '10px' }} />
-                        <span>{item.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Sub-form: NONE (Raw Custom ID) */}
-                {actionType === 'NONE' && (
-                  <div className="form-group">
-                    <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Custom ID</span>
-                      <span style={{ fontSize: '11px', color: '#949ba4', fontWeight: 400 }}>Event Handler ID</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}
-                      placeholder="e.g. verify_member_btn"
-                      value={customId}
-                      onChange={(e) => setCustomId(e.target.value)}
-                    />
-                  </div>
-                )}
-
-                {/* Sub-form: ROLE (Role Assignment) */}
-                {actionType === 'ROLE' && (
-                  <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <label className="form-label" style={{ margin: 0, flex: 1 }}>Role Operation Subtype</label>
-                      <div style={{ display: 'flex', gap: '4px' }}>
-                        {(['TOGGLE', 'ADD', 'REMOVE'] as RoleActionSubtype[]).map((st) => (
-                          <button
-                            key={st}
-                            type="button"
-                            onClick={() => setRoleSubtype(st)}
-                            style={{
-                              padding: '3px 8px',
-                              borderRadius: '4px',
-                              fontSize: '10.5px',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              background: roleSubtype === st ? '#5865F2' : 'rgba(255, 255, 255, 0.06)',
-                              border: roleSubtype === st ? '1px solid #7983f5' : '1px solid rgba(255, 255, 255, 0.1)',
-                              color: roleSubtype === st ? '#fff' : '#949ba4'
-                            }}
-                          >
-                            {st}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">Target Role</label>
-                      {roleOptions.length > 0 ? (
-                        <GlassmorphicDropdown
-                          options={roleOptions}
-                          value={roleId}
-                          onChange={(val) => setRoleId(val)}
-                          placeholder="Select Discord Role..."
-                          searchable
-                          searchPlaceholder="Search roles..."
-                        />
-                      ) : (
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder={isLoadingRoles ? "Loading roles..." : "Enter Role Snowflake ID (e.g. 104712345678901234)"}
-                          value={roleId}
-                          onChange={(e) => setRoleId(e.target.value)}
-                        />
-                      )}
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                      <div>
-                        <label className="form-label" style={{ fontSize: '11px' }}>Success Message</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          style={{ fontSize: '11.5px' }}
-                          placeholder="Granted role successfully!"
-                          value={roleSuccessMessage}
-                          onChange={(e) => setRoleSuccessMessage(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label className="form-label" style={{ fontSize: '11px' }}>Remove Message</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          style={{ fontSize: '11.5px' }}
-                          placeholder="Removed role successfully!"
-                          value={roleRemoveMessage}
-                          onChange={(e) => setRoleRemoveMessage(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Sub-form: REPLY (Ephemeral / Public Bot Message) */}
-                {actionType === 'REPLY' && (
-                  <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <label className="form-label" style={{ margin: 0 }}>Bot Response Content</label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', color: '#dbdee1', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={replyEphemeral}
-                          onChange={(e) => setReplyEphemeral(e.target.checked)}
-                          style={{ accentColor: '#38bdf8' }}
-                        />
-                        <span>Ephemeral (Only clicker sees)</span>
-                      </label>
-                    </div>
-                    <textarea
-                      className="form-input"
-                      rows={3}
-                      style={{ fontSize: '12px', resize: 'vertical' }}
-                      placeholder="Type markdown response message (e.g. Thanks for verifying! Welcome to the server.)"
-                      value={replyContent}
-                      onChange={(e) => setReplyContent(e.target.value)}
-                    />
-                  </div>
-                )}
-
-                {/* Sub-form: TICKET (Support Ticket Channel Creation) */}
-                {actionType === 'TICKET' && (
-                  <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">Channel Name Prefix</label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="ticket-"
-                        value={ticketPrefix}
-                        onChange={(e) => setTicketPrefix(e.target.value)}
-                      />
-                    </div>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">Welcome Message</label>
-                      <textarea
-                        className="form-input"
-                        rows={2}
-                        style={{ fontSize: '12px', resize: 'vertical' }}
-                        placeholder="Welcome {user}! Staff will be with you shortly."
-                        value={ticketWelcomeMessage}
-                        onChange={(e) => setTicketWelcomeMessage(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Sub-form: DM (Direct Message to User) */}
-                {actionType === 'DM' && (
-                  <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">Direct Message Content</label>
-                      <textarea
-                        className="form-input"
-                        rows={3}
-                        style={{ fontSize: '12px', resize: 'vertical' }}
-                        placeholder="Message sent directly to the member's Discord DMs..."
-                        value={dmContent}
-                        onChange={(e) => setDmContent(e.target.value)}
-                      />
-                      <div style={{ fontSize: '11px', color: '#949ba4', marginTop: '4px' }}>
-                        If the user has direct messages disabled, the bot automatically falls back to an ephemeral prompt.
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
-            <div className="modal-footer" style={{ padding: '14px 0 0 0', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px' }}>
+            <div className="modal-footer" style={{ padding: '14px 0 0 0', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#dbdee1', cursor: 'pointer' }}>
                 <input
                   type="checkbox"

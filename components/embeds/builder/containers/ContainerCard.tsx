@@ -37,7 +37,6 @@ interface ContainerCardProps {
   onCompDrop: (e: React.DragEvent, cIdx: number, compIdx: number) => void;
   draggedComp?: { cIdx: number; compIdx: number } | null;
   dragOverComp?: { cIdx: number; compIdx: number } | null;
-  serverId?: string;
 }
 
 export function ContainerCard({
@@ -45,7 +44,6 @@ export function ContainerCard({
   totalContainers,
   container,
   isAuthorCollapsed = false,
-  serverId,
   onUpdateAccent,
   onToggleSpoiler,
   onToggleAuthorCollapse,
@@ -166,7 +164,6 @@ export function ContainerCard({
               onDrop={onCompDrop}
               isDragging={isDragging}
               isDragOver={isDragOver}
-              serverId={serverId}
             />
           );
         })}
