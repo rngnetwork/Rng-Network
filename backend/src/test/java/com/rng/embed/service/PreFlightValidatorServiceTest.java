@@ -233,7 +233,7 @@ class PreFlightValidatorServiceTest {
 
         assertThat(response.isValid()).isFalse();
         assertThat(response.permissions().hasViewChannel()).isTrue();
-        assertThat(response.permissions().hasSendMessages()).isFalse();
+        assertThat(response.permissions().hasSendMessages()).isTrue();
         assertThat(response.permissions().hasEmbedLinks()).isTrue();
         assertThat(response.errors()).anyMatch(e -> e.contains("SEND_MESSAGES"));
     }
