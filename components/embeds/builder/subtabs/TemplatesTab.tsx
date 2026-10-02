@@ -17,173 +17,6 @@ export interface TemplatesTabProps {
 
 const STORAGE_KEY_TEMPLATES = 'rng_discord_user_templates';
 
-const DEFAULT_TEMPLATES: TemplateItem[] = [
-  {
-    id: 'tmpl_onboarding',
-    name: 'RNG Rules & Role Gate',
-    badge: 'Onboarding',
-    description: 'Type 17 Container with verification buttons and automated role select menu.',
-    state: {
-      message: { content: 'Welcome to **RNG Network**! Please review the server guidelines below and verify to unlock access.' },
-      type17Containers: [
-        {
-          id: 'c17_gate',
-          accentColor: '#E11D2E',
-          isSpoiler: false,
-          author: { name: 'RNG High Command', icon_url: '' },
-          title: 'Official Server Guidelines & Verification',
-          description: 'By joining our network you agree to maintain community standards.\n\n• Respect all server members and staff.\n• No unsolicited spam or self-promotion.\n• Follow Discord Terms of Service.',
-          fields: [
-            { name: 'Channel Access', value: 'Complete verification below to receive member privileges.', inline: true },
-            { name: 'Support', value: 'Open a ticket in #support if you encounter any issues.', inline: true }
-          ],
-          thumbnail: '',
-          image: '',
-          footer: { text: 'RNG Network • Autonomous Security', icon_url: '' },
-          components: [
-            {
-              type: 1,
-              id: 'row_verify',
-              label: 'VERIFICATION CONTROLS',
-              items: [
-                { type: 2, style: 3, label: 'Verify Access', emoji: '✅', custom_id: 'btn_verify_access' },
-                { type: 2, style: 2, label: 'Server Rules', emoji: '📜', custom_id: 'btn_read_rules' },
-                { type: 2, style: 5, label: 'Official Portal', emoji: '🌐', url: 'https://rng.gg' }
-              ]
-            },
-            {
-              type: 14,
-              id: 'sep_gate',
-              divider: true,
-              spacing: 2
-            },
-            {
-              type: 3,
-              id: 'sel_roles',
-              custom_id: 'sel_ping_roles',
-              placeholder: 'Choose your optional notification roles...',
-              options: [
-                { label: 'Announcements Ping', value: 'role_announcements', emoji: '🔔', description: 'Major updates and broadcasts', default: false },
-                { label: 'Events & Tournaments', value: 'role_events', emoji: '🏆', description: 'Community competition alerts', default: false },
-                { label: 'Changelog Alerts', value: 'role_changelog', emoji: '📦', description: 'Bot and network version logs', default: false }
-              ]
-            }
-          ]
-        }
-      ]
-    }
-  },
-  {
-    id: 'tmpl_support',
-    name: 'Automated Support Hub',
-    badge: 'Support',
-    description: 'Interactive ticket launcher with action rows and priority indicators.',
-    state: {
-      message: { content: 'Need assistance? The **RNG Support Team** is available 24/7.' },
-      type17Containers: [
-        {
-          id: 'c17_support',
-          accentColor: '#5865F2',
-          isSpoiler: false,
-          author: { name: 'RNG Help Desk', icon_url: '' },
-          title: 'Create a Support Ticket',
-          description: 'Select a category matching your inquiry to instantly dispatch a dedicated staff channel.',
-          fields: [
-            { name: 'Average Response Time', value: '< 5 Minutes', inline: true },
-            { name: 'Operating Status', value: '🟢 All Systems Operational', inline: true }
-          ],
-          thumbnail: '',
-          image: '',
-          footer: { text: 'Tickets are confidential and logged for quality control.', icon_url: '' },
-          components: [
-            {
-              type: 1,
-              id: 'row_support',
-              items: [
-                { type: 2, style: 1, label: 'Billing & Store', emoji: '💳', custom_id: 'ticket_billing' },
-                { type: 2, style: 2, label: 'Bug Report', emoji: '🐛', custom_id: 'ticket_bug' },
-                { type: 2, style: 4, label: 'Player Report', emoji: '🛡️', custom_id: 'ticket_report' }
-              ]
-            }
-          ]
-        }
-      ]
-    }
-  },
-  {
-    id: 'tmpl_announcement',
-    name: 'Network Announcement & Changelog',
-    badge: 'Announcement',
-    description: 'Multi-field showcase container with interactive patch links.',
-    state: {
-      message: { content: '@everyone **Version 2.4.0 is now live across all servers!**' },
-      type17Containers: [
-        {
-          id: 'c17_update',
-          accentColor: '#23A55A',
-          isSpoiler: false,
-          author: { name: 'RNG Changelog Dispatcher', icon_url: '' },
-          title: '🚀 Update 2.4.0: Discord Components V2 Engine',
-          description: 'We have completely overhauled our bot interaction system to utilize official Type 17 Containers and dynamic Component action rows.',
-          fields: [
-            { name: '✨ New Features', value: '• Type 17 Container Builder\n• Real-time WYSIWYG Discord preview\n• Full Unicode & Bot Emoji support', inline: false },
-            { name: '⚡ Optimizations', value: '• Sub-50ms message rendering\n• Redis distributed caching', inline: false }
-          ],
-          thumbnail: '',
-          image: '',
-          footer: { text: 'RNG Systems Engine • Build #8942', icon_url: '' },
-          components: [
-            {
-              type: 1,
-              id: 'row_update',
-              items: [
-                { type: 2, style: 5, label: 'Read Full Patch Notes', emoji: '📖', url: 'https://rng.gg/changelog' },
-                { type: 2, style: 2, label: 'Report Issues', emoji: '💬', custom_id: 'btn_report_update' }
-              ]
-            }
-          ]
-        }
-      ]
-    }
-  },
-  {
-    id: 'tmpl_giveaway',
-    name: 'Giveaway & Event Notification',
-    badge: 'Community',
-    description: 'Vibrant event embed with enter giveaway button and live countdown indicator.',
-    state: {
-      message: { content: '🎉 **HUGE GIVEAWAY EVENT!** Enter below for a chance to win exclusive Discord Nitro and VIP perks!' },
-      type17Containers: [
-        {
-          id: 'c17_giveaway',
-          accentColor: '#EB459E',
-          isSpoiler: false,
-          author: { name: 'RNG Events Team', icon_url: '' },
-          title: '🎁 3x Discord Nitro Monthly Giveaway',
-          description: 'Click the button below to register your entry. Winners will be drawn automatically.',
-          fields: [
-            { name: 'Prizes', value: '3x Discord Nitro (1 Month)', inline: true },
-            { name: 'Winners Drawn', value: 'In 48 Hours', inline: true }
-          ],
-          thumbnail: '',
-          image: '',
-          footer: { text: 'Entries close soon • Must remain in server', icon_url: '' },
-          components: [
-            {
-              type: 1,
-              id: 'row_giveaway',
-              items: [
-                { type: 2, style: 3, label: 'Enter Giveaway (🎉)', emoji: '🎉', custom_id: 'btn_enter_giveaway' },
-                { type: 2, style: 2, label: 'View Participants', emoji: '👥', custom_id: 'btn_view_giveaway_entries' }
-              ]
-            }
-          ]
-        }
-      ]
-    }
-  }
-];
-
 export function TemplatesTab({
   currentBuilderState,
   onLoadTemplate,
@@ -414,7 +247,7 @@ export function TemplatesTab({
   };
 
   const allTemplates = useMemo(() => {
-    return [...userTemplates, ...DEFAULT_TEMPLATES];
+    return [...userTemplates];
   }, [userTemplates]);
 
   const filtered = useMemo(() => {
@@ -535,7 +368,7 @@ export function TemplatesTab({
       {/* Templates Grid */}
       <div className="templates-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
         {filtered.map((tmpl) => {
-          const isUserCreated = !DEFAULT_TEMPLATES.some((d) => d.id === tmpl.id);
+          const isUserCreated = userTemplates.some((d) => d.id === tmpl.id);
           return (
             <div
               key={tmpl.id}
