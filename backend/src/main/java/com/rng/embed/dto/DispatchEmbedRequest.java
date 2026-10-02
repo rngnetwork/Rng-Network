@@ -1,5 +1,6 @@
 package com.rng.embed.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.rng.embed.domain.DispatchType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -21,6 +22,7 @@ public record DispatchEmbedRequest(
     @NotNull(message = "dispatchType is required")
     DispatchType dispatchType,
 
+    @JsonAlias({"scheduledTime", "scheduled_time"})
     Instant scheduledFor,
 
     @NotNull(message = "payload is required")

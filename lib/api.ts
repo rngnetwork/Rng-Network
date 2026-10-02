@@ -147,6 +147,7 @@ export interface DispatchEmbedPayload {
   payload: Record<string, unknown>;
   dryRun?: boolean;
   scheduledTime?: string;
+  scheduledFor?: string;
 }
 
 export interface DispatchResponseData {
@@ -684,10 +685,12 @@ export const api = {
   // ---------------------------------------------------------------------------
   async dispatchEmbedJson(payload: DispatchEmbedPayload, token?: string): Promise<ApiResponseEnvelope<DispatchResponseData>> {
     let effectiveToken = token || getStoredAccessToken();
-    const inferredType: DispatchType = payload.dispatchType || (payload.scheduledTime ? 'SCHEDULED_BOT' : 'IMMEDIATE_BOT');
+    const scheduleTimestamp = payload.scheduledFor || payload.scheduledTime;
+    const inferredType: DispatchType = payload.dispatchType || (scheduleTimestamp ? 'SCHEDULED_BOT' : 'IMMEDIATE_BOT');
     const normalizedPayload = {
       ...payload,
       dispatchType: inferredType,
+      ...(scheduleTimestamp ? { scheduledFor: scheduleTimestamp, scheduledTime: scheduleTimestamp } : {}),
     };
     return requestWithFallback(
       async () => {
@@ -737,8 +740,8 @@ export const api = {
         const logEntry: DispatchLogData = {
           id: 'log_' + Math.random().toString(36).substring(2, 10),
           dispatchId,
-          type: payload.scheduledTime ? 'SCHEDULED_BOT' : 'IMMEDIATE_BOT',
-          status: payload.scheduledTime ? 'SCHEDULED' : 'SUCCESS',
+          type: (payload.scheduledFor || payload.scheduledTime) ? 'SCHEDULED_BOT' : 'IMMEDIATE_BOT',
+          status: (payload.scheduledFor || payload.scheduledTime) ? 'SCHEDULED' : 'SUCCESS',
           serverId: payload.serverId,
           channelId: payload.channelId || 'simulated_channel',
           operatorId: 1,
@@ -822,9 +825,11 @@ export const api = {
 
   async scheduleEmbedDispatch(payload: DispatchEmbedPayload, token?: string): Promise<ApiResponseEnvelope<DispatchResponseData>> {
     let effectiveToken = token || getStoredAccessToken();
+    const scheduleTimestamp = payload.scheduledFor || payload.scheduledTime;
     const normalizedPayload = {
       ...payload,
       dispatchType: payload.dispatchType || 'SCHEDULED_BOT',
+      ...(scheduleTimestamp ? { scheduledFor: scheduleTimestamp, scheduledTime: scheduleTimestamp } : {}),
     };
     return requestWithFallback(
       async () => {

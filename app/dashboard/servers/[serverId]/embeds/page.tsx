@@ -146,6 +146,7 @@ export default function ServerEmbedsPage() {
         channelId: data.channelId,
         payload: payload as unknown as Record<string, unknown>,
         scheduledTime: data.scheduleTime,
+        scheduledFor: data.scheduleTime,
       });
     } else {
       await api.dispatchEmbedJson({
