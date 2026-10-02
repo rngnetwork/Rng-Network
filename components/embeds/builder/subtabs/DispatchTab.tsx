@@ -5,6 +5,12 @@ import { Type17Container, ClientValidationReport } from '../../types';
 import { ChannelItem, ServerItem } from '@/lib/api';
 import { GlassmorphicDropdown, DropdownOption } from '@/components/ui/GlassmorphicDropdown';
 import { validateContainers } from '../../validation';
+import {
+  TIMEZONE_OPTIONS,
+  getDefaultUserTimezone,
+  zonedTimeToUtcIso,
+  formatUtcPreview
+} from '@/lib/timezones';
 
 interface DispatchLogEntry {
   id: string;
@@ -60,8 +66,43 @@ export function DispatchTab({
     now.setMinutes(now.getMinutes() + 5);
     return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   });
+  const [selectedTimezone, setSelectedTimezone] = useState<string>(() => getDefaultUserTimezone());
   const [isSchedulerModalOpen, setIsSchedulerModalOpen] = useState(false);
   const [isDispatching, setIsDispatching] = useState(false);
+
+  const timezoneDropdownOptions: DropdownOption[] = useMemo(() => {
+    const options: DropdownOption[] = TIMEZONE_OPTIONS.map((tz) => ({
+      value: tz.value,
+      label: tz.label,
+      description: `${tz.region} • ${tz.value}`
+    }));
+
+    const isPredefined = TIMEZONE_OPTIONS.some((tz) => tz.value === selectedTimezone);
+    if (selectedTimezone && !isPredefined) {
+      options.unshift({
+        value: selectedTimezone,
+        label: `(System Local) ${selectedTimezone}`,
+        description: `Local System Timezone: ${selectedTimezone}`
+      });
+    }
+
+    return options;
+  }, [selectedTimezone]);
+
+  const computedUtcIso = useMemo(() => {
+    if (!scheduleEnabler || !selectedDate || !selectedTime) {
+      return '';
+    }
+    try {
+      return zonedTimeToUtcIso(selectedDate, selectedTime, selectedTimezone);
+    } catch {
+      return '';
+    }
+  }, [scheduleEnabler, selectedDate, selectedTime, selectedTimezone]);
+
+  const utcPreview = useMemo(() => {
+    return formatUtcPreview(computedUtcIso);
+  }, [computedUtcIso]);
 
   // Derived Server & Channel Selection (computed purely during render)
   const selectedServer = userSelectedServer || serverId || (availableServers.length > 0 ? availableServers[0].id : '');
@@ -143,15 +184,32 @@ export function DispatchTab({
 
   // Dispatch Action
   const handleDispatch = async () => {
-    setIsDispatching(true);
     const now = new Date().toLocaleTimeString();
     let scheduledDateTime: string | undefined = undefined;
-    if (scheduleEnabler && selectedDate && selectedTime) {
-      const localParsed = new Date(`${selectedDate}T${selectedTime}`);
-      if (!isNaN(localParsed.getTime())) {
-        scheduledDateTime = localParsed.toISOString();
+
+    if (scheduleEnabler) {
+      if (!computedUtcIso || utcPreview.formattedUtc === 'Invalid Date' || utcPreview.isPast) {
+        const failureReason = (!computedUtcIso || utcPreview.formattedUtc === 'Invalid Date')
+          ? 'Invalid schedule date/time or timezone configuration.'
+          : `Scheduled dispatch time must be in the future (Target UTC is ${utcPreview.relativeText}).`;
+
+        setLogs((prev) => [
+          {
+            id: `dispatch_${Date.now()}`,
+            timestamp: now,
+            server: currentServerLabel,
+            channel: `#${currentChannelLabel}`,
+            status: 'FAILED',
+            message: `Dispatch aborted: ${failureReason}`
+          },
+          ...prev
+        ]);
+        return;
       }
+      scheduledDateTime = computedUtcIso;
     }
+
+    setIsDispatching(true);
 
     const entryId = `dispatch_${Date.now()}`;
     const initialLog: DispatchLogEntry = {
@@ -161,7 +219,7 @@ export function DispatchTab({
       channel: `#${currentChannelLabel}`,
       status: scheduleEnabler ? 'SCHEDULED' : 'PENDING',
       message: scheduleEnabler
-        ? `Scheduled delivery set for ${selectedDate} at ${selectedTime}. Queued in Redis orchestrator.`
+        ? `Scheduled delivery set for ${selectedDate} at ${selectedTime} (${utcPreview.formattedUtc}). Queued in Redis orchestrator.`
         : `Dispatch initiated with ${containers.length} container(s). Sending payload to Discord...`
     };
 
@@ -187,7 +245,7 @@ export function DispatchTab({
                 ...item,
                 status: scheduleEnabler ? 'SCHEDULED' : 'SUCCESS',
                 message: scheduleEnabler
-                  ? `Message scheduled successfully for ${selectedDate} at ${selectedTime} in #${currentChannelLabel}.`
+                  ? `Message scheduled successfully for ${selectedDate} at ${selectedTime} (${utcPreview.formattedUtc}) in #${currentChannelLabel}.`
                   : `Dispatched successfully to #${currentChannelLabel} (HTTP 200 OK).`
               }
             : item
@@ -324,7 +382,7 @@ export function DispatchTab({
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>Enable Scheduler</div>
                 <div style={{ fontSize: '11px', color: '#949ba4' }}>
                   {scheduleEnabler
-                    ? `Dispatch scheduled for ${selectedDate} at ${selectedTime}`
+                    ? `Dispatch scheduled for ${selectedDate} at ${selectedTime}${utcPreview.formattedUtc !== 'Invalid Date' ? ` (${utcPreview.formattedUtc})` : ''}`
                     : 'Send immediately upon click'}
                 </div>
               </div>
@@ -384,12 +442,12 @@ export function DispatchTab({
             </div>
           </div>
 
-          {/* Inline Scheduler Selectors (DateSelector & TimeSelector) */}
+          {/* Inline Scheduler Selectors (DateSelector, TimeSelector, TimezoneSelector) */}
           {scheduleEnabler && (
             <div
               style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                display: 'flex',
+                flexDirection: 'column',
                 gap: '12px',
                 padding: '16px',
                 background: 'rgba(245, 158, 11, 0.05)',
@@ -397,48 +455,120 @@ export function DispatchTab({
                 borderRadius: '10px'
               }}
             >
-              {/* new DateSelector() */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11.5px', fontWeight: 600, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <i className="fa-regular fa-calendar" /> DateSelector:
-                </label>
-                <input
-                  type="date"
-                  className="form-input"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  style={{
-                    height: '40px',
-                    background: '#090a0d',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    color: '#fff',
-                    borderRadius: '8px',
-                    padding: '0 10px',
-                    fontSize: '12.5px'
-                  }}
-                />
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
+                  gap: '12px'
+                }}
+              >
+                {/* new DateSelector() */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '11.5px', fontWeight: 600, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-regular fa-calendar" /> DateSelector:
+                  </label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    style={{
+                      height: '42px',
+                      background: '#090a0d',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      color: '#fff',
+                      borderRadius: '8px',
+                      padding: '0 10px',
+                      fontSize: '12.5px',
+                      colorScheme: 'dark'
+                    }}
+                  />
+                </div>
+
+                {/* new TimeSelector() */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '11.5px', fontWeight: 600, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-regular fa-clock" /> TimeSelector:
+                  </label>
+                  <input
+                    type="time"
+                    className="form-input"
+                    value={selectedTime}
+                    onChange={(e) => setSelectedTime(e.target.value)}
+                    style={{
+                      height: '42px',
+                      background: '#090a0d',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      color: '#fff',
+                      borderRadius: '8px',
+                      padding: '0 10px',
+                      fontSize: '12.5px',
+                      colorScheme: 'dark'
+                    }}
+                  />
+                </div>
+
+                {/* TimezoneSelector */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '11.5px', fontWeight: 600, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-globe" /> TimezoneSelector:
+                  </label>
+                  <GlassmorphicDropdown
+                    value={selectedTimezone}
+                    options={timezoneDropdownOptions}
+                    onChange={(val) => setSelectedTimezone(String(val))}
+                    placeholder="Select Timezone..."
+                    searchable={true}
+                    searchPlaceholder="Search timezone or city..."
+                  />
+                </div>
               </div>
 
-              {/* new TimeSelector() */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11.5px', fontWeight: 600, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <i className="fa-regular fa-clock" /> TimeSelector:
-                </label>
-                <input
-                  type="time"
-                  className="form-input"
-                  value={selectedTime}
-                  onChange={(e) => setSelectedTime(e.target.value)}
-                  style={{
-                    height: '40px',
-                    background: '#090a0d',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    color: '#fff',
-                    borderRadius: '8px',
-                    padding: '0 10px',
-                    fontSize: '12.5px'
-                  }}
-                />
+              {/* Live UTC Conversion & Validation Badge */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  background: 'rgba(0, 0, 0, 0.4)',
+                  border: `1px solid ${utcPreview.isPast ? 'rgba(239, 68, 68, 0.35)' : 'rgba(34, 197, 94, 0.25)'}`,
+                  borderRadius: '8px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                  <i
+                    className={utcPreview.isPast ? 'fa-solid fa-triangle-exclamation text-red-400' : 'fa-solid fa-clock-rotate-left text-emerald-400'}
+                  />
+                  <span style={{ color: '#949ba4', fontWeight: 500 }}>Target UTC:</span>
+                  <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 600 }}>
+                    {utcPreview.formattedUtc}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: '5px',
+                      background: utcPreview.isPast ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                      color: utcPreview.isPast ? '#f87171' : '#4ade80',
+                      border: `1px solid ${utcPreview.isPast ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
+                      fontFamily: 'monospace'
+                    }}
+                  >
+                    {utcPreview.relativeText}
+                  </span>
+                  {utcPreview.isPast && (
+                    <span style={{ fontSize: '11px', color: '#f87171', fontWeight: 600 }}>
+                      (Must be in future)
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -682,7 +812,7 @@ export function DispatchTab({
             <div
               className="modal-dialog"
               style={{
-                maxWidth: '460px',
+                maxWidth: '480px',
                 width: '100%',
                 boxShadow: '0 30px 80px rgba(0,0,0,0.9), 0 0 35px rgba(245, 158, 11, 0.12)'
               }}
@@ -711,7 +841,7 @@ export function DispatchTab({
                     className="form-input"
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    style={{ height: '40px' }}
+                    style={{ height: '40px', colorScheme: 'dark' }}
                   />
                 </div>
                 <div className="form-group">
@@ -721,8 +851,70 @@ export function DispatchTab({
                     className="form-input"
                     value={selectedTime}
                     onChange={(e) => setSelectedTime(e.target.value)}
-                    style={{ height: '40px' }}
+                    style={{ height: '40px', colorScheme: 'dark' }}
                   />
+                </div>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-globe text-amber-400" />
+                    <span>TimezoneSelector</span>
+                  </label>
+                  <GlassmorphicDropdown
+                    value={selectedTimezone}
+                    options={timezoneDropdownOptions}
+                    onChange={(val) => setSelectedTimezone(String(val))}
+                    placeholder="Select Timezone..."
+                    searchable={true}
+                    searchPlaceholder="Search timezone or city..."
+                  />
+                </div>
+
+                {/* Live UTC Diagnostic Feedback */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    background: 'rgba(0, 0, 0, 0.4)',
+                    border: `1px solid ${utcPreview.isPast ? 'rgba(239, 68, 68, 0.35)' : 'rgba(34, 197, 94, 0.25)'}`,
+                    borderRadius: '8px',
+                    marginTop: '2px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                    <i
+                      className={utcPreview.isPast ? "fa-solid fa-triangle-exclamation text-red-400" : "fa-solid fa-clock-rotate-left text-emerald-400"}
+                    />
+                    <span style={{ color: '#949ba4', fontWeight: 500 }}>Target UTC:</span>
+                    <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 600 }}>
+                      {utcPreview.formattedUtc}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '5px',
+                        background: utcPreview.isPast ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                        color: utcPreview.isPast ? '#f87171' : '#4ade80',
+                        border: `1px solid ${utcPreview.isPast ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
+                        fontFamily: 'monospace'
+                      }}
+                    >
+                      {utcPreview.relativeText}
+                    </span>
+                    {utcPreview.isPast && (
+                      <span style={{ fontSize: '11px', color: '#f87171', fontWeight: 600 }}>
+                        (Must be in future)
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="modal-footer" style={{ padding: '10px 0 0 0', background: 'transparent' }}>
