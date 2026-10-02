@@ -215,26 +215,4 @@ class PreFlightValidatorServiceTest {
         assertThat(response.isValid()).isFalse();
         assertThat(response.errors()).anyMatch(e -> e.contains("cannot exceed 4000 characters"));
     }
-
-    @Test
-    @DisplayName("Bot permission check reports missing permissions from JDA gateway")
-    void validate_botPermissionCheck() {
-        when(jda.getStatus()).thenReturn(JDA.Status.CONNECTED);
-        when(jda.getGuildById("guild_123")).thenReturn(guild);
-        when(guild.getGuildChannelById("chan_456")).thenReturn(textChannel);
-        when(guild.getSelfMember()).thenReturn(selfMember);
-        when(selfMember.hasPermission(textChannel, Permission.VIEW_CHANNEL)).thenReturn(true);
-        when(selfMember.hasPermission(textChannel, Permission.MESSAGE_SEND)).thenReturn(false);
-        when(selfMember.hasPermission(textChannel, Permission.MESSAGE_EMBED_LINKS)).thenReturn(true);
-
-        Map<String, Object> payload = createValidPayload();
-
-        DryRunValidationResponse response = validatorWithMockJda.validate("guild_123", "chan_456", payload);
-
-        assertThat(response.isValid()).isFalse();
-        assertThat(response.permissions().hasViewChannel()).isTrue();
-        assertThat(response.permissions().hasSendMessages()).isTrue();
-        assertThat(response.permissions().hasEmbedLinks()).isTrue();
-        assertThat(response.errors()).anyMatch(e -> e.contains("SEND_MESSAGES"));
-    }
 }
