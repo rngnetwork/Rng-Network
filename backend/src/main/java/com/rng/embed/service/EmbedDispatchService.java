@@ -70,6 +70,7 @@ public class EmbedDispatchService {
                 dispatchLogRepository, userRepository, jda, discordClient, null);
     }
 
+    @Autowired
     public EmbedDispatchService(
             DiscordDispatchService discordDispatchService,
             PreFlightValidatorService validatorService,
