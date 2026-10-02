@@ -775,15 +775,6 @@ export const api = {
   },
 
   // ---------------------------------------------------------------------------
-  // Registration Access Request Fallback
-  // ---------------------------------------------------------------------------
-  async submitRegister(email: string, username: string, password?: string): Promise<{ success: boolean; message?: string }> {
-    console.log('Registration Request:', email, username, !!password);
-    await new Promise((r) => setTimeout(r, 600));
-    return { success: true, message: 'Access request submitted for review.' };
-  },
-
-  // ---------------------------------------------------------------------------
   // Discord Components V2 Embed Dispatch & Template APIs (§8.3)
   // ---------------------------------------------------------------------------
   async dispatchEmbedJson(payload: DispatchEmbedPayload, token?: string): Promise<ApiResponseEnvelope<DispatchResponseData>> {

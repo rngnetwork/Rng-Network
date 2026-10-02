@@ -62,20 +62,19 @@ export function BrandingPanel({ type }: { type: "main" | LoginRole }) {
              className="w-32 h-32 mb-6 relative flex items-center justify-center neon-red-outline-glow"
            >
              <div className="relative w-full h-full">
-               {type === 'register' && <Image priority src="/visuals/owner.jpg" alt="Register Icon" fill unoptimized className="object-contain" />}
-               {type === 'login' && <Image priority src="/visuals/staff.png" alt="Login Icon" fill unoptimized className="object-contain" />}
+               <Image priority src="/visuals/staff.png" alt="Login Icon" fill unoptimized className="object-contain" />
              </div>
            </motion.div>
            
            <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">
-             {type === 'register' ? 'Join Network' : 'Network Login'}
+             Network Login
            </h2>
            <p className="text-white/60 text-[14px] font-medium max-w-[240px]">
-             {type === 'register' ? 'Submit your credentials to request an account.' : 'Sign in to access the administration portal.'}
+             Sign in to access the administration portal.
            </p>
            
            <div className="mt-8 bg-[#E11D2E]/10 border border-[#E11D2E]/20 text-[#E11D2E] text-xs font-bold uppercase tracking-widest py-1.5 px-4 rounded-full shadow-[0_0_20px_rgba(225,29,46,0.2)]">
-             {type === 'register' ? 'Access Request' : 'Secured Gateway'}
+             Secured Gateway
            </div>
         </div>
       )}

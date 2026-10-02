@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Mail, Lock, Eye, EyeOff, User, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/lib/api';
 
@@ -11,17 +11,15 @@ const contentVariants = {
   exit: (direction: number) => ({ opacity: 0, x: direction > 0 ? -30 : 30 }),
 };
 
-export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBack: () => void }) {
+export function LoginPanel({ onBack }: { onBack: () => void }) {
   const [step, setStep] = useState<'email' | 'whitelist' | 'discord' | 'forgot-password'>('email');
   const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   const [showWelcome] = useState(false);
-  const [showRegisterSuccess] = useState(false);
   
   const [direction, setDirection] = useState(1);
   const [isWhitelisted, setIsWhitelisted] = useState<boolean | null>(null);
@@ -54,25 +52,17 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
 
   const handleEmailSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!email || !password || (mode === 'register' && !username)) return;
+    if (!email || !password) return;
     
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      if (mode === 'register') {
-        const res = await api.submitRegister(email, username, password);
-        if (res.success) {
-          setDirection(1);
-          setStep('discord');
-        }
-      } else {
-        const res = await api.submitEmailLogin(email, password);
-        if (res.success && res.data?.token) {
-          sessionStorage.setItem('pre2FaToken', res.data.token);
-          setIsWhitelisted(true);
-          setDirection(1);
-          setStep('whitelist');
-        }
+      const res = await api.submitEmailLogin(email, password);
+      if (res.success && res.data?.token) {
+        sessionStorage.setItem('pre2FaToken', res.data.token);
+        setIsWhitelisted(true);
+        setDirection(1);
+        setStep('whitelist');
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Authentication failed';
@@ -102,11 +92,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
       setStep('email');
     } else if (step === 'discord') {
       setDirection(-1);
-      if (mode === 'register') {
-        setStep('email'); // skipped whitelist
-      } else {
-        setStep('whitelist');
-      }
+      setStep('whitelist');
     } else if (step === 'whitelist') {
       setDirection(-1);
       setStep('email');
@@ -132,29 +118,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
           </motion.div>
         )}
 
-        {showRegisterSuccess && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="absolute inset-0 bg-white/95 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6 md:p-10 text-center"
-          >
-            <div className="w-16 h-16 bg-[#3BA55D]/10 rounded-full flex items-center justify-center mb-6">
-              <CheckCircle2 className="text-[#3BA55D] w-10 h-10" />
-            </div>
-            <h3 className="text-2xl font-extrabold text-slate-900 mb-2">Request Submitted</h3>
-            <p className="text-slate-500 text-[14.5px] leading-relaxed max-w-sm mb-8">
-              Your request has been submitted to the manager. You will receive an email when your account is approved or disapproved.
-            </p>
-            <Button 
-              type="button" 
-              onClick={onBack}
-              className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white font-semibold shadow-md"
-            >
-              Back to Main Menu
-            </Button>
-          </motion.div>
-        )}
-
-        {step === 'email' && !showWelcome && !showRegisterSuccess && (
+        {step === 'email' && !showWelcome && (
             <motion.div
               key="email"
               custom={direction}
@@ -169,10 +133,10 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
             </button>
 
             <h3 className="text-3xl font-extrabold text-slate-900 mb-1 tracking-tight mt-4">
-              {mode === 'register' ? 'Request Access' : 'Sign In'}
+              Sign In
             </h3>
             <p className="text-slate-500 text-[14px] mb-4 leading-relaxed">
-              {mode === 'register' ? 'Apply for a network account with your details.' : 'Use your network email, or continue with Google.'}
+              Use your network email, or continue with Google.
             </p>
 
             {resetSuccessNotice && (
@@ -218,20 +182,6 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
             </div>
 
             <form onSubmit={handleEmailSubmit} className="flex flex-col gap-3 w-full">
-              {mode === 'register' && (
-                <div className="relative group">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#E11D2E] transition-colors" size={18} />
-                  <input 
-                    type="text" 
-                    required
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Desired Username"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-11 pr-4 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#E11D2E]/50 focus:bg-white focus:ring-4 focus:ring-[#E11D2E]/5 transition-all font-medium text-[13.5px]"
-                  />
-                </div>
-              )}
-
               <div className="relative group">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#E11D2E] transition-colors" size={18} />
                 <input 
@@ -263,27 +213,25 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
                 </button>
               </div>
 
-              {mode === 'login' && (
-                <div className="flex justify-end -mt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setForgotEmail(email);
-                      setForgotError(null);
-                      setDirection(1);
-                      setStep('forgot-password');
-                    }}
-                    className="text-xs font-semibold text-slate-500 hover:text-[#E11D2E] transition-colors"
-                  >
-                    Forgot password?
-                  </button>
-                </div>
-              )}
+              <div className="flex justify-end -mt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForgotEmail(email);
+                    setForgotError(null);
+                    setDirection(1);
+                    setStep('forgot-password');
+                  }}
+                  className="text-xs font-semibold text-slate-500 hover:text-[#E11D2E] transition-colors"
+                >
+                  Forgot password?
+                </button>
+              </div>
 
               <Button 
                 type="submit" 
                 isLoading={isLoading} 
-                className={`w-full h-11 bg-slate-900 hover:bg-slate-800 border-none !text-white font-semibold !shadow-md hover:!shadow-[0_0_20px_rgba(225,29,46,0.5)] transition-all duration-300 ${mode === 'register' ? 'mt-2' : 'mt-1'}`}
+                className="w-full h-11 bg-slate-900 hover:bg-slate-800 border-none !text-white font-semibold !shadow-md hover:!shadow-[0_0_20px_rgba(225,29,46,0.5)] transition-all duration-300 mt-1"
               >
                 {!isLoading && "Continue"}
               </Button>
@@ -291,7 +239,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
           </motion.div>
         )}
 
-        {step === 'forgot-password' && !showWelcome && !showRegisterSuccess && (
+        {step === 'forgot-password' && !showWelcome && (
           <motion.div
             key="forgot-password"
             custom={direction}
@@ -352,7 +300,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
           </motion.div>
         )}
 
-        {step === 'whitelist' && !showWelcome && !showRegisterSuccess && (
+        {step === 'whitelist' && !showWelcome && (
           <motion.div
             key="whitelist"
             custom={direction}
@@ -403,7 +351,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
           </motion.div>
         )}
 
-        {step === 'discord' && !showWelcome && !showRegisterSuccess && (
+        {step === 'discord' && !showWelcome && (
           <motion.div
             key="discord"
             custom={direction}
@@ -423,9 +371,7 @@ export function LoginPanel({ mode, onBack }: { mode: 'login' | 'register', onBac
             
             <h3 className="text-3xl font-extrabold text-slate-900 mb-2 tracking-tight">Connect Discord</h3>
             <p className="text-slate-500 text-[14px] mb-8 leading-relaxed">
-              {mode === 'register' 
-                ? 'Link your Discord account to submit your access request.' 
-                : 'Link your Discord account to finalize your authorization and load your servers.'}
+              Link your Discord account to finalize your authorization and load your servers.
             </p>
             
             <Button 

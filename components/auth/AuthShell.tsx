@@ -5,7 +5,7 @@ import { RoleSelector } from './RoleSelector';
 import { BrandingPanel } from './BrandingPanel';
 import { LoginPanel } from './LoginPanel';
 
-export type LoginRole = 'login' | 'register' | null;
+export type LoginRole = 'login' | null;
 
 const panelTransition = {
   type: "spring" as const,
@@ -40,7 +40,6 @@ export function AuthShell() {
               ) : (
                 <LoginPanel 
                   key="panel"
-                  mode={role} 
                   onBack={() => {
                     setDirection(-1);
                     setRole(null);
@@ -70,7 +69,7 @@ export function AuthShell() {
 
       {/* MOBILE LAYOUT: Simple Login Card */}
       <div className="flex md:hidden w-full rounded-3xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8),0_0_35px_rgba(225,29,46,0.2)] relative overflow-hidden border border-slate-200/60 bg-white">
-        <LoginPanel mode="login" onBack={() => {}} />
+        <LoginPanel onBack={() => {}} />
       </div>
     </>
   );
