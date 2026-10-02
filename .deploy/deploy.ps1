@@ -283,7 +283,7 @@ Set-Location "backend"
 Set-Location ".."
 
 Write-Host "  -> Launching Backend API on http://localhost:$BACKEND_PORT..." -ForegroundColor Yellow
-$backendJob = Start-Process -FilePath "java" -ArgumentList "-jar", "backend\target\rng-backend-0.0.1-SNAPSHOT.jar", "--server.port=$BACKEND_PORT", "--spring.data.mongodb.uri=$env:MONGODB_URI" -PassThru -NoNewWindow -RedirectStandardOutput "backend.log" -RedirectStandardError "backend_err.log"
+$backendJob = Start-Process -FilePath "java" -ArgumentList "-Xms128m", "-Xmx512m", "-jar", "backend\target\rng-backend-0.0.1-SNAPSHOT.jar", "--server.port=$BACKEND_PORT", "--spring.data.mongodb.uri=$env:MONGODB_URI" -PassThru -NoNewWindow -RedirectStandardOutput "backend.log" -RedirectStandardError "backend_err.log"
 
 Write-Host "  -> Backend process spawned (PID: $($backendJob.Id)). Waiting for health check..." -ForegroundColor Yellow
 

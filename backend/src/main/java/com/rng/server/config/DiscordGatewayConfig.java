@@ -53,16 +53,16 @@ public class DiscordGatewayConfig {
         try {
             this.jdaInstance = JDABuilder.createDefault(token)
                     .enableIntents(
-                            GatewayIntent.GUILD_MEMBERS,
-                            GatewayIntent.GUILD_PRESENCES,
                             GatewayIntent.GUILD_EMOJIS_AND_STICKERS
                     )
-                    .setMemberCachePolicy(MemberCachePolicy.ONLINE)
+                    .setMemberCachePolicy(MemberCachePolicy.NONE)
                     .setChunkingFilter(ChunkingFilter.NONE)
                     .disableCache(
+                            CacheFlag.ACTIVITY,
                             CacheFlag.VOICE_STATE,
                             CacheFlag.CLIENT_STATUS,
-                            CacheFlag.ACTIVITY
+                            CacheFlag.ONLINE_STATUS,
+                            CacheFlag.SCHEDULED_EVENTS
                     )
                     .addEventListeners(eventListener)
                     .build();

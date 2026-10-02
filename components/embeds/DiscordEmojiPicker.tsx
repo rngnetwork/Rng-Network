@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { api } from '@/lib/api';
 import {
   EmojiItem,
   UNICODE_EMOJIS,
@@ -13,6 +14,10 @@ import {
   formatEmojiInsertString
 } from './emoji-data';
 
+// Module-level in-memory cache to avoid duplicate fetches during session
+let cachedBotEmojis: EmojiItem[] | null = null;
+const cachedServerEmojisByGuild: Record<string, EmojiItem[]> = {};
+
 interface DiscordEmojiPickerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -20,6 +25,7 @@ interface DiscordEmojiPickerProps {
   triggerRect?: DOMRect | null;
   serverEmojis?: EmojiItem[];
   botEmojis?: EmojiItem[];
+  serverId?: string;
   serverName?: string;
   placement?: 'bottom-right' | 'center';
 }
@@ -30,10 +36,120 @@ export function DiscordEmojiPicker({
   onSelect,
   serverEmojis,
   botEmojis,
+  serverId,
   serverName,
   placement = 'bottom-right'
 }: DiscordEmojiPickerProps) {
-  const isServerScope = serverEmojis !== undefined;
+  const resolvedServerId = useMemo(() => {
+    if (serverId) return serverId;
+    if (typeof window !== 'undefined') {
+      const match = window.location.pathname.match(/\/dashboard\/servers\/([^/]+)/);
+      return match ? match[1] : undefined;
+    }
+    return undefined;
+  }, [serverId]);
+
+  const isServerScope = (serverEmojis !== undefined && serverEmojis.length > 0) || Boolean(resolvedServerId);
+
+  const [internalServerEmojis, setInternalServerEmojis] = useState<EmojiItem[]>(() => {
+    if (serverEmojis && serverEmojis.length > 0) return serverEmojis;
+    if (resolvedServerId && cachedServerEmojisByGuild[resolvedServerId]) return cachedServerEmojisByGuild[resolvedServerId];
+    return [];
+  });
+  const [internalBotEmojis, setInternalBotEmojis] = useState<EmojiItem[]>(() => {
+    if (botEmojis && botEmojis.length > 0) return botEmojis;
+    if (cachedBotEmojis) return cachedBotEmojis;
+    return [];
+  });
+  const [isLoadingServerEmojis, setIsLoadingServerEmojis] = useState(false);
+  const [isLoadingBotEmojis, setIsLoadingBotEmojis] = useState(false);
+
+  // Sync prop updates if parent explicitly updates
+  useEffect(() => {
+    if (serverEmojis && serverEmojis.length > 0) {
+      setInternalServerEmojis(serverEmojis);
+    }
+  }, [serverEmojis]);
+
+  useEffect(() => {
+    if (botEmojis && botEmojis.length > 0) {
+      setInternalBotEmojis(botEmojis);
+    }
+  }, [botEmojis]);
+
+  // Lazy-load emojis when the picker opens
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let isMounted = true;
+    const token = typeof window !== 'undefined' ? (localStorage.getItem('rng_access_token') || undefined) : undefined;
+
+    // 1. Lazy-load server emojis if needed
+    if (resolvedServerId && !cachedServerEmojisByGuild[resolvedServerId] && (!serverEmojis || serverEmojis.length === 0)) {
+      setIsLoadingServerEmojis(true);
+      api.fetchServerEmojis(resolvedServerId, token)
+        .then(res => {
+          if (!isMounted) return;
+          if (res.success && res.data && res.data.length > 0) {
+            const mapped: EmojiItem[] = res.data.map(e => ({
+              type: 'custom',
+              id: e.id,
+              name: e.name,
+              animated: e.animated,
+              url: e.url,
+              category: 'server',
+              keywords: [e.name, 'server']
+            }));
+            cachedServerEmojisByGuild[resolvedServerId] = mapped;
+            setInternalServerEmojis(mapped);
+          }
+        })
+        .catch(err => console.warn('Failed to lazy-fetch server emojis:', err))
+        .finally(() => {
+          if (isMounted) setIsLoadingServerEmojis(false);
+        });
+    }
+
+    // 2. Lazy-load bot emojis if needed
+    if (!cachedBotEmojis && (!botEmojis || botEmojis.length === 0)) {
+      setIsLoadingBotEmojis(true);
+      api.fetchBotEmojis(token)
+        .then(res => {
+          if (!isMounted) return;
+          if (res.success && res.data && res.data.length > 0) {
+            const mapped: EmojiItem[] = res.data.map(e => ({
+              type: 'custom',
+              id: e.id,
+              name: e.name,
+              animated: e.animated,
+              url: e.url,
+              category: 'bot',
+              keywords: [e.name, 'bot']
+            }));
+            cachedBotEmojis = mapped;
+            setInternalBotEmojis(mapped);
+          }
+        })
+        .catch(err => console.warn('Failed to lazy-fetch bot emojis:', err))
+        .finally(() => {
+          if (isMounted) setIsLoadingBotEmojis(false);
+        });
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, resolvedServerId, serverEmojis, botEmojis]);
+
+  const effectiveServerEmojis = useMemo(() => {
+    if (serverEmojis && serverEmojis.length > 0) return serverEmojis;
+    return internalServerEmojis;
+  }, [serverEmojis, internalServerEmojis]);
+
+  const activeBotSource = useMemo(() => {
+    if (botEmojis && botEmojis.length > 0) return botEmojis;
+    return internalBotEmojis;
+  }, [botEmojis, internalBotEmojis]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState(isServerScope ? 'server' : 'bot');
@@ -60,8 +176,8 @@ export function DiscordEmojiPicker({
     const list: EmojiItem[] = [];
     const seenIds = new Set<string>();
 
-    if (botEmojis && botEmojis.length > 0) {
-      for (const b of botEmojis) {
+    if (activeBotSource && activeBotSource.length > 0) {
+      for (const b of activeBotSource) {
         if (b.id && !seenIds.has(b.id)) {
           seenIds.add(b.id);
           list.push(b);
@@ -76,7 +192,7 @@ export function DiscordEmojiPicker({
       }
     }
 
-    if (list.length === 0) {
+    if (list.length === 0 && !isLoadingBotEmojis) {
       for (const d of DEFAULT_BOT_EMOJIS) {
         if (d.id && !seenIds.has(d.id)) {
           seenIds.add(d.id);
@@ -86,7 +202,7 @@ export function DiscordEmojiPicker({
     }
 
     return list;
-  }, [botEmojis, customBotEmojis]);
+  }, [activeBotSource, customBotEmojis, isLoadingBotEmojis]);
 
   // Click outside listener
   useEffect(() => {
@@ -172,7 +288,7 @@ export function DiscordEmojiPicker({
     const q = searchQuery.toLowerCase().trim();
     if (!q) return null;
 
-    const allServer = serverEmojis || [];
+    const allServer = effectiveServerEmojis || [];
     const all = [...allServer, ...effectiveBotEmojis, ...UNICODE_EMOJIS];
 
     return all.filter(e => {
@@ -181,7 +297,7 @@ export function DiscordEmojiPicker({
       if (e.id && e.id.includes(q)) return true;
       return false;
     });
-  }, [searchQuery, effectiveBotEmojis, serverEmojis]);
+  }, [searchQuery, effectiveBotEmojis, effectiveServerEmojis]);
 
   if (!isOpen) return null;
 
@@ -394,11 +510,15 @@ export function DiscordEmojiPicker({
                           SERVER
                         </span>
                       </div>
-                      <span style={{ fontSize: '10.5px', color: '#949ba4' }}>{(serverEmojis || []).length} emojis</span>
+                      <span style={{ fontSize: '10.5px', color: '#949ba4' }}>{effectiveServerEmojis.length} emojis</span>
                     </div>
                     <div className="emoji-grid">
-                      {serverEmojis && serverEmojis.length > 0 ? (
-                        serverEmojis.map((emoji) => (
+                      {isLoadingServerEmojis ? (
+                        <div style={{ padding: '16px 8px', color: '#949ba4', fontSize: '12px', textAlign: 'center', gridColumn: 'span 9' }}>
+                          Loading server emojis...
+                        </div>
+                      ) : effectiveServerEmojis && effectiveServerEmojis.length > 0 ? (
+                        effectiveServerEmojis.map((emoji) => (
                           <button
                             key={`server_${emoji.id}_${emoji.name}`}
                             type="button"
@@ -461,27 +581,37 @@ export function DiscordEmojiPicker({
                     </div>
                   </div>
                   <div className="emoji-grid">
-                    {effectiveBotEmojis.map((emoji) => (
-                      <button
-                        key={`bot_${emoji.id}_${emoji.name}`}
-                        type="button"
-                        className="emoji-cell-btn emoji-item-cell"
-                        onMouseEnter={() => setHoveredEmoji(emoji)}
-                        onMouseLeave={() => setHoveredEmoji(null)}
-                        onClick={() => handleEmojiSelect(emoji)}
-                        title={`<${emoji.animated ? 'a' : ''}:${emoji.name}:${emoji.id}>`}
-                      >
-                        <img
-                          src={emoji.url}
-                          alt={emoji.name}
-                          className="bot-emoji-img"
-                          loading="lazy"
-                          onError={(e) => {
-                            e.currentTarget.style.opacity = '0.3';
-                          }}
-                        />
-                      </button>
-                    ))}
+                    {isLoadingBotEmojis ? (
+                      <div style={{ padding: '16px 8px', color: '#949ba4', fontSize: '12px', textAlign: 'center', gridColumn: 'span 9' }}>
+                        Loading bot emojis...
+                      </div>
+                    ) : effectiveBotEmojis.length > 0 ? (
+                      effectiveBotEmojis.map((emoji) => (
+                        <button
+                          key={`bot_${emoji.id}_${emoji.name}`}
+                          type="button"
+                          className="emoji-cell-btn emoji-item-cell"
+                          onMouseEnter={() => setHoveredEmoji(emoji)}
+                          onMouseLeave={() => setHoveredEmoji(null)}
+                          onClick={() => handleEmojiSelect(emoji)}
+                          title={`<${emoji.animated ? 'a' : ''}:${emoji.name}:${emoji.id}>`}
+                        >
+                          <img
+                            src={emoji.url}
+                            alt={emoji.name}
+                            className="bot-emoji-img"
+                            loading="lazy"
+                            onError={(e) => {
+                              e.currentTarget.style.opacity = '0.3';
+                            }}
+                          />
+                        </button>
+                      ))
+                    ) : (
+                      <div style={{ padding: '16px 8px', color: '#949ba4', fontSize: '12px', textAlign: 'center', gridColumn: 'span 9' }}>
+                        No bot emojis configured.
+                      </div>
+                    )}
                   </div>
                 </div>
 

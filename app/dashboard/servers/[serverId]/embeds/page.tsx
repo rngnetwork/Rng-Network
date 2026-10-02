@@ -47,52 +47,17 @@ export default function ServerEmbedsPage() {
       }
 
       try {
-        let targetId = serverId;
-        const [serverRes, channelsRes, botEmojisRes] = await Promise.allSettled([
+        const [serverRes, channelsRes] = await Promise.allSettled([
           api.fetchServerDetails(token, serverId),
-          api.fetchServerChannels(token, serverId),
-          api.fetchBotEmojis(token)
+          api.fetchServerChannels(token, serverId)
         ]);
 
         if (isMounted) {
           if (serverRes.status === 'fulfilled' && serverRes.value.success && serverRes.value.data) {
             setServer(serverRes.value.data);
-            if (serverRes.value.data.id) {
-              targetId = serverRes.value.data.id;
-            }
           }
           if (channelsRes.status === 'fulfilled' && channelsRes.value.success && channelsRes.value.data) {
             setChannels(channelsRes.value.data);
-          }
-          if (botEmojisRes.status === 'fulfilled' && botEmojisRes.value.success && botEmojisRes.value.data) {
-            const mapped: EmojiItem[] = botEmojisRes.value.data.map(e => ({
-              type: 'custom',
-              id: e.id,
-              name: e.name,
-              animated: e.animated,
-              url: e.url,
-              category: 'bot',
-              keywords: [e.name, 'bot']
-            }));
-            setBotEmojis(mapped);
-          }
-        }
-
-        const serverEmojisRes = await api.fetchServerEmojis(targetId, token);
-        if (isMounted) {
-          if (serverEmojisRes.success && serverEmojisRes.data && serverEmojisRes.data.length > 0) {
-            const mapped: EmojiItem[] = serverEmojisRes.data.map(e => ({
-              type: 'custom',
-              id: e.id,
-              name: e.name,
-              animated: e.animated,
-              url: e.url,
-              category: 'server',
-              keywords: [e.name, 'server']
-            }));
-            setServerEmojis(mapped);
-          } else {
-            setServerEmojis([]);
           }
         }
       } catch (err) {

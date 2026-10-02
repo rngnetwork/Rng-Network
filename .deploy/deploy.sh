@@ -318,7 +318,7 @@ JAR_PATH="target/rng-backend-0.0.1-SNAPSHOT.jar"
 cd ..
 
 echo "  -> Launching Backend API on http://localhost:${BACKEND_PORT}..."
-nohup java -jar "backend/${JAR_PATH}" \
+nohup java -Xms128m -Xmx512m -jar "backend/${JAR_PATH}" \
     --server.port="${BACKEND_PORT}" \
     --spring.data.mongodb.uri="${MONGODB_URI}" \
     > backend.log 2>&1 &

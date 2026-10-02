@@ -98,29 +98,6 @@ export default function EmbedsPage() {
     initServers();
   }, [loadChannelsForServer]);
 
-  // Load real Discord bot emojis
-  useEffect(() => {
-    const loadBotEmojis = async () => {
-      try {
-        const res = await api.fetchBotEmojis();
-        if (res.success && res.data) {
-          const mapped: EmojiItem[] = res.data.map(e => ({
-            type: 'custom',
-            id: e.id,
-            name: e.name,
-            animated: e.animated,
-            url: e.url,
-            category: 'bot',
-            keywords: [e.name, 'bot']
-          }));
-          setBotEmojis(mapped);
-        }
-      } catch (e) {
-        console.warn('Failed to load bot emojis:', e);
-      }
-    };
-    loadBotEmojis();
-  }, []);
 
   const handleSelectServer = async (newServerId: string) => {
     setSelectedServerId(newServerId);
