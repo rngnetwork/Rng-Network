@@ -7,7 +7,7 @@ import { Type17Container } from '@/components/embeds/types';
 import { MessageBuilder } from '@/components/embeds/MessageBuilder';
 import { UnsavedChangesBar } from '@/components/ui/UnsavedChangesBar';
 import { api, ServerDetail, ChannelItem } from '@/lib/api';
-import { getServerEmojis } from '@/components/embeds/emoji-data';
+import { EmojiItem, getServerEmojis } from '@/components/embeds/emoji-data';
 import { buildDiscordV2MessagePayload } from '@/components/embeds/validation';
 
 export default function ServerEmbedsPage() {
@@ -16,6 +16,8 @@ export default function ServerEmbedsPage() {
 
   const [server, setServer] = useState<ServerDetail | null>(null);
   const [channels, setChannels] = useState<ChannelItem[]>([]);
+  const [serverEmojis, setServerEmojis] = useState<EmojiItem[]>([]);
+  const [botEmojis, setBotEmojis] = useState<EmojiItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Top level active tab: 'builder' | 'templates' | 'components'
@@ -33,7 +35,7 @@ export default function ServerEmbedsPage() {
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Fetch server details and server channels
+  // Fetch server details, server channels, real server emojis and bot emojis
   useEffect(() => {
     let isMounted = true;
 
@@ -45,9 +47,11 @@ export default function ServerEmbedsPage() {
       }
 
       try {
-        const [serverRes, channelsRes] = await Promise.allSettled([
+        const [serverRes, channelsRes, serverEmojisRes, botEmojisRes] = await Promise.allSettled([
           api.fetchServerDetails(token, serverId),
-          api.fetchServerChannels(token, serverId)
+          api.fetchServerChannels(token, serverId),
+          api.fetchServerEmojis(serverId, token),
+          api.fetchBotEmojis(token)
         ]);
 
         if (isMounted) {
@@ -56,6 +60,32 @@ export default function ServerEmbedsPage() {
           }
           if (channelsRes.status === 'fulfilled' && channelsRes.value.success && channelsRes.value.data) {
             setChannels(channelsRes.value.data);
+          }
+          if (serverEmojisRes.status === 'fulfilled' && serverEmojisRes.value.success && serverEmojisRes.value.data) {
+            const mapped: EmojiItem[] = serverEmojisRes.value.data.map(e => ({
+              type: 'custom',
+              id: e.id,
+              name: e.name,
+              animated: e.animated,
+              url: e.url,
+              category: 'server',
+              keywords: [e.name, 'server']
+            }));
+            setServerEmojis(mapped);
+          } else {
+            setServerEmojis(getServerEmojis(serverId, server?.name));
+          }
+          if (botEmojisRes.status === 'fulfilled' && botEmojisRes.value.success && botEmojisRes.value.data) {
+            const mapped: EmojiItem[] = botEmojisRes.value.data.map(e => ({
+              type: 'custom',
+              id: e.id,
+              name: e.name,
+              animated: e.animated,
+              url: e.url,
+              category: 'bot',
+              keywords: [e.name, 'bot']
+            }));
+            setBotEmojis(mapped);
           }
         }
       } catch (err) {
@@ -72,11 +102,6 @@ export default function ServerEmbedsPage() {
     return () => {
       isMounted = false;
     };
-  }, [serverId]);
-
-  // Load server-specific custom emojis (with default fallback & localStorage cache)
-  const serverEmojis = useMemo(() => {
-    return getServerEmojis(serverId, server?.name);
   }, [serverId, server?.name]);
 
   // Handle container and message edits
@@ -166,7 +191,7 @@ export default function ServerEmbedsPage() {
   }
 
   return (
-    <div className="main-workspace w-full h-[calc(100vh-110px)] max-md:h-auto max-md:min-h-[calc(100vh-110px)] flex flex-col">
+    <div className="main-workspace w-full h-[calc(100vh-110px)] flex flex-col overflow-hidden">
       {/* Top Header Bar for Scoped Server */}
       <header className="top-nav-bar">
         <div className="flex items-center gap-3">
@@ -209,6 +234,7 @@ export default function ServerEmbedsPage() {
         serverName={server?.name}
         serverChannels={channels}
         serverEmojis={serverEmojis}
+        botEmojis={botEmojis}
         onDispatchPayload={handleDispatchPayload}
         lockServer={true}
       />

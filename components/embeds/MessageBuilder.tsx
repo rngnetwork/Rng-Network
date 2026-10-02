@@ -28,6 +28,7 @@ export interface MessageBuilderProps {
   serverName?: string;
   serverChannels?: ChannelItem[];
   serverEmojis?: EmojiItem[];
+  botEmojis?: EmojiItem[];
   availableServers?: ServerItem[];
   onSelectServer?: (serverId: string) => void;
   onDispatchPayload?: (payload: {
@@ -49,7 +50,8 @@ export function MessageBuilder({
   serverId,
   serverName,
   serverChannels = [],
-  serverEmojis = [],
+  serverEmojis,
+  botEmojis,
   availableServers = [],
   onSelectServer,
   onDispatchPayload,
@@ -418,6 +420,7 @@ export function MessageBuilder({
           onClose={() => setEmojiPickerOpen(false)}
           triggerRect={emojiPickerTriggerRect}
           serverEmojis={serverEmojis}
+          botEmojis={botEmojis}
           serverName={serverName}
           onSelect={(emoji: EmojiItem, insertStr: string) => {
             if (emojiPickerCallback) emojiPickerCallback(emoji, insertStr);

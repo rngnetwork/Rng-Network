@@ -4,13 +4,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   EmojiItem,
-  EmojiCategory,
-  DISCORD_EMOJI_CATEGORIES,
-  DEFAULT_BOT_EMOJIS,
   UNICODE_EMOJIS,
+  UNICODE_EMOJI_SUBCATEGORIES,
+  DEFAULT_BOT_EMOJIS,
   getCustomBotEmojis,
   saveCustomBotEmoji,
-  getFrequentlyUsedEmojis,
   recordEmojiUsage,
   formatEmojiInsertString
 } from './emoji-data';
@@ -21,6 +19,7 @@ interface DiscordEmojiPickerProps {
   onSelect: (emoji: EmojiItem, insertString: string) => void;
   triggerRect?: DOMRect | null;
   serverEmojis?: EmojiItem[];
+  botEmojis?: EmojiItem[];
   serverName?: string;
   placement?: 'bottom-right' | 'center';
 }
@@ -30,17 +29,18 @@ export function DiscordEmojiPicker({
   onClose,
   onSelect,
   serverEmojis,
+  botEmojis,
   serverName,
   placement = 'bottom-right'
 }: DiscordEmojiPickerProps) {
+  const isServerScope = serverEmojis !== undefined;
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState(serverEmojis && serverEmojis.length > 0 ? 'server' : 'smileys');
+  const [activeCategory, setActiveCategory] = useState(isServerScope ? 'server' : 'bot');
+  const [isUnicodeExpanded, setIsUnicodeExpanded] = useState(true);
   const [hoveredEmoji, setHoveredEmoji] = useState<EmojiItem | null>(null);
   const [customBotEmojis, setCustomBotEmojis] = useState<EmojiItem[]>(() =>
     typeof window !== 'undefined' ? getCustomBotEmojis() : []
-  );
-  const [frequentEmojis] = useState<EmojiItem[]>(() =>
-    typeof window !== 'undefined' ? getFrequentlyUsedEmojis() : []
   );
   const [showAddCustomModal, setShowAddCustomModal] = useState(false);
 
@@ -54,6 +54,39 @@ export function DiscordEmojiPicker({
   const popoverRef = useRef<HTMLDivElement>(null);
   const scrollPaneRef = useRef<HTMLDivElement>(null);
   const categoryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+  // Merge live botEmojis + customBotEmojis + default fallback
+  const effectiveBotEmojis = useMemo(() => {
+    const list: EmojiItem[] = [];
+    const seenIds = new Set<string>();
+
+    if (botEmojis && botEmojis.length > 0) {
+      for (const b of botEmojis) {
+        if (b.id && !seenIds.has(b.id)) {
+          seenIds.add(b.id);
+          list.push(b);
+        }
+      }
+    }
+
+    for (const c of customBotEmojis) {
+      if (c.id && !seenIds.has(c.id)) {
+        seenIds.add(c.id);
+        list.push(c);
+      }
+    }
+
+    if (list.length === 0) {
+      for (const d of DEFAULT_BOT_EMOJIS) {
+        if (d.id && !seenIds.has(d.id)) {
+          seenIds.add(d.id);
+          list.push(d);
+        }
+      }
+    }
+
+    return list;
+  }, [botEmojis, customBotEmojis]);
 
   // Click outside listener
   useEffect(() => {
@@ -134,27 +167,13 @@ export function DiscordEmojiPicker({
     }
   };
 
-  // Category rail list with dynamic server category
-  const categoriesList = useMemo(() => {
-    if (!serverEmojis || serverEmojis.length === 0) return DISCORD_EMOJI_CATEGORIES;
-    const serverCategory: EmojiCategory = {
-      id: 'server',
-      label: serverName ? `${serverName} Emojis` : 'Server Emojis',
-      icon: 'fa-solid fa-server'
-    };
-    const res = [...DISCORD_EMOJI_CATEGORIES];
-    res.splice(1, 0, serverCategory);
-    return res;
-  }, [serverEmojis, serverName]);
-
   // Filtered emoji list for search
   const filteredEmojis = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return null;
 
-    const allBot = customBotEmojis.length > 0 ? customBotEmojis : DEFAULT_BOT_EMOJIS;
     const allServer = serverEmojis || [];
-    const all = [...allServer, ...allBot, ...UNICODE_EMOJIS];
+    const all = [...allServer, ...effectiveBotEmojis, ...UNICODE_EMOJIS];
 
     return all.filter(e => {
       if (e.name.toLowerCase().includes(q)) return true;
@@ -162,7 +181,7 @@ export function DiscordEmojiPicker({
       if (e.id && e.id.includes(q)) return true;
       return false;
     });
-  }, [searchQuery, customBotEmojis, serverEmojis]);
+  }, [searchQuery, effectiveBotEmojis, serverEmojis]);
 
   if (!isOpen) return null;
 
@@ -245,17 +264,76 @@ export function DiscordEmojiPicker({
         <div className="emoji-picker-body-wrapper">
           {/* Left Category Rail */}
           <div className="emoji-picker-rail">
-            {categoriesList.map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
-                className={`emoji-rail-btn ${activeCategory === cat.id ? 'active' : ''}`}
-                onClick={() => scrollToCategory(cat.id)}
-                title={cat.label}
-              >
-                <i className={cat.icon} />
-              </button>
-            ))}
+            {isServerScope && (
+              <>
+                <button
+                  type="button"
+                  className={`emoji-rail-btn ${activeCategory === 'server' ? 'active' : ''}`}
+                  onClick={() => scrollToCategory('server')}
+                  title={serverName ? `${serverName} Emojis` : 'Server Emojis'}
+                >
+                  <i className="fa-solid fa-server" />
+                </button>
+                <div className="emoji-rail-divider" />
+              </>
+            )}
+
+            <button
+              type="button"
+              className={`emoji-rail-btn ${activeCategory === 'bot' ? 'active' : ''}`}
+              onClick={() => scrollToCategory('bot')}
+              title="Bot Emojis"
+            >
+              <i className="fa-solid fa-robot" />
+            </button>
+
+            <div className="emoji-rail-divider" />
+
+            {/* Unicode Emojis Main Tab */}
+            <button
+              type="button"
+              className={`emoji-rail-btn ${activeCategory === 'unicode' || UNICODE_EMOJI_SUBCATEGORIES.some(s => s.id === activeCategory) ? 'active' : ''}`}
+              onClick={() => {
+                if (UNICODE_EMOJI_SUBCATEGORIES.some(s => s.id === activeCategory)) {
+                  setIsUnicodeExpanded(!isUnicodeExpanded);
+                } else {
+                  setIsUnicodeExpanded(true);
+                  scrollToCategory('smileys');
+                }
+              }}
+              title="Unicode Emojis"
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px' }}
+            >
+              <i className="fa-regular fa-face-smile" />
+              <i
+                className={`fa-solid fa-chevron-${isUnicodeExpanded ? 'down' : 'right'}`}
+                style={{ fontSize: '7px', opacity: 0.7 }}
+              />
+            </button>
+
+            {/* Expandable Sub-Categories in Left Rail */}
+            {isUnicodeExpanded && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', width: '100%', padding: '2px 0' }}>
+                {UNICODE_EMOJI_SUBCATEGORIES.map((sub) => (
+                  <button
+                    key={sub.id}
+                    type="button"
+                    className={`emoji-rail-btn ${activeCategory === sub.id ? 'active' : ''}`}
+                    onClick={() => scrollToCategory(sub.id)}
+                    title={sub.label}
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      fontSize: '11.5px',
+                      borderRadius: '5px',
+                      color: activeCategory === sub.id ? '#fff' : '#949ba4'
+                    }}
+                  >
+                    <i className={sub.icon} />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Scrollable Emoji Grid Pane */}
@@ -276,7 +354,7 @@ export function DiscordEmojiPicker({
                         onMouseEnter={() => setHoveredEmoji(emoji)}
                         onMouseLeave={() => setHoveredEmoji(null)}
                         onClick={() => handleEmojiSelect(emoji)}
-                        title={`:${emoji.name}:`}
+                        title={emoji.type === 'custom' ? `<${emoji.animated ? 'a' : ''}:${emoji.name}:${emoji.id}>` : `:${emoji.name}:`}
                       >
                         {emoji.type === 'custom' ? (
                           <img
@@ -300,39 +378,8 @@ export function DiscordEmojiPicker({
             ) : (
               // Categorized Normal View
               <>
-                {/* 1. Frequently Used */}
-                {frequentEmojis.length > 0 && (
-                  <div
-                    className="emoji-section"
-                    ref={(el) => { categoryRefs.current['recent'] = el; }}
-                  >
-                    <div className="emoji-section-header">
-                      <span>Frequently Used</span>
-                    </div>
-                    <div className="emoji-grid">
-                      {frequentEmojis.map((emoji, idx) => (
-                        <button
-                          key={`frequent_${emoji.name}_${idx}`}
-                          type="button"
-                          className="emoji-cell-btn"
-                          onMouseEnter={() => setHoveredEmoji(emoji)}
-                          onMouseLeave={() => setHoveredEmoji(null)}
-                          onClick={() => handleEmojiSelect(emoji)}
-                          title={`:${emoji.name}:`}
-                        >
-                          {emoji.type === 'custom' ? (
-                            <img src={emoji.url} alt={emoji.name} className="bot-emoji-img" />
-                          ) : (
-                            <span>{emoji.char}</span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* 2. Server / Guild Emojis */}
-                {serverEmojis && serverEmojis.length > 0 && (
+                {/* 1. Server / Guild Emojis (if scoped) */}
+                {isServerScope && (
                   <div
                     className="emoji-section"
                     ref={(el) => { categoryRefs.current['server'] = el; }}
@@ -344,32 +391,38 @@ export function DiscordEmojiPicker({
                           SERVER
                         </span>
                       </div>
-                      <span style={{ fontSize: '10.5px', color: '#949ba4' }}>{serverEmojis.length} emojis</span>
+                      <span style={{ fontSize: '10.5px', color: '#949ba4' }}>{(serverEmojis || []).length} emojis</span>
                     </div>
                     <div className="emoji-grid">
-                      {serverEmojis.map((emoji) => (
-                        <button
-                          key={`server_${emoji.id}_${emoji.name}`}
-                          type="button"
-                          className="emoji-cell-btn"
-                          onMouseEnter={() => setHoveredEmoji(emoji)}
-                          onMouseLeave={() => setHoveredEmoji(null)}
-                          onClick={() => handleEmojiSelect(emoji)}
-                          title={`<:${emoji.name}:${emoji.id}>`}
-                        >
-                          <img
-                            src={emoji.url}
-                            alt={emoji.name}
-                            className="bot-emoji-img"
-                            loading="lazy"
-                          />
-                        </button>
-                      ))}
+                      {serverEmojis && serverEmojis.length > 0 ? (
+                        serverEmojis.map((emoji) => (
+                          <button
+                            key={`server_${emoji.id}_${emoji.name}`}
+                            type="button"
+                            className="emoji-cell-btn"
+                            onMouseEnter={() => setHoveredEmoji(emoji)}
+                            onMouseLeave={() => setHoveredEmoji(null)}
+                            onClick={() => handleEmojiSelect(emoji)}
+                            title={`<${emoji.animated ? 'a' : ''}:${emoji.name}:${emoji.id}>`}
+                          >
+                            <img
+                              src={emoji.url}
+                              alt={emoji.name}
+                              className="bot-emoji-img"
+                              loading="lazy"
+                            />
+                          </button>
+                        ))
+                      ) : (
+                        <div style={{ padding: '16px 8px', color: '#949ba4', fontSize: '12px', textAlign: 'center', gridColumn: 'span 9' }}>
+                          No custom emojis registered in this server.
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
 
-                {/* 3. Bot Emojis */}
+                {/* 2. Bot Emojis */}
                 <div
                   className="emoji-section"
                   ref={(el) => { categoryRefs.current['bot'] = el; }}
@@ -379,27 +432,30 @@ export function DiscordEmojiPicker({
                       <span>Bot Emojis</span>
                       <span className="inspector-badge-custom" style={{ background: '#5865F2', color: '#fff', padding: '2px 5px', borderRadius: '4px', fontSize: '10px' }}>BOT</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddCustomModal(true)}
-                      style={{
-                        background: 'rgba(225, 29, 46, 0.2)',
-                        border: '1px solid rgba(225, 29, 46, 0.4)',
-                        color: '#fff',
-                        fontSize: '10.5px',
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
-                    >
-                      <i className="fa-solid fa-plus" /> Add Bot Emoji
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '10.5px', color: '#949ba4' }}>{effectiveBotEmojis.length} emojis</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddCustomModal(true)}
+                        style={{
+                          background: 'rgba(225, 29, 46, 0.2)',
+                          border: '1px solid rgba(225, 29, 46, 0.4)',
+                          color: '#fff',
+                          fontSize: '10.5px',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <i className="fa-solid fa-plus" /> Add Bot Emoji
+                      </button>
+                    </div>
                   </div>
                   <div className="emoji-grid">
-                    {(customBotEmojis.length > 0 ? customBotEmojis : DEFAULT_BOT_EMOJIS).map((emoji) => (
+                    {effectiveBotEmojis.map((emoji) => (
                       <button
                         key={`bot_${emoji.id}_${emoji.name}`}
                         type="button"
@@ -407,7 +463,7 @@ export function DiscordEmojiPicker({
                         onMouseEnter={() => setHoveredEmoji(emoji)}
                         onMouseLeave={() => setHoveredEmoji(null)}
                         onClick={() => handleEmojiSelect(emoji)}
-                        title={`<:${emoji.name}:${emoji.id}>`}
+                        title={`<${emoji.animated ? 'a' : ''}:${emoji.name}:${emoji.id}>`}
                       >
                         <img
                           src={emoji.url}
@@ -421,7 +477,7 @@ export function DiscordEmojiPicker({
                 </div>
 
                 {/* 3. Unicode Categories */}
-                {DISCORD_EMOJI_CATEGORIES.filter(c => c.id !== 'recent' && c.id !== 'bot').map((cat) => {
+                {UNICODE_EMOJI_SUBCATEGORIES.map((cat) => {
                   const catEmojis = UNICODE_EMOJIS.filter(e => e.category === cat.id);
                   if (catEmojis.length === 0) return null;
 

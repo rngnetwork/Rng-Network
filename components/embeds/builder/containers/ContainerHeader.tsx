@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 interface ContainerHeaderProps {
   cIdx: number;
@@ -39,6 +39,23 @@ export function ContainerHeader({
   onRemoveContainer,
   onDragStart
 }: ContainerHeaderProps) {
+  const [mobileColorOpen, setMobileColorOpen] = useState(false);
+  const mobileColorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (mobileColorRef.current && !mobileColorRef.current.contains(e.target as Node)) {
+        setMobileColorOpen(false);
+      }
+    }
+    if (mobileColorOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [mobileColorOpen]);
+
   return (
     <div className="container-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
       {/* Left: Drag Handle, Container Index & Accent Color Pills */}
@@ -62,8 +79,75 @@ export function ContainerHeader({
           </span>
         </div>
 
-        {/* Accent Color Presets */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '6px' }}>
+        {/* Mobile Accent Color Trigger & Popover */}
+        <div className="relative flex sm:hidden items-center ml-1.5" ref={mobileColorRef}>
+          <button
+            type="button"
+            className="mobile-accent-trigger"
+            onClick={() => setMobileColorOpen(!mobileColorOpen)}
+            title="Choose Accent Color"
+            style={{
+              width: '18px',
+              height: '18px',
+              borderRadius: '50%',
+              background: accentColor || '#00A8FC',
+              border: '2px solid rgba(255, 255, 255, 0.85)',
+              boxShadow: '0 0 6px rgba(0,0,0,0.5)',
+              cursor: 'pointer',
+              padding: 0
+            }}
+          />
+          {mobileColorOpen && (
+            <div
+              className="mobile-accent-popover"
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                left: 0,
+                zIndex: 60,
+                background: '#232428',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                borderRadius: '8px',
+                padding: '8px 10px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.85)'
+              }}
+            >
+              {PRESET_ACCENTS.map((preset) => (
+                <button
+                  key={preset.hex}
+                  type="button"
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    background: preset.hex,
+                    border: accentColor.toLowerCase() === preset.hex.toLowerCase() ? '2px solid #fff' : '1px solid rgba(0,0,0,0.4)',
+                    cursor: 'pointer',
+                    padding: 0
+                  }}
+                  onClick={() => {
+                    onUpdateAccent(cIdx, preset.hex);
+                    setMobileColorOpen(false);
+                  }}
+                  title={preset.name}
+                />
+              ))}
+              <input
+                type="color"
+                value={accentColor}
+                onChange={(e) => onUpdateAccent(cIdx, e.target.value)}
+                style={{ width: '20px', height: '20px', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', marginLeft: '4px' }}
+                title="Custom Color"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Accent Color Presets */}
+        <div className="hidden sm:flex items-center gap-1 ml-1.5">
           {PRESET_ACCENTS.map((preset) => (
             <button
               key={preset.hex}

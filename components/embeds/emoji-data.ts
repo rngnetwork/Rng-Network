@@ -35,6 +35,18 @@ export const DISCORD_EMOJI_CATEGORIES: EmojiCategory[] = [
   { id: 'flags', label: 'Flags', icon: 'fa-solid fa-flag' }
 ];
 
+export const UNICODE_EMOJI_SUBCATEGORIES: EmojiCategory[] = [
+  { id: 'smileys', label: 'Smileys & Emotion', icon: 'fa-regular fa-face-smile' },
+  { id: 'people', label: 'People & Body', icon: 'fa-solid fa-user-group' },
+  { id: 'animals', label: 'Animals & Nature', icon: 'fa-solid fa-paw' },
+  { id: 'food', label: 'Food & Drink', icon: 'fa-solid fa-burger' },
+  { id: 'activities', label: 'Activities', icon: 'fa-solid fa-basketball' },
+  { id: 'travel', label: 'Travel & Places', icon: 'fa-solid fa-plane' },
+  { id: 'objects', label: 'Objects', icon: 'fa-solid fa-lightbulb' },
+  { id: 'symbols', label: 'Symbols', icon: 'fa-solid fa-icons' },
+  { id: 'flags', label: 'Flags', icon: 'fa-solid fa-flag' }
+];
+
 export const DEFAULT_BOT_EMOJIS: EmojiItem[] = [
   {
     type: 'custom',

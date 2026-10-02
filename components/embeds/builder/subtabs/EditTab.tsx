@@ -404,7 +404,18 @@ export function EditTab({
       </div>
 
       {/* Permanently Docked Bottom Controls Bar */}
-      <div className="wysiwyg-bottom-bar" style={{ flexShrink: 0, position: 'relative', bottom: 0, zIndex: 30, width: '100%', borderTop: '1px solid rgba(255, 255, 255, 0.12)' }}>
+      <div
+        className="wysiwyg-bottom-bar"
+        style={{
+          flexShrink: 0,
+          position: 'sticky',
+          bottom: 0,
+          zIndex: 30,
+          width: '100%',
+          marginTop: 'auto',
+          borderTop: '1px solid rgba(255, 255, 255, 0.12)'
+        }}
+      >
         <button
           type="button"
           className="btn-ctrl-cyan"

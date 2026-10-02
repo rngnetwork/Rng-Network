@@ -7,12 +7,14 @@ import { MessageBuilder } from '@/components/embeds/MessageBuilder';
 import { TemplatesTab } from '@/components/embeds/TemplatesTab';
 import { UnsavedChangesBar } from '@/components/ui/UnsavedChangesBar';
 import { api, ServerItem, ChannelItem } from '@/lib/api';
+import { EmojiItem } from '@/components/embeds/emoji-data';
 import { buildDiscordV2MessagePayload } from '@/components/embeds/validation';
 
 export default function EmbedsPage() {
   const [activeTopTab, setActiveTopTab] = useState<'builder' | 'templates'>('builder');
   const [messageContent, setMessageContent] = useState("");
   const [containers, setContainers] = useState<Type17Container[]>([]);
+  const [botEmojis, setBotEmojis] = useState<EmojiItem[]>([]);
 
   // Unsaved Changes Tracking
   const [savedState, setSavedState] = useState({
@@ -96,6 +98,30 @@ export default function EmbedsPage() {
     initServers();
   }, [loadChannelsForServer]);
 
+  // Load real Discord bot emojis
+  useEffect(() => {
+    const loadBotEmojis = async () => {
+      try {
+        const res = await api.fetchBotEmojis();
+        if (res.success && res.data) {
+          const mapped: EmojiItem[] = res.data.map(e => ({
+            type: 'custom',
+            id: e.id,
+            name: e.name,
+            animated: e.animated,
+            url: e.url,
+            category: 'bot',
+            keywords: [e.name, 'bot']
+          }));
+          setBotEmojis(mapped);
+        }
+      } catch (e) {
+        console.warn('Failed to load bot emojis:', e);
+      }
+    };
+    loadBotEmojis();
+  }, []);
+
   const handleSelectServer = async (newServerId: string) => {
     setSelectedServerId(newServerId);
     await loadChannelsForServer(newServerId);
@@ -139,7 +165,7 @@ export default function EmbedsPage() {
   };
 
   return (
-    <div className="main-workspace w-full h-[calc(100vh-110px)] max-md:h-auto max-md:min-h-[calc(100vh-110px)] flex flex-col">
+    <div className="main-workspace w-full h-[calc(100vh-110px)] flex flex-col overflow-hidden">
       
       {/* Top Navigation Tabs Bar */}
       <header className="top-nav-bar">
@@ -176,6 +202,7 @@ export default function EmbedsPage() {
           serverChannels={serverChannels}
           serverId={selectedServerId}
           serverName={servers.find((s) => s.id === selectedServerId)?.name}
+          botEmojis={botEmojis}
           onSelectServer={handleSelectServer}
           onDispatchPayload={handleDispatchPayload}
           lockServer={false}

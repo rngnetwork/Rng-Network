@@ -161,6 +161,14 @@ export interface DispatchResponseData {
   latencyMs?: number;
 }
 
+export interface DiscordEmojiData {
+  id: string;
+  name: string;
+  animated: boolean;
+  url: string;
+  formatted: string;
+}
+
 export interface DryRunPayload {
   serverId: string;
   channelId?: string;
@@ -617,6 +625,101 @@ export const api = {
       throw new Error(data.message || 'Failed to update server settings.');
     }
     return data;
+  },
+
+  // ---------------------------------------------------------------------------
+  // Discord Real Emojis APIs (Server & Bot Application)
+  // ---------------------------------------------------------------------------
+  async fetchServerEmojis(idOrSlug: string, token?: string): Promise<ApiResponseEnvelope<DiscordEmojiData[]>> {
+    let effectiveToken = token || getStoredAccessToken();
+    return requestWithFallback(
+      async () => {
+        let response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(idOrSlug)}/emojis`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+        });
+
+        if (response.status === 401) {
+          try {
+            const refreshRes = await this.refreshToken();
+            if (refreshRes.success && refreshRes.data?.accessToken) {
+              effectiveToken = refreshRes.data.accessToken;
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('accessToken', effectiveToken);
+                localStorage.setItem('token', effectiveToken);
+              }
+              response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(idOrSlug)}/emojis`, {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${effectiveToken}`,
+                },
+                credentials: 'include',
+              });
+            }
+          } catch (e) {
+            console.warn('Token refresh failed during fetchServerEmojis:', e);
+          }
+        }
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new ApiHttpError(data.message || `Failed to fetch server emojis (${response.status})`, response.status, data);
+        }
+        return data;
+      },
+      () => [] as DiscordEmojiData[],
+      'Server emojis loaded via fallback.'
+    );
+  },
+
+  async fetchBotEmojis(token?: string): Promise<ApiResponseEnvelope<DiscordEmojiData[]>> {
+    let effectiveToken = token || getStoredAccessToken();
+    return requestWithFallback(
+      async () => {
+        let response = await fetch(`${API_BASE}/api/v1/bot/emojis`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+        });
+
+        if (response.status === 401) {
+          try {
+            const refreshRes = await this.refreshToken();
+            if (refreshRes.success && refreshRes.data?.accessToken) {
+              effectiveToken = refreshRes.data.accessToken;
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('accessToken', effectiveToken);
+                localStorage.setItem('token', effectiveToken);
+              }
+              response = await fetch(`${API_BASE}/api/v1/bot/emojis`, {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${effectiveToken}`,
+                },
+                credentials: 'include',
+              });
+            }
+          } catch (e) {
+            console.warn('Token refresh failed during fetchBotEmojis:', e);
+          }
+        }
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new ApiHttpError(data.message || `Failed to fetch bot emojis (${response.status})`, response.status, data);
+        }
+        return data;
+      },
+      () => [] as DiscordEmojiData[],
+      'Bot emojis loaded via fallback.'
+    );
   },
 
   // ---------------------------------------------------------------------------

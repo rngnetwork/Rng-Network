@@ -976,7 +976,7 @@ select.form-input option {
 .wysiwyg-bottom-bar {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 10px;
   padding: 12px 18px;
   background: rgba(12, 13, 17, 0.95);
@@ -987,6 +987,8 @@ select.form-input option {
   bottom: 0;
   z-index: 30;
   margin-top: auto;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .btn-ctrl-cyan {
@@ -1090,7 +1092,10 @@ select.form-input option {
 
 .btn-ctrl-emoji {
   margin-left: auto;
-  background: rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+  position: sticky;
+  right: 0;
+  background: rgba(18, 19, 23, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: #fbbf24;
   font-size: 17px;
@@ -1102,6 +1107,7 @@ select.form-input option {
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: -4px 0 10px rgba(0, 0, 0, 0.3);
 }
 .btn-ctrl-emoji:hover {
   color: #fff;
@@ -1907,7 +1913,7 @@ select.form-input option {
     gap: 6px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
   .btn-ctrl-cyan,
   .btn-ctrl-blue,
