@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Type17Container, DiscordButtonComponent, DiscordSelectComponent, DiscordMediaGalleryComponent } from '../../types';
+import { renderDiscordEmoji } from '../../DiscordEmojiRenderer';
 
 interface PreviewTabProps {
   messageContent?: string;
@@ -15,7 +16,7 @@ export function PreviewTab({
   // Comprehensive markdown tokenizer for live Discord preview
   const parseInlineMarkdown = (lineText: string): React.ReactNode[] => {
     if (!lineText) return [];
-    const regex = /(`[^`]+`)|(\|\|[\s\S]+?\|\|)|(__\*\*(?:[\s\S]+?)\*\*__)|(\*\*__(?:[\s\S]+?)__\*\*)|(\*\*\*(?:[\s\S]+?)\*\*\*)|(\*\*(?:[\s\S]+?)\*\*)|(__(?:[\s\S]+?)__)|(~~(?:[\s\S]+?)~~)|(\*[^*]+?\*)|(_[^_]+?_)/g;
+    const regex = /(`[^`]+`)|(\|\|[\s\S]+?\|\|)|(__\*\*(?:[\s\S]+?)\*\*__)|(\*\*__(?:[\s\S]+?)__\*\*)|(\*\*\*(?:[\s\S]+?)\*\*\*)|(\*\*(?:[\s\S]+?)\*\*)|(__(?:[\s\S]+?)__)|(~~(?:[\s\S]+?)~~)|(\*[^*]+?\*)|(_[^_]+?_)|(<a?:[a-zA-Z0-9_]+:[0-9]+>)/g;
     const elements: React.ReactNode[] = [];
     let lastIndex = 0;
     let match: RegExpExecArray | null;
@@ -96,6 +97,42 @@ export function PreviewTab({
             {token.slice(1, -1)}
           </em>
         );
+      } else if (token.startsWith('<') && token.endsWith('>')) {
+        const emojiMatch = token.match(/^<(a)?:([a-zA-Z0-9_]+):([0-9]+)>$/);
+        if (emojiMatch) {
+          const isAnim = emojiMatch[1] === 'a';
+          const name = emojiMatch[2];
+          const id = emojiMatch[3];
+          const ext = isAnim ? 'gif' : 'webp';
+          elements.push(
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={key}
+              src={`https://cdn.discordapp.com/emojis/${id}.${ext}?size=48&quality=lossless`}
+              alt={`:${name}:`}
+              title={`:${name}:`}
+              className="discord-inline-emoji"
+              style={{
+                display: 'inline-block',
+                verticalAlign: '-0.2em',
+                width: '1.375em',
+                height: '1.375em',
+                margin: '0 1px',
+                objectFit: 'contain'
+              }}
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (!target.src.includes('.png')) {
+                  target.src = `https://cdn.discordapp.com/emojis/${id}.png?size=48`;
+                } else {
+                  target.style.display = 'none';
+                }
+              }}
+            />
+          );
+        } else {
+          elements.push(token);
+        }
       } else {
         elements.push(token);
       }
@@ -249,7 +286,7 @@ export function PreviewTab({
                   {container.author?.name && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ fontSize: '12px', fontWeight: 700, textDecoration: 'underline', color: '#fff' }}>
-                        {container.author.name}
+                        {parseInlineMarkdown(container.author.name)}
                       </span>
                     </div>
                   )}
@@ -259,7 +296,7 @@ export function PreviewTab({
                     <div style={{ flex: 1, minWidth: 0 }}>
                       {container.title && (
                         <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>
-                          {container.title}
+                          {parseInlineMarkdown(container.title)}
                         </div>
                       )}
                       {container.description && (
@@ -285,8 +322,8 @@ export function PreviewTab({
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
                       {container.fields.map((f, fIdx) => (
                         <div key={f.id || fIdx} style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{f.name}</span>
-                          <span style={{ fontSize: '12px', color: '#dbdee1' }}>{f.value}</span>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{parseInlineMarkdown(f.name)}</span>
+                          <span style={{ fontSize: '12px', color: '#dbdee1' }}>{renderDiscordMarkdown(f.value)}</span>
                         </div>
                       ))}
                     </div>
@@ -313,7 +350,6 @@ export function PreviewTab({
                         <div key={comp.id || compIdx} style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
                           {items.map((btn, bIdx) => {
                             const isLink = btn.style === 5;
-                            const emojiDisplay = typeof btn.emoji === 'object' ? btn.emoji.name : btn.emoji;
                             const styleColors: Record<number, string> = {
                               1: '#5865F2', // Primary
                               2: '#4E5058', // Secondary
@@ -340,7 +376,7 @@ export function PreviewTab({
                                   opacity: btn.disabled ? 0.5 : 1
                                 }}
                               >
-                                {emojiDisplay && <span>{emojiDisplay}</span>}
+                                {renderDiscordEmoji(btn.emoji, 18)}
                                 <span>{btn.label || 'Button'}</span>
                                 {isLink && <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: '10px' }} />}
                               </button>
@@ -369,7 +405,7 @@ export function PreviewTab({
                             marginTop: '4px'
                           }}
                         >
-                          <span>{sel.placeholder || 'Select an option...'}</span>
+                          <span>{parseInlineMarkdown(sel.placeholder || 'Select an option...')}</span>
                           <i className="fa-solid fa-chevron-down" style={{ fontSize: '10px' }} />
                         </div>
                       );
@@ -506,7 +542,7 @@ export function PreviewTab({
                   {/* Footer */}
                   {container.footer?.text && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#949ba4', marginTop: '4px' }}>
-                      <span>{container.footer.text}</span>
+                      <span>{parseInlineMarkdown(container.footer.text)}</span>
                     </div>
                   )}
                 </div>

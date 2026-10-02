@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { DiscordSelectComponent, SelectOption, PartialEmojiObject } from '../../../types';
 import { DiscordEmojiPicker } from '../../../DiscordEmojiPicker';
 import { EmojiItem } from '../../../emoji-data';
+import { renderDiscordEmoji } from '../../../DiscordEmojiRenderer';
 
 interface SelectMenuSettingsModalProps {
   isOpen: boolean;
@@ -257,7 +258,7 @@ export function SelectMenuSettingsModal({
                               title="Pick Emoji"
                               onClick={(e) => handleOpenEmojiPicker(e, optIdx)}
                             >
-                              {emojiStr ? emojiStr : <i className="fa-regular fa-face-smile" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px' }} />}
+                              {emojiStr ? renderDiscordEmoji(emojiStr, 18) : <i className="fa-regular fa-face-smile" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px' }} />}
                             </button>
                             {emojiStr && (
                               <button

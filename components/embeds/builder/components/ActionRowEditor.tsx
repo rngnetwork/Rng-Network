@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { DiscordActionRowComponent, DiscordButtonComponent, ButtonStyle } from '../../types';
+import { renderDiscordEmoji } from '../../DiscordEmojiRenderer';
 
 interface ActionRowEditorProps {
   cIdx: number;
@@ -118,7 +119,6 @@ export function ActionRowEditor({
         {items.map((item, bIdx) => {
           const btn = item as DiscordButtonComponent;
           const styleClass = BUTTON_STYLE_CLASSES[btn.style as ButtonStyle] || 'btn-style-1';
-          const emojiDisplay = typeof btn.emoji === 'object' ? btn.emoji.name : btn.emoji;
 
           return (
             <div
@@ -174,7 +174,7 @@ export function ActionRowEditor({
               </button>
 
               {/* Emoji if present */}
-              {emojiDisplay && <span style={{ fontSize: '14px', lineHeight: 1 }}>{emojiDisplay}</span>}
+              {renderDiscordEmoji(btn.emoji, 16)}
 
               {/* Inline Label Editing */}
               <input

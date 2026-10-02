@@ -17,7 +17,7 @@ export default function ServerEmbedsPage() {
   const [server, setServer] = useState<ServerDetail | null>(null);
   const [channels, setChannels] = useState<ChannelItem[]>([]);
   const [serverEmojis, setServerEmojis] = useState<EmojiItem[]>([]);
-  const [botEmojis, setBotEmojis] = useState<EmojiItem[]>([]);
+  const [botEmojis] = useState<EmojiItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Top level active tab: 'builder' | 'templates' | 'components'
@@ -47,17 +47,42 @@ export default function ServerEmbedsPage() {
       }
 
       try {
-        const [serverRes, channelsRes] = await Promise.allSettled([
+        const [serverRes, channelsRes, emojisRes] = await Promise.allSettled([
           api.fetchServerDetails(token, serverId),
-          api.fetchServerChannels(token, serverId)
+          api.fetchDispatchChannels(serverId, token),
+          api.fetchServerEmojis(serverId, token)
         ]);
 
         if (isMounted) {
           if (serverRes.status === 'fulfilled' && serverRes.value.success && serverRes.value.data) {
             setServer(serverRes.value.data);
           }
-          if (channelsRes.status === 'fulfilled' && channelsRes.value.success && channelsRes.value.data) {
+
+          if (channelsRes.status === 'fulfilled' && channelsRes.value.success && channelsRes.value.data && channelsRes.value.data.length > 0) {
             setChannels(channelsRes.value.data);
+          } else {
+            // Fallback to fetchServerChannels
+            try {
+              const fallbackChannels = await api.fetchServerChannels(token, serverId);
+              if (fallbackChannels.success && fallbackChannels.data) {
+                setChannels(fallbackChannels.data);
+              }
+            } catch (err) {
+              console.warn('Fallback channel fetch failed:', err);
+            }
+          }
+
+          if (emojisRes.status === 'fulfilled' && emojisRes.value.success && emojisRes.value.data && emojisRes.value.data.length > 0) {
+            const mappedEmojis: EmojiItem[] = emojisRes.value.data.map((e) => ({
+              type: 'custom',
+              id: e.id,
+              name: e.name,
+              animated: e.animated,
+              url: e.url,
+              category: 'server',
+              keywords: [e.name, 'server']
+            }));
+            setServerEmojis(mappedEmojis);
           }
         }
       } catch (err) {

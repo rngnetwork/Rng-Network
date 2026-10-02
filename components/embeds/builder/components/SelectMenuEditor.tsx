@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { DiscordSelectComponent, SelectOption } from '../../types';
+import { renderDiscordEmoji } from '../../DiscordEmojiRenderer';
 
 interface SelectMenuEditorProps {
   cIdx: number;
@@ -9,15 +10,6 @@ interface SelectMenuEditorProps {
   comp: DiscordSelectComponent;
   onUpdateComponent?: (cIdx: number, compIdx: number, updated: DiscordSelectComponent) => void;
   onOpenSettings?: () => void;
-}
-
-function formatEmoji(emoji?: string | { name: string; id?: string; animated?: boolean }): string {
-  if (!emoji) return '';
-  if (typeof emoji === 'string') return emoji;
-  if (emoji.id) {
-    return `<${emoji.animated ? 'a' : ''}:${emoji.name}:${emoji.id}>`;
-  }
-  return emoji.name || '';
 }
 
 export function SelectMenuEditor({
@@ -75,7 +67,6 @@ export function SelectMenuEditor({
           title={onOpenSettings ? "Click to configure options in Settings" : undefined}
         >
           {options.map((opt, idx) => {
-            const emo = formatEmoji(opt.emoji);
             return (
               <span
                 key={idx}
@@ -91,7 +82,7 @@ export function SelectMenuEditor({
                   color: opt.default ? 'var(--discord-cyan)' : '#dbdee1'
                 }}
               >
-                {emo && <span>{emo}</span>}
+                {renderDiscordEmoji(opt.emoji, 13)}
                 <span style={{ fontWeight: 500 }}>{opt.label || `Option ${idx + 1}`}</span>
                 {opt.default && <i className="fa-solid fa-check" style={{ fontSize: '9px', color: 'var(--discord-green)' }} />}
               </span>

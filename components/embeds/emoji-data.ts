@@ -47,116 +47,7 @@ export const UNICODE_EMOJI_SUBCATEGORIES: EmojiCategory[] = [
   { id: 'flags', label: 'Flags', icon: 'fa-solid fa-flag' }
 ];
 
-export const DEFAULT_BOT_EMOJIS: EmojiItem[] = [
-  {
-    type: 'custom',
-    id: '10182738491823',
-    name: 'pepe_hype',
-    animated: false,
-    url: 'https://cdn.discordapp.com/emojis/10182738491823.webp?size=64',
-    category: 'bot',
-    keywords: ['pepe', 'frog', 'hype', 'dance', 'bot']
-  },
-  {
-    type: 'custom',
-    id: '98765432109876',
-    name: 'nitro_boost',
-    animated: true,
-    url: 'https://cdn.discordapp.com/emojis/98765432109876.gif?size=64',
-    category: 'bot',
-    keywords: ['nitro', 'boost', 'subscriber', 'lvl', 'server']
-  },
-  {
-    type: 'custom',
-    id: '82391029384756',
-    name: 'blob_dance',
-    animated: true,
-    url: 'https://cdn.discordapp.com/emojis/82391029384756.gif?size=64',
-    category: 'bot',
-    keywords: ['blob', 'dance', 'party', 'happy', 'cute']
-  },
-  {
-    type: 'custom',
-    id: '73910293847561',
-    name: 'discord_verified',
-    animated: false,
-    url: 'https://cdn.discordapp.com/emojis/73910293847561.webp?size=64',
-    category: 'bot',
-    keywords: ['verified', 'bot', 'partner', 'badge', 'official']
-  },
-  {
-    type: 'custom',
-    id: '62910293847562',
-    name: 'party_parrot',
-    animated: true,
-    url: 'https://cdn.discordapp.com/emojis/62910293847562.gif?size=64',
-    category: 'bot',
-    keywords: ['parrot', 'party', 'cult', 'dance', 'rainbow']
-  },
-  {
-    type: 'custom',
-    id: '51910293847563',
-    name: 'cat_vibe',
-    animated: true,
-    url: 'https://cdn.discordapp.com/emojis/51910293847563.gif?size=64',
-    category: 'bot',
-    keywords: ['cat', 'vibe', 'jam', 'bop', 'music', 'cute']
-  },
-  {
-    type: 'custom',
-    id: '40910293847564',
-    name: 'doge_cool',
-    animated: false,
-    url: 'https://cdn.discordapp.com/emojis/40910293847564.webp?size=64',
-    category: 'bot',
-    keywords: ['doge', 'shiba', 'sunglasses', 'swag', 'meme']
-  },
-  {
-    type: 'custom',
-    id: '39910293847565',
-    name: 'fire_anim',
-    animated: true,
-    url: 'https://cdn.discordapp.com/emojis/39910293847565.gif?size=64',
-    category: 'bot',
-    keywords: ['fire', 'flame', 'lit', 'animated', 'hot']
-  },
-  {
-    type: 'custom',
-    id: '28910293847566',
-    name: 'diamond_gem',
-    animated: false,
-    url: 'https://cdn.discordapp.com/emojis/28910293847566.webp?size=64',
-    category: 'bot',
-    keywords: ['diamond', 'gem', 'crystal', 'shiny', 'vip']
-  },
-  {
-    type: 'custom',
-    id: '17910293847567',
-    name: 'check_animated',
-    animated: true,
-    url: 'https://cdn.discordapp.com/emojis/17910293847567.gif?size=64',
-    category: 'bot',
-    keywords: ['check', 'yes', 'confirm', 'success', 'accept']
-  },
-  {
-    type: 'custom',
-    id: '16910293847568',
-    name: 'cross_red',
-    animated: false,
-    url: 'https://cdn.discordapp.com/emojis/16910293847568.webp?size=64',
-    category: 'bot',
-    keywords: ['cross', 'no', 'cancel', 'error', 'denied']
-  },
-  {
-    type: 'custom',
-    id: '15910293847569',
-    name: 'crown_gold',
-    animated: false,
-    url: 'https://cdn.discordapp.com/emojis/15910293847569.webp?size=64',
-    category: 'bot',
-    keywords: ['crown', 'king', 'owner', 'winner', 'gold']
-  }
-];
+export const DEFAULT_BOT_EMOJIS: EmojiItem[] = [];
 
 export const UNICODE_EMOJIS: EmojiItem[] = [
   // --- SMILEYS & EMOTION ---
@@ -688,29 +579,28 @@ export const UNICODE_EMOJIS: EmojiItem[] = [
 const LOCAL_STORAGE_KEY_CUSTOM_EMOJIS = 'rng_discord_custom_emojis';
 const LOCAL_STORAGE_KEY_RECENT_EMOJIS = 'rng_discord_recent_emojis';
 
+const MOCK_EMOJI_IDS = new Set([
+  '10182738491823', '98765432109876', '82391029384756', '73910293847561',
+  '62910293847562', '51910293847563', '40910293847564', '39910293847565',
+  '28910293847566', '17910293847567', '16910293847568', '15910293847569',
+  '1318001001', '1318001002', '1318001003', '1318001004', '1318001005', '1318001006'
+]);
+
 /**
- * Retrieve all custom bot emojis (combining built-in defaults + user added)
+ * Retrieve all custom bot emojis (user added via client)
  */
 export function getCustomBotEmojis(): EmojiItem[] {
-  if (typeof window === 'undefined') return [...DEFAULT_BOT_EMOJIS];
+  if (typeof window === 'undefined') return [];
   try {
     const stored = localStorage.getItem(LOCAL_STORAGE_KEY_CUSTOM_EMOJIS);
-    if (!stored) return [...DEFAULT_BOT_EMOJIS];
+    if (!stored) return [];
     const parsed = JSON.parse(stored);
-    if (!Array.isArray(parsed)) return [...DEFAULT_BOT_EMOJIS];
+    if (!Array.isArray(parsed)) return [];
 
-    // Deduplicate by ID
-    const customMap = new Map<string, EmojiItem>();
-    DEFAULT_BOT_EMOJIS.forEach(e => {
-      if (e.id) customMap.set(e.id, e);
-    });
-    parsed.forEach((e: EmojiItem) => {
-      if (e.id) customMap.set(e.id, e);
-    });
-    return Array.from(customMap.values());
+    return parsed.filter((e: EmojiItem) => e && e.id && !MOCK_EMOJI_IDS.has(e.id));
   } catch (err) {
     console.warn('Error reading custom emojis from localStorage:', err);
-    return [...DEFAULT_BOT_EMOJIS];
+    return [];
   }
 }
 
@@ -797,23 +687,24 @@ export function removeCustomBotEmoji(id: string): void {
  * Get frequently used emojis (stored in localStorage)
  */
 export function getFrequentlyUsedEmojis(): EmojiItem[] {
-  if (typeof window === 'undefined') return DEFAULT_BOT_EMOJIS.slice(0, 8);
+  if (typeof window === 'undefined') return UNICODE_EMOJIS.slice(0, 8);
   try {
     const stored = localStorage.getItem(LOCAL_STORAGE_KEY_RECENT_EMOJIS);
     if (!stored) {
-      // Default top picks
+      // Default top unicode picks
       return [
         UNICODE_EMOJIS[0], // 😀
         UNICODE_EMOJIS[1], // 😃
         UNICODE_EMOJIS[17], // 🚀
         UNICODE_EMOJIS[19], // ⚡
-        UNICODE_EMOJIS[20], // 🔥
-        DEFAULT_BOT_EMOJIS[0], // pepe_hype
-        DEFAULT_BOT_EMOJIS[1], // nitro_boost
-        DEFAULT_BOT_EMOJIS[2]  // blob_dance
+        UNICODE_EMOJIS[20]  // 🔥
       ].filter(Boolean);
     }
-    return JSON.parse(stored);
+    const parsed = JSON.parse(stored);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((e: EmojiItem) => !e.id || !MOCK_EMOJI_IDS.has(e.id));
+    }
+    return [];
   } catch {
     return [];
   }
@@ -847,79 +738,22 @@ export function formatEmojiInsertString(emoji: EmojiItem): string {
  * Server Emojis Specification & Helpers
  * Supports server-specific custom emojis for the active Discord Guild.
  */
-export function getDefaultServerEmojis(serverId?: string, serverName?: string): EmojiItem[] {
-  const prefix = serverName
-    ? serverName.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 10).replace(/^_+|_+$/g, '')
-    : 'guild';
-
-  return [
-    {
-      type: 'custom',
-      id: '1318001001',
-      name: `${prefix || 'server'}_verified`,
-      animated: false,
-      url: 'https://cdn.discordapp.com/emojis/10182738491823.webp?size=64',
-      category: 'server',
-      keywords: ['verified', 'official', 'guild', 'badge', 'server', prefix]
-    },
-    {
-      type: 'custom',
-      id: '1318001002',
-      name: `${prefix || 'server'}_boost`,
-      animated: true,
-      url: 'https://cdn.discordapp.com/emojis/98765432109876.gif?size=64',
-      category: 'server',
-      keywords: ['boost', 'nitro', 'guild', 'server', 'fire', prefix]
-    },
-    {
-      type: 'custom',
-      id: '1318001003',
-      name: `${prefix || 'server'}_party`,
-      animated: true,
-      url: 'https://cdn.discordapp.com/emojis/82391029384756.gif?size=64',
-      category: 'server',
-      keywords: ['party', 'dance', 'celebrate', 'guild', 'server', prefix]
-    },
-    {
-      type: 'custom',
-      id: '1318001004',
-      name: `${prefix || 'server'}_crown`,
-      animated: false,
-      url: 'https://cdn.discordapp.com/emojis/76543210987654.webp?size=64',
-      category: 'server',
-      keywords: ['crown', 'vip', 'owner', 'king', 'guild', prefix]
-    },
-    {
-      type: 'custom',
-      id: '1318001005',
-      name: `${prefix || 'server'}_shield`,
-      animated: false,
-      url: 'https://cdn.discordapp.com/emojis/91827364510293.webp?size=64',
-      category: 'server',
-      keywords: ['shield', 'mod', 'staff', 'security', 'guild', prefix]
-    },
-    {
-      type: 'custom',
-      id: '1318001006',
-      name: `${prefix || 'server'}_heart`,
-      animated: true,
-      url: 'https://cdn.discordapp.com/emojis/67584930291827.gif?size=64',
-      category: 'server',
-      keywords: ['heart', 'love', 'guild', 'server', 'community', prefix]
-    }
-  ];
+export function getDefaultServerEmojis(): EmojiItem[] {
+  return [];
 }
 
-export function getServerEmojis(serverId?: string, serverName?: string): EmojiItem[] {
-  if (typeof window === 'undefined') return getDefaultServerEmojis(serverId, serverName);
+export function getServerEmojis(serverId?: string): EmojiItem[] {
+  if (typeof window === 'undefined') return [];
   try {
     const key = serverId ? `rng_server_emojis_${serverId}` : 'rng_server_emojis_default';
     const stored = localStorage.getItem(key);
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.filter((e: EmojiItem) => !e.id || !MOCK_EMOJI_IDS.has(e.id));
+      }
     }
   } catch {}
-  return getDefaultServerEmojis(serverId, serverName);
+  return [];
 }
 

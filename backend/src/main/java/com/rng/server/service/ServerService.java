@@ -32,6 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -249,6 +250,28 @@ public class ServerService {
         Server server = serverRepository.findByIdOrSlug(idOrSlug)
                 .orElseThrow(() -> new ResourceNotFoundException("Server not found: " + idOrSlug));
 
+        // Priority 1: Fetch live directly from Discord REST API v10
+        if (discordClient != null) {
+            try {
+                List<DiscordChannelDto> channels = discordClient.getGuildChannels(server.getId());
+                if (channels != null && !channels.isEmpty()) {
+                    return channels.stream()
+                            .map(c -> ChannelDto.builder()
+                                    .id(c.getId())
+                                    .name(c.getName())
+                                    .type(c.getType())
+                                    .position(c.getPosition() != null ? c.getPosition() : 0)
+                                    .parentId(c.getParentId())
+                                    .build())
+                            .sorted(Comparator.comparingInt(c -> c.getPosition() != null ? c.getPosition() : 0))
+                            .toList();
+                }
+            } catch (Exception e) {
+                log.warn("Discord REST client channel retrieval failed for {}: {}", server.getId(), e.getMessage());
+            }
+        }
+
+        // Priority 2: Fallback to JDA Gateway in-memory cache
         if (jda.isPresent() && jda.get().getStatus() == JDA.Status.CONNECTED) {
             Guild jdaGuild = jda.get().getGuildById(server.getId());
             if (jdaGuild != null) {
@@ -258,16 +281,7 @@ public class ServerService {
             }
         }
 
-        List<DiscordChannelDto> channels = discordClient.getGuildChannels(server.getId());
-        return channels.stream()
-                .map(c -> ChannelDto.builder()
-                        .id(c.getId())
-                        .name(c.getName())
-                        .type(c.getType())
-                        .position(c.getPosition())
-                        .parentId(c.getParentId())
-                        .build())
-                .toList();
+        return List.of();
     }
 
     @Caching(evict = {
@@ -587,7 +601,21 @@ public class ServerService {
             return List.of();
         }
 
-        // 1. Try JDA Gateway cache
+        // 1. Try Discord REST API v10
+        if (discordClient != null) {
+            try {
+                List<DiscordEmojiResponseDto> restEmojis = discordClient.getGuildEmojis(guildId);
+                if (restEmojis != null && !restEmojis.isEmpty()) {
+                    return restEmojis.stream()
+                            .map(e -> DiscordEmojiDto.from(e.id(), e.name(), e.animated()))
+                            .toList();
+                }
+            } catch (Exception e) {
+                log.warn("Failed to fetch server emojis from Discord REST for guild {}: {}", guildId, e.getMessage());
+            }
+        }
+
+        // 2. Fallback to JDA Gateway cache
         if (jda.isPresent() && jda.get().getStatus() == JDA.Status.CONNECTED) {
             try {
                 Guild guild = jda.get().getGuildById(guildId);
@@ -602,18 +630,6 @@ public class ServerService {
             } catch (Exception e) {
                 log.warn("JDA cache lookup failed for guild emojis {}: {}", guildId, e.getMessage());
             }
-        }
-
-        // 2. Try Discord REST API v10
-        try {
-            List<DiscordEmojiResponseDto> restEmojis = discordClient.getGuildEmojis(guildId);
-            if (restEmojis != null && !restEmojis.isEmpty()) {
-                return restEmojis.stream()
-                        .map(e -> DiscordEmojiDto.from(e.id(), e.name(), e.animated()))
-                        .toList();
-            }
-        } catch (Exception e) {
-            log.warn("Failed to fetch server emojis from Discord REST for guild {}: {}", guildId, e.getMessage());
         }
 
         return List.of();

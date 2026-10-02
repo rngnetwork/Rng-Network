@@ -14,7 +14,7 @@ export default function EmbedsPage() {
   const [activeTopTab, setActiveTopTab] = useState<'builder' | 'templates'>('builder');
   const [messageContent, setMessageContent] = useState("");
   const [containers, setContainers] = useState<Type17Container[]>([]);
-  const [botEmojis, setBotEmojis] = useState<EmojiItem[]>([]);
+  const [botEmojis] = useState<EmojiItem[]>([]);
 
   // Unsaved Changes Tracking
   const [savedState, setSavedState] = useState({

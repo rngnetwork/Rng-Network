@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { DiscordButtonComponent, ButtonStyle } from './types';
 import { DiscordEmojiPicker } from './DiscordEmojiPicker';
 import { EmojiItem } from './emoji-data';
+import { renderDiscordEmoji } from './DiscordEmojiRenderer';
 
 interface ButtonModalProps {
   isOpen: boolean;
@@ -245,14 +246,37 @@ function ButtonModalContent({
             <div className="form-group">
               <label className="form-label">Emoji (Unicode or Discord Bot)</label>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '6px',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  {renderDiscordEmoji(emojiStr, 22) || <i className="fa-regular fa-face-smile" style={{ color: 'rgba(255,255,255,0.3)', fontSize: '13px' }} />}
+                </div>
                 <input
                   type="text"
                   className="form-input"
-                  style={{ width: '100px', textAlign: 'center', fontSize: '15px' }}
-                  placeholder="✨"
+                  style={{ width: '130px', fontSize: '13px' }}
+                  placeholder="✨ or <:name:id>"
                   value={emojiStr}
                   onChange={(e) => setEmojiStr(e.target.value)}
                 />
+                {emojiStr && (
+                  <button
+                    type="button"
+                    style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', padding: '4px' }}
+                    title="Clear Emoji"
+                    onClick={() => setEmojiStr('')}
+                  >
+                    <i className="fa-solid fa-xmark" style={{ fontSize: '12px' }} />
+                  </button>
+                )}
                 <button
                   type="button"
                   style={{

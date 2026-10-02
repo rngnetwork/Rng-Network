@@ -1,4 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -7,7 +8,6 @@ import {
   EmojiItem,
   UNICODE_EMOJIS,
   UNICODE_EMOJI_SUBCATEGORIES,
-  DEFAULT_BOT_EMOJIS,
   getCustomBotEmojis,
   saveCustomBotEmoji,
   recordEmojiUsage,
@@ -64,18 +64,7 @@ export function DiscordEmojiPicker({
   const [isLoadingServerEmojis, setIsLoadingServerEmojis] = useState(false);
   const [isLoadingBotEmojis, setIsLoadingBotEmojis] = useState(false);
 
-  // Sync prop updates if parent explicitly updates
-  useEffect(() => {
-    if (serverEmojis && serverEmojis.length > 0) {
-      setInternalServerEmojis(serverEmojis);
-    }
-  }, [serverEmojis]);
 
-  useEffect(() => {
-    if (botEmojis && botEmojis.length > 0) {
-      setInternalBotEmojis(botEmojis);
-    }
-  }, [botEmojis]);
 
   // Lazy-load emojis when the picker opens
   useEffect(() => {
@@ -171,7 +160,7 @@ export function DiscordEmojiPicker({
   const scrollPaneRef = useRef<HTMLDivElement>(null);
   const categoryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  // Merge live botEmojis + customBotEmojis + default fallback
+  // Merge live botEmojis + customBotEmojis
   const effectiveBotEmojis = useMemo(() => {
     const list: EmojiItem[] = [];
     const seenIds = new Set<string>();
@@ -192,17 +181,8 @@ export function DiscordEmojiPicker({
       }
     }
 
-    if (list.length === 0 && !isLoadingBotEmojis) {
-      for (const d of DEFAULT_BOT_EMOJIS) {
-        if (d.id && !seenIds.has(d.id)) {
-          seenIds.add(d.id);
-          list.push(d);
-        }
-      }
-    }
-
     return list;
-  }, [activeBotSource, customBotEmojis, isLoadingBotEmojis]);
+  }, [activeBotSource, customBotEmojis]);
 
   // Click outside listener
   useEffect(() => {
