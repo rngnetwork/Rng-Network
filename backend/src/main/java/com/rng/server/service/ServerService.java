@@ -8,6 +8,7 @@ import com.rng.server.domain.Server;
 import com.rng.server.dto.ChannelDto;
 import com.rng.server.dto.ServerDetailDto;
 import com.rng.server.dto.ServerDto;
+import com.rng.server.dto.ServerRoleDto;
 import com.rng.server.dto.UpdateServerSettingsRequest;
 import com.rng.server.dto.discord.DiscordChannelDto;
 import com.rng.server.dto.discord.DiscordGuildDetailDto;
@@ -266,6 +267,33 @@ public class ServerService {
                         .parentId(c.getParentId())
                         .build())
                 .toList();
+    }
+
+    @Cacheable(value = "guild:roles", key = "#idOrSlug")
+    @Transactional(readOnly = true)
+    public List<ServerRoleDto> getServerRoles(String idOrSlug) {
+        Server server = serverRepository.findByIdOrSlug(idOrSlug)
+                .orElseThrow(() -> new ResourceNotFoundException("Server not found: " + idOrSlug));
+
+        if (jda.isPresent() && jda.get().getStatus() == JDA.Status.CONNECTED) {
+            Guild jdaGuild = jda.get().getGuildById(server.getId());
+            if (jdaGuild != null) {
+                return jdaGuild.getRoles().stream()
+                        .map(r -> ServerRoleDto.builder()
+                                .id(r.getId())
+                                .name(r.getName())
+                                .color(r.getColor() != null && r.getColorRaw() != 0
+                                        ? String.format("#%06X", (0xFFFFFF & r.getColorRaw()))
+                                        : "#99AAB5")
+                                .position(r.getPosition())
+                                .managed(r.isManaged())
+                                .assignableByBot(!r.isManaged() && jdaGuild.getSelfMember() != null && jdaGuild.getSelfMember().canInteract(r))
+                                .build())
+                        .toList();
+            }
+        }
+
+        return discordClient.getGuildRoles(server.getId());
     }
 
     @Caching(evict = {

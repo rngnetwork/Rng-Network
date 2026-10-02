@@ -351,6 +351,7 @@ export function MessageBuilder({
           setDraggedContainer={setDraggedContainer}
           collapsedAuthors={collapsedAuthors}
           setCollapsedAuthors={setCollapsedAuthors}
+          serverId={serverId}
         />
       )}
 
@@ -401,6 +402,7 @@ export function MessageBuilder({
         onClose={() => setEditingButton(null)}
         buttonData={editingButton?.data || null}
         onSave={handleSaveButtonModal}
+        serverId={serverId}
       />
 
       {/* LOAD PRESET MODAL */}

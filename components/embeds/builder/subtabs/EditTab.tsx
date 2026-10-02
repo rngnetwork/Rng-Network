@@ -25,6 +25,7 @@ interface EditTabProps {
   setDraggedContainer: React.Dispatch<React.SetStateAction<number | null>>;
   collapsedAuthors: Record<number, boolean>;
   setCollapsedAuthors: React.Dispatch<React.SetStateAction<Record<number, boolean>>>;
+  serverId?: string;
 }
 
 export function EditTab({
@@ -42,7 +43,8 @@ export function EditTab({
   draggedContainer,
   setDraggedContainer,
   collapsedAuthors,
-  setCollapsedAuthors
+  setCollapsedAuthors,
+  serverId
 }: EditTabProps) {
   // Active text input tracking for cursor-aware emoji insertion
   const lastActiveInputRef = useRef<{
@@ -396,6 +398,7 @@ export function EditTab({
                   onCompDrop={handleCompDrop}
                   draggedComp={draggedComp}
                   dragOverComp={dragOverComp}
+                  serverId={serverId}
                 />
               ))}
             </div>

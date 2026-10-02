@@ -1,3 +1,5 @@
+import type { GuildRoleOption, ComponentActionPayload } from '@/components/embeds/types';
+
 const rawBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 const API_BASE = rawBase.replace(/\/api\/v1\/?$/, '').replace(/\/$/, '');
 
@@ -594,6 +596,195 @@ export const api = {
       throw new Error(data.message || 'Failed to fetch server channels.');
     }
     return data;
+  },
+
+  async fetchServerRoles(accessToken?: string, idOrSlug?: string): Promise<ApiResponseEnvelope<GuildRoleOption[]>> {
+    const targetId = idOrSlug || '';
+    return requestWithFallback<GuildRoleOption[]>(
+      async () => {
+        let token = accessToken || getStoredAccessToken();
+        let response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(targetId)}/roles`, {
+          method: 'GET',
+          headers: {
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          credentials: 'include',
+        });
+
+        if (response.status === 401) {
+          try {
+            const refreshRes = await this.refreshToken();
+            if (refreshRes.success && refreshRes.data?.accessToken) {
+              token = refreshRes.data.accessToken;
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('accessToken', token);
+                localStorage.setItem('token', token);
+              }
+              response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(targetId)}/roles`, {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                },
+                credentials: 'include',
+              });
+            }
+          } catch (e) {
+            console.warn('Token refresh failed during fetchServerRoles:', e);
+          }
+        }
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to fetch server roles.');
+        }
+        return data;
+      },
+      () => [
+        { id: '1001', name: 'Verified Member', color: '#3498DB', position: 10, managed: false, assignableByBot: true },
+        { id: '1002', name: 'Notification Squad', color: '#2ECC71', position: 8, managed: false, assignableByBot: true },
+        { id: '1003', name: 'VIP Guest', color: '#F1C40F', position: 6, managed: false, assignableByBot: true },
+        { id: '1004', name: 'Support Staff', color: '#E67E22', position: 15, managed: false, assignableByBot: true },
+        { id: '1005', name: 'Supreme Commander', color: '#E74C3C', position: 25, managed: false, assignableByBot: false },
+      ],
+      'Server roles loaded via offline fallback simulation.'
+    );
+  },
+
+  async fetchServerActions(accessToken?: string, idOrSlug?: string): Promise<ApiResponseEnvelope<ComponentActionPayload[]>> {
+    const targetId = idOrSlug || '';
+    return requestWithFallback<ComponentActionPayload[]>(
+      async () => {
+        let token = accessToken || getStoredAccessToken();
+        let response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(targetId)}/actions`, {
+          method: 'GET',
+          headers: {
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          credentials: 'include',
+        });
+
+        if (response.status === 401) {
+          try {
+            const refreshRes = await this.refreshToken();
+            if (refreshRes.success && refreshRes.data?.accessToken) {
+              token = refreshRes.data.accessToken;
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('accessToken', token);
+                localStorage.setItem('token', token);
+              }
+              response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(targetId)}/actions`, {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                },
+                credentials: 'include',
+              });
+            }
+          } catch (e) {
+            console.warn('Token refresh failed during fetchServerActions:', e);
+          }
+        }
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to fetch server actions.');
+        }
+        return data;
+      },
+      () => getLocalStored<ComponentActionPayload[]>(`rng_server_actions_${targetId}`, []),
+      'Server actions loaded via offline simulation.'
+    );
+  },
+
+  async saveServerAction(action: ComponentActionPayload, accessToken?: string, idOrSlug?: string): Promise<ApiResponseEnvelope<ComponentActionPayload>> {
+    const targetId = idOrSlug || '';
+    const isUpdate = Boolean(action.actionId);
+    const endpoint = isUpdate
+      ? `${API_BASE}/api/v1/servers/${encodeURIComponent(targetId)}/actions/${encodeURIComponent(action.actionId!)}`
+      : `${API_BASE}/api/v1/servers/${encodeURIComponent(targetId)}/actions`;
+    const method = isUpdate ? 'PUT' : 'POST';
+
+    return requestWithFallback<ComponentActionPayload>(
+      async () => {
+        let token = accessToken || getStoredAccessToken();
+        let response = await fetch(endpoint, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify(action),
+        });
+
+        if (response.status === 401) {
+          try {
+            const refreshRes = await this.refreshToken();
+            if (refreshRes.success && refreshRes.data?.accessToken) {
+              token = refreshRes.data.accessToken;
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('accessToken', token);
+                localStorage.setItem('token', token);
+              }
+              response = await fetch(endpoint, {
+                method,
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                },
+                credentials: 'include',
+                body: JSON.stringify(action),
+              });
+            }
+          } catch (e) {
+            console.warn('Token refresh failed during saveServerAction:', e);
+          }
+        }
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to save server action.');
+        }
+        return data;
+      },
+      () => {
+        const actionWithId: ComponentActionPayload = {
+          ...action,
+          actionId: action.actionId || 'rng_act_' + Math.random().toString(16).substring(2, 18),
+        };
+        const current = getLocalStored<ComponentActionPayload[]>(`rng_server_actions_${targetId}`, []);
+        const filtered = current.filter(a => a.actionId !== actionWithId.actionId);
+        setLocalStored(`rng_server_actions_${targetId}`, [...filtered, actionWithId]);
+        return actionWithId;
+      },
+      'Server action saved in local simulation store.'
+    );
+  },
+
+  async deleteServerAction(actionId: string, accessToken?: string, idOrSlug?: string): Promise<ApiResponseEnvelope<void>> {
+    const targetId = idOrSlug || '';
+    return requestWithFallback<void>(
+      async () => {
+        const token = accessToken || getStoredAccessToken();
+        const response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(targetId)}/actions/${encodeURIComponent(actionId)}`, {
+          method: 'DELETE',
+          headers: {
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to delete server action.');
+        }
+        return data;
+      },
+      () => {
+        const current = getLocalStored<ComponentActionPayload[]>(`rng_server_actions_${targetId}`, []);
+        setLocalStored(`rng_server_actions_${targetId}`, current.filter(a => a.actionId !== actionId));
+      },
+      'Server action deleted from local simulation store.'
+    );
   },
 
   async updateServerSettings(

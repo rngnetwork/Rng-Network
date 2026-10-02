@@ -36,6 +36,7 @@ interface ComponentItemRendererProps {
   onDrop: (e: React.DragEvent, cIdx: number, compIdx: number) => void;
   isDragging?: boolean;
   isDragOver?: boolean;
+  serverId?: string;
 }
 
 const TYPE_NAMES: Record<number, string> = {
@@ -73,7 +74,8 @@ export function ComponentItemRenderer({
   onDragOver,
   onDrop,
   isDragging = false,
-  isDragOver = false
+  isDragOver = false,
+  serverId
 }: ComponentItemRendererProps) {
   const [isSectionSettingsOpen, setIsSectionSettingsOpen] = useState(false);
   const [isSeparatorSettingsOpen, setIsSeparatorSettingsOpen] = useState(false);
@@ -301,6 +303,7 @@ export function ComponentItemRenderer({
           onClose={() => setIsSelectSettingsOpen(false)}
           comp={comp as DiscordSelectComponent}
           onSave={(updated) => onUpdateComponent(cIdx, compIdx, updated)}
+          serverId={serverId}
         />
       )}
     </div>
