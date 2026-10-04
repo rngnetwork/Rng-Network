@@ -43,6 +43,7 @@ export function ActionTemplateModal(props: ActionTemplateModalProps) {
 }
 
 function ActionTemplateModalInner({
+  isOpen,
   onClose,
   onSave,
   initialAction,

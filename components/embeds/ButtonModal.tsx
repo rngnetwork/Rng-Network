@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { DiscordButtonComponent, ButtonStyle, EmbedAction } from './types';
 import { DiscordEmojiPicker } from './DiscordEmojiPicker';
+import { EmojiItem } from './emoji-data';
 import { renderDiscordEmoji } from './DiscordEmojiRenderer';
 import { GlassmorphicDropdown } from '@/components/ui/GlassmorphicDropdown';
 import { api } from '@/lib/api';
