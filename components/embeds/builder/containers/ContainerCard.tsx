@@ -1,5 +1,5 @@
 import React from 'react';
-import { Type17Container, DiscordInnerComponent, DiscordButtonComponent } from '../../types';
+import { Type17Container, DiscordInnerComponent, DiscordButtonComponent, EmbedAction } from '../../types';
 import { ContainerHeader } from './ContainerHeader';
 import { ContainerFields } from './ContainerFields';
 import { ComponentItemRenderer } from '../components/ComponentItemRenderer';
@@ -37,6 +37,7 @@ interface ContainerCardProps {
   onCompDrop: (e: React.DragEvent, cIdx: number, compIdx: number) => void;
   draggedComp?: { cIdx: number; compIdx: number } | null;
   dragOverComp?: { cIdx: number; compIdx: number } | null;
+  availableActions?: EmbedAction[];
 }
 
 export function ContainerCard({
@@ -67,7 +68,8 @@ export function ContainerCard({
   onCompDragOver,
   onCompDrop,
   draggedComp,
-  dragOverComp
+  dragOverComp,
+  availableActions = []
 }: ContainerCardProps) {
   return (
     <div
@@ -164,6 +166,7 @@ export function ContainerCard({
               onDrop={onCompDrop}
               isDragging={isDragging}
               isDragOver={isDragOver}
+              availableActions={availableActions}
             />
           );
         })}

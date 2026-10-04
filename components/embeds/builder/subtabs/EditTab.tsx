@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Type17Container, DiscordInnerComponent, DiscordButtonComponent } from '../../types';
+import { Type17Container, DiscordInnerComponent, DiscordButtonComponent, EmbedAction } from '../../types';
 import { ContainerCard } from '../containers/ContainerCard';
 import { EmojiItem } from '../../emoji-data';
 
@@ -25,6 +25,7 @@ interface EditTabProps {
   setDraggedContainer: React.Dispatch<React.SetStateAction<number | null>>;
   collapsedAuthors: Record<number, boolean>;
   setCollapsedAuthors: React.Dispatch<React.SetStateAction<Record<number, boolean>>>;
+  availableActions?: EmbedAction[];
 }
 
 export function EditTab({
@@ -42,7 +43,8 @@ export function EditTab({
   draggedContainer,
   setDraggedContainer,
   collapsedAuthors,
-  setCollapsedAuthors
+  setCollapsedAuthors,
+  availableActions = []
 }: EditTabProps) {
   // Active text input tracking for cursor-aware emoji insertion
   const lastActiveInputRef = useRef<{
@@ -396,6 +398,7 @@ export function EditTab({
                   onCompDrop={handleCompDrop}
                   draggedComp={draggedComp}
                   dragOverComp={dragOverComp}
+                  availableActions={availableActions}
                 />
               ))}
             </div>

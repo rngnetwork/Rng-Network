@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Type17Container, DiscordButtonComponent, DiscordActionRowComponent, DiscordInnerComponent } from './types';
+import { Type17Container, DiscordButtonComponent, DiscordActionRowComponent, DiscordInnerComponent, EmbedAction } from './types';
 import { ChannelItem, ServerItem } from '@/lib/api';
 import { EmojiItem } from './emoji-data';
 
@@ -38,6 +38,7 @@ export interface MessageBuilderProps {
     scheduleTime?: string;
   }) => Promise<void> | void;
   lockServer?: boolean;
+  availableActions?: EmbedAction[];
 }
 
 export function MessageBuilder({
@@ -55,7 +56,8 @@ export function MessageBuilder({
   availableServers = [],
   onSelectServer,
   onDispatchPayload,
-  lockServer = false
+  lockServer = false,
+  availableActions = []
 }: MessageBuilderProps) {
   const [activeSubTab, setActiveSubTab] = useState<'edit' | 'preview' | 'raw' | 'dispatch'>('edit');
 
@@ -347,6 +349,7 @@ export function MessageBuilder({
           setDraggedContainer={setDraggedContainer}
           collapsedAuthors={collapsedAuthors}
           setCollapsedAuthors={setCollapsedAuthors}
+          availableActions={availableActions}
         />
       )}
 
@@ -397,6 +400,7 @@ export function MessageBuilder({
         onClose={() => setEditingButton(null)}
         buttonData={editingButton?.data || null}
         onSave={handleSaveButtonModal}
+        availableActions={availableActions}
       />
 
       {/* LOAD PRESET MODAL */}

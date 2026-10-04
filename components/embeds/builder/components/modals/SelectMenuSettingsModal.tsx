@@ -1,16 +1,18 @@
 "use client";
 
-import React, { useState } from 'react';
-import { DiscordSelectComponent, SelectOption, PartialEmojiObject } from '../../../types';
+import React, { useState, useEffect } from 'react';
+import { DiscordSelectComponent, SelectOption, PartialEmojiObject, EmbedAction } from '../../../types';
 import { DiscordEmojiPicker } from '../../../DiscordEmojiPicker';
 import { EmojiItem } from '../../../emoji-data';
 import { renderDiscordEmoji } from '../../../DiscordEmojiRenderer';
+import { api } from '@/lib/api';
 
 interface SelectMenuSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   comp: DiscordSelectComponent;
   onSave: (updated: DiscordSelectComponent) => void;
+  availableActions?: EmbedAction[];
 }
 
 function parseEmoji(emojiStr: string): string | PartialEmojiObject | undefined {
@@ -40,11 +42,25 @@ export function SelectMenuSettingsModal({
   isOpen,
   onClose,
   comp,
-  onSave
+  onSave,
+  availableActions
 }: SelectMenuSettingsModalProps) {
   const [customId, setCustomId] = useState(comp.custom_id || comp.id || '');
   const [placeholder, setPlaceholder] = useState(comp.placeholder || '');
   const [disabled, setDisabled] = useState<boolean>(Boolean(comp.disabled));
+  const [actionsList, setActionsList] = useState<EmbedAction[]>(availableActions || []);
+
+  useEffect(() => {
+    if (availableActions && availableActions.length > 0) {
+      setActionsList(availableActions);
+    } else {
+      api.fetchActionTemplates().then((res) => {
+        if (res.success && res.data) {
+          setActionsList(res.data);
+        }
+      }).catch(() => {});
+    }
+  }, [availableActions]);
   const [options, setOptions] = useState<SelectOption[]>(
     comp.options && comp.options.length > 0
       ? comp.options.map((opt) => ({ ...opt }))
@@ -291,6 +307,36 @@ export function SelectMenuSettingsModal({
                             value={opt.value}
                             onChange={(e) => handleUpdateOption(optIdx, { value: e.target.value })}
                           />
+
+                          {/* Action Template Quick Selector */}
+                          {actionsList.length > 0 && (
+                            <select
+                              value={opt.value?.startsWith('rng_act_') ? opt.value : ''}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  handleUpdateOption(optIdx, { value: e.target.value });
+                                }
+                              }}
+                              style={{
+                                fontSize: '11px',
+                                background: 'rgba(0,0,0,0.4)',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                borderRadius: '4px',
+                                color: opt.value?.startsWith('rng_act_') ? '#34d399' : '#a1a1aa',
+                                padding: '4px 6px',
+                                maxWidth: '140px',
+                                textOverflow: 'ellipsis'
+                              }}
+                              title="Bind option to an Action Template"
+                            >
+                              <option value="">Manual Value</option>
+                              {actionsList.map((act) => (
+                                <option key={act.actionId} value={act.actionId}>
+                                  ⚡ {act.name}
+                                </option>
+                              ))}
+                            </select>
+                          )}
 
                           {/* Default Toggle */}
                           <label
