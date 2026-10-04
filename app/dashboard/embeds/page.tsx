@@ -2,16 +2,17 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import '@/components/embeds/embed-builder.css';
-import { Type17Container } from '@/components/embeds/types';
+import { Type17Container, EmbedAction } from '@/components/embeds/types';
 import { MessageBuilder } from '@/components/embeds/MessageBuilder';
 import { TemplatesTab } from '@/components/embeds/TemplatesTab';
+import { ActionTemplatesTab } from '@/components/embeds/ActionTemplatesTab';
 import { UnsavedChangesBar } from '@/components/ui/UnsavedChangesBar';
 import { api, ServerItem, ChannelItem } from '@/lib/api';
 import { EmojiItem } from '@/components/embeds/emoji-data';
 import { buildDiscordV2MessagePayload } from '@/components/embeds/validation';
 
 export default function EmbedsPage() {
-  const [activeTopTab, setActiveTopTab] = useState<'builder' | 'templates'>('builder');
+  const [activeTopTab, setActiveTopTab] = useState<'builder' | 'templates' | 'actions'>('builder');
   const [messageContent, setMessageContent] = useState("");
   const [containers, setContainers] = useState<Type17Container[]>([]);
   const [botEmojis] = useState<EmojiItem[]>([]);
@@ -68,6 +69,22 @@ export default function EmbedsPage() {
   const [servers, setServers] = useState<ServerItem[]>([]);
   const [selectedServerId, setSelectedServerId] = useState<string>('');
   const [serverChannels, setServerChannels] = useState<ChannelItem[]>([]);
+  const [availableActions, setAvailableActions] = useState<EmbedAction[]>([]);
+
+  const loadActions = useCallback(async () => {
+    try {
+      const res = await api.fetchActionTemplates();
+      if (res.success && res.data) {
+        setAvailableActions(res.data);
+      }
+    } catch (e) {
+      console.warn('Failed to load action templates:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadActions();
+  }, [loadActions]);
 
   const loadChannelsForServer = useCallback(async (srvId: string) => {
     if (!srvId) return;
@@ -163,6 +180,14 @@ export default function EmbedsPage() {
             <i className="fa-solid fa-layer-group text-amber-400" />
             <span>Templates</span>
           </button>
+          <button
+            type="button"
+            className={`main-tab-btn ${activeTopTab === 'actions' ? 'active' : ''}`}
+            onClick={() => setActiveTopTab('actions')}
+          >
+            <i className="fa-solid fa-bolt text-cyan-400" />
+            <span>Action Templates</span>
+          </button>
         </div>
       </header>
 
@@ -183,6 +208,7 @@ export default function EmbedsPage() {
           onSelectServer={handleSelectServer}
           onDispatchPayload={handleDispatchPayload}
           lockServer={false}
+          availableActions={availableActions}
         />
       )}
 
@@ -194,6 +220,17 @@ export default function EmbedsPage() {
               type17Containers: containers
             }}
             onLoadTemplate={handleLoadTemplate}
+          />
+        </div>
+      )}
+
+      {activeTopTab === 'actions' && (
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <ActionTemplatesTab
+            serverId={selectedServerId}
+            onSelectAction={() => {
+              loadActions();
+            }}
           />
         </div>
       )}
