@@ -16,11 +16,14 @@ import com.rng.server.dto.discord.DiscordGuildPatchRequest;
 import com.rng.server.dto.DiscordEmojiDto;
 import com.rng.server.dto.discord.DiscordEmojiResponseDto;
 import com.rng.server.repository.ServerRepository;
+import com.rng.server.dto.ServerRoleDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
@@ -284,10 +287,39 @@ public class ServerService {
         return List.of();
     }
 
+    @Cacheable(value = "guild:roles", key = "#idOrSlug")
+    @Transactional(readOnly = true)
+    public List<ServerRoleDto> getServerRoles(String idOrSlug) {
+        Server server = serverRepository.findByIdOrSlug(idOrSlug)
+                .orElseThrow(() -> new ResourceNotFoundException("Server not found: " + idOrSlug));
+
+        if (jda.isPresent() && jda.get().getStatus() == JDA.Status.CONNECTED) {
+            Guild jdaGuild = jda.get().getGuildById(server.getId());
+            if (jdaGuild != null) {
+                Member botMember = jdaGuild.getSelfMember();
+                return jdaGuild.getRoles().stream()
+                        .filter(role -> !role.isPublicRole())
+                        .map(role -> ServerRoleDto.builder()
+                                .id(role.getId())
+                                .name(role.getName())
+                                .colorHex(role.getColor() != null ? String.format("#%06X", (0xFFFFFF & role.getColor().getRGB())) : null)
+                                .position(role.getPosition())
+                                .managed(role.isManaged())
+                                .assignableByBot(botMember.canInteract(role) && !role.isManaged())
+                                .build())
+                        .sorted(Comparator.comparingInt(ServerRoleDto::getPosition).reversed())
+                        .toList();
+            }
+        }
+
+        return List.of();
+    }
+
     @Caching(evict = {
             @CacheEvict(value = "guilds:summary", allEntries = true),
             @CacheEvict(value = "guild:details", allEntries = true),
-            @CacheEvict(value = "guild:channels", allEntries = true)
+            @CacheEvict(value = "guild:channels", allEntries = true),
+            @CacheEvict(value = "guild:roles", allEntries = true)
     })
     @Transactional
     public ServerDetailDto updateServerSettings(String idOrSlug, UpdateServerSettingsRequest request, String operatorEmail) {
