@@ -380,3 +380,74 @@ export interface BackendDispatchLog {
   latencyMs?: number;
   timestamp: string;
 }
+
+export type ActionType = 'ROLE' | 'TICKET' | 'REPLY' | 'DM';
+
+export type RoleSubtype = 'TOGGLE' | 'ADD' | 'REMOVE';
+
+export interface EmbedAction {
+  id?: string;
+  actionId: string;
+  serverId?: string;
+  isGlobal: boolean;
+  name: string;
+  description?: string;
+  actionType: ActionType;
+  roleSubtype?: RoleSubtype;
+  roleId?: string;
+  roleName?: string;
+  channelPrefix?: string;
+  welcomeMessage?: string;
+  replyContent?: string;
+  isEphemeral?: boolean;
+  dmContent?: string;
+  requiredUser?: boolean;
+  requiredRole?: boolean;
+  responseEmbedTemplateId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateActionPayload {
+  serverId?: string;
+  isGlobal?: boolean;
+  name: string;
+  description?: string;
+  actionType: ActionType;
+  roleSubtype?: RoleSubtype;
+  roleId?: string;
+  roleName?: string;
+  channelPrefix?: string;
+  welcomeMessage?: string;
+  replyContent?: string;
+  isEphemeral?: boolean;
+  dmContent?: string;
+  requiredUser?: boolean;
+  requiredRole?: boolean;
+  responseEmbedTemplateId?: string;
+}
+
+export interface UpdateActionPayload extends CreateActionPayload {}
+
+export interface ServerRole {
+  id: string;
+  name: string;
+  colorHex?: string | null;
+  position: number;
+  managed: boolean;
+  assignableByBot: boolean;
+}
+
+export interface InteractionLogItem {
+  id: string;
+  actionId: string;
+  actionType: ActionType;
+  guildId: string;
+  channelId?: string;
+  messageId?: string;
+  userId: string;
+  username: string;
+  status: 'SUCCESS' | 'FAILED' | 'RATE_LIMITED' | 'MISSING_PERMISSIONS';
+  details?: string;
+  createdAt: string;
+}
