@@ -19,6 +19,26 @@ export interface ApiResponseEnvelope<T> {
   data?: T;
 }
 
+import type {
+  ActionType,
+  RoleSubtype,
+  EmbedAction,
+  CreateActionPayload,
+  UpdateActionPayload,
+  ServerRole,
+  InteractionLogItem,
+} from '@/components/embeds/types';
+
+export type {
+  ActionType,
+  RoleSubtype,
+  EmbedAction,
+  CreateActionPayload,
+  UpdateActionPayload,
+  ServerRole,
+  InteractionLogItem,
+};
+
 export interface Pre2FaData {
   token: string;
   requiresDiscord2Fa: boolean;
@@ -625,6 +645,55 @@ export const api = {
       throw new Error(data.message || 'Failed to update server settings.');
     }
     return data;
+  },
+
+  // ---------------------------------------------------------------------------
+  // Discord Server Roles APIs (GET /api/v1/servers/{idOrSlug}/roles)
+  // ---------------------------------------------------------------------------
+  async fetchServerRoles(idOrSlug: string, token?: string): Promise<ApiResponseEnvelope<ServerRole[]>> {
+    let effectiveToken = token || getStoredAccessToken();
+    return requestWithFallback(
+      async () => {
+        let response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(idOrSlug)}/roles`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+        });
+
+        if (response.status === 401) {
+          try {
+            const refreshRes = await this.refreshToken();
+            if (refreshRes.success && refreshRes.data?.accessToken) {
+              effectiveToken = refreshRes.data.accessToken;
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('accessToken', effectiveToken);
+                localStorage.setItem('token', effectiveToken);
+              }
+              response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(idOrSlug)}/roles`, {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${effectiveToken}`,
+                },
+                credentials: 'include',
+              });
+            }
+          } catch (e) {
+            console.warn('Token refresh failed during fetchServerRoles:', e);
+          }
+        }
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new ApiHttpError(data.message || `Failed to fetch server roles (${response.status})`, response.status, data);
+        }
+        return data;
+      },
+      () => [] as ServerRole[],
+      'Server roles loaded via fallback.'
+    );
   },
 
   // ---------------------------------------------------------------------------
@@ -1461,7 +1530,267 @@ export const api = {
   fetchDispatchableChannels(serverId: string, token?: string) {
     return this.fetchDispatchChannels(serverId, token);
   },
+
+  // ---------------------------------------------------------------------------
+  // Interactive Component Action Templates APIs
+  // ---------------------------------------------------------------------------
+  async fetchActionTemplates(serverId?: string, token?: string): Promise<ApiResponseEnvelope<EmbedAction[]>> {
+    const effectiveToken = token || getStoredAccessToken();
+    const url = serverId
+      ? `${API_BASE}/api/v1/embeds/actions?serverId=${encodeURIComponent(serverId)}`
+      : `${API_BASE}/api/v1/embeds/actions`;
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch action templates');
+        return data;
+      },
+      () => {
+        const stored = getLocalStored<EmbedAction[]>('rng_embed_actions', []);
+        if (serverId) {
+          return stored.filter((a) => a.isGlobal || a.serverId === serverId);
+        }
+        return stored.filter((a) => a.isGlobal);
+      },
+      'Action templates loaded from local simulation storage.'
+    );
+  },
+
+  async fetchServerActions(idOrSlug: string, token?: string): Promise<ApiResponseEnvelope<EmbedAction[]>> {
+    const effectiveToken = token || getStoredAccessToken();
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(idOrSlug)}/actions`, {
+          method: 'GET',
+          headers: {
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch server actions');
+        return data;
+      },
+      () => {
+        const stored = getLocalStored<EmbedAction[]>('rng_embed_actions', []);
+        return stored.filter((a) => a.isGlobal || a.serverId === idOrSlug);
+      },
+      'Server actions loaded from local simulation storage.'
+    );
+  },
+
+  async getActionTemplate(actionId: string, token?: string): Promise<ApiResponseEnvelope<EmbedAction>> {
+    const effectiveToken = token || getStoredAccessToken();
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(`${API_BASE}/api/v1/embeds/actions/${encodeURIComponent(actionId)}`, {
+          method: 'GET',
+          headers: {
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch action template');
+        return data;
+      },
+      () => {
+        const stored = getLocalStored<EmbedAction[]>('rng_embed_actions', []);
+        const found = stored.find((a) => a.actionId === actionId);
+        if (!found) throw new Error(`Action template ${actionId} not found in offline store`);
+        return found;
+      }
+    );
+  },
+
+  async createActionTemplate(payload: CreateActionPayload, serverIdOrSlug?: string, token?: string): Promise<ApiResponseEnvelope<EmbedAction>> {
+    const effectiveToken = token || getStoredAccessToken();
+    const endpoint = serverIdOrSlug
+      ? `${API_BASE}/api/v1/servers/${encodeURIComponent(serverIdOrSlug)}/actions`
+      : `${API_BASE}/api/v1/embeds/actions`;
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to create action template');
+        return data;
+      },
+      () => {
+        const hex = Math.random().toString(16).substring(2, 10) + Math.random().toString(16).substring(2, 10);
+        const created: EmbedAction = {
+          id: 'act_' + hex.substring(0, 8),
+          actionId: 'rng_act_' + hex.substring(0, 16),
+          serverId: payload.serverId || serverIdOrSlug,
+          isGlobal: payload.isGlobal ?? false,
+          name: payload.name,
+          description: payload.description,
+          actionType: payload.actionType,
+          roleSubtype: payload.roleSubtype,
+          roleId: payload.roleId,
+          roleName: payload.roleName,
+          channelPrefix: payload.channelPrefix,
+          welcomeMessage: payload.welcomeMessage,
+          replyContent: payload.replyContent,
+          isEphemeral: payload.isEphemeral ?? true,
+          dmContent: payload.dmContent,
+          requiredUser: payload.requiredUser ?? false,
+          requiredRole: payload.requiredRole ?? false,
+          responseEmbedTemplateId: payload.responseEmbedTemplateId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        const stored = getLocalStored<EmbedAction[]>('rng_embed_actions', []);
+        setLocalStored('rng_embed_actions', [created, ...stored]);
+        return created;
+      },
+      'Action template created successfully in local simulation storage.'
+    );
+  },
+
+  async updateActionTemplate(actionId: string, payload: UpdateActionPayload, token?: string): Promise<ApiResponseEnvelope<EmbedAction>> {
+    const effectiveToken = token || getStoredAccessToken();
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(`${API_BASE}/api/v1/embeds/actions/${encodeURIComponent(actionId)}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to update action template');
+        return data;
+      },
+      () => {
+        const stored = getLocalStored<EmbedAction[]>('rng_embed_actions', []);
+        const idx = stored.findIndex((a) => a.actionId === actionId);
+        if (idx === -1) throw new Error(`Action template ${actionId} not found`);
+        const updated: EmbedAction = {
+          ...stored[idx],
+          name: payload.name ?? stored[idx].name,
+          description: payload.description ?? stored[idx].description,
+          actionType: payload.actionType ?? stored[idx].actionType,
+          roleSubtype: payload.roleSubtype ?? stored[idx].roleSubtype,
+          roleId: payload.roleId ?? stored[idx].roleId,
+          roleName: payload.roleName ?? stored[idx].roleName,
+          channelPrefix: payload.channelPrefix ?? stored[idx].channelPrefix,
+          welcomeMessage: payload.welcomeMessage ?? stored[idx].welcomeMessage,
+          replyContent: payload.replyContent ?? stored[idx].replyContent,
+          isEphemeral: payload.isEphemeral ?? stored[idx].isEphemeral,
+          dmContent: payload.dmContent ?? stored[idx].dmContent,
+          requiredUser: payload.requiredUser ?? stored[idx].requiredUser,
+          requiredRole: payload.requiredRole ?? stored[idx].requiredRole,
+          responseEmbedTemplateId: payload.responseEmbedTemplateId ?? stored[idx].responseEmbedTemplateId,
+          isGlobal: payload.isGlobal ?? stored[idx].isGlobal,
+          updatedAt: new Date().toISOString(),
+        };
+        stored[idx] = updated;
+        setLocalStored('rng_embed_actions', stored);
+        return updated;
+      },
+      'Action template updated successfully in local simulation storage.'
+    );
+  },
+
+  async deleteActionTemplate(actionId: string, token?: string): Promise<ApiResponseEnvelope<boolean>> {
+    const effectiveToken = token || getStoredAccessToken();
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(`${API_BASE}/api/v1/embeds/actions/${encodeURIComponent(actionId)}`, {
+          method: 'DELETE',
+          headers: {
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to delete action template');
+        return data;
+      },
+      () => {
+        const stored = getLocalStored<EmbedAction[]>('rng_embed_actions', []);
+        setLocalStored('rng_embed_actions', stored.filter((a) => a.actionId !== actionId));
+        return true;
+      },
+      'Action template deleted from local simulation storage.'
+    );
+  },
+
+  async fetchInteractionLogs(
+    params?: { guildId?: string; serverIdOrSlug?: string; page?: number; size?: number },
+    token?: string
+  ): Promise<ApiResponseEnvelope<{ content: InteractionLogItem[]; totalElements?: number; totalPages?: number }>> {
+    const effectiveToken = token || getStoredAccessToken();
+    const page = params?.page ?? 0;
+    const size = params?.size ?? 20;
+    let url = `${API_BASE}/api/v1/embeds/actions/logs?page=${page}&size=${size}`;
+    if (params?.serverIdOrSlug) {
+      url = `${API_BASE}/api/v1/servers/${encodeURIComponent(params.serverIdOrSlug)}/interactions/logs?page=${page}&size=${size}`;
+    } else if (params?.guildId) {
+      url += `&guildId=${encodeURIComponent(params.guildId)}`;
+    }
+    return requestWithFallback(
+      async () => {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+          },
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch interaction logs');
+        return data;
+      },
+      () => ({
+        content: [],
+        totalElements: 0,
+        totalPages: 0,
+      }),
+      'Interaction logs loaded from local simulation storage.'
+    );
+  },
+
+  // Action template aliases
+  fetchRoles(idOrSlug: string, token?: string) {
+    return this.fetchServerRoles(idOrSlug, token);
+  },
+  fetchActions(serverId?: string, token?: string) {
+    return this.fetchActionTemplates(serverId, token);
+  },
+  createAction(payload: CreateActionPayload, serverIdOrSlug?: string, token?: string) {
+    return this.createActionTemplate(payload, serverIdOrSlug, token);
+  },
+  updateAction(actionId: string, payload: UpdateActionPayload, token?: string) {
+    return this.updateActionTemplate(actionId, payload, token);
+  },
+  deleteAction(actionId: string, token?: string) {
+    return this.deleteActionTemplate(actionId, token);
+  },
+  fetchLogs(params?: { guildId?: string; serverIdOrSlug?: string; page?: number; size?: number }, token?: string) {
+    return this.fetchInteractionLogs(params, token);
+  },
 };
+
+export const apiClient = api;
 
 // ---------------------------------------------------------------------------
 // Offline Fallback Helpers (§8.3)
