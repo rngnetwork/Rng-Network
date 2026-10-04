@@ -3,9 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { DiscordButtonComponent, ButtonStyle, EmbedAction } from './types';
 import { DiscordEmojiPicker } from './DiscordEmojiPicker';
-import { EmojiItem } from './emoji-data';
 import { renderDiscordEmoji } from './DiscordEmojiRenderer';
-import { GlassmorphicDropdown, DropdownOption } from '@/components/ui/GlassmorphicDropdown';
+import { GlassmorphicDropdown } from '@/components/ui/GlassmorphicDropdown';
 import { api } from '@/lib/api';
 
 interface ButtonModalProps {
@@ -63,23 +62,26 @@ function ButtonModalContent({
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [emojiTriggerRect, setEmojiTriggerRect] = useState<DOMRect | null>(null);
 
-  const [actionsList, setActionsList] = useState<EmbedAction[]>(availableActions || []);
+  const [fetchedActions, setFetchedActions] = useState<EmbedAction[]>([]);
+  const actionsList = (availableActions && availableActions.length > 0) ? availableActions : fetchedActions;
   const [actionSourceMode, setActionSourceMode] = useState<'template' | 'custom'>(
     (buttonData.custom_id?.startsWith('rng_act_') || (availableActions && availableActions.length > 0)) ? 'template' : 'custom'
   );
 
   useEffect(() => {
-    if (availableActions && availableActions.length > 0) {
-      setActionsList(availableActions);
-    } else {
+    if (!availableActions || availableActions.length === 0) {
+      let isMounted = true;
       api.fetchActionTemplates().then((res) => {
-        if (res.success && res.data && res.data.length > 0) {
-          setActionsList(res.data);
+        if (isMounted && res.success && res.data && res.data.length > 0) {
+          setFetchedActions(res.data);
           if (buttonData.custom_id?.startsWith('rng_act_') || !buttonData.custom_id) {
             setActionSourceMode('template');
           }
         }
       }).catch(() => {});
+      return () => {
+        isMounted = false;
+      };
     }
   }, [availableActions, buttonData.custom_id]);
 

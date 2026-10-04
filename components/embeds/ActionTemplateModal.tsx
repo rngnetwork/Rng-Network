@@ -31,83 +31,55 @@ interface ActionTemplateModalProps {
   serverId?: string;
 }
 
-export function ActionTemplateModal({
-  isOpen,
+export function ActionTemplateModal(props: ActionTemplateModalProps) {
+  if (!props.isOpen) return null;
+
+  return (
+    <ActionTemplateModalInner
+      key={props.initialAction?.actionId || (props.serverId ? `new-${props.serverId}` : 'new-global')}
+      {...props}
+    />
+  );
+}
+
+function ActionTemplateModalInner({
   onClose,
   onSave,
   initialAction,
   serverId
 }: ActionTemplateModalProps) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [isGlobal, setIsGlobal] = useState(false);
-  const [actionType, setActionType] = useState<ActionType>('ROLE');
+  const [name, setName] = useState(initialAction?.name || '');
+  const [description, setDescription] = useState(initialAction?.description || '');
+  const [isGlobal, setIsGlobal] = useState(initialAction ? Boolean(initialAction.isGlobal) : !serverId);
+  const [actionType, setActionType] = useState<ActionType>(initialAction?.actionType || 'ROLE');
 
   // Role specific
-  const [roleSubtype, setRoleSubtype] = useState<RoleSubtype>('TOGGLE');
-  const [selectedRoleId, setSelectedRoleId] = useState('');
-  const [selectedRoleName, setSelectedRoleName] = useState('');
+  const [roleSubtype, setRoleSubtype] = useState<RoleSubtype>(initialAction?.roleSubtype || 'TOGGLE');
+  const [selectedRoleId, setSelectedRoleId] = useState(initialAction?.roleId || '');
+  const [selectedRoleName, setSelectedRoleName] = useState(initialAction?.roleName || '');
   const [serverRoles, setServerRoles] = useState<ServerRole[]>([]);
   const [loadingRoles, setLoadingRoles] = useState(false);
 
   // Ticket specific
-  const [channelPrefix, setChannelPrefix] = useState('ticket-');
-  const [welcomeMessage, setWelcomeMessage] = useState('Welcome {user} to support!');
+  const [channelPrefix, setChannelPrefix] = useState(initialAction?.channelPrefix || 'ticket-');
+  const [welcomeMessage, setWelcomeMessage] = useState(initialAction?.welcomeMessage || 'Welcome {user} to support!');
 
   // Reply / DM specific
-  const [replyContent, setReplyContent] = useState('');
-  const [isEphemeral, setIsEphemeral] = useState(true);
-  const [dmContent, setDmContent] = useState('');
+  const [replyContent, setReplyContent] = useState(initialAction?.replyContent || '');
+  const [isEphemeral, setIsEphemeral] = useState(initialAction ? initialAction.isEphemeral !== false : true);
+  const [dmContent, setDmContent] = useState(initialAction?.dmContent || '');
 
   // Chaining flags
-  const [requiredUser, setRequiredUser] = useState(false);
-  const [requiredRole, setRequiredRole] = useState(false);
-  const [responseEmbedTemplateId, setResponseEmbedTemplateId] = useState('');
+  const [requiredUser, setRequiredUser] = useState(Boolean(initialAction?.requiredUser));
+  const [requiredRole, setRequiredRole] = useState(Boolean(initialAction?.requiredRole));
+  const [responseEmbedTemplateId, setResponseEmbedTemplateId] = useState(initialAction?.responseEmbedTemplateId || '');
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize form state
-  useEffect(() => {
-    if (initialAction) {
-      setName(initialAction.name || '');
-      setDescription(initialAction.description || '');
-      setIsGlobal(initialAction.isGlobal || false);
-      setActionType(initialAction.actionType || 'ROLE');
-      setRoleSubtype(initialAction.roleSubtype || 'TOGGLE');
-      setSelectedRoleId(initialAction.roleId || '');
-      setSelectedRoleName(initialAction.roleName || '');
-      setChannelPrefix(initialAction.channelPrefix || 'ticket-');
-      setWelcomeMessage(initialAction.welcomeMessage || 'Welcome {user} to support!');
-      setReplyContent(initialAction.replyContent || '');
-      setIsEphemeral(initialAction.isEphemeral !== false);
-      setDmContent(initialAction.dmContent || '');
-      setRequiredUser(Boolean(initialAction.requiredUser));
-      setRequiredRole(Boolean(initialAction.requiredRole));
-      setResponseEmbedTemplateId(initialAction.responseEmbedTemplateId || '');
-    } else {
-      setName('');
-      setDescription('');
-      setIsGlobal(!serverId);
-      setActionType('ROLE');
-      setRoleSubtype('TOGGLE');
-      setSelectedRoleId('');
-      setSelectedRoleName('');
-      setChannelPrefix('ticket-');
-      setWelcomeMessage('Welcome {user} to support!');
-      setReplyContent('');
-      setIsEphemeral(true);
-      setDmContent('');
-      setRequiredUser(false);
-      setRequiredRole(false);
-      setResponseEmbedTemplateId('');
-    }
-    setError(null);
-  }, [initialAction, serverId, isOpen]);
-
   // Load server roles when modal opens and serverId exists
   useEffect(() => {
-    if (!isOpen || !serverId) return;
+    if (!serverId) return;
     let isMounted = true;
     const fetchRoles = async () => {
       setLoadingRoles(true);

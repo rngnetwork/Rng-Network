@@ -97,9 +97,43 @@ export function ActionTemplatesTab({
   }, [serverId]);
 
   useEffect(() => {
-    loadActions();
-    loadLogs();
-  }, [loadActions, loadLogs]);
+    let isMounted = true;
+    const fetchInitialData = async () => {
+      try {
+        const [actionsRes, logsRes] = await Promise.all([
+          serverId ? api.fetchServerActions(serverId) : api.fetchActionTemplates(),
+          api.fetchInteractionLogs({
+            serverIdOrSlug: serverId,
+            guildId: serverId,
+            page: 0,
+            size: 30
+          })
+        ]);
+        if (!isMounted) return;
+        if (actionsRes.success && actionsRes.data) {
+          setActions(actionsRes.data);
+        } else {
+          setActions([]);
+        }
+        if (logsRes.success && logsRes.data && logsRes.data.content) {
+          setLogs(logsRes.data.content);
+        }
+      } catch (err: unknown) {
+        if (!isMounted) return;
+        console.warn('Failed to load initial action data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch action templates');
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+          setLoadingLogs(false);
+        }
+      }
+    };
+    fetchInitialData();
+    return () => {
+      isMounted = false;
+    };
+  }, [serverId]);
 
   const handleCopyActionId = (actionId: string) => {
     navigator.clipboard.writeText(actionId);

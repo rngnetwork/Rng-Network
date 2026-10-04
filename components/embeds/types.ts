@@ -427,7 +427,7 @@ export interface CreateActionPayload {
   responseEmbedTemplateId?: string;
 }
 
-export interface UpdateActionPayload extends CreateActionPayload {}
+export type UpdateActionPayload = CreateActionPayload;
 
 export interface ServerRole {
   id: string;

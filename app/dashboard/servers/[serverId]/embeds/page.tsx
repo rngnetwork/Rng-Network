@@ -39,8 +39,19 @@ export default function ServerEmbedsPage() {
   }, [serverId]);
 
   useEffect(() => {
-    loadActions();
-  }, [loadActions]);
+    if (!serverId) return;
+    let isMounted = true;
+    api.fetchServerActions(serverId).then((res) => {
+      if (isMounted && res.success && res.data) {
+        setAvailableActions(res.data);
+      }
+    }).catch((err) => {
+      console.warn('Failed to load server actions:', err);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [serverId]);
 
   // Active message content & Type 17 Containers
   const [messageContent, setMessageContent] = useState<string>("");

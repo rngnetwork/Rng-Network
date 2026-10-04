@@ -48,17 +48,20 @@ export function SelectMenuSettingsModal({
   const [customId, setCustomId] = useState(comp.custom_id || comp.id || '');
   const [placeholder, setPlaceholder] = useState(comp.placeholder || '');
   const [disabled, setDisabled] = useState<boolean>(Boolean(comp.disabled));
-  const [actionsList, setActionsList] = useState<EmbedAction[]>(availableActions || []);
+  const [fetchedActions, setFetchedActions] = useState<EmbedAction[]>([]);
+  const actionsList = (availableActions && availableActions.length > 0) ? availableActions : fetchedActions;
 
   useEffect(() => {
-    if (availableActions && availableActions.length > 0) {
-      setActionsList(availableActions);
-    } else {
+    if (!availableActions || availableActions.length === 0) {
+      let isMounted = true;
       api.fetchActionTemplates().then((res) => {
-        if (res.success && res.data) {
-          setActionsList(res.data);
+        if (isMounted && res.success && res.data) {
+          setFetchedActions(res.data);
         }
       }).catch(() => {});
+      return () => {
+        isMounted = false;
+      };
     }
   }, [availableActions]);
   const [options, setOptions] = useState<SelectOption[]>(

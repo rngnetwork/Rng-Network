@@ -83,8 +83,18 @@ export default function EmbedsPage() {
   }, []);
 
   useEffect(() => {
-    loadActions();
-  }, [loadActions]);
+    let isMounted = true;
+    api.fetchActionTemplates().then((res) => {
+      if (isMounted && res.success && res.data) {
+        setAvailableActions(res.data);
+      }
+    }).catch((e) => {
+      console.warn('Failed to load action templates:', e);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const loadChannelsForServer = useCallback(async (srvId: string) => {
     if (!srvId) return;
