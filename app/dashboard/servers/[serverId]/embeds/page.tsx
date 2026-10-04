@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import '@/components/embeds/embed-builder.css';
-import { Type17Container } from '@/components/embeds/types';
+import { Type17Container, EmbedAction } from '@/components/embeds/types';
 import { MessageBuilder } from '@/components/embeds/MessageBuilder';
+import { TemplatesTab } from '@/components/embeds/TemplatesTab';
+import { ActionTemplatesTab } from '@/components/embeds/ActionTemplatesTab';
 import { UnsavedChangesBar } from '@/components/ui/UnsavedChangesBar';
 import { api, ServerDetail, ChannelItem } from '@/lib/api';
 import { EmojiItem } from '@/components/embeds/emoji-data';
@@ -20,8 +22,25 @@ export default function ServerEmbedsPage() {
   const [botEmojis] = useState<EmojiItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Top level active tab: 'builder' | 'templates' | 'components'
+  // Top level active tab: 'builder' | 'templates' | 'actions'
+  const [activeTopTab, setActiveTopTab] = useState<'builder' | 'templates' | 'actions'>('builder');
+  const [availableActions, setAvailableActions] = useState<EmbedAction[]>([]);
 
+  const loadActions = useCallback(async () => {
+    if (!serverId) return;
+    try {
+      const res = await api.fetchServerActions(serverId);
+      if (res.success && res.data) {
+        setAvailableActions(res.data);
+      }
+    } catch (err) {
+      console.warn('Failed to load server actions:', err);
+    }
+  }, [serverId]);
+
+  useEffect(() => {
+    loadActions();
+  }, [loadActions]);
 
   // Active message content & Type 17 Containers
   const [messageContent, setMessageContent] = useState<string>("");
@@ -201,9 +220,32 @@ export default function ServerEmbedsPage() {
               {channels.length} channels
             </span>
           </div>
-          <div className="hidden md:flex items-center gap-2 text-xs text-zinc-400">
-            <span className="text-zinc-600">•</span>
-            <span>Components V2 Scoped Server Dispatch</span>
+          
+          <div className="main-tabs-group">
+            <button
+              type="button"
+              className={`main-tab-btn ${activeTopTab === 'builder' ? 'active' : ''}`}
+              onClick={() => setActiveTopTab('builder')}
+            >
+              <i className="fa-solid fa-cube text-red-500" />
+              <span>Components V2 Builder</span>
+            </button>
+            <button
+              type="button"
+              className={`main-tab-btn ${activeTopTab === 'templates' ? 'active' : ''}`}
+              onClick={() => setActiveTopTab('templates')}
+            >
+              <i className="fa-solid fa-layer-group text-amber-400" />
+              <span>Templates</span>
+            </button>
+            <button
+              type="button"
+              className={`main-tab-btn ${activeTopTab === 'actions' ? 'active' : ''}`}
+              onClick={() => setActiveTopTab('actions')}
+            >
+              <i className="fa-solid fa-bolt text-cyan-400" />
+              <span>Action Templates</span>
+            </button>
           </div>
         </div>
 
@@ -220,21 +262,50 @@ export default function ServerEmbedsPage() {
       </header>
 
       {/* Main Tab Panels */}
-      <MessageBuilder
-        containers={containers}
-        setContainers={handleSetContainers}
-        messageContent={messageContent}
-        setMessageContent={handleSetMessageContent}
-        onLoadTemplate={handleLoadTemplate}
-        onDirtyChange={() => setIsDirty(true)}
-        serverId={(server && server.id) ? server.id : serverId}
-        serverName={server?.name}
-        serverChannels={channels}
-        serverEmojis={serverEmojis}
-        botEmojis={botEmojis}
-        onDispatchPayload={handleDispatchPayload}
-        lockServer={true}
-      />
+      {activeTopTab === 'builder' && (
+        <MessageBuilder
+          containers={containers}
+          setContainers={handleSetContainers}
+          messageContent={messageContent}
+          setMessageContent={handleSetMessageContent}
+          onLoadTemplate={handleLoadTemplate}
+          onDirtyChange={() => setIsDirty(true)}
+          serverId={(server && server.id) ? server.id : serverId}
+          serverName={server?.name}
+          serverChannels={channels}
+          serverEmojis={serverEmojis}
+          botEmojis={botEmojis}
+          onDispatchPayload={handleDispatchPayload}
+          lockServer={true}
+          availableActions={availableActions}
+        />
+      )}
+
+      {activeTopTab === 'templates' && (
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <TemplatesTab
+            currentBuilderState={{
+              message: { content: messageContent },
+              type17Containers: containers
+            }}
+            onLoadTemplate={(tpl) => {
+              handleLoadTemplate(tpl);
+              setActiveTopTab('builder');
+            }}
+          />
+        </div>
+      )}
+
+      {activeTopTab === 'actions' && (
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <ActionTemplatesTab
+            serverId={serverId}
+            onSelectAction={() => {
+              loadActions();
+            }}
+          />
+        </div>
+      )}
 
       {/* Floating Discord-styled Unsaved Changes Action Bar */}
       <UnsavedChangesBar
