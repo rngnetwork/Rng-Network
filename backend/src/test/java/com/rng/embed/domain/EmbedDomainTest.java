@@ -172,4 +172,81 @@ class EmbedDomainTest {
                 DispatchStatus.CANCELLED
         );
     }
+
+    @Test
+    @DisplayName("EmbedAction builder validates properly and asserts collection metadata")
+    void embedAction_validationAndMetadata() {
+        EmbedAction action = EmbedAction.builder()
+                .actionId("rng_act_7b9e10a45d628f2c")
+                .name("VIP Role Assignment")
+                .actionType(ActionType.ROLE)
+                .roleSubtype(RoleSubtype.TOGGLE)
+                .roleId("104899988877766655")
+                .serverId("guild_123")
+                .isGlobal(false)
+                .build();
+
+        Set<ConstraintViolation<EmbedAction>> violations = validator.validate(action);
+        assertThat(violations).isEmpty();
+        assertThat(action.isEphemeral()).isTrue();
+        assertThat(action.isRequiredUser()).isFalse();
+        assertThat(action.isRequiredRole()).isFalse();
+
+        Document docAnnotation = EmbedAction.class.getAnnotation(Document.class);
+        assertThat(docAnnotation).isNotNull();
+        assertThat(docAnnotation.collection()).isEqualTo("embed_actions");
+
+        CompoundIndexes compoundIndexes = EmbedAction.class.getAnnotation(CompoundIndexes.class);
+        assertThat(compoundIndexes).isNotNull();
+        assertThat(compoundIndexes.value()).hasSize(1);
+        assertThat(compoundIndexes.value()[0].name()).isEqualTo("idx_server_action");
+        assertThat(compoundIndexes.value()[0].unique()).isTrue();
+    }
+
+    @Test
+    @DisplayName("InteractionLog document asserts collection and 90-day TTL index")
+    void interactionLog_ttlAndMetadata() throws NoSuchFieldException {
+        InteractionLog log = InteractionLog.builder()
+                .actionId("rng_act_7b9e10a45d628f2c")
+                .actionType(ActionType.ROLE)
+                .guildId("guild_123")
+                .channelId("channel_456")
+                .messageId("msg_789")
+                .userId("user_111")
+                .username("johndoe")
+                .status("SUCCESS")
+                .details("Assigned VIP role")
+                .createdAt(Instant.now())
+                .build();
+
+        Set<ConstraintViolation<InteractionLog>> violations = validator.validate(log);
+        assertThat(violations).isEmpty();
+
+        Document docAnnotation = InteractionLog.class.getAnnotation(Document.class);
+        assertThat(docAnnotation).isNotNull();
+        assertThat(docAnnotation.collection()).isEqualTo("interaction_logs");
+
+        Field createdAtField = InteractionLog.class.getDeclaredField("createdAt");
+        Indexed indexedAnnotation = createdAtField.getAnnotation(Indexed.class);
+        assertThat(indexedAnnotation).isNotNull();
+        assertThat(indexedAnnotation.expireAfterSeconds()).isEqualTo(7776000);
+    }
+
+    @Test
+    @DisplayName("ActionType and RoleSubtype enum values adhere to specification")
+    void actionEnums_adhereToSpec() {
+        assertThat(ActionType.values()).containsExactly(
+                ActionType.ROLE,
+                ActionType.REPLY,
+                ActionType.TICKET,
+                ActionType.DM
+        );
+
+        assertThat(RoleSubtype.values()).containsExactly(
+                RoleSubtype.ADD,
+                RoleSubtype.REMOVE,
+                RoleSubtype.TOGGLE
+        );
+    }
 }
+
