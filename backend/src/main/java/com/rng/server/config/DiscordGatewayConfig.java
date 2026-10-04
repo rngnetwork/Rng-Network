@@ -53,7 +53,7 @@ public class DiscordGatewayConfig {
         try {
             this.jdaInstance = JDABuilder.createDefault(token)
                     .enableIntents(
-                            GatewayIntent.GUILD_EMOJIS_AND_STICKERS
+                            GatewayIntent.GUILD_EXPRESSIONS
                     )
                     .setMemberCachePolicy(MemberCachePolicy.DEFAULT)
                     .setChunkingFilter(ChunkingFilter.NONE)

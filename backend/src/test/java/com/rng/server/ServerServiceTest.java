@@ -299,7 +299,7 @@ class ServerServiceTest {
         Guild guild = mock(Guild.class);
         when(jda.getGuildById("100000000000000001")).thenReturn(guild);
 
-        Member botMember = mock(Member.class);
+        net.dv8tion.jda.api.entities.SelfMember botMember = mock(net.dv8tion.jda.api.entities.SelfMember.class);
         when(guild.getSelfMember()).thenReturn(botMember);
 
         Role publicRole = mock(Role.class);
@@ -349,7 +349,7 @@ class ServerServiceTest {
         Guild guild = mock(Guild.class);
         when(jda.getGuildById("100000000000000001")).thenReturn(guild);
 
-        Member botMember = mock(Member.class);
+        net.dv8tion.jda.api.entities.SelfMember botMember = mock(net.dv8tion.jda.api.entities.SelfMember.class);
         when(guild.getSelfMember()).thenReturn(botMember);
 
         Role managedRole = mock(Role.class);

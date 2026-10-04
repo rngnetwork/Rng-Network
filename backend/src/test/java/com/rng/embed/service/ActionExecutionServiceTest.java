@@ -56,7 +56,7 @@ class ActionExecutionServiceTest {
     private Member clickingMember;
 
     @Mock
-    private Member botMember;
+    private net.dv8tion.jda.api.entities.SelfMember botMember;
 
     @Mock
     private User user;
