@@ -296,7 +296,19 @@ public class ServerService {
         if (jda.isPresent() && jda.get().getStatus() == JDA.Status.CONNECTED) {
             Guild jdaGuild = jda.get().getGuildById(server.getId());
             if (jdaGuild != null) {
-                Member botMember = jdaGuild.getSelfMember();
+                Member botMember = null;
+                try {
+                    botMember = jdaGuild.getSelfMember();
+                } catch (Exception e) {
+                    if (jda.get().getSelfUser() != null) {
+                        try {
+                            botMember = jdaGuild.retrieveMember(jda.get().getSelfUser()).complete();
+                        } catch (Exception ex) {
+                            log.warn("Could not retrieve bot self member for guild {}: {}", jdaGuild.getId(), ex.getMessage());
+                        }
+                    }
+                }
+                final Member resolvedBotMember = botMember;
                 return jdaGuild.getRoles().stream()
                         .filter(role -> !role.isPublicRole())
                         .map(role -> ServerRoleDto.builder()
@@ -305,7 +317,7 @@ public class ServerService {
                                 .colorHex(role.getColor() != null ? String.format("#%06X", (0xFFFFFF & role.getColor().getRGB())) : null)
                                 .position(role.getPosition())
                                 .managed(role.isManaged())
-                                .assignableByBot(botMember.canInteract(role) && !role.isManaged())
+                                .assignableByBot(resolvedBotMember != null && resolvedBotMember.canInteract(role) && !role.isManaged())
                                 .build())
                         .sorted(Comparator.comparingInt(ServerRoleDto::getPosition).reversed())
                         .toList();

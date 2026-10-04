@@ -55,7 +55,7 @@ public class DiscordGatewayConfig {
                     .enableIntents(
                             GatewayIntent.GUILD_EMOJIS_AND_STICKERS
                     )
-                    .setMemberCachePolicy(MemberCachePolicy.NONE)
+                    .setMemberCachePolicy(MemberCachePolicy.DEFAULT)
                     .setChunkingFilter(ChunkingFilter.NONE)
                     .disableCache(
                             CacheFlag.ACTIVITY,

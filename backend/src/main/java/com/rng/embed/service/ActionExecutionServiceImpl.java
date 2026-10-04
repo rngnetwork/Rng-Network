@@ -49,10 +49,18 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
 
     @Override
     public void executeButtonAction(ButtonInteractionEvent event, EmbedAction action, Map<String, String> sessionData) {
+        Member member = event.getMember();
+        if (member == null && event.getGuild() != null && event.getUser() != null) {
+            try {
+                member = event.getGuild().retrieveMember(event.getUser()).complete();
+            } catch (Exception e) {
+                log.warn("Failed to retrieve clicking member {} in guild {}: {}", event.getUser().getId(), event.getGuild().getId(), e.getMessage());
+            }
+        }
         executeComponentAction(
                 event.getHook(),
                 event.getGuild(),
-                event.getMember(),
+                member,
                 event.getUser(),
                 event.getMessageChannel(),
                 event.getMessageId(),
@@ -64,11 +72,19 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
 
     @Override
     public void executeStringSelectAction(StringSelectInteractionEvent event, EmbedAction action, Map<String, String> sessionData) {
+        Member member = event.getMember();
+        if (member == null && event.getGuild() != null && event.getUser() != null) {
+            try {
+                member = event.getGuild().retrieveMember(event.getUser()).complete();
+            } catch (Exception e) {
+                log.warn("Failed to retrieve clicking member {} in guild {}: {}", event.getUser().getId(), event.getGuild().getId(), e.getMessage());
+            }
+        }
         String selectedOption = event.getValues().isEmpty() ? "" : event.getValues().get(0);
         executeComponentAction(
                 event.getHook(),
                 event.getGuild(),
-                event.getMember(),
+                member,
                 event.getUser(),
                 event.getMessageChannel(),
                 event.getMessageId(),
@@ -146,7 +162,12 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             return;
         }
 
-        Member botMember = guild.getSelfMember();
+        Member botMember = resolveBotMember(guild);
+        if (botMember == null) {
+            hook.editOriginal("❌ Bot configuration error: Unable to verify bot permissions in this server.").queue();
+            recordAuditLog(action, guild.getId(), channel.getId(), messageId, user.getId(), user.getName(), "FAILED", "Bot self member not found");
+            return;
+        }
         if (!botMember.hasPermission(Permission.MANAGE_ROLES)) {
             hook.editOriginal("❌ Bot configuration error: Bot lacks 'Manage Roles' permission.").queue();
             recordAuditLog(action, guild.getId(), channel.getId(), messageId, user.getId(), user.getName(), "FAILED", "Bot lacks MANAGE_ROLES permission");
@@ -222,7 +243,12 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             Map<String, String> sessionData,
             String selectedOption) {
 
-        Member botMember = guild.getSelfMember();
+        Member botMember = resolveBotMember(guild);
+        if (botMember == null) {
+            hook.editOriginal("❌ Bot configuration error: Unable to verify bot permissions in this server.").queue();
+            recordAuditLog(action, guild.getId(), channel.getId(), messageId, user.getId(), user.getName(), "FAILED", "Bot self member not found");
+            return;
+        }
         if (!botMember.hasPermission(Permission.MANAGE_CHANNEL)) {
             hook.editOriginal("❌ Bot configuration error: Bot lacks 'Manage Channels' permission to create tickets.").queue();
             recordAuditLog(action, guild.getId(), channel.getId(), messageId, user.getId(), user.getName(), "FAILED", "Bot lacks MANAGE_CHANNEL permission");
@@ -430,6 +456,24 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             interactionLogRepository.save(logRecord);
         } catch (Exception e) {
             log.error("Failed to write interaction audit log for user {} in guild {}: {}", userId, guildId, e.getMessage());
+        }
+    }
+
+    private Member resolveBotMember(Guild guild) {
+        if (guild == null) {
+            return null;
+        }
+        try {
+            return guild.getSelfMember();
+        } catch (Exception e) {
+            if (guild.getJDA() != null && guild.getJDA().getSelfUser() != null) {
+                try {
+                    return guild.retrieveMember(guild.getJDA().getSelfUser()).complete();
+                } catch (Exception ex) {
+                    log.warn("Failed to retrieve bot self member for guild {}: {}", guild.getId(), ex.getMessage());
+                }
+            }
+            return null;
         }
     }
 }

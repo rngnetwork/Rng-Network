@@ -136,20 +136,27 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
 
     @Override
     public void onButtonInteraction(@NotNull ButtonInteractionEvent event) {
-        if (event.getGuild() == null || event.getMember() == null) {
-            return;
-        }
-
         String componentId = event.getComponentId();
         if (!componentId.startsWith("rng_act_")) {
             return;
         }
 
-        // Sub-50ms ephemeral acknowledgment
+        String userId = event.getUser() != null ? event.getUser().getId() : "unknown";
+        String userName = event.getUser() != null ? event.getUser().getName() : "unknown";
+        String guildId = event.getGuild() != null ? event.getGuild().getId() : null;
+
+        log.info("Gateway ButtonInteraction received: componentId='{}', user='{}' ({}), guild='{}'",
+                componentId, userName, userId, guildId != null ? guildId : "none");
+
+        if (event.getGuild() == null) {
+            log.warn("ButtonInteraction '{}' rejected: interaction is outside of a guild.", componentId);
+            event.reply("❌ Interactive actions are only supported inside a Discord server.").setEphemeral(true).queue();
+            return;
+        }
+
+        // Sub-50ms ephemeral acknowledgment - guarantees Discord SLA window (<3000ms)
         event.deferReply(true).queue();
 
-        String guildId = event.getGuild().getId();
-        String userId = event.getUser().getId();
         String messageId = event.getMessageId();
 
         // Sliding-window rate limit: 3 interactions per 5 seconds per member
@@ -191,10 +198,6 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
 
     @Override
     public void onStringSelectInteraction(@NotNull StringSelectInteractionEvent event) {
-        if (event.getGuild() == null || event.getMember() == null) {
-            return;
-        }
-
         String componentId = event.getComponentId();
         List<String> values = event.getValues();
         String firstValue = values.isEmpty() ? null : values.get(0);
@@ -202,13 +205,24 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
         boolean isActionComponent = componentId.startsWith("rng_act_");
         boolean isActionOption = firstValue != null && firstValue.startsWith("rng_act_");
 
+        String userId = event.getUser() != null ? event.getUser().getId() : "unknown";
+        String userName = event.getUser() != null ? event.getUser().getName() : "unknown";
+        String guildId = event.getGuild() != null ? event.getGuild().getId() : null;
+
         if (isActionComponent || isActionOption) {
+            log.info("Gateway StringSelectInteraction (Action) received: componentId='{}', value='{}', user='{}' ({}), guild='{}'",
+                    componentId, firstValue, userName, userId, guildId != null ? guildId : "none");
+
+            if (event.getGuild() == null) {
+                log.warn("StringSelectInteraction '{}' rejected: interaction is outside of a guild.", componentId);
+                event.reply("❌ Interactive actions are only supported inside a Discord server.").setEphemeral(true).queue();
+                return;
+            }
+
             // Immediate sub-50ms ephemeral acknowledgment
             event.deferReply(true).queue();
 
             String actionId = isActionOption ? firstValue : componentId;
-            String guildId = event.getGuild().getId();
-            String userId = event.getUser().getId();
             String messageId = event.getMessageId();
 
             String rateLimitKey = "ratelimit:member:" + guildId + ":" + userId;
@@ -246,11 +260,16 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
 
             actionExecutionService.get().executeStringSelectAction(event, action, sessionData);
         } else if (componentId.startsWith("rng_")) {
+            log.info("Gateway StringSelectInteraction (Intermediate) received: componentId='{}', values='{}', user='{}' ({}), guild='{}'",
+                    componentId, values, userName, userId, guildId != null ? guildId : "none");
+
+            if (event.getGuild() == null) {
+                return;
+            }
+
             // Intermediate select menu in multi-select chained workflow
             event.deferEdit().queue();
 
-            String guildId = event.getGuild().getId();
-            String userId = event.getUser().getId();
             String messageId = event.getMessageId();
             String sessionKey = "interaction:session:" + guildId + ":" + userId + ":" + messageId;
 
@@ -271,20 +290,25 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
 
     @Override
     public void onEntitySelectInteraction(@NotNull EntitySelectInteractionEvent event) {
-        if (event.getGuild() == null || event.getMember() == null) {
+        String componentId = event.getComponentId();
+        if (!componentId.startsWith("rng_")) {
             return;
         }
 
-        String componentId = event.getComponentId();
-        if (!componentId.startsWith("rng_")) {
+        String userId = event.getUser() != null ? event.getUser().getId() : "unknown";
+        String userName = event.getUser() != null ? event.getUser().getName() : "unknown";
+        String guildId = event.getGuild() != null ? event.getGuild().getId() : null;
+
+        log.info("Gateway EntitySelectInteraction received: componentId='{}', user='{}' ({}), guild='{}'",
+                componentId, userName, userId, guildId != null ? guildId : "none");
+
+        if (event.getGuild() == null) {
             return;
         }
 
         // Sub-50ms silent acknowledgment
         event.deferEdit().queue();
 
-        String guildId = event.getGuild().getId();
-        String userId = event.getUser().getId();
         String messageId = event.getMessageId();
         String sessionKey = "interaction:session:" + guildId + ":" + userId + ":" + messageId;
 
