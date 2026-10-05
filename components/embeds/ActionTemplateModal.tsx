@@ -6,9 +6,10 @@ import {
   ActionType,
   RoleSubtype,
   CreateActionPayload,
-  ServerRole
+  ResponseType,
+  CompoundOperation
 } from './types';
-import { api } from '@/lib/api';
+import { api, ServerItem, TemplateData } from '@/lib/api';
 import { GlassmorphicDropdown, DropdownOption } from '@/components/ui/GlassmorphicDropdown';
 import {
   X,
@@ -20,7 +21,8 @@ import {
   AlertCircle,
   HelpCircle,
   Globe,
-  Server as ServerIcon
+  Server as ServerIcon,
+  Layers
 } from 'lucide-react';
 
 interface ActionTemplateModalProps {
@@ -54,12 +56,24 @@ function ActionTemplateModalInner({
   const [isGlobal, setIsGlobal] = useState(initialAction ? Boolean(initialAction.isGlobal) : !serverId);
   const [actionType, setActionType] = useState<ActionType>(initialAction?.actionType || 'ROLE');
 
+  // Multi-server assignment
+  const [selectedServerIds, setSelectedServerIds] = useState<string[]>(() => {
+    if (initialAction?.serverIds && initialAction.serverIds.length > 0) {
+      return initialAction.serverIds;
+    }
+    if (initialAction?.serverId) {
+      return [initialAction.serverId];
+    }
+    if (serverId) {
+      return [serverId];
+    }
+    return [];
+  });
+  const [connectedServers, setConnectedServers] = useState<ServerItem[]>([]);
+  const [loadingServers, setLoadingServers] = useState(false);
+
   // Role specific
   const [roleSubtype, setRoleSubtype] = useState<RoleSubtype>(initialAction?.roleSubtype || 'TOGGLE');
-  const [selectedRoleId, setSelectedRoleId] = useState(initialAction?.roleId || '');
-  const [selectedRoleName, setSelectedRoleName] = useState(initialAction?.roleName || '');
-  const [serverRoles, setServerRoles] = useState<ServerRole[]>([]);
-  const [loadingRoles, setLoadingRoles] = useState(false);
 
   // Ticket specific
   const [channelPrefix, setChannelPrefix] = useState(initialAction?.channelPrefix || 'ticket-');
@@ -70,53 +84,72 @@ function ActionTemplateModalInner({
   const [isEphemeral, setIsEphemeral] = useState(initialAction ? initialAction.isEphemeral !== false : true);
   const [dmContent, setDmContent] = useState(initialAction?.dmContent || '');
 
-  // Chaining flags
+  // Response configuration & follow-up template binding
+  const [responseType, setResponseType] = useState<ResponseType>(initialAction?.responseType || 'PUBLIC_EMBED');
+  const [responseEmbedTemplateId, setResponseEmbedTemplateId] = useState(initialAction?.responseEmbedTemplateId || '');
+  const [confirmationMessage, setConfirmationMessage] = useState(initialAction?.confirmationMessage || '');
+  const [availableTemplates, setAvailableTemplates] = useState<TemplateData[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+
+  // Multi-select session dependencies
   const [requiredUser, setRequiredUser] = useState(Boolean(initialAction?.requiredUser));
   const [requiredRole, setRequiredRole] = useState(Boolean(initialAction?.requiredRole));
-  const [responseEmbedTemplateId, setResponseEmbedTemplateId] = useState(initialAction?.responseEmbedTemplateId || '');
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load server roles when modal opens and serverId exists
+  // Load connected servers and available embed templates on mount
   useEffect(() => {
-    if (!serverId) return;
     let isMounted = true;
-    const fetchRoles = async () => {
-      setLoadingRoles(true);
+
+    const fetchConnectedServers = async () => {
+      setLoadingServers(true);
       try {
-        const res = await api.fetchServerRoles(serverId);
+        const res = await api.fetchServers();
         if (isMounted && res.success && res.data) {
-          setServerRoles(res.data);
+          setConnectedServers(res.data);
         }
       } catch (err) {
-        console.warn('Could not load guild roles for ActionTemplateModal:', err);
+        console.warn('Could not load servers for ActionTemplateModal:', err);
       } finally {
-        if (isMounted) setLoadingRoles(false);
+        if (isMounted) setLoadingServers(false);
       }
     };
-    fetchRoles();
+
+    const fetchTemplatesList = async () => {
+      setLoadingTemplates(true);
+      try {
+        const effectiveServerId = serverId || (selectedServerIds[0] ?? undefined);
+        const res = await api.fetchTemplates({ serverId: effectiveServerId });
+        if (isMounted && res.success && res.data) {
+          const raw = res.data as unknown;
+          if (Array.isArray(raw)) {
+            setAvailableTemplates(raw as TemplateData[]);
+          } else if (raw && typeof raw === 'object' && Array.isArray((raw as { content?: TemplateData[] }).content)) {
+            setAvailableTemplates((raw as { content: TemplateData[] }).content);
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load templates for ActionTemplateModal:', err);
+      } finally {
+        if (isMounted) setLoadingTemplates(false);
+      }
+    };
+
+    fetchConnectedServers();
+    fetchTemplatesList();
+
     return () => {
       isMounted = false;
     };
-  }, [isOpen, serverId]);
+  }, [isOpen, serverId, selectedServerIds]);
 
   if (!isOpen) return null;
 
-  const roleOptions: DropdownOption[] = serverRoles.map((r) => ({
-    value: r.id,
-    label: r.name,
-    description: `Position: ${r.position}${r.managed ? ' • Managed Role' : ''}`,
-    badge: r.assignableByBot ? 'Assignable' : 'Bot cannot assign',
-    disabled: !r.assignableByBot
-  }));
-
-  const handleRoleChange = (roleId: string) => {
-    setSelectedRoleId(roleId);
-    const matched = serverRoles.find((r) => r.id === roleId);
-    if (matched) {
-      setSelectedRoleName(matched.name);
-    }
+  const handleServerToggle = (targetId: string) => {
+    setSelectedServerIds((prev) =>
+      prev.includes(targetId) ? prev.filter((id) => id !== targetId) : [...prev, targetId]
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -126,31 +159,42 @@ function ActionTemplateModalInner({
       return;
     }
 
-    if (actionType === 'ROLE' && !selectedRoleId.trim()) {
-      setError('Please select or specify a target role.');
+    if (!isGlobal && selectedServerIds.length === 0 && !serverId) {
+      setError('Please select at least one assigned Discord server or configure as a Global Action.');
       return;
     }
 
     setSaving(true);
     setError(null);
 
+    const effectiveServerIds = isGlobal
+      ? []
+      : selectedServerIds.length > 0
+        ? selectedServerIds
+        : (serverId ? [serverId] : []);
+
     const payload: CreateActionPayload = {
-      serverId: isGlobal ? undefined : serverId,
+      serverId: isGlobal ? undefined : (effectiveServerIds[0] || serverId),
+      serverIds: effectiveServerIds,
       isGlobal,
       name: name.trim(),
       description: description.trim() || undefined,
       actionType,
       roleSubtype: actionType === 'ROLE' ? roleSubtype : undefined,
-      roleId: actionType === 'ROLE' ? selectedRoleId.trim() : undefined,
-      roleName: actionType === 'ROLE' ? selectedRoleName.trim() : undefined,
+      // Dynamic role resolution eliminates hardcoded roleId and roleName
+      roleId: undefined,
+      roleName: undefined,
       channelPrefix: actionType === 'TICKET' ? channelPrefix.trim() : undefined,
       welcomeMessage: actionType === 'TICKET' ? welcomeMessage.trim() : undefined,
       replyContent: (actionType === 'REPLY' || actionType === 'ROLE') ? replyContent.trim() : undefined,
-      isEphemeral,
+      isEphemeral: responseType === 'EPHEMERAL_TEXT' || responseType === 'EPHEMERAL_EMBED' || (actionType === 'REPLY' && isEphemeral),
       dmContent: actionType === 'DM' ? dmContent.trim() : undefined,
-      requiredUser,
-      requiredRole,
-      responseEmbedTemplateId: responseEmbedTemplateId.trim() || undefined
+      requiredUser: actionType === 'ROLE' ? true : requiredUser,
+      requiredRole: actionType === 'ROLE' ? true : requiredRole,
+      responseType,
+      responseEmbedTemplateId: responseEmbedTemplateId.trim() || undefined,
+      confirmationMessage: confirmationMessage.trim() || undefined,
+      compoundOperations: initialAction?.compoundOperations
     };
 
     try {
@@ -162,7 +206,7 @@ function ActionTemplateModalInner({
         }
         savedAction = res.data;
       } else {
-        const res = await api.createActionTemplate(payload, serverId);
+        const res = await api.createActionTemplate(payload, effectiveServerIds[0] || serverId);
         if (!res.success || !res.data) {
           throw new Error(res.message || 'Failed to create action template.');
         }
@@ -177,6 +221,23 @@ function ActionTemplateModalInner({
       setSaving(false);
     }
   };
+
+  const responseTypeOptions: DropdownOption[] = [
+    { value: 'PUBLIC_EMBED', label: 'Public Embed (Components V2)' },
+    { value: 'EPHEMERAL_EMBED', label: 'Ephemeral Embed' },
+    { value: 'EPHEMERAL_TEXT', label: 'Ephemeral Text' },
+    { value: 'PUBLIC_TEXT', label: 'Public Text' },
+    { value: 'DM_EMBED', label: 'Direct Message Embed' }
+  ];
+
+  const templateOptions: DropdownOption[] = [
+    { value: '', label: 'None (Default Confirmation)' },
+    ...availableTemplates.map((t) => ({
+      value: t.id,
+      label: t.name,
+      description: t.description || `Template ID: ${t.id}`
+    }))
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
@@ -227,7 +288,7 @@ function ActionTemplateModalInner({
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. VIP Role Self-Assign, Support Ticket Opener"
+                placeholder="e.g. Dynamic Role Grant Pipeline, VIP Support Ticket"
                 maxLength={100}
                 required
                 className="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white text-sm focus:border-red-500 focus:outline-none transition-colors"
@@ -248,38 +309,107 @@ function ActionTemplateModalInner({
               />
             </div>
 
-            {/* Scope Selection */}
-            {serverId && (
-              <div className="flex items-center gap-4 p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                <span className="text-xs font-semibold text-zinc-300">Template Scope:</span>
+            {/* Scope Selection & Server Multi-Select */}
+            <div className="space-y-3 p-3.5 rounded-xl bg-white/[0.02] border border-white/5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-zinc-400" /> Action Template Scope
+                </label>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setIsGlobal(false)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                       !isGlobal
                         ? 'bg-red-500/20 text-red-400 border border-red-500/40 shadow-sm'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                        : 'text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent'
                     }`}
                   >
                     <ServerIcon className="w-3.5 h-3.5" />
-                    Server-Scoped
+                    Server-Specific
                   </button>
                   <button
                     type="button"
                     onClick={() => setIsGlobal(true)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                       isGlobal
                         ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/40 shadow-sm'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                        : 'text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent'
                     }`}
                   >
                     <Globe className="w-3.5 h-3.5" />
-                    Global Template
+                    Global Action
                   </button>
                 </div>
               </div>
-            )}
+
+              {!isGlobal && (
+                <div className="space-y-2 pt-2 border-t border-white/5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs text-zinc-300 font-medium">
+                      Assigned Discord Servers *
+                    </label>
+                    <span className="text-[11px] text-zinc-500">
+                      {selectedServerIds.length} selected
+                    </span>
+                  </div>
+                  {connectedServers.length > 0 ? (
+                    <GlassmorphicDropdown
+                      options={connectedServers.map((s) => ({
+                        value: s.id,
+                        label: s.name,
+                        description: `Server ID: ${s.id}`,
+                        badge: selectedServerIds.includes(s.id) ? 'Selected' : undefined
+                      }))}
+                      value={selectedServerIds[0] || ''}
+                      onChange={handleServerToggle}
+                      placeholder="Select Discord servers..."
+                      searchable
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={selectedServerIds.join(', ')}
+                      onChange={(e) =>
+                        setSelectedServerIds(
+                          e.target.value
+                            .split(',')
+                            .map((s) => s.trim())
+                            .filter(Boolean)
+                        )
+                      }
+                      placeholder="Comma-separated Discord Server IDs (e.g. 112233445566778899)"
+                      className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs font-mono"
+                    />
+                  )}
+                  {loadingServers && (
+                    <p className="text-[11px] text-zinc-500">Loading connected Discord servers...</p>
+                  )}
+                  {selectedServerIds.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {selectedServerIds.map((id) => {
+                        const matched = connectedServers.find((s) => s.id === id);
+                        return (
+                          <span
+                            key={id}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-[11px]"
+                          >
+                            <span>{matched ? matched.name : id}</span>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedServerIds((prev) => prev.filter((x) => x !== id))}
+                              className="text-red-400 hover:text-red-200"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Action Type Tabs */}
@@ -349,6 +479,20 @@ function ActionTemplateModalInner({
                 <Shield className="w-4 h-4" /> Role Assignment Rules
               </h3>
 
+              {/* Dynamic Role Callout */}
+              <div className="p-3.5 bg-indigo-950/40 border border-indigo-500/30 rounded-xl text-xs text-indigo-200 flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <span className="font-semibold text-white">Dynamic Role Resolution (No Hardcoding):</span>
+                  <p className="text-zinc-300 text-[11px] leading-relaxed">
+                    Hardcoded role IDs are prohibited. The target role is dynamically resolved at runtime from the embed message&apos;s compulsory <code className="px-1 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono">RoleSelect</code> menu (<code className="px-1 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono">{"{targetRole}"}</code>).
+                  </p>
+                  <p className="text-zinc-400 text-[11px] leading-relaxed">
+                    Operators can only grant roles strictly below their authentic highest Discord server role. Website clearance ranks do not bypass Discord hierarchy.
+                  </p>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs text-zinc-300 mb-1.5">Role Operation Subtype</label>
                 <div className="grid grid-cols-3 gap-2">
@@ -370,50 +514,17 @@ function ActionTemplateModalInner({
               </div>
 
               <div>
-                <label className="block text-xs text-zinc-300 mb-1.5">
-                  Target Discord Role *
-                </label>
-                {serverRoles.length > 0 ? (
-                  <GlassmorphicDropdown
-                    options={roleOptions}
-                    value={selectedRoleId}
-                    onChange={handleRoleChange}
-                    placeholder="Select guild role..."
-                    searchable
-                  />
-                ) : (
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      value={selectedRoleId}
-                      onChange={(e) => setSelectedRoleId(e.target.value)}
-                      placeholder="Role Snowflake ID (e.g. 104899988877766655)"
-                      className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs font-mono"
-                    />
-                    <input
-                      type="text"
-                      value={selectedRoleName}
-                      onChange={(e) => setSelectedRoleName(e.target.value)}
-                      placeholder="Role Name (e.g. VIP Member)"
-                      className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs"
-                    />
-                  </div>
-                )}
-                {loadingRoles && (
-                  <p className="text-[11px] text-zinc-500 mt-1">Fetching live server roles...</p>
-                )}
-              </div>
-
-              <div>
                 <label className="block text-xs text-zinc-300 mb-1.5">Feedback / Reply Content</label>
                 <input
                   type="text"
                   value={replyContent}
                   onChange={(e) => setReplyContent(e.target.value)}
-                  placeholder="e.g. Role {role} has been updated for {user}!"
+                  placeholder="e.g. Role {targetRole} has been updated for {targetUser}!"
                   className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs"
                 />
-                <p className="text-[10px] text-zinc-500 mt-1">Variables supported: {`{user}`}, {`{role}`}, {`{server}`}</p>
+                <p className="text-[10px] text-zinc-500 mt-1">
+                  Variables supported: {`{targetUser}`}, {`{user}`}, {`{targetRole}`}, {`{server}`}
+                </p>
               </div>
             </div>
           )}
@@ -494,11 +605,54 @@ function ActionTemplateModalInner({
                   className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs resize-none"
                 />
                 <p className="text-[10px] text-zinc-500 mt-1">
-                  If the member has closed DMs, the bot automatically falls back to an ephemeral channel message.
+                  If the member has closed DMs, the bot automatically falls back to an ephemeral channel message or ticket log.
                 </p>
               </div>
             </div>
           )}
+
+          {/* Response Configuration Section */}
+          <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-4">
+            <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+              <Layers className="w-4 h-4 text-zinc-400" /> Response & Follow-Up Configuration
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-zinc-300 mb-1.5">Response Type</label>
+                <GlassmorphicDropdown
+                  options={responseTypeOptions}
+                  value={responseType}
+                  onChange={(val) => setResponseType(val as ResponseType)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-zinc-300 mb-1.5">Follow-Up Embed Template</label>
+                <GlassmorphicDropdown
+                  options={templateOptions}
+                  value={responseEmbedTemplateId}
+                  onChange={(val) => setResponseEmbedTemplateId(val)}
+                  placeholder="Select follow-up embed..."
+                  searchable
+                />
+                {loadingTemplates && (
+                  <p className="text-[11px] text-zinc-500 mt-1">Fetching embed templates...</p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs text-zinc-300 mb-1.5">Execution Confirmation Message</label>
+              <input
+                type="text"
+                value={confirmationMessage}
+                onChange={(e) => setConfirmationMessage(e.target.value)}
+                placeholder="Custom confirmation message (optional)..."
+                className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs"
+              />
+            </div>
+          </div>
 
           {/* Multi-Select Chaining Requirements */}
           <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-3">
@@ -509,28 +663,34 @@ function ActionTemplateModalInner({
               <span className="text-[10px] text-zinc-500 font-mono">15-min Redis Window</span>
             </div>
             <p className="text-xs text-zinc-400">
-              Require the member to interact with select menus on the same message before this action executes:
+              Require the operator to interact with dynamic selector menus on the same message before execution:
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <label className="flex items-center gap-2.5 p-2.5 rounded-lg bg-black/30 border border-white/5 cursor-pointer text-xs text-zinc-300 hover:border-white/10 transition-colors">
                 <input
                   type="checkbox"
-                  checked={requiredUser}
+                  checked={actionType === 'ROLE' ? true : requiredUser}
+                  disabled={actionType === 'ROLE'}
                   onChange={(e) => setRequiredUser(e.target.checked)}
-                  className="w-4 h-4 rounded text-red-500 bg-black/40 border-white/10"
+                  className="w-4 h-4 rounded text-red-500 bg-black/40 border-white/10 disabled:opacity-50"
                 />
-                <span>Require User Select input</span>
+                <span className={actionType === 'ROLE' ? 'text-indigo-300 font-medium' : ''}>
+                  Require User Select input {actionType === 'ROLE' && '(Compulsory)'}
+                </span>
               </label>
 
               <label className="flex items-center gap-2.5 p-2.5 rounded-lg bg-black/30 border border-white/5 cursor-pointer text-xs text-zinc-300 hover:border-white/10 transition-colors">
                 <input
                   type="checkbox"
-                  checked={requiredRole}
+                  checked={actionType === 'ROLE' ? true : requiredRole}
+                  disabled={actionType === 'ROLE'}
                   onChange={(e) => setRequiredRole(e.target.checked)}
-                  className="w-4 h-4 rounded text-red-500 bg-black/40 border-white/10"
+                  className="w-4 h-4 rounded text-red-500 bg-black/40 border-white/10 disabled:opacity-50"
                 />
-                <span>Require Role Select input</span>
+                <span className={actionType === 'ROLE' ? 'text-indigo-300 font-medium' : ''}>
+                  Require Role Select input {actionType === 'ROLE' && '(Compulsory)'}
+                </span>
               </label>
             </div>
           </div>
