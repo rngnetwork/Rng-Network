@@ -1,9 +1,15 @@
 package com.rng.embed.service;
 
+import com.rng.common.exception.ResourceNotFoundException;
 import com.rng.embed.domain.ActionType;
+import com.rng.embed.domain.CompoundOperation;
 import com.rng.embed.domain.EmbedAction;
+import com.rng.embed.domain.EmbedTemplate;
 import com.rng.embed.domain.InteractionLog;
+import com.rng.embed.domain.ResponseType;
 import com.rng.embed.domain.RoleSubtype;
+import com.rng.embed.dto.ActionExecutionResult;
+import com.rng.embed.repository.EmbedActionRepository;
 import com.rng.embed.repository.EmbedTemplateRepository;
 import com.rng.embed.repository.InteractionLogRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -12,18 +18,23 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.interactions.InteractionHook;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Enterprise implementation of interactive Discord component action execution,
@@ -36,14 +47,20 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
 
     private final InteractionLogRepository interactionLogRepository;
     private final EmbedTemplateRepository embedTemplateRepository;
+    private final EmbedActionRepository embedActionRepository;
+    private final Optional<EmbedTemplateRenderer> embedTemplateRenderer;
     private final Optional<StringRedisTemplate> redisTemplate;
 
     public ActionExecutionServiceImpl(
             InteractionLogRepository interactionLogRepository,
             EmbedTemplateRepository embedTemplateRepository,
+            EmbedActionRepository embedActionRepository,
+            @Autowired(required = false) EmbedTemplateRenderer embedTemplateRenderer,
             @Autowired(required = false) StringRedisTemplate redisTemplate) {
         this.interactionLogRepository = interactionLogRepository;
         this.embedTemplateRepository = embedTemplateRepository;
+        this.embedActionRepository = embedActionRepository;
+        this.embedTemplateRenderer = Optional.ofNullable(embedTemplateRenderer);
         this.redisTemplate = Optional.ofNullable(redisTemplate);
     }
 
@@ -140,6 +157,11 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
 
         // Resolve target member: session target or clicking member
         Member targetMember = resolveTargetMember(guild, clickingMember, sessionData);
+        if (targetMember == null) {
+            hook.editOriginal("❌ Target member is no longer in this server.").queue();
+            recordAuditLog(action, guild.getId(), channel.getId(), messageId, user.getId(), user.getName(), "FAILED", "Target member left server");
+            return;
+        }
 
         // Resolve target role: session target or template roleId
         Role targetRole = resolveTargetRole(guild, action, sessionData);
@@ -344,17 +366,22 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
     }
 
     private Member resolveTargetMember(Guild guild, Member clickingMember, Map<String, String> sessionData) {
-        if (sessionData != null && sessionData.containsKey("target_user")) {
-            String targetUserId = sessionData.get("target_user");
+        if (sessionData != null && (sessionData.containsKey("targetUser") || sessionData.containsKey("target_user"))) {
+            String targetUserId = sessionData.getOrDefault("targetUser", sessionData.get("target_user"));
             if (targetUserId != null && !targetUserId.isBlank()) {
+                if (guild == null) return null;
                 Member member = guild.getMemberById(targetUserId);
                 if (member != null) {
                     return member;
                 }
                 try {
-                    return guild.retrieveMemberById(targetUserId).complete();
+                    var restAction = guild.retrieveMemberById(targetUserId);
+                    if (restAction != null) {
+                        return restAction.complete();
+                    }
                 } catch (Exception e) {
-                    log.warn("Failed to retrieve target member {} in guild {}: {}", targetUserId, guild.getId(), e.getMessage());
+                    log.warn("Target member {} has left guild {}: {}", targetUserId, guild.getId(), e.getMessage());
+                    return null; // NEVER fallback to clickingMember!
                 }
             }
         }
@@ -362,17 +389,19 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
     }
 
     private Role resolveTargetRole(Guild guild, EmbedAction action, Map<String, String> sessionData) {
-        if (sessionData != null && sessionData.containsKey("target_role")) {
-            String targetRoleId = sessionData.get("target_role");
+        if (sessionData != null && (sessionData.containsKey("targetRole") || sessionData.containsKey("target_role"))) {
+            String targetRoleId = sessionData.getOrDefault("targetRole", sessionData.get("target_role"));
             if (targetRoleId != null && !targetRoleId.isBlank()) {
-                Role role = guild.getRoleById(targetRoleId);
-                if (role != null) {
-                    return role;
+                if (guild != null) {
+                    Role role = guild.getRoleById(targetRoleId);
+                    if (role != null) {
+                        return role;
+                    }
                 }
             }
         }
-        if (action.getRoleId() != null && !action.getRoleId().isBlank()) {
-            return guild.getRoleById(action.getRoleId());
+        if (action != null && action.getRoleId() != null && !action.getRoleId().isBlank()) {
+            return guild != null ? guild.getRoleById(action.getRoleId()) : null;
         }
         return null;
     }
@@ -474,6 +503,185 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                 }
             }
             return null;
+        }
+    }
+
+    @Override
+    public boolean canOperatorAssignRole(Member operator, Role targetRole) {
+        if (operator == null || targetRole == null) {
+            return false;
+        }
+        if (operator.isOwner()) {
+            return true;
+        }
+        if (operator.getRoles() == null || operator.getRoles().isEmpty()) {
+            return false;
+        }
+        int highestPosition = operator.getRoles().stream().mapToInt(Role::getPosition).max().orElse(-1);
+        return highestPosition > targetRole.getPosition();
+    }
+
+    @Override
+    public ActionExecutionResult executeComponentAction(String actionId, Guild guild, Member operator, InteractionHook hook, Map<String, String> sessionData) {
+        EmbedAction action = embedActionRepository.findByActionId(actionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Action not found: " + actionId));
+
+        if (action.getActionType() == ActionType.ROLE) {
+            Member targetMember = resolveTargetMember(guild, operator, sessionData);
+            if (targetMember == null) {
+                if (hook != null) {
+                    hook.editOriginal("❌ Target member is no longer in this server.").queue();
+                }
+                return ActionExecutionResult.failure("Target member left server");
+            }
+            Role targetRole = resolveTargetRole(guild, action, sessionData);
+            if (targetRole == null) {
+                if (hook != null) {
+                    hook.editOriginal("❌ Role configuration error: No target role was selected from the dropdown or the role does not exist.").queue();
+                }
+                return ActionExecutionResult.failure("Target role not found or not selected");
+            }
+            if (!canOperatorAssignRole(operator, targetRole)) {
+                if (hook != null) {
+                    hook.editOriginal("❌ Hierarchy violation: You cannot assign a role equal to or higher than your highest role.").queue();
+                }
+                return ActionExecutionResult.failure("Role hierarchy violation");
+            }
+            if (targetRole.isPublicRole()) {
+                if (hook != null) {
+                    hook.editOriginal("❌ Cannot assign or modify the @everyone public role.").queue();
+                }
+                return ActionExecutionResult.failure("Attempted to assign @everyone");
+            }
+            if (targetRole.isManaged()) {
+                if (hook != null) {
+                    hook.editOriginal("❌ Cannot assign managed integration/bot role: @" + targetRole.getName()).queue();
+                }
+                return ActionExecutionResult.failure("Attempted to assign managed role @" + targetRole.getName());
+            }
+            Member botMember = resolveBotMember(guild);
+            if (botMember != null) {
+                if (!botMember.hasPermission(Permission.MANAGE_ROLES)) {
+                    if (hook != null) {
+                        hook.editOriginal("❌ Bot configuration error: Bot lacks 'Manage Roles' permission.").queue();
+                    }
+                    return ActionExecutionResult.failure("Bot lacks MANAGE_ROLES permission");
+                }
+                if (!botMember.canInteract(targetRole)) {
+                    if (hook != null) {
+                        hook.editOriginal("❌ Role hierarchy error: @" + targetRole.getName() + " is higher than or equal to the bot's highest role.").queue();
+                    }
+                    return ActionExecutionResult.failure("Bot role hierarchy violation for @" + targetRole.getName());
+                }
+            }
+            guild.addRoleToMember(targetMember, targetRole).complete();
+
+            if (action.getResponseType() == ResponseType.PUBLIC_EMBED && action.getResponseEmbedTemplateId() != null) {
+                EmbedTemplate template = embedTemplateRepository.findById(action.getResponseEmbedTemplateId()).orElse(null);
+                if (template != null && embedTemplateRenderer.isPresent()) {
+                    Map<String, String> vars = Map.of(
+                            "user", operator != null && operator.getAsMention() != null ? operator.getAsMention() : "",
+                            "targetUser", targetMember != null && targetMember.getAsMention() != null ? targetMember.getAsMention() : "",
+                            "targetRole", targetRole != null && targetRole.getAsMention() != null ? targetRole.getAsMention() : "",
+                            "server", guild != null && guild.getName() != null ? guild.getName() : ""
+                    );
+                    MessageCreateData msgData = embedTemplateRenderer.get().renderToMessageData(template, vars);
+                    if (hook != null) {
+                        var sentMsgAction = hook.sendMessage(msgData);
+                        if (sentMsgAction != null) {
+                            var sentMsg = sentMsgAction.complete();
+                            return ActionExecutionResult.intermediate(sentMsg != null ? sentMsg.getId() : null);
+                        }
+                    }
+                }
+            }
+            if (hook != null) {
+                hook.editOriginal("✅ Assigned role " + targetRole.getName() + " to " + targetMember.getEffectiveName()).queue();
+            }
+            return ActionExecutionResult.success("Role assigned");
+        }
+        return ActionExecutionResult.failure("Unsupported component action type");
+    }
+
+    @Override
+    public ActionExecutionResult executeCompoundAction(String actionId, Guild guild, Member operator, InteractionHook hook, Map<String, String> sessionData) {
+        EmbedAction action = embedActionRepository.findByActionId(actionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Action not found: " + actionId));
+
+        String ticketId = UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+        String channelName = (action.getChannelPrefix() != null ? action.getChannelPrefix() : "ticket-") + ticketId;
+
+        Member targetMember = resolveTargetMember(guild, operator, sessionData);
+
+        var channelAction = guild.createTextChannel(channelName)
+                .addPermissionOverride(guild.getPublicRole(), Collections.emptyList(), List.of(Permission.VIEW_CHANNEL))
+                .addPermissionOverride(operator, List.of(Permission.VIEW_CHANNEL, Permission.MESSAGE_SEND, Permission.MESSAGE_HISTORY, Permission.MESSAGE_ATTACH_FILES, Permission.MESSAGE_EMBED_LINKS), Collections.emptyList());
+        if (targetMember != null && !targetMember.equals(operator)) {
+            channelAction = channelAction.addPermissionOverride(targetMember, List.of(Permission.VIEW_CHANNEL, Permission.MESSAGE_SEND, Permission.MESSAGE_HISTORY, Permission.MESSAGE_ATTACH_FILES, Permission.MESSAGE_EMBED_LINKS), Collections.emptyList());
+        }
+        TextChannel ticketChannel = channelAction.complete();
+
+        if (action.getCompoundOperations() != null) {
+            action.getCompoundOperations().stream()
+                    .filter(op -> op.getOperationType() == CompoundOperation.OperationType.SEND_DM_TEMPLATE)
+                    .findFirst()
+                    .ifPresent(op -> {
+                        EmbedTemplate dmTpl = embedTemplateRepository.findById(op.getTemplateId()).orElse(null);
+                        if (dmTpl != null && embedTemplateRenderer.isPresent()) {
+                            Map<String, String> vars = Map.of(
+                                    "ticketid", ticketId,
+                                    "server", guild != null ? guild.getName() : "",
+                                    "user", operator != null ? operator.getAsMention() : "",
+                                    "targetUser", targetMember != null ? targetMember.getAsMention() : ""
+                            );
+                            MessageCreateData dmData = embedTemplateRenderer.get().renderToMessageData(dmTpl, vars);
+                            if (operator != null && operator.getUser() != null) {
+                                dispatchDMLogsWithFallback(operator.getUser(), ticketChannel, dmData);
+                            }
+                        }
+                    });
+        }
+
+        if (hook != null) {
+            hook.editOriginal("✅ Created ticket #" + channelName).queue();
+        }
+        return ActionExecutionResult.builder()
+                .success(true)
+                .ticketId(ticketId)
+                .channelId(ticketChannel != null ? ticketChannel.getId() : null)
+                .isTerminal(true)
+                .build();
+    }
+
+    @Override
+    public ActionExecutionResult dispatchDMLogsWithFallback(User user, TextChannel ticketChannel, MessageCreateData logData) {
+        try {
+            if (user == null) {
+                throw new IllegalArgumentException("User cannot be null for direct messaging");
+            }
+            var restAction = user.openPrivateChannel();
+            if (restAction == null) {
+                throw new IllegalStateException("RestAction for openPrivateChannel is null");
+            }
+            var pc = restAction.complete();
+            if (pc == null) {
+                throw new IllegalStateException("PrivateChannel is null");
+            }
+            pc.sendMessage(logData).complete();
+            return ActionExecutionResult.builder().success(true).dmDelivered(true).build();
+        } catch (Exception ex) {
+            log.warn("Direct messaging failed for user {}, falling back to ticket channel: {}", user != null ? user.getId() : "unknown", ex.getMessage());
+            try {
+                if (ticketChannel != null) {
+                    var sendAction = ticketChannel.sendMessage(logData);
+                    if (sendAction != null) {
+                        sendAction.complete();
+                    }
+                }
+            } catch (Exception fallbackEx) {
+                log.error("Failed to post fallback audit log in ticket channel: {}", fallbackEx.getMessage());
+            }
+            return ActionExecutionResult.builder().success(true).dmDelivered(false).build();
         }
     }
 }

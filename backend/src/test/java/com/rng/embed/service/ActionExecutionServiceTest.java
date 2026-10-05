@@ -1,9 +1,14 @@
 package com.rng.embed.service;
 
 import com.rng.embed.domain.ActionType;
+import com.rng.embed.domain.CompoundOperation;
 import com.rng.embed.domain.EmbedAction;
+import com.rng.embed.domain.EmbedTemplate;
 import com.rng.embed.domain.InteractionLog;
+import com.rng.embed.domain.ResponseType;
 import com.rng.embed.domain.RoleSubtype;
+import com.rng.embed.dto.ActionExecutionResult;
+import com.rng.embed.repository.EmbedActionRepository;
 import com.rng.embed.repository.EmbedTemplateRepository;
 import com.rng.embed.repository.InteractionLogRepository;
 import net.dv8tion.jda.api.Permission;
@@ -11,11 +16,19 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.interactions.InteractionHook;
+import net.dv8tion.jda.api.requests.ErrorResponse;
+import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.requests.restaction.AuditableRestAction;
+import net.dv8tion.jda.api.requests.restaction.CacheRestAction;
+import net.dv8tion.jda.api.requests.restaction.MessageCreateAction;
 import net.dv8tion.jda.api.requests.restaction.WebhookMessageEditAction;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,7 +40,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -39,6 +54,12 @@ class ActionExecutionServiceTest {
 
     @Mock
     private EmbedTemplateRepository embedTemplateRepository;
+
+    @Mock
+    private EmbedActionRepository embedActionRepository;
+
+    @Mock
+    private EmbedTemplateRenderer embedTemplateRenderer;
 
     @Mock
     private StringRedisTemplate redisTemplate;
@@ -77,7 +98,12 @@ class ActionExecutionServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ActionExecutionServiceImpl(interactionLogRepository, embedTemplateRepository, redisTemplate);
+        service = new ActionExecutionServiceImpl(
+                interactionLogRepository,
+                embedTemplateRepository,
+                embedActionRepository,
+                embedTemplateRenderer,
+                redisTemplate);
 
         lenient().when(buttonEvent.getHook()).thenReturn(hook);
         lenient().when(buttonEvent.getGuild()).thenReturn(guild);
@@ -264,5 +290,226 @@ class ActionExecutionServiceTest {
         verify(hook).editOriginal(contains("Bot lacks 'Manage Channels' permission"));
         verify(interactionLogRepository).save(argThat(log -> "FAILED".equals(log.getStatus())));
         verify(redisTemplate).delete("interaction:session:guild_1:user_1:msg_123");
+    }
+
+    @Test
+    @DisplayName("Should block role grant when operator role position is lower than target role")
+    void should_enforce_operator_role_hierarchy() {
+        Member operator = mock(Member.class);
+        Role operatorRole = mock(Role.class);
+        when(operatorRole.getPosition()).thenReturn(5);
+        when(operator.getRoles()).thenReturn(List.of(operatorRole));
+
+        Role testTargetRole = mock(Role.class);
+        when(testTargetRole.getPosition()).thenReturn(10); // Target higher than operator
+
+        boolean permitted = service.canOperatorAssignRole(operator, testTargetRole);
+        assertThat(permitted).isFalse();
+    }
+
+    @Test
+    @DisplayName("Should allow role grant when operator is server owner")
+    void should_allow_role_grant_when_operator_is_owner() {
+        Member operator = mock(Member.class);
+        when(operator.isOwner()).thenReturn(true);
+
+        Role testTargetRole = mock(Role.class);
+        boolean permitted = service.canOperatorAssignRole(operator, testTargetRole);
+        assertThat(permitted).isTrue();
+    }
+
+    @Test
+    @DisplayName("Should allow role grant when operator highest role outranks target role")
+    void should_allow_role_grant_when_operator_outranks_target_role() {
+        Member operator = mock(Member.class);
+        Role operatorRole = mock(Role.class);
+        when(operatorRole.getPosition()).thenReturn(20);
+        when(operator.getRoles()).thenReturn(List.of(operatorRole));
+
+        Role testTargetRole = mock(Role.class);
+        when(testTargetRole.getPosition()).thenReturn(10); // Target lower than operator
+        boolean permitted = service.canOperatorAssignRole(operator, testTargetRole);
+        assertThat(permitted).isTrue();
+    }
+
+    @Test
+    @DisplayName("Should abort role grant when target member has left the Discord server")
+    @SuppressWarnings("unchecked")
+    void should_abort_role_grant_when_target_member_left_server() {
+        Guild mockGuild = mock(Guild.class);
+        CacheRestAction<Member> restAction = mock(CacheRestAction.class);
+        when(mockGuild.getId()).thenReturn("guild-999");
+        when(mockGuild.getMemberById("user-left")).thenReturn(null);
+        when(mockGuild.retrieveMemberById("user-left")).thenReturn(restAction);
+        when(restAction.complete()).thenThrow(new RuntimeException("Target member left server"));
+
+        InteractionHook mockHook = mock(InteractionHook.class);
+        WebhookMessageEditAction editAct = mock(WebhookMessageEditAction.class);
+        when(mockHook.editOriginal(anyString())).thenReturn(editAct);
+        Map<String, String> sessionData = Map.of("targetUser", "user-left");
+
+        EmbedAction action = EmbedAction.builder()
+                .actionId("rng_act_role")
+                .actionType(ActionType.ROLE)
+                .build();
+        when(embedActionRepository.findByActionId("rng_act_role")).thenReturn(Optional.of(action));
+
+        ActionExecutionResult result = service.executeComponentAction(
+                "rng_act_role", mockGuild, mock(Member.class), mockHook, sessionData);
+
+        assertThat(result.isSuccess()).isFalse();
+        verify(mockHook).editOriginal("❌ Target member is no longer in this server.");
+    }
+
+    @Test
+    @DisplayName("Should reject executeComponentAction when operator hierarchy is violated")
+    void should_reject_executeComponentAction_when_operator_hierarchy_violated() {
+        Guild mockGuild = mock(Guild.class);
+        Member operator = mock(Member.class);
+        Role operatorRole = mock(Role.class);
+        when(operatorRole.getPosition()).thenReturn(5);
+        when(operator.getRoles()).thenReturn(List.of(operatorRole));
+
+        Member targetMember = mock(Member.class);
+        when(mockGuild.getMemberById("user-222")).thenReturn(targetMember);
+
+        Role targetRoleMock = mock(Role.class);
+        when(targetRoleMock.getPosition()).thenReturn(10);
+        when(mockGuild.getRoleById("role-333")).thenReturn(targetRoleMock);
+
+        InteractionHook mockHook = mock(InteractionHook.class);
+        WebhookMessageEditAction editAct = mock(WebhookMessageEditAction.class);
+        when(mockHook.editOriginal(anyString())).thenReturn(editAct);
+
+        EmbedAction action = EmbedAction.builder()
+                .actionId("rng_act_role")
+                .actionType(ActionType.ROLE)
+                .build();
+        when(embedActionRepository.findByActionId("rng_act_role")).thenReturn(Optional.of(action));
+
+        Map<String, String> sessionData = Map.of(
+                "targetUser", "user-222",
+                "targetRole", "role-333"
+        );
+
+        ActionExecutionResult result = service.executeComponentAction(
+                "rng_act_role", mockGuild, operator, mockHook, sessionData);
+
+        assertThat(result.isSuccess()).isFalse();
+        assertThat(result.getErrorMessage()).contains("Role hierarchy violation");
+        verify(mockHook).editOriginal(contains("Hierarchy violation"));
+    }
+
+    @Test
+    @DisplayName("Should deliver audit logs directly into ticket channel when user DMs are closed")
+    @SuppressWarnings("unchecked")
+    void should_deliver_logs_to_ticket_channel_when_dm_fails_with_50007() {
+        User mockUser = mock(User.class);
+        CacheRestAction<PrivateChannel> restAction = mock(CacheRestAction.class);
+        when(mockUser.openPrivateChannel()).thenReturn(restAction);
+        when(restAction.complete()).thenThrow(new RuntimeException("Cannot send to user (DMs disabled)"));
+
+        TextChannel ticketChannel = mock(TextChannel.class);
+        MessageCreateAction createAction = mock(MessageCreateAction.class);
+        when(ticketChannel.sendMessage(any(MessageCreateData.class))).thenReturn(createAction);
+
+        ActionExecutionResult result = service.dispatchDMLogsWithFallback(mockUser, ticketChannel, mock(MessageCreateData.class));
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.isDmDelivered()).isFalse();
+        verify(ticketChannel).sendMessage(any(MessageCreateData.class));
+    }
+
+    @Test
+    @DisplayName("Should successfully deliver audit logs directly via DM when user DMs are open")
+    @SuppressWarnings("unchecked")
+    void should_deliver_logs_via_dm_when_dms_open() {
+        User mockUser = mock(User.class);
+        CacheRestAction<PrivateChannel> restAction = mock(CacheRestAction.class);
+        PrivateChannel privateChannel = mock(PrivateChannel.class);
+        when(mockUser.openPrivateChannel()).thenReturn(restAction);
+        when(restAction.complete()).thenReturn(privateChannel);
+
+        MessageCreateAction createAction = mock(MessageCreateAction.class);
+        when(privateChannel.sendMessage(any(MessageCreateData.class))).thenReturn(createAction);
+
+        TextChannel ticketChannel = mock(TextChannel.class);
+
+        ActionExecutionResult result = service.dispatchDMLogsWithFallback(mockUser, ticketChannel, mock(MessageCreateData.class));
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.isDmDelivered()).isTrue();
+        verify(privateChannel).sendMessage(any(MessageCreateData.class));
+        verify(ticketChannel, never()).sendMessage(any(MessageCreateData.class));
+    }
+
+    @Test
+    @DisplayName("Should execute compound action creating dual-member ACL ticket channel")
+    @SuppressWarnings("unchecked")
+    void should_execute_compound_action_with_dual_member_acl() {
+        Guild mockGuild = mock(Guild.class);
+        Member operator = mock(Member.class);
+        when(operator.getUser()).thenReturn(mock(User.class));
+        when(operator.getAsMention()).thenReturn("<@operator>");
+
+        Member targetMember = mock(Member.class);
+        when(targetMember.getAsMention()).thenReturn("<@target>");
+        when(mockGuild.getMemberById("user-target")).thenReturn(targetMember);
+        when(mockGuild.getName()).thenReturn("RNG War Guild");
+
+        Role publicRole = mock(Role.class);
+        when(mockGuild.getPublicRole()).thenReturn(publicRole);
+
+        net.dv8tion.jda.api.requests.restaction.ChannelAction<TextChannel> channelAction = mock(net.dv8tion.jda.api.requests.restaction.ChannelAction.class);
+        when(mockGuild.createTextChannel(anyString())).thenReturn(channelAction);
+        when(channelAction.addPermissionOverride(any(), any(), any())).thenReturn(channelAction);
+
+        TextChannel createdTicket = mock(TextChannel.class);
+        when(createdTicket.getId()).thenReturn("chan-ticket-999");
+        when(channelAction.complete()).thenReturn(createdTicket);
+
+        InteractionHook mockHook = mock(InteractionHook.class);
+        WebhookMessageEditAction editAct = mock(WebhookMessageEditAction.class);
+        when(mockHook.editOriginal(anyString())).thenReturn(editAct);
+
+        EmbedAction action = EmbedAction.builder()
+                .actionId("rng_act_ticket")
+                .actionType(ActionType.TICKET)
+                .channelPrefix("ticket-")
+                .compoundOperations(List.of(
+                        CompoundOperation.builder()
+                                .operationType(CompoundOperation.OperationType.SEND_DM_TEMPLATE)
+                                .templateId("tpl_dm_logs")
+                                .build()
+                ))
+                .build();
+        when(embedActionRepository.findByActionId("rng_act_ticket")).thenReturn(Optional.of(action));
+
+        EmbedTemplate dmTpl = EmbedTemplate.builder()
+                .templateId("tpl_dm_logs")
+                .name("Ticket Logs")
+                .build();
+        when(embedTemplateRepository.findById("tpl_dm_logs")).thenReturn(Optional.of(dmTpl));
+
+        MessageCreateData msgData = mock(MessageCreateData.class);
+        when(embedTemplateRenderer.renderToMessageData(eq(dmTpl), anyMap())).thenReturn(msgData);
+
+        CacheRestAction<PrivateChannel> dmRestAction = mock(CacheRestAction.class);
+        when(operator.getUser().openPrivateChannel()).thenReturn(dmRestAction);
+        PrivateChannel pc = mock(PrivateChannel.class);
+        when(dmRestAction.complete()).thenReturn(pc);
+        MessageCreateAction createAction = mock(MessageCreateAction.class);
+        when(pc.sendMessage(any(MessageCreateData.class))).thenReturn(createAction);
+
+        Map<String, String> sessionData = Map.of("targetUser", "user-target");
+
+        ActionExecutionResult result = service.executeCompoundAction(
+                "rng_act_ticket", mockGuild, operator, mockHook, sessionData);
+
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.getChannelId()).isEqualTo("chan-ticket-999");
+        assertThat(result.getTicketId()).isNotNull();
+        verify(channelAction, atLeastOnce()).addPermissionOverride(eq(publicRole), any(), any());
+        verify(channelAction, atLeastOnce()).addPermissionOverride(eq(operator), any(), any());
+        verify(channelAction, atLeastOnce()).addPermissionOverride(eq(targetMember), any(), any());
+        verify(mockHook).editOriginal(contains("Created ticket"));
     }
 }
