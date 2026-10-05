@@ -5,17 +5,26 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rng.common.exception.InternalServerException;
 import com.rng.common.exception.ResourceNotFoundException;
 import com.rng.embed.domain.EmbedAction;
+import com.rng.embed.domain.EmbedTemplate;
+import com.rng.embed.domain.ResponseType;
 import com.rng.embed.dto.CreateActionRequest;
 import com.rng.embed.dto.EmbedActionDto;
 import com.rng.embed.dto.InteractionLogResponse;
 import com.rng.embed.dto.UpdateActionRequest;
 import com.rng.embed.repository.EmbedActionRepository;
+import com.rng.embed.repository.EmbedTemplateRepository;
 import com.rng.embed.repository.InteractionLogRepository;
+import com.rng.identity.domain.User;
+import com.rng.identity.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -26,7 +35,7 @@ import java.util.Optional;
 
 /**
  * Service implementation managing Action Templates, MongoDB persistence,
- * and high-performance read-through caching in Redis.
+ * multi-tenant RBAC, and high-performance read-through caching in Redis.
  */
 @Slf4j
 @Service
@@ -38,42 +47,93 @@ public class EmbedActionServiceImpl implements EmbedActionService {
 
     private final EmbedActionRepository embedActionRepository;
     private final InteractionLogRepository interactionLogRepository;
+    private final EmbedTemplateRepository embedTemplateRepository;
+    private final UserRepository userRepository;
     private final Optional<StringRedisTemplate> redisTemplate;
     private final ObjectMapper objectMapper;
 
     public EmbedActionServiceImpl(
             EmbedActionRepository embedActionRepository,
             InteractionLogRepository interactionLogRepository,
+            EmbedTemplateRepository embedTemplateRepository,
+            UserRepository userRepository,
             @Autowired(required = false) StringRedisTemplate redisTemplate,
             ObjectMapper objectMapper) {
         this.embedActionRepository = embedActionRepository;
         this.interactionLogRepository = interactionLogRepository;
+        this.embedTemplateRepository = embedTemplateRepository;
+        this.userRepository = userRepository;
         this.redisTemplate = Optional.ofNullable(redisTemplate);
         this.objectMapper = objectMapper;
     }
 
     @Override
     public EmbedActionDto createAction(CreateActionRequest request) {
+        return createAction(request, null);
+    }
+
+    @Override
+    @Caching(evict = {
+        @CacheEvict(value = "server:actions", allEntries = true),
+        @CacheEvict(value = "action:templates", allEntries = true)
+    })
+    public EmbedActionDto createAction(CreateActionRequest request, String operatorEmail) {
+        if (Boolean.TRUE.equals(request.isGlobal())) {
+            if (operatorEmail == null || operatorEmail.isBlank()) {
+                throw new AccessDeniedException("Operator clearance required to create global action templates");
+            }
+            User operator = userRepository.findByEmail(operatorEmail)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found: " + operatorEmail));
+
+            boolean isHighCommand = (operator.getRole() != null && 
+                    (operator.getRole().equals("ROLE_CHIEF_HIGH_COMMAND") || operator.getRole().equals("ROLE_HIGH_COMMAND")))
+                    || operator.getRoleList().contains("ROLE_CHIEF_HIGH_COMMAND")
+                    || operator.getRoleList().contains("ROLE_HIGH_COMMAND");
+            if (!isHighCommand) {
+                throw new AccessDeniedException("Only High Command can create global action templates");
+            }
+        }
+
+        if (request.responseEmbedTemplateId() != null && !request.responseEmbedTemplateId().isBlank()) {
+            EmbedTemplate template = embedTemplateRepository.findById(request.responseEmbedTemplateId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Template not found: " + request.responseEmbedTemplateId()));
+            List<String> targetServerIds = request.serverIds() != null && !request.serverIds().isEmpty()
+                    ? request.serverIds()
+                    : (request.serverId() != null ? List.of(request.serverId()) : List.of());
+            boolean isAccessible = template.isPublic() || (template.getServerId() != null && targetServerIds.contains(template.getServerId()));
+            if (!isAccessible) {
+                throw new AccessDeniedException("Referenced embed template is not accessible for specified serverIds");
+            }
+        }
+
         String actionId = generateUniqueActionId();
+
+        List<String> serverIds = request.serverIds() != null && !request.serverIds().isEmpty()
+                ? request.serverIds()
+                : (request.serverId() != null ? List.of(request.serverId()) : List.of());
 
         EmbedAction action = EmbedAction.builder()
                 .actionId(actionId)
                 .serverId(request.serverId())
-                .isGlobal(request.isGlobal())
-                .name(request.name())
+                .isGlobal(Boolean.TRUE.equals(request.isGlobal()))
+                .serverIds(serverIds)
+                .name(request.name() != null ? request.name().trim() : "")
                 .description(request.description())
                 .actionType(request.actionType())
                 .roleSubtype(request.roleSubtype())
                 .roleId(request.roleId())
                 .roleName(request.roleName())
-                .channelPrefix(request.channelPrefix())
+                .channelPrefix(request.channelPrefix() != null ? request.channelPrefix() : "ticket-")
                 .welcomeMessage(request.welcomeMessage())
                 .replyContent(request.replyContent())
+                .confirmationMessage(request.confirmationMessage())
                 .isEphemeral(request.isEphemeral() == null || request.isEphemeral())
                 .dmContent(request.dmContent())
                 .requiredUser(Boolean.TRUE.equals(request.requiredUser()))
                 .requiredRole(Boolean.TRUE.equals(request.requiredRole()))
+                .responseType(request.responseType() != null ? request.responseType() : ResponseType.EPHEMERAL_TEXT)
                 .responseEmbedTemplateId(request.responseEmbedTemplateId())
+                .compoundOperations(request.compoundOperations() != null ? request.compoundOperations() : List.of())
                 .build();
 
         EmbedAction saved = embedActionRepository.save(action);
@@ -85,31 +145,66 @@ public class EmbedActionServiceImpl implements EmbedActionService {
 
     @Override
     public EmbedActionDto updateAction(String actionId, UpdateActionRequest request) {
+        return updateAction(actionId, request, null);
+    }
+
+    @Override
+    @Caching(evict = {
+        @CacheEvict(value = "server:actions", allEntries = true),
+        @CacheEvict(value = "action:templates", allEntries = true)
+    })
+    public EmbedActionDto updateAction(String actionId, UpdateActionRequest request, String operatorEmail) {
         EmbedAction existing = embedActionRepository.findByActionId(actionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Action Template not found with ID: " + actionId));
 
-        existing.setServerId(request.serverId());
-        existing.setGlobal(request.isGlobal());
-        existing.setName(request.name());
-        existing.setDescription(request.description());
-        existing.setActionType(request.actionType());
-        existing.setRoleSubtype(request.roleSubtype());
-        existing.setRoleId(request.roleId());
-        existing.setRoleName(request.roleName());
-        existing.setChannelPrefix(request.channelPrefix());
-        existing.setWelcomeMessage(request.welcomeMessage());
-        existing.setReplyContent(request.replyContent());
-        if (request.isEphemeral() != null) {
-            existing.setEphemeral(request.isEphemeral());
+        if (existing.isGlobal() || Boolean.TRUE.equals(request.isGlobal())) {
+            if (operatorEmail == null || operatorEmail.isBlank()) {
+                throw new AccessDeniedException("Operator clearance required to modify global action templates");
+            }
+            User operator = userRepository.findByEmail(operatorEmail)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found: " + operatorEmail));
+            boolean isHighCommand = (operator.getRole() != null && 
+                    (operator.getRole().equals("ROLE_CHIEF_HIGH_COMMAND") || operator.getRole().equals("ROLE_HIGH_COMMAND")))
+                    || operator.getRoleList().contains("ROLE_CHIEF_HIGH_COMMAND")
+                    || operator.getRoleList().contains("ROLE_HIGH_COMMAND");
+            if (!isHighCommand) {
+                throw new AccessDeniedException("Only High Command can modify global action templates");
+            }
         }
-        existing.setDmContent(request.dmContent());
-        if (request.requiredUser() != null) {
-            existing.setRequiredUser(request.requiredUser());
+
+        if (request.responseEmbedTemplateId() != null && !request.responseEmbedTemplateId().isBlank()) {
+            EmbedTemplate template = embedTemplateRepository.findById(request.responseEmbedTemplateId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Template not found: " + request.responseEmbedTemplateId()));
+            List<String> existingServerIds = existing.getServerIds() != null ? existing.getServerIds() : List.of();
+            List<String> targetServerIds = request.serverIds() != null && !request.serverIds().isEmpty()
+                    ? request.serverIds()
+                    : (request.serverId() != null ? List.of(request.serverId()) : existingServerIds);
+            boolean isAccessible = template.isPublic() || (template.getServerId() != null && targetServerIds.contains(template.getServerId()));
+            if (!isAccessible) {
+                throw new AccessDeniedException("Referenced embed template is not accessible for specified serverIds");
+            }
         }
-        if (request.requiredRole() != null) {
-            existing.setRequiredRole(request.requiredRole());
-        }
-        existing.setResponseEmbedTemplateId(request.responseEmbedTemplateId());
+
+        if (request.serverId() != null) existing.setServerId(request.serverId());
+        if (request.isGlobal() != null) existing.setGlobal(request.isGlobal());
+        if (request.serverIds() != null) existing.setServerIds(request.serverIds());
+        if (request.name() != null) existing.setName(request.name().trim());
+        if (request.description() != null) existing.setDescription(request.description());
+        if (request.actionType() != null) existing.setActionType(request.actionType());
+        if (request.roleSubtype() != null) existing.setRoleSubtype(request.roleSubtype());
+        if (request.roleId() != null) existing.setRoleId(request.roleId());
+        if (request.roleName() != null) existing.setRoleName(request.roleName());
+        if (request.channelPrefix() != null) existing.setChannelPrefix(request.channelPrefix());
+        if (request.welcomeMessage() != null) existing.setWelcomeMessage(request.welcomeMessage());
+        if (request.replyContent() != null) existing.setReplyContent(request.replyContent());
+        if (request.confirmationMessage() != null) existing.setConfirmationMessage(request.confirmationMessage());
+        if (request.isEphemeral() != null) existing.setEphemeral(request.isEphemeral());
+        if (request.dmContent() != null) existing.setDmContent(request.dmContent());
+        if (request.requiredUser() != null) existing.setRequiredUser(request.requiredUser());
+        if (request.requiredRole() != null) existing.setRequiredRole(request.requiredRole());
+        if (request.responseType() != null) existing.setResponseType(request.responseType());
+        if (request.responseEmbedTemplateId() != null) existing.setResponseEmbedTemplateId(request.responseEmbedTemplateId());
+        if (request.compoundOperations() != null) existing.setCompoundOperations(request.compoundOperations());
 
         EmbedAction updated = embedActionRepository.save(existing);
         evictActionCache(actionId);
@@ -120,6 +215,10 @@ public class EmbedActionServiceImpl implements EmbedActionService {
     }
 
     @Override
+    @Caching(evict = {
+        @CacheEvict(value = "server:actions", allEntries = true),
+        @CacheEvict(value = "action:templates", allEntries = true)
+    })
     public void deleteAction(String actionId) {
         if (!embedActionRepository.existsByActionId(actionId)) {
             throw new ResourceNotFoundException("Action Template not found with ID: " + actionId);
@@ -139,6 +238,13 @@ public class EmbedActionServiceImpl implements EmbedActionService {
                 .stream()
                 .map(EmbedActionDto::fromDomain)
                 .toList();
+    }
+
+    @Override
+    @Cacheable(value = "server:actions", key = "#serverId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
+    public Page<EmbedActionDto> getActionsForServer(String serverId, Pageable pageable) {
+        return embedActionRepository.findByServerIdOrGlobal(serverId, pageable)
+                .map(EmbedActionDto::fromDomain);
     }
 
     @Override

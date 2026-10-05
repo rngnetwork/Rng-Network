@@ -18,11 +18,17 @@ public interface EmbedActionService {
 
     EmbedActionDto createAction(CreateActionRequest request);
 
+    EmbedActionDto createAction(CreateActionRequest request, String operatorEmail);
+
     EmbedActionDto updateAction(String actionId, UpdateActionRequest request);
+
+    EmbedActionDto updateAction(String actionId, UpdateActionRequest request, String operatorEmail);
 
     void deleteAction(String actionId);
 
     List<EmbedActionDto> getActionsForServer(String serverId);
+
+    Page<EmbedActionDto> getActionsForServer(String serverId, Pageable pageable);
 
     List<EmbedActionDto> getGlobalActions();
 
