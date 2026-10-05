@@ -1,10 +1,14 @@
 package com.rng.server.listener;
 
 import com.rng.embed.domain.ActionType;
+import com.rng.embed.domain.CompoundOperation;
 import com.rng.embed.domain.EmbedAction;
+import com.rng.embed.domain.ResponseType;
+import com.rng.embed.dto.ActionExecutionResult;
 import com.rng.embed.service.ActionExecutionService;
 import com.rng.embed.service.EmbedActionService;
 import com.rng.embed.service.RedisRateLimiterService;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Mentions;
@@ -37,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -277,5 +282,54 @@ class DiscordGatewayEventListenerTest {
 
         verify(stringSelectEvent).deferReply(true);
         verify(actionExecutionService).executeStringSelectAction(eq(stringSelectEvent), eq(action), anyMap());
+    }
+
+    @Test
+    @DisplayName("Should dynamically defer publicly when action responseType is PUBLIC_EMBED")
+    void should_defer_publicly_for_public_embed() {
+        when(buttonEvent.getComponentId()).thenReturn("rng_act_role_grant");
+        EmbedAction action = EmbedAction.builder()
+                .actionId("rng_act_role_grant")
+                .responseType(ResponseType.PUBLIC_EMBED)
+                .build();
+        when(embedActionService.resolveAction("rng_act_role_grant")).thenReturn(Optional.of(action));
+        when(buttonEvent.deferReply(false)).thenReturn(replyCallbackAction);
+        when(actionExecutionService.executeComponentAction(eq("rng_act_role_grant"), eq(guild), eq(member), eq(hook), anyMap()))
+                .thenReturn(ActionExecutionResult.success("Role assigned"));
+
+        listener.onButtonInteraction(buttonEvent);
+
+        verify(buttonEvent).deferReply(false);
+        verify(actionExecutionService).executeComponentAction(eq("rng_act_role_grant"), eq(guild), eq(member), eq(hook), anyMap());
+    }
+
+    @Test
+    @DisplayName("Should reject chained follow-up button if caller is not the origin operator")
+    void should_reject_chained_button_when_caller_is_not_origin_caller() {
+        User intruder = mock(User.class);
+        when(intruder.getId()).thenReturn("intruder-999");
+        when(buttonEvent.getUser()).thenReturn(intruder);
+        when(buttonEvent.getMember()).thenReturn(member);
+        when(member.hasPermission(Permission.ADMINISTRATOR)).thenReturn(false);
+
+        Map<String, String> sessionData = Map.of("originCaller", "operator-111");
+
+        assertThatThrownBy(() -> listener.validateCallerIdentity(buttonEvent, sessionData))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Caller identity mismatch");
+
+        verify(hook).editOriginal("❌ Only the operator who initiated this action can execute subsequent steps.");
+    }
+
+    @Test
+    @DisplayName("Should carryover session state to new message id with 15-minute TTL")
+    void should_carryover_session_state_to_new_message_id() {
+        Map<String, String> sessionData = Map.of("targetUser", "usr_1", "targetRole", "role_1");
+
+        listener.carryoverSession("guild_1", "chan_1", "user_1", "msg_old", "msg_new", sessionData);
+
+        String expectedKey = "interaction:session:guild_1:user_1:msg_new";
+        verify(hashOperations).putAll(expectedKey, sessionData);
+        verify(redisTemplate).expire(expectedKey, Duration.ofMinutes(15));
     }
 }

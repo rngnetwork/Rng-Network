@@ -1,10 +1,14 @@
 package com.rng.server.listener;
 
 import com.rng.embed.domain.EmbedAction;
+import com.rng.embed.domain.ResponseType;
+import com.rng.embed.dto.ActionExecutionResult;
 import com.rng.embed.service.ActionExecutionService;
 import com.rng.embed.service.EmbedActionService;
 import com.rng.embed.service.RedisRateLimiterService;
 import lombok.extern.slf4j.Slf4j;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Mentions;
 import net.dv8tion.jda.api.events.channel.ChannelCreateEvent;
 import net.dv8tion.jda.api.events.channel.ChannelDeleteEvent;
@@ -154,8 +158,12 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
             return;
         }
 
-        // Sub-50ms ephemeral acknowledgment - guarantees Discord SLA window (<3000ms)
-        event.deferReply(true).queue();
+        // Pre-resolve action to determine ephemeral vs public acknowledgment
+        Optional<EmbedAction> actionOpt = embedActionService.flatMap(eas -> eas.resolveAction(componentId));
+        boolean isPublic = actionOpt.isPresent() && (actionOpt.get().getResponseType() == ResponseType.PUBLIC_EMBED || actionOpt.get().getResponseType() == ResponseType.PUBLIC_TEXT);
+
+        // Sub-50ms acknowledgment - guarantees Discord SLA window (<3000ms)
+        event.deferReply(!isPublic).queue();
 
         String messageId = event.getMessageId();
 
@@ -175,7 +183,6 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
             return;
         }
 
-        Optional<EmbedAction> actionOpt = embedActionService.get().resolveAction(componentId);
         if (actionOpt.isEmpty()) {
             event.getHook().editOriginal("❌ Action template not found or no longer active: " + componentId).queue();
             return;
@@ -184,16 +191,75 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
         EmbedAction action = actionOpt.get();
         Map<String, String> sessionData = getSessionData(guildId, userId, messageId);
 
-        if (action.isRequiredUser() && !sessionData.containsKey("target_user")) {
+        try {
+            validateCallerIdentity(event, sessionData);
+        } catch (IllegalStateException ex) {
+            return;
+        }
+
+        if (action.isRequiredUser() && !sessionData.containsKey("target_user") && !sessionData.containsKey("targetUser")) {
             event.getHook().editOriginal("⚠️ Missing Required Selections: Please select a target user before clicking this button.").queue();
             return;
         }
-        if (action.isRequiredRole() && !sessionData.containsKey("target_role")) {
+        if (action.isRequiredRole() && !sessionData.containsKey("target_role") && !sessionData.containsKey("targetRole")) {
             event.getHook().editOriginal("⚠️ Missing Required Selections: Please select a target role before clicking this button.").queue();
             return;
         }
 
-        actionExecutionService.get().executeButtonAction(event, action, sessionData);
+        Member member = event.getMember();
+        if (member == null && event.getGuild() != null && event.getUser() != null) {
+            try {
+                member = event.getGuild().retrieveMember(event.getUser()).complete();
+            } catch (Exception e) {
+                log.warn("Failed to retrieve member {} in guild {}: {}", event.getUser().getId(), event.getGuild().getId(), e.getMessage());
+            }
+        }
+
+        ActionExecutionResult result = null;
+        if (action.getCompoundOperations() != null && !action.getCompoundOperations().isEmpty()) {
+            result = actionExecutionService.get().executeCompoundAction(componentId, event.getGuild(), member, event.getHook(), sessionData);
+        } else if (action.getResponseType() == ResponseType.PUBLIC_EMBED || action.getResponseType() == ResponseType.PUBLIC_TEXT) {
+            result = actionExecutionService.get().executeComponentAction(componentId, event.getGuild(), member, event.getHook(), sessionData);
+        } else {
+            actionExecutionService.get().executeButtonAction(event, action, sessionData);
+        }
+
+        if (result != null && result.isSuccess() && !result.isTerminal() && result.getNewGeneratedMessageId() != null) {
+            carryoverSession(guildId, event.getChannel().getId(), userId, messageId, result.getNewGeneratedMessageId(), sessionData);
+        }
+    }
+
+    public void validateCallerIdentity(ButtonInteractionEvent event, Map<String, String> sessionData) {
+        if (sessionData == null) {
+            return;
+        }
+        String originCaller = sessionData.getOrDefault("originCaller", sessionData.get("origin_caller"));
+        if (originCaller != null && !originCaller.isBlank()) {
+            String currentUserId = event.getUser() != null ? event.getUser().getId() : "";
+            if (!originCaller.equals(currentUserId)) {
+                Member member = event.getMember();
+                boolean isAdmin = member != null && member.hasPermission(Permission.ADMINISTRATOR);
+                if (!isAdmin) {
+                    if (event.getHook() != null) {
+                        event.getHook().editOriginal("❌ Only the operator who initiated this action can execute subsequent steps.").queue();
+                    }
+                    throw new IllegalStateException("Caller identity mismatch: caller is not origin caller");
+                }
+            }
+        }
+    }
+
+    public void carryoverSession(String guildId, String channelId, String userId, String oldMsgId, String newMsgId, Map<String, String> sessionData) {
+        if (redisTemplate.isEmpty() || sessionData == null || sessionData.isEmpty()) {
+            return;
+        }
+        try {
+            String sessionKey = "interaction:session:" + guildId + ":" + userId + ":" + newMsgId;
+            redisTemplate.get().opsForHash().putAll(sessionKey, sessionData);
+            redisTemplate.get().expire(sessionKey, Duration.ofMinutes(15));
+        } catch (Exception e) {
+            log.warn("Failed to carryover session state to message {}: {}", newMsgId, e.getMessage());
+        }
     }
 
     @Override
@@ -316,14 +382,22 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
             try {
                 Mentions mentions = event.getMentions();
                 if (!mentions.getUsers().isEmpty()) {
-                    rt.opsForHash().put(sessionKey, "target_user", mentions.getUsers().get(0).getId());
+                    String targetUser = mentions.getUsers().get(0).getId();
+                    rt.opsForHash().put(sessionKey, "target_user", targetUser);
+                    rt.opsForHash().put(sessionKey, "targetUser", targetUser);
                 }
                 if (!mentions.getRoles().isEmpty()) {
-                    rt.opsForHash().put(sessionKey, "target_role", mentions.getRoles().get(0).getId());
+                    String targetRole = mentions.getRoles().get(0).getId();
+                    rt.opsForHash().put(sessionKey, "target_role", targetRole);
+                    rt.opsForHash().put(sessionKey, "targetRole", targetRole);
                 }
                 if (!mentions.getChannels().isEmpty()) {
-                    rt.opsForHash().put(sessionKey, "target_channel", mentions.getChannels().get(0).getId());
+                    String targetChannel = mentions.getChannels().get(0).getId();
+                    rt.opsForHash().put(sessionKey, "target_channel", targetChannel);
+                    rt.opsForHash().put(sessionKey, "targetChannel", targetChannel);
                 }
+                rt.opsForHash().put(sessionKey, "originCaller", userId);
+                rt.opsForHash().put(sessionKey, "origin_caller", userId);
                 rt.opsForHash().put(sessionKey, "last_updated", String.valueOf(System.currentTimeMillis()));
                 rt.expire(sessionKey, Duration.ofMinutes(15));
             } catch (Exception e) {
