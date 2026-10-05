@@ -385,31 +385,20 @@ export type ActionType = 'ROLE' | 'TICKET' | 'REPLY' | 'DM';
 
 export type RoleSubtype = 'TOGGLE' | 'ADD' | 'REMOVE';
 
+export type ResponseType = 'EPHEMERAL_TEXT' | 'PUBLIC_TEXT' | 'EPHEMERAL_EMBED' | 'PUBLIC_EMBED' | 'DM_EMBED';
+
+export interface CompoundOperation {
+  operationType: 'CREATE_TICKET' | 'SEND_DM_TEMPLATE' | 'SEND_CHANNEL_MESSAGE';
+  channelPrefix?: string;
+  membersToAdd?: string[];
+  templateId?: string;
+}
+
 export interface EmbedAction {
   id?: string;
   actionId: string;
   serverId?: string;
-  isGlobal: boolean;
-  name: string;
-  description?: string;
-  actionType: ActionType;
-  roleSubtype?: RoleSubtype;
-  roleId?: string;
-  roleName?: string;
-  channelPrefix?: string;
-  welcomeMessage?: string;
-  replyContent?: string;
-  isEphemeral?: boolean;
-  dmContent?: string;
-  requiredUser?: boolean;
-  requiredRole?: boolean;
-  responseEmbedTemplateId?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface CreateActionPayload {
-  serverId?: string;
+  serverIds?: string[];
   isGlobal?: boolean;
   name: string;
   description?: string;
@@ -424,7 +413,36 @@ export interface CreateActionPayload {
   dmContent?: string;
   requiredUser?: boolean;
   requiredRole?: boolean;
+  responseType?: ResponseType;
   responseEmbedTemplateId?: string;
+  confirmationMessage?: string;
+  compoundOperations?: CompoundOperation[];
+  version?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateActionPayload {
+  serverId?: string;
+  serverIds?: string[];
+  isGlobal?: boolean;
+  name: string;
+  description?: string;
+  actionType: ActionType;
+  roleSubtype?: RoleSubtype;
+  roleId?: string;
+  roleName?: string;
+  channelPrefix?: string;
+  welcomeMessage?: string;
+  replyContent?: string;
+  isEphemeral?: boolean;
+  dmContent?: string;
+  requiredUser?: boolean;
+  requiredRole?: boolean;
+  responseType?: ResponseType;
+  responseEmbedTemplateId?: string;
+  confirmationMessage?: string;
+  compoundOperations?: CompoundOperation[];
 }
 
 export type UpdateActionPayload = CreateActionPayload;

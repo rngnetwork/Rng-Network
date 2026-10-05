@@ -1563,11 +1563,17 @@ export const api = {
     );
   },
 
-  async fetchServerActions(idOrSlug: string, token?: string): Promise<ApiResponseEnvelope<EmbedAction[]>> {
+  async fetchServerActions(
+    idOrSlug: string,
+    page?: number,
+    size?: number,
+    token?: string
+  ): Promise<ApiResponseEnvelope<EmbedAction[]>> {
     const effectiveToken = token || getStoredAccessToken();
+    const queryParams = page !== undefined ? `?page=${page}&size=${size ?? 50}` : '';
     return requestWithFallback(
       async () => {
-        const response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(idOrSlug)}/actions`, {
+        const response = await fetch(`${API_BASE}/api/v1/servers/${encodeURIComponent(idOrSlug)}/actions${queryParams}`, {
           method: 'GET',
           headers: {
             ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
@@ -1576,11 +1582,19 @@ export const api = {
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || 'Failed to fetch server actions');
+        if (data.data && !Array.isArray(data.data) && Array.isArray((data.data as Record<string, unknown>).content)) {
+          return {
+            ...data,
+            data: (data.data as { content: EmbedAction[] }).content,
+          };
+        }
         return data;
       },
       () => {
         const stored = getLocalStored<EmbedAction[]>('rng_embed_actions', []);
-        return stored.filter((a) => a.isGlobal || a.serverId === idOrSlug);
+        return stored.filter(
+          (a) => a.isGlobal || a.serverId === idOrSlug || (a.serverIds && a.serverIds.includes(idOrSlug))
+        );
       },
       'Server actions loaded from local simulation storage.'
     );
@@ -1636,6 +1650,7 @@ export const api = {
           id: 'act_' + hex.substring(0, 8),
           actionId: 'rng_act_' + hex.substring(0, 16),
           serverId: payload.serverId || serverIdOrSlug,
+          serverIds: payload.serverIds || (payload.serverId ? [payload.serverId] : []),
           isGlobal: payload.isGlobal ?? false,
           name: payload.name,
           description: payload.description,
@@ -1650,7 +1665,10 @@ export const api = {
           dmContent: payload.dmContent,
           requiredUser: payload.requiredUser ?? false,
           requiredRole: payload.requiredRole ?? false,
+          responseType: payload.responseType,
           responseEmbedTemplateId: payload.responseEmbedTemplateId,
+          confirmationMessage: payload.confirmationMessage,
+          compoundOperations: payload.compoundOperations,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
