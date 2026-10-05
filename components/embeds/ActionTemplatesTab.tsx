@@ -65,7 +65,10 @@ export function ActionTemplatesTab({
       }
 
       if (res.success && res.data) {
-        setActions(res.data);
+        const filtered = serverId
+          ? res.data.filter((a) => a.isGlobal || a.serverId === serverId || (a.serverIds && a.serverIds.includes(serverId)))
+          : res.data;
+        setActions(filtered);
       } else {
         setActions([]);
       }
@@ -111,7 +114,10 @@ export function ActionTemplatesTab({
         ]);
         if (!isMounted) return;
         if (actionsRes.success && actionsRes.data) {
-          setActions(actionsRes.data);
+          const filtered = serverId
+            ? actionsRes.data.filter((a) => a.isGlobal || a.serverId === serverId || (a.serverIds && a.serverIds.includes(serverId)))
+            : actionsRes.data;
+          setActions(filtered);
         } else {
           setActions([]);
         }
@@ -181,6 +187,10 @@ export function ActionTemplatesTab({
     if (typeFilter !== 'ALL' && action.actionType !== typeFilter) return false;
     if (scopeFilter === 'SERVER' && action.isGlobal) return false;
     if (scopeFilter === 'GLOBAL' && !action.isGlobal) return false;
+    if (serverId) {
+      const isScoped = action.isGlobal || action.serverId === serverId || (action.serverIds && action.serverIds.includes(serverId));
+      if (!isScoped) return false;
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchName = action.name?.toLowerCase().includes(q);
@@ -406,7 +416,12 @@ export function ActionTemplatesTab({
                           </span>
                         ) : (
                           <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-zinc-500/10 border border-zinc-500/20 text-zinc-400">
-                            <ServerIcon className="w-3 h-3" /> Server
+                            <ServerIcon className="w-3 h-3" /> {action.serverIds && action.serverIds.length > 1 ? `${action.serverIds.length} Servers` : 'Server'}
+                          </span>
+                        )}
+                        {action.responseType && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono bg-white/[0.04] border border-white/10 text-zinc-300">
+                            {action.responseType}
                           </span>
                         )}
                       </div>

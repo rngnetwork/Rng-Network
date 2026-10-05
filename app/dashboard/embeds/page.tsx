@@ -71,30 +71,41 @@ export default function EmbedsPage() {
   const [serverChannels, setServerChannels] = useState<ChannelItem[]>([]);
   const [availableActions, setAvailableActions] = useState<EmbedAction[]>([]);
 
-  const loadActions = useCallback(async () => {
+  const loadActions = useCallback(async (targetServerId?: string) => {
+    const srvId = targetServerId !== undefined ? targetServerId : selectedServerId;
     try {
-      const res = await api.fetchActionTemplates();
+      const res = srvId ? await api.fetchServerActions(srvId) : await api.fetchActionTemplates();
       if (res.success && res.data) {
-        setAvailableActions(res.data);
+        const filtered = srvId
+          ? res.data.filter((a) => a.isGlobal || a.serverId === srvId || (a.serverIds && a.serverIds.includes(srvId)))
+          : res.data;
+        setAvailableActions(filtered);
       }
     } catch (e) {
       console.warn('Failed to load action templates:', e);
     }
-  }, []);
+  }, [selectedServerId]);
 
   useEffect(() => {
     let isMounted = true;
-    api.fetchActionTemplates().then((res) => {
-      if (isMounted && res.success && res.data) {
-        setAvailableActions(res.data);
+    const fetchActions = async () => {
+      try {
+        const res = selectedServerId ? await api.fetchServerActions(selectedServerId) : await api.fetchActionTemplates();
+        if (isMounted && res.success && res.data) {
+          const filtered = selectedServerId
+            ? res.data.filter((a) => a.isGlobal || a.serverId === selectedServerId || (a.serverIds && a.serverIds.includes(selectedServerId)))
+            : res.data;
+          setAvailableActions(filtered);
+        }
+      } catch (e) {
+        console.warn('Failed to load action templates:', e);
       }
-    }).catch((e) => {
-      console.warn('Failed to load action templates:', e);
-    });
+    };
+    fetchActions();
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [selectedServerId]);
 
   const loadChannelsForServer = useCallback(async (srvId: string) => {
     if (!srvId) return;
@@ -219,6 +230,7 @@ export default function EmbedsPage() {
           onDispatchPayload={handleDispatchPayload}
           lockServer={false}
           availableActions={availableActions}
+          serverScopedActions={availableActions}
         />
       )}
 

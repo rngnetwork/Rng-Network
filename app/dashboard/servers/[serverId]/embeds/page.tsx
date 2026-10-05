@@ -31,7 +31,10 @@ export default function ServerEmbedsPage() {
     try {
       const res = await api.fetchServerActions(serverId);
       if (res.success && res.data) {
-        setAvailableActions(res.data);
+        const filtered = res.data.filter(
+          (a) => a.isGlobal || a.serverId === serverId || (a.serverIds && a.serverIds.includes(serverId))
+        );
+        setAvailableActions(filtered);
       }
     } catch (err) {
       console.warn('Failed to load server actions:', err);
@@ -43,7 +46,10 @@ export default function ServerEmbedsPage() {
     let isMounted = true;
     api.fetchServerActions(serverId).then((res) => {
       if (isMounted && res.success && res.data) {
-        setAvailableActions(res.data);
+        const filtered = res.data.filter(
+          (a) => a.isGlobal || a.serverId === serverId || (a.serverIds && a.serverIds.includes(serverId))
+        );
+        setAvailableActions(filtered);
       }
     }).catch((err) => {
       console.warn('Failed to load server actions:', err);
@@ -289,6 +295,7 @@ export default function ServerEmbedsPage() {
           onDispatchPayload={handleDispatchPayload}
           lockServer={true}
           availableActions={availableActions}
+          serverScopedActions={availableActions}
         />
       )}
 

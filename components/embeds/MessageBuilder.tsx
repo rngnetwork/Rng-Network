@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Type17Container, DiscordButtonComponent, DiscordActionRowComponent, DiscordInnerComponent, EmbedAction } from './types';
 import { ChannelItem, ServerItem } from '@/lib/api';
 import { EmojiItem } from './emoji-data';
@@ -39,6 +39,7 @@ export interface MessageBuilderProps {
   }) => Promise<void> | void;
   lockServer?: boolean;
   availableActions?: EmbedAction[];
+  serverScopedActions?: EmbedAction[];
 }
 
 export function MessageBuilder({
@@ -57,9 +58,16 @@ export function MessageBuilder({
   onSelectServer,
   onDispatchPayload,
   lockServer = false,
-  availableActions = []
+  availableActions = [],
+  serverScopedActions
 }: MessageBuilderProps) {
   const [activeSubTab, setActiveSubTab] = useState<'edit' | 'preview' | 'raw' | 'dispatch'>('edit');
+
+  const effectiveActions = useMemo(() => {
+    const raw = (serverScopedActions && serverScopedActions.length > 0) ? serverScopedActions : availableActions;
+    if (!serverId) return raw;
+    return raw.filter((a) => a.isGlobal || a.serverId === serverId || (a.serverIds && a.serverIds.includes(serverId)));
+  }, [serverScopedActions, availableActions, serverId]);
 
   // Modals state
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
@@ -349,7 +357,7 @@ export function MessageBuilder({
           setDraggedContainer={setDraggedContainer}
           collapsedAuthors={collapsedAuthors}
           setCollapsedAuthors={setCollapsedAuthors}
-          availableActions={availableActions}
+          availableActions={effectiveActions}
         />
       )}
 
@@ -400,7 +408,7 @@ export function MessageBuilder({
         onClose={() => setEditingButton(null)}
         buttonData={editingButton?.data || null}
         onSave={handleSaveButtonModal}
-        availableActions={availableActions}
+        availableActions={effectiveActions}
       />
 
       {/* LOAD PRESET MODAL */}
