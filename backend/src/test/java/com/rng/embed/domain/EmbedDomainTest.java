@@ -1,5 +1,6 @@
 package com.rng.embed.domain;
 
+import com.rng.embed.dto.ActionExecutionResult;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -7,6 +8,7 @@ import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -125,7 +127,7 @@ class EmbedDomainTest {
     }
 
     @Test
-    @DisplayName("DispatchLog document metadata, compound indexes, and 90-day TTL are configured")
+    @DisplayName("DispatchLog document metadata, compound indexes, and 30-day TTL are configured")
     void dispatchLog_documentMetadataAndTTL() throws NoSuchFieldException {
         Document docAnnotation = DispatchLog.class.getAnnotation(Document.class);
         assertThat(docAnnotation).isNotNull();
@@ -151,7 +153,7 @@ class EmbedDomainTest {
         Field timestampField = DispatchLog.class.getDeclaredField("timestamp");
         Indexed indexedAnnotation = timestampField.getAnnotation(Indexed.class);
         assertThat(indexedAnnotation).isNotNull();
-        assertThat(indexedAnnotation.expireAfterSeconds()).isEqualTo(7776000); // 90 days TTL
+        assertThat(indexedAnnotation.expireAfterSeconds()).isEqualTo(2592000); // 30 days TTL (2592000s)
     }
 
     @Test
@@ -204,7 +206,7 @@ class EmbedDomainTest {
     }
 
     @Test
-    @DisplayName("InteractionLog document asserts collection and 90-day TTL index")
+    @DisplayName("InteractionLog document asserts collection and 30-day TTL index")
     void interactionLog_ttlAndMetadata() throws NoSuchFieldException {
         InteractionLog log = InteractionLog.builder()
                 .actionId("rng_act_7b9e10a45d628f2c")
@@ -229,7 +231,7 @@ class EmbedDomainTest {
         Field createdAtField = InteractionLog.class.getDeclaredField("createdAt");
         Indexed indexedAnnotation = createdAtField.getAnnotation(Indexed.class);
         assertThat(indexedAnnotation).isNotNull();
-        assertThat(indexedAnnotation.expireAfterSeconds()).isEqualTo(7776000);
+        assertThat(indexedAnnotation.expireAfterSeconds()).isEqualTo(2592000); // 30 days TTL (2592000s)
     }
 
     @Test
@@ -248,5 +250,64 @@ class EmbedDomainTest {
                 RoleSubtype.TOGGLE
         );
     }
-}
 
+    @Test
+    @DisplayName("Should verify EmbedAction domain model extensions, optimistic locking and compound operations")
+    void should_support_response_template_and_server_ids_and_version() throws NoSuchFieldException {
+        EmbedAction action = EmbedAction.builder()
+                .actionId("rng_act_1234567812345678")
+                .name("Test Pipeline")
+                .actionType(ActionType.ROLE)
+                .roleSubtype(RoleSubtype.ADD)
+                .isGlobal(false)
+                .serverIds(List.of("guild-123"))
+                .responseType(ResponseType.PUBLIC_EMBED)
+                .responseEmbedTemplateId("tpl-999")
+                .compoundOperations(List.of(
+                        CompoundOperation.builder()
+                                .operationType(CompoundOperation.OperationType.CREATE_TICKET)
+                                .channelPrefix("ticket-")
+                                .membersToAdd(List.of("CALLER", "TARGET_USER"))
+                                .build()
+                ))
+                .version(1L)
+                .build();
+
+        assertThat(action.getServerIds()).contains("guild-123");
+        assertThat(action.getResponseType()).isEqualTo(ResponseType.PUBLIC_EMBED);
+        assertThat(action.getVersion()).isEqualTo(1L);
+        assertThat(action.getCompoundOperations()).hasSize(1);
+
+        Field versionField = EmbedAction.class.getDeclaredField("version");
+        assertThat(versionField.getAnnotation(Version.class)).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Should build ActionExecutionResult DTO with proper states")
+    void should_build_action_execution_result() {
+        ActionExecutionResult result = ActionExecutionResult.builder()
+                .success(true)
+                .ticketId("a7f3c1")
+                .channelId("chan-100")
+                .isTerminal(false)
+                .newGeneratedMessageId("msg-200")
+                .build();
+
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.getTicketId()).isEqualTo("a7f3c1");
+        assertThat(result.isTerminal()).isFalse();
+        assertThat(result.getNewGeneratedMessageId()).isEqualTo("msg-200");
+    }
+
+    @Test
+    @DisplayName("ResponseType enum values adhere to Action-Templates-V2 specification")
+    void responseType_adhereToSpec() {
+        assertThat(ResponseType.values()).containsExactly(
+                ResponseType.EPHEMERAL_TEXT,
+                ResponseType.PUBLIC_TEXT,
+                ResponseType.EPHEMERAL_EMBED,
+                ResponseType.PUBLIC_EMBED,
+                ResponseType.DM_EMBED
+        );
+    }
+}

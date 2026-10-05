@@ -10,12 +10,15 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * MongoDB Document representing reusable Discord component action templates.
@@ -26,7 +29,7 @@ import java.time.Instant;
 @AllArgsConstructor
 @Document(collection = "embed_actions")
 @CompoundIndexes({
-    @CompoundIndex(name = "idx_server_action", def = "{'serverId': 1, 'actionId': 1}", unique = true)
+    @CompoundIndex(name = "idx_server_action", def = "{'actionId': 1}", unique = true)
 })
 public class EmbedAction {
 
@@ -43,6 +46,10 @@ public class EmbedAction {
     @Indexed
     @Builder.Default
     private boolean isGlobal = false;
+
+    @Indexed
+    @Builder.Default
+    private List<String> serverIds = new ArrayList<>();
 
     @NotBlank(message = "Action name cannot be blank")
     @Size(max = 100)
@@ -67,6 +74,8 @@ public class EmbedAction {
 
     private String replyContent;
 
+    private String confirmationMessage;
+
     @Builder.Default
     private boolean isEphemeral = true;
 
@@ -78,7 +87,16 @@ public class EmbedAction {
     @Builder.Default
     private boolean requiredRole = false;
 
+    @Builder.Default
+    private ResponseType responseType = ResponseType.EPHEMERAL_TEXT;
+
     private String responseEmbedTemplateId;
+
+    @Builder.Default
+    private List<CompoundOperation> compoundOperations = new ArrayList<>();
+
+    @Version
+    private Long version;
 
     @CreatedDate
     private Instant createdAt;

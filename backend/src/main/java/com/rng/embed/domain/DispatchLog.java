@@ -80,6 +80,6 @@ public class DispatchLog {
     private Instant scheduledFor;
 
     @CreatedDate
-    @Indexed(expireAfterSeconds = 7776000) // 90-day automatic data retention TTL
+    @Indexed(expireAfterSeconds = 2592000) // 30-day automatic data retention TTL
     private Instant timestamp;
 }
