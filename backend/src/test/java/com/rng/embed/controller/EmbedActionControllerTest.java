@@ -303,6 +303,22 @@ class EmbedActionControllerTest {
     }
 
     @Test
+    @DisplayName("GET /api/v1/servers/{idOrSlug}/actions should return paginated server actions when page param is present")
+    void should_return_paginated_server_actions() throws Exception {
+        when(serverRepository.findByIdOrSlug("guild-1")).thenReturn(Optional.of(sampleServer));
+        Page<EmbedActionDto> pagedActions = new PageImpl<>(List.of(sampleDto), PageRequest.of(0, 50), 1);
+        when(actionService.getActionsForServer(eq("104812345678901234"), any(Pageable.class))).thenReturn(pagedActions);
+
+        mockMvc.perform(get("/api/v1/servers/guild-1/actions?page=0&size=50"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.content").isArray())
+                .andExpect(jsonPath("$.data.content[0].actionId").value("rng_act_0123456789abcdef"));
+
+        verify(actionService).getActionsForServer(eq("104812345678901234"), any(Pageable.class));
+    }
+
+    @Test
     @DisplayName("GET /api/v1/servers/{idOrSlug}/actions throws 404 when server not found")
     void getServerActions_notFound_returns404() throws Exception {
         when(serverRepository.findByIdOrSlug("nonexistent")).thenReturn(Optional.empty());

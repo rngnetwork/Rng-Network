@@ -101,11 +101,20 @@ public class EmbedActionController {
 
     @GetMapping("/api/v1/servers/{idOrSlug}/actions")
     @PreAuthorize("hasAuthority('SCOPE_FULLY_AUTHENTICATED')")
-    public ResponseEntity<ApiResponse<List<EmbedActionDto>>> getServerActions(
-            @PathVariable("idOrSlug") String idOrSlug) {
+    public ResponseEntity<ApiResponse<?>> getServerActions(
+            @PathVariable("idOrSlug") String idOrSlug,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size) {
 
         Server server = serverRepository.findByIdOrSlug(idOrSlug)
                 .orElseThrow(() -> new ResourceNotFoundException("Server not found: " + idOrSlug));
+
+        if (page != null) {
+            int pageSize = size != null ? size : 50;
+            Page<EmbedActionDto> actions = actionService.getActionsForServer(server.getId(), PageRequest.of(page, pageSize));
+            return ResponseEntity.ok(ApiResponse.success(actions));
+        }
+
         List<EmbedActionDto> actions = actionService.getActionsForServer(server.getId());
         return ResponseEntity.ok(ApiResponse.success(actions));
     }
