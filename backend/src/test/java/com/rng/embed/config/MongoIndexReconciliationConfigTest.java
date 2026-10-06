@@ -114,4 +114,40 @@ class MongoIndexReconciliationConfigTest {
 
         verify(embedActionIndexOps).dropIndex("idx_server_action");
     }
+
+    @Test
+    @DisplayName("Should drop conflicting non-TTL index matching field name")
+    void should_drop_conflicting_non_ttl_index_matching_name() {
+        IndexInfo conflictingNameIndex = mock(IndexInfo.class);
+        when(conflictingNameIndex.getName()).thenReturn("createdAt");
+        when(conflictingNameIndex.isIndexForFields(List.of("createdAt"))).thenReturn(false);
+        when(conflictingNameIndex.getExpireAfter()).thenReturn(Optional.empty());
+
+        when(interactionIndexOps.getIndexInfo()).thenReturn(List.of(conflictingNameIndex));
+        when(dispatchIndexOps.getIndexInfo()).thenReturn(List.of());
+
+        reconciliationConfig.init();
+
+        verify(interactionIndexOps).dropIndex("createdAt");
+        verify(interactionIndexOps).ensureIndex(any(IndexDefinition.class));
+    }
+
+    @Test
+    @DisplayName("MongoConfig post processor triggers early reconciliation for MongoTemplate")
+    void mongoConfig_postProcessor_triggersReconciliation() {
+        org.springframework.beans.factory.config.BeanPostProcessor postProcessor =
+                MongoConfig.mongoTemplateIndexReconcilingPostProcessor();
+
+        IndexInfo obsoleteIndex = mock(IndexInfo.class);
+        when(obsoleteIndex.getName()).thenReturn("idx_server_action");
+
+        when(interactionIndexOps.getIndexInfo()).thenReturn(List.of());
+        when(dispatchIndexOps.getIndexInfo()).thenReturn(List.of());
+        when(embedActionIndexOps.getIndexInfo()).thenReturn(List.of(obsoleteIndex));
+
+        Object processedBean = postProcessor.postProcessAfterInitialization(mongoTemplate, "mongoTemplate");
+
+        assertThat(processedBean).isSameAs(mongoTemplate);
+        verify(embedActionIndexOps).dropIndex("idx_server_action");
+    }
 }

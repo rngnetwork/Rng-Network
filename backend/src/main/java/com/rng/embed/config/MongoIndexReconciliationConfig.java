@@ -3,6 +3,7 @@ package com.rng.embed.config;
 import com.rng.embed.domain.DispatchLog;
 import com.rng.embed.domain.EmbedAction;
 import com.rng.embed.domain.InteractionLog;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -24,20 +25,36 @@ public class MongoIndexReconciliationConfig implements CommandLineRunner {
     private final MongoTemplate mongoTemplate;
     public static final long TARGET_TTL_SECONDS = 2592000L; // 30 days
 
+    @PostConstruct
+    public void init() {
+        reconcileAll(this.mongoTemplate);
+    }
+
     @Override
     public void run(String... args) {
-        reconcileTtl(InteractionLog.class, "createdAt");
-        reconcileTtl(DispatchLog.class, "timestamp");
-        dropObsoleteIndex(EmbedAction.class, "idx_server_action");
+        reconcileAll(this.mongoTemplate);
+    }
+
+    public static void reconcileAll(MongoTemplate template) {
+        if (template == null) {
+            return;
+        }
+        dropObsoleteIndex(template, EmbedAction.class, "idx_server_action");
+        reconcileTtl(template, InteractionLog.class, "createdAt");
+        reconcileTtl(template, DispatchLog.class, "timestamp");
     }
 
     public void dropObsoleteIndex(Class<?> entityClass, String indexName) {
+        dropObsoleteIndex(this.mongoTemplate, entityClass, indexName);
+    }
+
+    public static void dropObsoleteIndex(MongoTemplate template, Class<?> entityClass, String indexName) {
         try {
-            List<IndexInfo> indexes = mongoTemplate.indexOps(entityClass).getIndexInfo();
+            List<IndexInfo> indexes = template.indexOps(entityClass).getIndexInfo();
             for (IndexInfo index : indexes) {
                 if (indexName.equals(index.getName())) {
                     log.info("Dropping obsolete index {} on {}", indexName, entityClass.getSimpleName());
-                    mongoTemplate.indexOps(entityClass).dropIndex(indexName);
+                    template.indexOps(entityClass).dropIndex(indexName);
                     break;
                 }
             }
@@ -47,27 +64,37 @@ public class MongoIndexReconciliationConfig implements CommandLineRunner {
     }
 
     public void reconcileTtl(Class<?> entityClass, String fieldName) {
+        reconcileTtl(this.mongoTemplate, entityClass, fieldName);
+    }
+
+    public static void reconcileTtl(MongoTemplate template, Class<?> entityClass, String fieldName) {
         try {
-            List<IndexInfo> indexes = mongoTemplate.indexOps(entityClass).getIndexInfo();
+            List<IndexInfo> indexes = template.indexOps(entityClass).getIndexInfo();
             boolean hasTargetTtl = false;
 
             for (IndexInfo index : indexes) {
-                if (index.isIndexForFields(List.of(fieldName))) {
+                boolean matchesField = index.isIndexForFields(List.of(fieldName));
+                boolean matchesName = fieldName.equals(index.getName());
+
+                if (matchesField || matchesName) {
                     Optional<Duration> expireAfter = index.getExpireAfter();
                     if (expireAfter.isPresent()) {
                         if (expireAfter.get().getSeconds() != TARGET_TTL_SECONDS) {
                             log.info("Dropping obsolete TTL index {} on {}", index.getName(), entityClass.getSimpleName());
-                            mongoTemplate.indexOps(entityClass).dropIndex(index.getName());
+                            template.indexOps(entityClass).dropIndex(index.getName());
                         } else {
                             hasTargetTtl = true;
                         }
+                    } else if (matchesName) {
+                        log.info("Dropping non-TTL index {} with conflicting name on {}", index.getName(), entityClass.getSimpleName());
+                        template.indexOps(entityClass).dropIndex(index.getName());
                     }
                 }
             }
 
             if (!hasTargetTtl) {
                 log.info("Ensuring 30-day TTL index on {}.{}", entityClass.getSimpleName(), fieldName);
-                mongoTemplate.indexOps(entityClass).ensureIndex(
+                template.indexOps(entityClass).ensureIndex(
                         new Index().on(fieldName, Sort.Direction.ASC).expire(Duration.ofSeconds(TARGET_TTL_SECONDS))
                 );
             }
