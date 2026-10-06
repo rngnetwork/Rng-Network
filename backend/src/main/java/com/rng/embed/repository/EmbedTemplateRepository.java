@@ -19,10 +19,10 @@ public interface EmbedTemplateRepository extends MongoRepository<EmbedTemplate, 
 
     boolean existsByTemplateId(String templateId);
 
-    @Query("{ '$or': [ { 'serverId': ?0 }, { 'serverId': null, 'isPublic': true } ] }")
+    @Query("{ '$or': [ { 'serverId': ?0 }, { 'isPublic': true } ] }")
     Page<EmbedTemplate> findAccessibleTemplates(String serverId, Pageable pageable);
 
-    @Query("{ '$and': [ { '$or': [ { 'serverId': ?0 }, { 'serverId': null, 'isPublic': true } ] }, { 'category': ?1 } ] }")
+    @Query("{ '$and': [ { '$or': [ { 'serverId': ?0 }, { 'isPublic': true } ] }, { 'category': ?1 } ] }")
     Page<EmbedTemplate> findAccessibleByCategory(String serverId, String category, Pageable pageable);
 
     Page<EmbedTemplate> findByAuthorIdOrderByUpdatedAtDesc(String authorId, Pageable pageable);

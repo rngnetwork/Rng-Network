@@ -18,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -62,9 +63,13 @@ public class EmbedActionController {
     @PostMapping("/api/v1/embeds/actions")
     @PreAuthorize("hasAuthority('SCOPE_FULLY_AUTHENTICATED')")
     public ResponseEntity<ApiResponse<EmbedActionDto>> createAction(
-            @Valid @RequestBody CreateActionRequest request) {
+            @Valid @RequestBody CreateActionRequest request,
+            Authentication authentication) {
 
-        EmbedActionDto created = actionService.createAction(request);
+        String operator = authentication != null ? authentication.getName() : null;
+        EmbedActionDto created = operator != null
+                ? actionService.createAction(request, operator)
+                : actionService.createAction(request);
         return ResponseEntity.ok(ApiResponse.success(created, "Action template created successfully."));
     }
 
@@ -72,9 +77,13 @@ public class EmbedActionController {
     @PreAuthorize("hasAuthority('SCOPE_FULLY_AUTHENTICATED')")
     public ResponseEntity<ApiResponse<EmbedActionDto>> updateAction(
             @PathVariable("actionId") String actionId,
-            @Valid @RequestBody UpdateActionRequest request) {
+            @Valid @RequestBody UpdateActionRequest request,
+            Authentication authentication) {
 
-        EmbedActionDto updated = actionService.updateAction(actionId, request);
+        String operator = authentication != null ? authentication.getName() : null;
+        EmbedActionDto updated = operator != null
+                ? actionService.updateAction(actionId, request, operator)
+                : actionService.updateAction(actionId, request);
         return ResponseEntity.ok(ApiResponse.success(updated, "Action template updated successfully."));
     }
 
@@ -123,34 +132,23 @@ public class EmbedActionController {
     @PreAuthorize("hasAuthority('SCOPE_FULLY_AUTHENTICATED')")
     public ResponseEntity<ApiResponse<EmbedActionDto>> createServerAction(
             @PathVariable("idOrSlug") String idOrSlug,
-            @Valid @RequestBody CreateActionRequest request) {
+            @Valid @RequestBody CreateActionRequest request,
+            Authentication authentication) {
 
         Server server = serverRepository.findByIdOrSlug(idOrSlug)
                 .orElseThrow(() -> new ResourceNotFoundException("Server not found: " + idOrSlug));
 
-        CreateActionRequest effectiveRequest = request;
-        if (request.serverId() == null || request.serverId().isBlank()) {
-            effectiveRequest = new CreateActionRequest(
-                    server.getId(),
-                    request.isGlobal(),
-                    request.name(),
-                    request.description(),
-                    request.actionType(),
-                    request.roleSubtype(),
-                    request.roleId(),
-                    request.roleName(),
-                    request.channelPrefix(),
-                    request.welcomeMessage(),
-                    request.replyContent(),
-                    request.isEphemeral(),
-                    request.dmContent(),
-                    request.requiredUser(),
-                    request.requiredRole(),
-                    request.responseEmbedTemplateId()
-            );
+        if (request.getServerId() == null || request.getServerId().isBlank()) {
+            request.setServerId(server.getId());
+        }
+        if (request.getServerIds() == null || request.getServerIds().isEmpty()) {
+            request.setServerIds(List.of(server.getId()));
         }
 
-        EmbedActionDto created = actionService.createAction(effectiveRequest);
+        String operator = authentication != null ? authentication.getName() : null;
+        EmbedActionDto created = operator != null
+                ? actionService.createAction(request, operator)
+                : actionService.createAction(request);
         return ResponseEntity.ok(ApiResponse.success(created, "Action template created successfully."));
     }
 
@@ -159,12 +157,16 @@ public class EmbedActionController {
     public ResponseEntity<ApiResponse<EmbedActionDto>> updateServerAction(
             @PathVariable("idOrSlug") String idOrSlug,
             @PathVariable("actionId") String actionId,
-            @Valid @RequestBody UpdateActionRequest request) {
+            @Valid @RequestBody UpdateActionRequest request,
+            Authentication authentication) {
 
         serverRepository.findByIdOrSlug(idOrSlug)
                 .orElseThrow(() -> new ResourceNotFoundException("Server not found: " + idOrSlug));
 
-        EmbedActionDto updated = actionService.updateAction(actionId, request);
+        String operator = authentication != null ? authentication.getName() : null;
+        EmbedActionDto updated = operator != null
+                ? actionService.updateAction(actionId, request, operator)
+                : actionService.updateAction(actionId, request);
         return ResponseEntity.ok(ApiResponse.success(updated, "Action template updated successfully."));
     }
 
