@@ -177,7 +177,7 @@ class EmbedDomainTest {
 
     @Test
     @DisplayName("EmbedAction builder validates properly and asserts collection metadata")
-    void embedAction_validationAndMetadata() {
+    void embedAction_validationAndMetadata() throws NoSuchFieldException {
         EmbedAction action = EmbedAction.builder()
                 .actionId("rng_act_7b9e10a45d628f2c")
                 .name("VIP Role Assignment")
@@ -198,11 +198,10 @@ class EmbedDomainTest {
         assertThat(docAnnotation).isNotNull();
         assertThat(docAnnotation.collection()).isEqualTo("embed_actions");
 
-        CompoundIndexes compoundIndexes = EmbedAction.class.getAnnotation(CompoundIndexes.class);
-        assertThat(compoundIndexes).isNotNull();
-        assertThat(compoundIndexes.value()).hasSize(1);
-        assertThat(compoundIndexes.value()[0].name()).isEqualTo("idx_server_action");
-        assertThat(compoundIndexes.value()[0].unique()).isTrue();
+        Field actionIdField = EmbedAction.class.getDeclaredField("actionId");
+        Indexed indexedAnnotation = actionIdField.getAnnotation(Indexed.class);
+        assertThat(indexedAnnotation).isNotNull();
+        assertThat(indexedAnnotation.unique()).isTrue();
     }
 
     @Test

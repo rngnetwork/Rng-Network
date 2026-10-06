@@ -1,6 +1,7 @@
 package com.rng.embed.config;
 
 import com.rng.embed.domain.DispatchLog;
+import com.rng.embed.domain.EmbedAction;
 import com.rng.embed.domain.InteractionLog;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,22 @@ public class MongoIndexReconciliationConfig implements CommandLineRunner {
     public void run(String... args) {
         reconcileTtl(InteractionLog.class, "createdAt");
         reconcileTtl(DispatchLog.class, "timestamp");
+        dropObsoleteIndex(EmbedAction.class, "idx_server_action");
+    }
+
+    public void dropObsoleteIndex(Class<?> entityClass, String indexName) {
+        try {
+            List<IndexInfo> indexes = mongoTemplate.indexOps(entityClass).getIndexInfo();
+            for (IndexInfo index : indexes) {
+                if (indexName.equals(index.getName())) {
+                    log.info("Dropping obsolete index {} on {}", indexName, entityClass.getSimpleName());
+                    mongoTemplate.indexOps(entityClass).dropIndex(indexName);
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to drop obsolete index {} for {}: {}", indexName, entityClass.getSimpleName(), e.getMessage());
+        }
     }
 
     public void reconcileTtl(Class<?> entityClass, String fieldName) {

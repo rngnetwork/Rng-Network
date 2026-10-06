@@ -1,6 +1,7 @@
 package com.rng.embed.config;
 
 import com.rng.embed.domain.DispatchLog;
+import com.rng.embed.domain.EmbedAction;
 import com.rng.embed.domain.InteractionLog;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,6 +36,9 @@ class MongoIndexReconciliationConfigTest {
     @Mock
     private IndexOperations dispatchIndexOps;
 
+    @Mock
+    private IndexOperations embedActionIndexOps;
+
     @InjectMocks
     private MongoIndexReconciliationConfig reconciliationConfig;
 
@@ -42,6 +46,7 @@ class MongoIndexReconciliationConfigTest {
     void setUp() {
         lenient().when(mongoTemplate.indexOps(InteractionLog.class)).thenReturn(interactionIndexOps);
         lenient().when(mongoTemplate.indexOps(DispatchLog.class)).thenReturn(dispatchIndexOps);
+        lenient().when(mongoTemplate.indexOps(EmbedAction.class)).thenReturn(embedActionIndexOps);
     }
 
     @Test
@@ -93,5 +98,20 @@ class MongoIndexReconciliationConfigTest {
 
         verify(interactionIndexOps, never()).dropIndex(any());
         verify(interactionIndexOps, never()).ensureIndex(any(IndexDefinition.class));
+    }
+
+    @Test
+    @DisplayName("Should drop obsolete idx_server_action index when present on EmbedAction collection")
+    void should_drop_obsolete_idx_server_action_when_present() {
+        IndexInfo obsoleteIndex = mock(IndexInfo.class);
+        when(obsoleteIndex.getName()).thenReturn("idx_server_action");
+
+        when(interactionIndexOps.getIndexInfo()).thenReturn(List.of());
+        when(dispatchIndexOps.getIndexInfo()).thenReturn(List.of());
+        when(embedActionIndexOps.getIndexInfo()).thenReturn(List.of(obsoleteIndex));
+
+        reconciliationConfig.run();
+
+        verify(embedActionIndexOps).dropIndex("idx_server_action");
     }
 }
