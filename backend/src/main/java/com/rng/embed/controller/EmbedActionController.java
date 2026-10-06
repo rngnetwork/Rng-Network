@@ -46,7 +46,7 @@ public class EmbedActionController {
             return ResponseEntity.ok(ApiResponse.success(actions));
         }
 
-        List<EmbedActionDto> actions = actionService.getGlobalActions();
+        List<EmbedActionDto> actions = actionService.getAllActions();
         return ResponseEntity.ok(ApiResponse.success(actions));
     }
 

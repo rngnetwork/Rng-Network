@@ -254,6 +254,7 @@ export interface MessageBuilderState {
 
 export interface TemplateItem {
   id: string;
+  templateId?: string;
   name: string;
   description: string;
   badge: string;
@@ -351,9 +352,10 @@ export interface ClientValidationReport {
 
 export interface BackendEmbedTemplate {
   id: string;
+  templateId?: string;
   name: string;
   description?: string;
-  serverId: string;
+  serverId?: string;
   authorId: number;
   authorUsername?: string;
   tags: string[];

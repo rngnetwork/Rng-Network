@@ -32,6 +32,8 @@ public interface EmbedActionService {
 
     List<EmbedActionDto> getGlobalActions();
 
+    List<EmbedActionDto> getAllActions();
+
     Optional<EmbedAction> resolveAction(String actionId);
 
     Page<InteractionLogResponse> getInteractionLogs(String guildId, Pageable pageable);

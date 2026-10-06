@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { TemplateItem, Type17Container, BackendEmbedTemplate } from '../../types';
 import { api } from '@/lib/api';
+import { buildDiscordV2MessagePayload, parseDiscordPayloadToState } from '../../validation';
 
 export interface TemplatesTabProps {
   currentBuilderState?: {
@@ -68,9 +69,26 @@ export function TemplatesTab({
 
         if (isMounted && rawItems.length > 0) {
           const mapped: TemplateItem[] = rawItems.map((bt: BackendEmbedTemplate) => {
-            const p = bt.payload || bt.payloadJson || {};
+            const p = (bt.payload || bt.payloadJson || {}) as Record<string, unknown>;
+            let containers: Type17Container[] = [];
+            let content = '';
+
+            if (Array.isArray(p.containers)) {
+              containers = p.containers as Type17Container[];
+              content = String(p.content || p.builderContent || '');
+            } else if (Array.isArray(p.components)) {
+              try {
+                const parsed = parseDiscordPayloadToState(p);
+                containers = parsed.containers || [];
+                content = parsed.messageContent || '';
+              } catch {
+                containers = [];
+              }
+            }
+
             return {
-              id: bt.id,
+              id: bt.templateId || bt.id,
+              templateId: bt.templateId || bt.id,
               name: bt.name,
               badge: bt.category || 'Cloud',
               description: bt.description || 'Cloud synchronized template.',
@@ -78,8 +96,8 @@ export function TemplatesTab({
               isPublic: bt.isPublic ?? bt.public ?? false,
               serverId: bt.serverId,
               state: {
-                message: { content: (p.content as string) || '' },
-                type17Containers: (p.containers as Type17Container[]) || []
+                message: { content },
+                type17Containers: containers
               }
             };
           });
@@ -130,21 +148,33 @@ export function TemplatesTab({
       type17Containers: []
     };
 
+    if ((!templateState.type17Containers || templateState.type17Containers.length === 0) && !templateState.message?.content?.trim()) {
+      showToast('Please add at least one container or text before saving template.', 'error');
+      return;
+    }
+
+    const wire = buildDiscordV2MessagePayload(templateState.type17Containers || [], templateState.message?.content || '');
+    const effectiveServerId = serverId && serverId !== 'default' ? serverId : undefined;
+    const payloadToSend = {
+      flags: 32768,
+      components: wire.components,
+      containers: templateState.type17Containers || [],
+      content: templateState.message?.content || ''
+    };
+
     let assignedId = `tmpl_user_${Date.now()}`;
     try {
       const saveRes = await api.saveTemplate({
         name: newTemplateName.trim(),
         description: newTemplateDesc.trim() || 'Custom template',
         category: newTemplateBadge.trim() || 'Custom',
-        serverId: serverId,
+        serverId: effectiveServerId,
         isPublic: isPublicTemplate,
-        payload: {
-          content: templateState.message?.content || '',
-          containers: templateState.type17Containers || []
-        }
+        payload: payloadToSend
       });
-      if (saveRes?.data && typeof saveRes.data === 'object' && 'id' in saveRes.data && saveRes.data.id) {
-        assignedId = String(saveRes.data.id);
+      if (saveRes?.data) {
+        if (saveRes.data.templateId) assignedId = String(saveRes.data.templateId);
+        else if (saveRes.data.id) assignedId = String(saveRes.data.id);
       }
       showToast('Template saved successfully to cloud!');
     } catch {
@@ -221,21 +251,39 @@ export function TemplatesTab({
       ? currentBuilderState
       : editingTemplate.state;
 
+    const wire = buildDiscordV2MessagePayload(targetState.type17Containers || [], targetState.message?.content || '');
     const payloadState = {
-      content: targetState.message?.content || '',
-      containers: targetState.type17Containers || []
+      flags: 32768,
+      components: wire.components,
+      containers: targetState.type17Containers || [],
+      content: targetState.message?.content || ''
     };
 
     try {
-      await api.saveTemplate({
-        id: editingTemplate.id,
-        name: editTemplateName.trim(),
-        description: editTemplateDesc.trim() || 'Custom template',
-        category: editTemplateBadge.trim() || 'Custom',
-        serverId: editingTemplate.serverId || (serverId && serverId !== 'default' ? serverId : 'default'),
-        isPublic: editIsPublic,
-        payload: payloadState
-      });
+      if (editingTemplate.id.startsWith('tmpl_user_')) {
+        const createRes = await api.saveTemplate({
+          name: editTemplateName.trim(),
+          description: editTemplateDesc.trim() || 'Custom template',
+          category: editTemplateBadge.trim() || 'Custom',
+          serverId: editingTemplate.serverId || (serverId && serverId !== 'default' ? serverId : undefined),
+          isPublic: editIsPublic,
+          payload: payloadState
+        });
+        if (createRes?.data) {
+          if (createRes.data.templateId) editingTemplate.id = String(createRes.data.templateId);
+          else if (createRes.data.id) editingTemplate.id = String(createRes.data.id);
+        }
+      } else {
+        await api.saveTemplate({
+          id: editingTemplate.id,
+          name: editTemplateName.trim(),
+          description: editTemplateDesc.trim() || 'Custom template',
+          category: editTemplateBadge.trim() || 'Custom',
+          serverId: editingTemplate.serverId || (serverId && serverId !== 'default' ? serverId : undefined),
+          isPublic: editIsPublic,
+          payload: payloadState
+        });
+      }
       showToast('Template updated successfully!');
     } catch {
       showToast('Updated in local browser storage.', 'success');

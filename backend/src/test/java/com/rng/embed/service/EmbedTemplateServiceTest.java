@@ -103,4 +103,16 @@ class EmbedTemplateServiceTest {
         assertThat(exported.get("name")).isEqualTo("Raid Protocol");
         assertThat(exported).containsKey("exportedAt");
     }
+
+    @Test
+    @DisplayName("listTemplates delegates to repository with operator authorId")
+    void listTemplates_delegatesWithAuthorId() {
+        org.springframework.data.domain.Page<EmbedTemplate> emptyPage = new org.springframework.data.domain.PageImpl<>(java.util.List.of());
+        when(templateRepository.findAccessibleTemplates(eq("guild_123"), eq("1"), any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(emptyPage);
+
+        var result = service.listTemplates(1L, "guild_123", null, org.springframework.data.domain.PageRequest.of(0, 10));
+        assertThat(result).isNotNull();
+        verify(templateRepository).findAccessibleTemplates(eq("guild_123"), eq("1"), any(org.springframework.data.domain.Pageable.class));
+    }
 }

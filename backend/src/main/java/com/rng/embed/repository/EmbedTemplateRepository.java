@@ -25,6 +25,12 @@ public interface EmbedTemplateRepository extends MongoRepository<EmbedTemplate, 
     @Query("{ '$and': [ { '$or': [ { 'serverId': ?0 }, { 'isPublic': true } ] }, { 'category': ?1 } ] }")
     Page<EmbedTemplate> findAccessibleByCategory(String serverId, String category, Pageable pageable);
 
+    @Query("{ '$or': [ { 'serverId': ?0 }, { 'isPublic': true }, { 'authorId': ?1 } ] }")
+    Page<EmbedTemplate> findAccessibleTemplates(String serverId, String authorId, Pageable pageable);
+
+    @Query("{ '$and': [ { '$or': [ { 'serverId': ?0 }, { 'isPublic': true }, { 'authorId': ?1 } ] }, { 'category': ?2 } ] }")
+    Page<EmbedTemplate> findAccessibleByCategory(String serverId, String authorId, String category, Pageable pageable);
+
     Page<EmbedTemplate> findByAuthorIdOrderByUpdatedAtDesc(String authorId, Pageable pageable);
 
     Page<EmbedTemplate> findByIsPublicTrueOrderByCreatedAtDesc(Pageable pageable);

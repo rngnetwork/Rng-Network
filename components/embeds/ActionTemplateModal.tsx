@@ -294,6 +294,21 @@ function ActionTemplateModalInner({
         }
         savedAction = res.data;
       }
+
+      if (typeof window !== 'undefined') {
+        try {
+          const stored = localStorage.getItem('rng_embed_actions');
+          const list: EmbedAction[] = stored ? JSON.parse(stored) : [];
+          const idx = list.findIndex((a) => a.actionId === savedAction.actionId);
+          if (idx >= 0) {
+            list[idx] = savedAction;
+          } else {
+            list.unshift(savedAction);
+          }
+          localStorage.setItem('rng_embed_actions', JSON.stringify(list));
+        } catch {}
+      }
+
       onSave(savedAction);
       onClose();
     } catch (err: unknown) {

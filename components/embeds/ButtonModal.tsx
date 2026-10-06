@@ -14,6 +14,7 @@ interface ButtonModalProps {
   buttonData: DiscordButtonComponent | null;
   onSave: (updated: DiscordButtonComponent) => void;
   availableActions?: EmbedAction[];
+  serverId?: string;
 }
 
 function getInitialEmojiStr(emoji: DiscordButtonComponent['emoji']): string {
@@ -29,7 +30,8 @@ export function ButtonModal({
   onClose,
   buttonData,
   onSave,
-  availableActions
+  availableActions,
+  serverId
 }: ButtonModalProps) {
   if (!isOpen || !buttonData) return null;
 
@@ -39,6 +41,7 @@ export function ButtonModal({
       onClose={onClose}
       onSave={onSave}
       availableActions={availableActions}
+      serverId={serverId}
     />
   );
 }
@@ -47,12 +50,14 @@ function ButtonModalContent({
   buttonData,
   onClose,
   onSave,
-  availableActions
+  availableActions,
+  serverId
 }: {
   buttonData: DiscordButtonComponent;
   onClose: () => void;
   onSave: (updated: DiscordButtonComponent) => void;
   availableActions?: EmbedAction[];
+  serverId?: string;
 }) {
   const [label, setLabel] = useState(buttonData.label || '');
   const [style, setStyle] = useState<ButtonStyle>(buttonData.style || 1);
@@ -81,25 +86,47 @@ function ButtonModalContent({
     let isMounted = true;
     const loadActions = async () => {
       try {
-        const res = await api.fetchActionTemplates();
-        let loaded = res.success && res.data ? res.data : [];
+        const loaded: EmbedAction[] = [];
+        if (serverId) {
+          try {
+            const serverRes = await api.fetchServerActions(serverId);
+            if (serverRes.success && serverRes.data) {
+              const list = Array.isArray(serverRes.data) ? serverRes.data : ((serverRes.data as any).content || []);
+              loaded.push(...list);
+            }
+          } catch (e) {
+            console.warn('Could not fetch server actions in ButtonModal:', e);
+          }
+        }
+        try {
+          const res = await api.fetchActionTemplates();
+          if (res.success && res.data) {
+            const list = Array.isArray(res.data) ? res.data : ((res.data as any).content || []);
+            loaded.push(...list);
+          }
+        } catch (e) {
+          console.warn('Could not fetch global action templates in ButtonModal:', e);
+        }
+
         if (typeof window !== 'undefined') {
           try {
             const stored = localStorage.getItem('rng_embed_actions');
             if (stored) {
               const parsed = JSON.parse(stored);
               if (Array.isArray(parsed)) {
-                const map = new Map<string, EmbedAction>();
-                [...loaded, ...parsed].forEach((a: EmbedAction) => {
-                  if (a.actionId) map.set(a.actionId, a);
-                });
-                loaded = Array.from(map.values());
+                loaded.push(...parsed);
               }
             }
           } catch {}
         }
-        if (isMounted && loaded.length > 0) {
-          setFetchedActions(loaded);
+
+        const map = new Map<string, EmbedAction>();
+        loaded.forEach((a: EmbedAction) => {
+          if (a.actionId) map.set(a.actionId, a);
+        });
+        const deduplicated = Array.from(map.values());
+        if (isMounted && deduplicated.length > 0) {
+          setFetchedActions(deduplicated);
         }
       } catch (err) {
         console.warn('Could not fetch action templates in ButtonModal:', err);
@@ -110,7 +137,7 @@ function ButtonModalContent({
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [serverId]);
 
   const handleOpenEmojiPicker = (e: React.MouseEvent<HTMLButtonElement>) => {
     setEmojiTriggerRect(e.currentTarget.getBoundingClientRect());

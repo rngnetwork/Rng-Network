@@ -120,9 +120,9 @@ class EmbedActionControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/v1/embeds/actions (no serverId) returns global actions")
-    void listActions_whenNoServerId_returnsGlobalActions() throws Exception {
-        when(actionService.getGlobalActions()).thenReturn(List.of(sampleDto));
+    @DisplayName("GET /api/v1/embeds/actions (no serverId) returns all actions")
+    void listActions_whenNoServerId_returnsAllActions() throws Exception {
+        when(actionService.getAllActions()).thenReturn(List.of(sampleDto));
 
         mockMvc.perform(get("/api/v1/embeds/actions"))
                 .andExpect(status().isOk())
@@ -131,7 +131,7 @@ class EmbedActionControllerTest {
                 .andExpect(jsonPath("$.data[0].actionId", is("rng_act_0123456789abcdef")))
                 .andExpect(jsonPath("$.data[0].name", is("VIP Role Toggle")));
 
-        verify(actionService).getGlobalActions();
+        verify(actionService).getAllActions();
     }
 
     @Test

@@ -247,6 +247,23 @@ class EmbedActionServiceTest {
     }
 
     @Test
+    @DisplayName("getAllActions returns all persisted action templates")
+    void getAllActions_returnsAllPersisted() {
+        EmbedAction action = EmbedAction.builder()
+                .actionId("rng_act_all_1")
+                .name("Any Action")
+                .isGlobal(false)
+                .build();
+        when(embedActionRepository.findAll()).thenReturn(List.of(action));
+
+        List<EmbedActionDto> list = service.getAllActions();
+
+        assertThat(list).hasSize(1);
+        assertThat(list.get(0).getActionId()).isEqualTo("rng_act_all_1");
+        verify(embedActionRepository).findAll();
+    }
+
+    @Test
     @DisplayName("getInteractionLogs returns paginated responses")
     void getInteractionLogs_success() {
         InteractionLog log = InteractionLog.builder()

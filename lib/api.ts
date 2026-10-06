@@ -229,9 +229,10 @@ export interface PageData<T> {
 
 export interface TemplateData {
   id: string;
+  templateId?: string;
   name: string;
   description?: string;
-  serverId: string;
+  serverId?: string;
   authorId: number;
   authorUsername?: string;
   tags: string[];
@@ -248,7 +249,7 @@ export interface TemplateData {
 export interface CreateTemplatePayload {
   name: string;
   description?: string;
-  serverId: string;
+  serverId?: string;
   category?: string;
   tags?: string[];
   isPublic?: boolean;
@@ -261,6 +262,7 @@ export interface CreateTemplatePayload {
 export interface UpdateTemplatePayload {
   name?: string;
   description?: string;
+  serverId?: string;
   category?: string;
   tags?: string[];
   isPublic?: boolean;

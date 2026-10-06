@@ -49,21 +49,46 @@ export function SelectMenuSettingsModal({
   const [placeholder, setPlaceholder] = useState(comp.placeholder || '');
   const [disabled, setDisabled] = useState<boolean>(Boolean(comp.disabled));
   const [fetchedActions, setFetchedActions] = useState<EmbedAction[]>([]);
-  const actionsList = (availableActions && availableActions.length > 0) ? availableActions : fetchedActions;
+  const actionsList = React.useMemo(() => {
+    const map = new Map<string, EmbedAction>();
+    if (availableActions && availableActions.length > 0) {
+      availableActions.forEach((a) => { if (a.actionId) map.set(a.actionId, a); });
+    }
+    fetchedActions.forEach((a) => { if (a.actionId) map.set(a.actionId, a); });
+    return Array.from(map.values());
+  }, [availableActions, fetchedActions]);
 
   useEffect(() => {
-    if (!availableActions || availableActions.length === 0) {
-      let isMounted = true;
-      api.fetchActionTemplates().then((res) => {
-        if (isMounted && res.success && res.data) {
-          setFetchedActions(res.data);
+    let isMounted = true;
+    const load = async () => {
+      try {
+        const res = await api.fetchActionTemplates();
+        let list: EmbedAction[] = res.success && res.data ? res.data : [];
+        if (typeof window !== 'undefined') {
+          try {
+            const stored = localStorage.getItem('rng_embed_actions');
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              if (Array.isArray(parsed)) {
+                list = [...list, ...parsed];
+              }
+            }
+          } catch {}
         }
-      }).catch(() => {});
-      return () => {
-        isMounted = false;
-      };
-    }
-  }, [availableActions]);
+        const map = new Map<string, EmbedAction>();
+        list.forEach((a: EmbedAction) => {
+          if (a.actionId) map.set(a.actionId, a);
+        });
+        if (isMounted) {
+          setFetchedActions(Array.from(map.values()));
+        }
+      } catch {}
+    };
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   const [options, setOptions] = useState<SelectOption[]>(
     comp.options && comp.options.length > 0
       ? comp.options.map((opt) => ({ ...opt }))

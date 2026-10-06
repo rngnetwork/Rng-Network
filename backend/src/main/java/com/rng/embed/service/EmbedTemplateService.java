@@ -35,16 +35,18 @@ public class EmbedTemplateService {
 
     public Page<TemplateResponse> listTemplates(Long operatorUserId, String serverId, String category, Pageable pageable) {
         Page<EmbedTemplate> templates;
+        String authorId = operatorUserId != null ? String.valueOf(operatorUserId) : null;
         if (category != null && !category.isBlank()) {
-            templates = templateRepository.findAccessibleByCategory(serverId, category.trim().toUpperCase(), pageable);
+            templates = templateRepository.findAccessibleByCategory(serverId, authorId, category.trim().toUpperCase(), pageable);
         } else {
-            templates = templateRepository.findAccessibleTemplates(serverId, pageable);
+            templates = templateRepository.findAccessibleTemplates(serverId, authorId, pageable);
         }
         return templates.map(this::toResponse);
     }
 
     public TemplateResponse getTemplate(String templateId) {
         EmbedTemplate template = templateRepository.findByTemplateId(templateId)
+                .or(() -> templateRepository.findById(templateId))
                 .orElseThrow(() -> new ResourceNotFoundException("Embed template not found: " + templateId));
         return toResponse(template);
     }
@@ -53,13 +55,32 @@ public class EmbedTemplateService {
         User operator = userRepository.findById(operatorUserId)
                 .orElseThrow(() -> new UnauthorizedException("Authenticated operator record not found."));
 
-        DryRunValidationResponse validation = validatorService.validate(
-                request.serverId() != null ? request.serverId() : "global",
-                "template-validation",
-                request.payload()
-        );
-        if (!validation.isValid()) {
-            throw new BadRequestException("Template payload is invalid: " + String.join("; ", validation.errors()));
+        if (request.payload() != null && !request.payload().isEmpty()) {
+            Map<String, Object> validationPayload = new HashMap<>(request.payload());
+            if (validationPayload.containsKey("components") && validationPayload.get("components") instanceof List) {
+                Map<String, Object> wireValidationPayload = new HashMap<>(validationPayload);
+                wireValidationPayload.remove("content");
+                if (!wireValidationPayload.containsKey("flags")) {
+                    wireValidationPayload.put("flags", 32768);
+                }
+                DryRunValidationResponse validation = validatorService.validate(
+                        request.serverId() != null ? request.serverId() : "global",
+                        "template-validation",
+                        wireValidationPayload
+                );
+                if (!validation.isValid()) {
+                    throw new BadRequestException("Template payload is invalid: " + String.join("; ", validation.errors()));
+                }
+            } else if (!validationPayload.containsKey("containers")) {
+                DryRunValidationResponse validation = validatorService.validate(
+                        request.serverId() != null ? request.serverId() : "global",
+                        "template-validation",
+                        validationPayload
+                );
+                if (!validation.isValid()) {
+                    throw new BadRequestException("Template payload is invalid: " + String.join("; ", validation.errors()));
+                }
+            }
         }
 
         String templateId = "tmpl_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
@@ -89,6 +110,7 @@ public class EmbedTemplateService {
 
     public TemplateResponse updateTemplate(Long operatorUserId, String templateId, UpdateTemplateRequest request) {
         EmbedTemplate template = templateRepository.findByTemplateId(templateId)
+                .or(() -> templateRepository.findById(templateId))
                 .orElseThrow(() -> new ResourceNotFoundException("Embed template not found: " + templateId));
 
         User operator = userRepository.findById(operatorUserId)
@@ -100,13 +122,32 @@ public class EmbedTemplateService {
             throw new ForbiddenException("Only the original template author or High Command may modify this template.");
         }
 
-        DryRunValidationResponse validation = validatorService.validate(
-                template.getServerId() != null ? template.getServerId() : "global",
-                "template-validation",
-                request.payload()
-        );
-        if (!validation.isValid()) {
-            throw new BadRequestException("Updated template payload is invalid: " + String.join("; ", validation.errors()));
+        if (request.payload() != null && !request.payload().isEmpty()) {
+            Map<String, Object> validationPayload = new HashMap<>(request.payload());
+            if (validationPayload.containsKey("components") && validationPayload.get("components") instanceof List) {
+                Map<String, Object> wireValidationPayload = new HashMap<>(validationPayload);
+                wireValidationPayload.remove("content");
+                if (!wireValidationPayload.containsKey("flags")) {
+                    wireValidationPayload.put("flags", 32768);
+                }
+                DryRunValidationResponse validation = validatorService.validate(
+                        template.getServerId() != null ? template.getServerId() : "global",
+                        "template-validation",
+                        wireValidationPayload
+                );
+                if (!validation.isValid()) {
+                    throw new BadRequestException("Updated template payload is invalid: " + String.join("; ", validation.errors()));
+                }
+            } else if (!validationPayload.containsKey("containers")) {
+                DryRunValidationResponse validation = validatorService.validate(
+                        template.getServerId() != null ? template.getServerId() : "global",
+                        "template-validation",
+                        validationPayload
+                );
+                if (!validation.isValid()) {
+                    throw new BadRequestException("Updated template payload is invalid: " + String.join("; ", validation.errors()));
+                }
+            }
         }
 
         template.setName(request.name().trim());
@@ -132,6 +173,7 @@ public class EmbedTemplateService {
 
     public void deleteTemplate(Long operatorUserId, String templateId) {
         EmbedTemplate template = templateRepository.findByTemplateId(templateId)
+                .or(() -> templateRepository.findById(templateId))
                 .orElseThrow(() -> new ResourceNotFoundException("Embed template not found: " + templateId));
 
         User operator = userRepository.findById(operatorUserId)
@@ -149,6 +191,7 @@ public class EmbedTemplateService {
 
     public Map<String, Object> exportTemplate(String templateId) {
         EmbedTemplate template = templateRepository.findByTemplateId(templateId)
+                .or(() -> templateRepository.findById(templateId))
                 .orElseThrow(() -> new ResourceNotFoundException("Embed template not found: " + templateId));
 
         Map<String, Object> exportMap = new LinkedHashMap<>();

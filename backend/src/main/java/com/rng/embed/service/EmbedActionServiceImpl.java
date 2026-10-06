@@ -94,15 +94,19 @@ public class EmbedActionServiceImpl implements EmbedActionService {
         }
 
         if (request.responseEmbedTemplateId() != null && !request.responseEmbedTemplateId().isBlank()) {
-            EmbedTemplate template = embedTemplateRepository.findById(request.responseEmbedTemplateId())
-                    .or(() -> embedTemplateRepository.findByTemplateId(request.responseEmbedTemplateId()))
-                    .orElseThrow(() -> new ResourceNotFoundException("Template not found: " + request.responseEmbedTemplateId()));
-            List<String> targetServerIds = request.serverIds() != null && !request.serverIds().isEmpty()
-                    ? request.serverIds()
-                    : (request.serverId() != null ? List.of(request.serverId()) : List.of());
-            boolean isAccessible = template.isPublic() || (template.getServerId() != null && targetServerIds.contains(template.getServerId()));
-            if (!isAccessible) {
-                throw new AccessDeniedException("Referenced embed template is not accessible for specified serverIds");
+            Optional<EmbedTemplate> templateOpt = embedTemplateRepository.findById(request.responseEmbedTemplateId())
+                    .or(() -> embedTemplateRepository.findByTemplateId(request.responseEmbedTemplateId()));
+            if (templateOpt.isPresent()) {
+                EmbedTemplate template = templateOpt.get();
+                List<String> targetServerIds = request.serverIds() != null && !request.serverIds().isEmpty()
+                        ? request.serverIds()
+                        : (request.serverId() != null ? List.of(request.serverId()) : List.of());
+                boolean isAccessible = template.isPublic() || (template.getServerId() != null && targetServerIds.contains(template.getServerId()));
+                if (!isAccessible) {
+                    throw new AccessDeniedException("Referenced embed template is not accessible for specified serverIds");
+                }
+            } else {
+                log.warn("Referenced embed template ID {} not found in MongoDB during action creation; proceeding with non-fatal reference", request.responseEmbedTemplateId());
             }
         }
 
@@ -172,16 +176,20 @@ public class EmbedActionServiceImpl implements EmbedActionService {
         }
 
         if (request.responseEmbedTemplateId() != null && !request.responseEmbedTemplateId().isBlank()) {
-            EmbedTemplate template = embedTemplateRepository.findById(request.responseEmbedTemplateId())
-                    .or(() -> embedTemplateRepository.findByTemplateId(request.responseEmbedTemplateId()))
-                    .orElseThrow(() -> new ResourceNotFoundException("Template not found: " + request.responseEmbedTemplateId()));
-            List<String> existingServerIds = existing.getServerIds() != null ? existing.getServerIds() : List.of();
-            List<String> targetServerIds = request.serverIds() != null && !request.serverIds().isEmpty()
-                    ? request.serverIds()
-                    : (request.serverId() != null ? List.of(request.serverId()) : existingServerIds);
-            boolean isAccessible = template.isPublic() || (template.getServerId() != null && targetServerIds.contains(template.getServerId()));
-            if (!isAccessible) {
-                throw new AccessDeniedException("Referenced embed template is not accessible for specified serverIds");
+            Optional<EmbedTemplate> templateOpt = embedTemplateRepository.findById(request.responseEmbedTemplateId())
+                    .or(() -> embedTemplateRepository.findByTemplateId(request.responseEmbedTemplateId()));
+            if (templateOpt.isPresent()) {
+                EmbedTemplate template = templateOpt.get();
+                List<String> existingServerIds = existing.getServerIds() != null ? existing.getServerIds() : List.of();
+                List<String> targetServerIds = request.serverIds() != null && !request.serverIds().isEmpty()
+                        ? request.serverIds()
+                        : (request.serverId() != null ? List.of(request.serverId()) : existingServerIds);
+                boolean isAccessible = template.isPublic() || (template.getServerId() != null && targetServerIds.contains(template.getServerId()));
+                if (!isAccessible) {
+                    throw new AccessDeniedException("Referenced embed template is not accessible for specified serverIds");
+                }
+            } else {
+                log.warn("Referenced embed template ID {} not found in MongoDB during action update; proceeding with non-fatal reference", request.responseEmbedTemplateId());
             }
         }
 
@@ -250,6 +258,14 @@ public class EmbedActionServiceImpl implements EmbedActionService {
     @Override
     public List<EmbedActionDto> getGlobalActions() {
         return embedActionRepository.findByIsGlobalTrue()
+                .stream()
+                .map(EmbedActionDto::fromDomain)
+                .toList();
+    }
+
+    @Override
+    public List<EmbedActionDto> getAllActions() {
+        return embedActionRepository.findAll()
                 .stream()
                 .map(EmbedActionDto::fromDomain)
                 .toList();

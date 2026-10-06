@@ -410,6 +410,7 @@ export function MessageBuilder({
         buttonData={editingButton?.data || null}
         onSave={handleSaveButtonModal}
         availableActions={effectiveActions}
+        serverId={serverId}
       />
 
       {/* LOAD PRESET MODAL */}

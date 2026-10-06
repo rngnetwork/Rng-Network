@@ -64,14 +64,30 @@ export function ActionTemplatesTab({
         res = await api.fetchActionTemplates();
       }
 
+      let loaded: EmbedAction[] = [];
       if (res.success && res.data) {
-        const filtered = serverId
-          ? res.data.filter((a) => a.isGlobal || a.serverId === serverId || (a.serverIds && a.serverIds.includes(serverId)))
-          : res.data;
-        setActions(filtered);
-      } else {
-        setActions([]);
+        loaded = res.data;
       }
+      if (typeof window !== 'undefined') {
+        try {
+          const stored = localStorage.getItem('rng_embed_actions');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) {
+              const map = new Map<string, EmbedAction>();
+              [...loaded, ...parsed].forEach((a: EmbedAction) => {
+                if (a.actionId) map.set(a.actionId, a);
+              });
+              loaded = Array.from(map.values());
+            }
+          }
+        } catch {}
+      }
+
+      const filtered = serverId
+        ? loaded.filter((a) => a.isGlobal || a.serverId === serverId || (a.serverIds && a.serverIds.includes(serverId)))
+        : loaded;
+      setActions(filtered);
     } catch (err: unknown) {
       console.warn('Failed to load action templates:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch action templates');
@@ -113,14 +129,29 @@ export function ActionTemplatesTab({
           })
         ]);
         if (!isMounted) return;
+        let loaded: EmbedAction[] = [];
         if (actionsRes.success && actionsRes.data) {
-          const filtered = serverId
-            ? actionsRes.data.filter((a) => a.isGlobal || a.serverId === serverId || (a.serverIds && a.serverIds.includes(serverId)))
-            : actionsRes.data;
-          setActions(filtered);
-        } else {
-          setActions([]);
+          loaded = actionsRes.data;
         }
+        if (typeof window !== 'undefined') {
+          try {
+            const stored = localStorage.getItem('rng_embed_actions');
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              if (Array.isArray(parsed)) {
+                const map = new Map<string, EmbedAction>();
+                [...loaded, ...parsed].forEach((a: EmbedAction) => {
+                  if (a.actionId) map.set(a.actionId, a);
+                });
+                loaded = Array.from(map.values());
+              }
+            }
+          } catch {}
+        }
+        const filtered = serverId
+          ? loaded.filter((a) => a.isGlobal || a.serverId === serverId || (a.serverIds && a.serverIds.includes(serverId)))
+          : loaded;
+        setActions(filtered);
         if (logsRes.success && logsRes.data && logsRes.data.content) {
           setLogs(logsRes.data.content);
         }
@@ -154,6 +185,16 @@ export function ActionTemplatesTab({
     try {
       await api.deleteActionTemplate(actionId);
       setActions((prev) => prev.filter((a) => a.actionId !== actionId));
+      if (typeof window !== 'undefined') {
+        try {
+          const stored = localStorage.getItem('rng_embed_actions');
+          if (stored) {
+            const parsed: EmbedAction[] = JSON.parse(stored);
+            const filtered = parsed.filter((a) => a.actionId !== actionId);
+            localStorage.setItem('rng_embed_actions', JSON.stringify(filtered));
+          }
+        } catch {}
+      }
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete action template');
     }
@@ -173,12 +214,19 @@ export function ActionTemplatesTab({
   const handleSavedAction = (saved: EmbedAction) => {
     setActions((prev) => {
       const idx = prev.findIndex((a) => a.actionId === saved.actionId);
+      let next: EmbedAction[];
       if (idx !== -1) {
-        const next = [...prev];
+        next = [...prev];
         next[idx] = saved;
-        return next;
+      } else {
+        next = [saved, ...prev];
       }
-      return [saved, ...prev];
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('rng_embed_actions', JSON.stringify(next));
+        } catch {}
+      }
+      return next;
     });
   };
 
