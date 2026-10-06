@@ -8,8 +8,12 @@ import com.rng.embed.service.EmbedActionService;
 import com.rng.embed.service.RedisRateLimiterService;
 import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.components.Component.Type;
+import net.dv8tion.jda.api.entities.IMentionable;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Mentions;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.channel.ChannelCreateEvent;
 import net.dv8tion.jda.api.events.channel.ChannelDeleteEvent;
 import net.dv8tion.jda.api.events.channel.update.GenericChannelUpdateEvent;
@@ -197,11 +201,18 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
             return;
         }
 
-        if (action.isRequiredUser() && !sessionData.containsKey("target_user") && !sessionData.containsKey("targetUser")) {
+        boolean missingUser = action.isRequiredUser() && !sessionData.containsKey("target_user") && !sessionData.containsKey("targetUser");
+        boolean missingRole = action.isRequiredRole() && !sessionData.containsKey("target_role") && !sessionData.containsKey("targetRole");
+
+        if (missingUser && missingRole) {
+            event.getHook().editOriginal("⚠️ Missing Required Selections: Please select both a target user and a target role before clicking this button.").queue();
+            return;
+        }
+        if (missingUser) {
             event.getHook().editOriginal("⚠️ Missing Required Selections: Please select a target user before clicking this button.").queue();
             return;
         }
-        if (action.isRequiredRole() && !sessionData.containsKey("target_role") && !sessionData.containsKey("targetRole")) {
+        if (missingRole) {
             event.getHook().editOriginal("⚠️ Missing Required Selections: Please select a target role before clicking this button.").queue();
             return;
         }
@@ -325,7 +336,7 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
             }
 
             actionExecutionService.get().executeStringSelectAction(event, action, sessionData);
-        } else if (componentId.startsWith("rng_")) {
+        } else if (isHandledSelectComponent(componentId, event.getMessage(), event.getJDA())) {
             log.info("Gateway StringSelectInteraction (Intermediate) received: componentId='{}', values='{}', user='{}' ({}), guild='{}'",
                     componentId, values, userName, userId, guildId != null ? guildId : "none");
 
@@ -357,7 +368,7 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
     @Override
     public void onEntitySelectInteraction(@NotNull EntitySelectInteractionEvent event) {
         String componentId = event.getComponentId();
-        if (!componentId.startsWith("rng_")) {
+        if (!isHandledSelectComponent(componentId, event.getMessage(), event.getJDA())) {
             return;
         }
 
@@ -381,21 +392,62 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
         redisTemplate.ifPresent(rt -> {
             try {
                 Mentions mentions = event.getMentions();
-                if (!mentions.getUsers().isEmpty()) {
-                    String targetUser = mentions.getUsers().get(0).getId();
-                    rt.opsForHash().put(sessionKey, "target_user", targetUser);
-                    rt.opsForHash().put(sessionKey, "targetUser", targetUser);
+                List<IMentionable> values = event.getValues();
+                Type type = event.getComponentType();
+
+                String targetUserId = null;
+                String targetRoleId = null;
+                String targetChannelId = null;
+
+                // 1. Target User Resolution (users, members, or user select values)
+                if (mentions != null && !mentions.getUsers().isEmpty()) {
+                    targetUserId = mentions.getUsers().get(0).getId();
+                } else if (mentions != null && !mentions.getMembers().isEmpty()) {
+                    targetUserId = mentions.getMembers().get(0).getId();
+                } else if (type == Type.USER_SELECT && values != null && !values.isEmpty()) {
+                    targetUserId = values.get(0).getId();
                 }
-                if (!mentions.getRoles().isEmpty()) {
-                    String targetRole = mentions.getRoles().get(0).getId();
-                    rt.opsForHash().put(sessionKey, "target_role", targetRole);
-                    rt.opsForHash().put(sessionKey, "targetRole", targetRole);
+
+                // 2. Target Role Resolution (roles or role select values)
+                if (mentions != null && !mentions.getRoles().isEmpty()) {
+                    targetRoleId = mentions.getRoles().get(0).getId();
+                } else if (type == Type.ROLE_SELECT && values != null && !values.isEmpty()) {
+                    targetRoleId = values.get(0).getId();
                 }
-                if (!mentions.getChannels().isEmpty()) {
-                    String targetChannel = mentions.getChannels().get(0).getId();
-                    rt.opsForHash().put(sessionKey, "target_channel", targetChannel);
-                    rt.opsForHash().put(sessionKey, "targetChannel", targetChannel);
+
+                // 3. Target Channel Resolution (channels or channel select values)
+                if (mentions != null && !mentions.getChannels().isEmpty()) {
+                    targetChannelId = mentions.getChannels().get(0).getId();
+                } else if (type == Type.CHANNEL_SELECT && values != null && !values.isEmpty()) {
+                    targetChannelId = values.get(0).getId();
                 }
+
+                // 4. Mentionable Select (Type 7) fallback
+                if (type == Type.MENTIONABLE_SELECT && values != null && !values.isEmpty()) {
+                    IMentionable val = values.get(0);
+                    if (val instanceof Role) {
+                        targetRoleId = val.getId();
+                    } else {
+                        targetUserId = val.getId();
+                    }
+                }
+
+                if (targetUserId != null) {
+                    rt.opsForHash().put(sessionKey, "target_user", targetUserId);
+                    rt.opsForHash().put(sessionKey, "targetUser", targetUserId);
+                    log.info("Persisted target_user '{}' in Redis session key '{}'", targetUserId, sessionKey);
+                }
+                if (targetRoleId != null) {
+                    rt.opsForHash().put(sessionKey, "target_role", targetRoleId);
+                    rt.opsForHash().put(sessionKey, "targetRole", targetRoleId);
+                    log.info("Persisted target_role '{}' in Redis session key '{}'", targetRoleId, sessionKey);
+                }
+                if (targetChannelId != null) {
+                    rt.opsForHash().put(sessionKey, "target_channel", targetChannelId);
+                    rt.opsForHash().put(sessionKey, "targetChannel", targetChannelId);
+                    log.info("Persisted target_channel '{}' in Redis session key '{}'", targetChannelId, sessionKey);
+                }
+
                 rt.opsForHash().put(sessionKey, "originCaller", userId);
                 rt.opsForHash().put(sessionKey, "origin_caller", userId);
                 rt.opsForHash().put(sessionKey, "last_updated", String.valueOf(System.currentTimeMillis()));
@@ -404,6 +456,16 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
                 log.warn("Failed to persist entity select interaction session in Redis: {}", e.getMessage());
             }
         });
+    }
+
+    public boolean isHandledSelectComponent(String componentId, Message message, net.dv8tion.jda.api.JDA jda) {
+        if (componentId != null && (componentId.startsWith("rng_") || componentId.startsWith("select_") || componentId.startsWith("sel_"))) {
+            return true;
+        }
+        if (message != null && jda != null && jda.getSelfUser() != null && message.getAuthor() != null) {
+            return message.getAuthor().getIdLong() == jda.getSelfUser().getIdLong();
+        }
+        return false;
     }
 
     private Map<String, String> getSessionData(String guildId, String userId, String messageId) {

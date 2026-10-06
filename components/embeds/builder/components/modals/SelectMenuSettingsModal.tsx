@@ -170,7 +170,7 @@ export function SelectMenuSettingsModal({
   const handleSave = () => {
     const updated: DiscordSelectComponent = {
       ...comp,
-      custom_id: customId.trim() || comp.custom_id || `select_${Date.now()}`,
+      custom_id: customId.trim() || comp.custom_id || `rng_sel_${Date.now()}`,
       placeholder: placeholder.trim() || undefined,
       disabled,
       options: comp.type === 3 ? options : undefined
@@ -218,7 +218,7 @@ export function SelectMenuSettingsModal({
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. select_role_menu"
+                  placeholder="e.g. rng_select_menu"
                   value={customId}
                   onChange={(e) => setCustomId(e.target.value)}
                 />

@@ -180,7 +180,7 @@ export function MessageBuilder({
       target.components.push({
         type: typeNum as 3 | 5 | 6 | 7 | 8,
         id: `sel_${Date.now()}`,
-        custom_id: `select_${Date.now()}`,
+        custom_id: `rng_sel_${Date.now()}`,
         placeholder: 'Select an option...',
         options: [
           { label: 'Option 1', value: 'opt_1', emoji: '✅', description: 'First choice', default: false },

@@ -9,9 +9,12 @@ import com.rng.embed.service.ActionExecutionService;
 import com.rng.embed.service.EmbedActionService;
 import com.rng.embed.service.RedisRateLimiterService;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.components.Component;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.IMentionable;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Mentions;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
@@ -249,6 +252,67 @@ class DiscordGatewayEventListenerTest {
         verify(hashOperations).put(sessionKey, "target_role", "role_target_1");
         verify(hashOperations).put(sessionKey, "target_channel", "chan_target_1");
         verify(redisTemplate).expire(eq(sessionKey), eq(Duration.ofMinutes(15)));
+    }
+
+    @Test
+    @DisplayName("onEntitySelectInteraction supports select_ prefix and extracts user via member fallback")
+    void onEntitySelectInteraction_supportsSelectPrefixAndMemberFallback() {
+        when(entitySelectEvent.getComponentId()).thenReturn("select_1728237999");
+        when(mentions.getUsers()).thenReturn(Collections.emptyList());
+        Member targetMember = mock(Member.class);
+        when(targetMember.getId()).thenReturn("usr_bot_member_1");
+        when(mentions.getMembers()).thenReturn(List.of(targetMember));
+        when(mentions.getRoles()).thenReturn(Collections.emptyList());
+        when(mentions.getChannels()).thenReturn(Collections.emptyList());
+
+        listener.onEntitySelectInteraction(entitySelectEvent);
+
+        verify(entitySelectEvent).deferEdit();
+        String sessionKey = "interaction:session:guild_1:user_1:msg_123";
+        verify(hashOperations).put(sessionKey, "target_user", "usr_bot_member_1");
+        verify(redisTemplate).expire(eq(sessionKey), eq(Duration.ofMinutes(15)));
+    }
+
+    @Test
+    @DisplayName("onEntitySelectInteraction resolves user directly via values when USER_SELECT type")
+    void onEntitySelectInteraction_resolvesUserViaValues() {
+        when(entitySelectEvent.getComponentId()).thenReturn("rng_sel_user");
+        when(mentions.getUsers()).thenReturn(Collections.emptyList());
+        when(mentions.getMembers()).thenReturn(Collections.emptyList());
+        when(mentions.getRoles()).thenReturn(Collections.emptyList());
+        when(mentions.getChannels()).thenReturn(Collections.emptyList());
+        when(entitySelectEvent.getComponentType()).thenReturn(Component.Type.USER_SELECT);
+
+        IMentionable mentionableUser = mock(IMentionable.class);
+        when(mentionableUser.getId()).thenReturn("usr_mentionable_bot");
+        when(entitySelectEvent.getValues()).thenReturn(List.of(mentionableUser));
+
+        listener.onEntitySelectInteraction(entitySelectEvent);
+
+        verify(entitySelectEvent).deferEdit();
+        String sessionKey = "interaction:session:guild_1:user_1:msg_123";
+        verify(hashOperations).put(sessionKey, "target_user", "usr_mentionable_bot");
+        verify(redisTemplate).expire(eq(sessionKey), eq(Duration.ofMinutes(15)));
+    }
+
+    @Test
+    @DisplayName("onButtonInteraction shows consolidated warning when both user and role are missing")
+    void onButtonInteraction_bothRequiredSelectionsMissing() {
+        when(buttonEvent.getComponentId()).thenReturn("rng_act_role_grant");
+        EmbedAction action = EmbedAction.builder()
+                .actionId("rng_act_role_grant")
+                .actionType(ActionType.ROLE)
+                .requiredUser(true)
+                .requiredRole(true)
+                .build();
+        when(embedActionService.resolveAction("rng_act_role_grant")).thenReturn(Optional.of(action));
+        when(hashOperations.entries("interaction:session:guild_1:user_1:msg_123")).thenReturn(Collections.emptyMap());
+
+        listener.onButtonInteraction(buttonEvent);
+
+        verify(buttonEvent).deferReply(true);
+        verify(hook).editOriginal("⚠️ Missing Required Selections: Please select both a target user and a target role before clicking this button.");
+        verifyNoInteractions(actionExecutionService);
     }
 
     @Test
