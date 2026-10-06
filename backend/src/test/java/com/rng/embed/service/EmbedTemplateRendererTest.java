@@ -152,4 +152,50 @@ class EmbedTemplateRendererTest {
         assertThat(data).isNotNull();
         assertThat(data.getContent()).isEqualTo("⚠️ Empty response template");
     }
+
+    @Test
+    @DisplayName("Should render Components V2 Type 17 Containers with nested Type 10 Text Displays and Action Rows")
+    void should_render_components_v2_type17_containers_with_nested_text_and_buttons() {
+        Map<String, Object> payload = Map.of(
+                "flags", 32768,
+                "components", List.of(
+                        Map.of(
+                                "type", 17,
+                                "accent_color", 43260,
+                                "components", List.of(
+                                        Map.of("type", 10, "content", "Welcome to {server}, {user}!"),
+                                        Map.of("type", 10, "content", "Role {targetRole} assigned to {targetUser}"),
+                                        Map.of(
+                                                "type", 1,
+                                                "components", List.of(
+                                                        Map.of("type", 2, "style", 3, "label", "Confirm Role", "custom_id", "rng_act_confirm")
+                                                )
+                                        )
+                                )
+                        )
+                )
+        );
+
+        EmbedTemplate template = EmbedTemplate.builder()
+                .templateId("tmpl_v2_test")
+                .name("Components V2 Container")
+                .payload(payload)
+                .build();
+
+        Map<String, String> vars = Map.of(
+                "server", "Rednecks Gaming",
+                "user", "<@111>",
+                "targetRole", "<@&222>",
+                "targetUser", "<@333>"
+        );
+
+        MessageCreateData data = renderer.renderToMessageData(template, vars);
+        assertThat(data).isNotNull();
+        assertThat(data.getContent()).contains("Welcome to Rednecks Gaming, <@111>!");
+        assertThat(data.getContent()).contains("Role <@&222> assigned to <@333>");
+        assertThat(data.getComponents()).hasSize(1);
+        ActionRow row = (ActionRow) data.getComponents().get(0);
+        assertThat(row.getButtons()).hasSize(1);
+        assertThat(row.getButtons().get(0).getCustomId()).isEqualTo("rng_act_confirm");
+    }
 }

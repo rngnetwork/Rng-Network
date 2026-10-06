@@ -229,7 +229,7 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
         ActionExecutionResult result = null;
         if (action.getCompoundOperations() != null && !action.getCompoundOperations().isEmpty()) {
             result = actionExecutionService.get().executeCompoundAction(componentId, event.getGuild(), member, event.getHook(), sessionData);
-        } else if (action.getResponseType() == ResponseType.PUBLIC_EMBED || action.getResponseType() == ResponseType.PUBLIC_TEXT) {
+        } else if (action.getResponseType() == ResponseType.PUBLIC_EMBED || action.getResponseType() == ResponseType.PUBLIC_TEXT || (action.getResponseEmbedTemplateId() != null && !action.getResponseEmbedTemplateId().isBlank())) {
             result = actionExecutionService.get().executeComponentAction(componentId, event.getGuild(), member, event.getHook(), sessionData);
         } else {
             actionExecutionService.get().executeButtonAction(event, action, sessionData);

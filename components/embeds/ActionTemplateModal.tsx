@@ -157,54 +157,23 @@ function ActionTemplateModalInner({
         const serverItems = parseList(serverRes);
         const publicItems = parseList(publicRes);
 
-        // Local storage templates fallback
-        const localTemplates: TemplateItemShape[] = [];
-        if (typeof window !== 'undefined') {
-          try {
-            const raw1 = localStorage.getItem('rng_discord_user_templates');
-            const raw2 = localStorage.getItem('rng_embed_templates');
-            if (raw1) {
-              const parsed = JSON.parse(raw1);
-              if (Array.isArray(parsed)) {
-                localTemplates.push(
-                  ...parsed.map((item: any) => ({
-                    id: String(item.id),
-                    templateId: String(item.id),
-                    name: String(item.name || 'Untitled Template'),
-                    description: item.description ? String(item.description) : undefined,
-                    isPublic: true,
-                    category: item.badge ? String(item.badge) : undefined
-                  }))
-                );
-              }
-            }
-            if (raw2) {
-              const parsed = JSON.parse(raw2);
-              if (Array.isArray(parsed)) {
-                localTemplates.push(
-                  ...parsed.map((item: any) => ({
-                    id: String(item.id),
-                    templateId: item.templateId ? String(item.templateId) : String(item.id),
-                    name: String(item.name || 'Untitled Template'),
-                    description: item.description ? String(item.description) : undefined,
-                    isPublic: Boolean(item.isPublic ?? item.public),
-                    category: item.category ? String(item.category) : undefined
-                  }))
-                );
-              }
-            }
-          } catch {
-            // ignore JSON parse errors
-          }
-        }
-
+        // Strictly MongoDB - deduplicate server and public templates by templateId or id
         const combinedMap = new Map<string, TemplateItemShape>();
-        [...serverItems, ...publicItems, ...localTemplates].forEach((tmpl) => {
-          const key = tmpl.id || tmpl.templateId;
+        [...serverItems, ...publicItems].forEach((tmpl) => {
+          const key = tmpl.templateId || tmpl.id;
           if (key && !combinedMap.has(key)) {
             combinedMap.set(key, tmpl);
           }
         });
+
+        // Purge any stale legacy localStorage template and action keys from user browser
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.removeItem('rng_discord_user_templates');
+            localStorage.removeItem('rng_embed_templates');
+            localStorage.removeItem('rng_embed_actions');
+          } catch {}
+        }
 
         if (isMounted) {
           setAvailableTemplates(Array.from(combinedMap.values()));
@@ -295,20 +264,6 @@ function ActionTemplateModalInner({
         savedAction = res.data;
       }
 
-      if (typeof window !== 'undefined') {
-        try {
-          const stored = localStorage.getItem('rng_embed_actions');
-          const list: EmbedAction[] = stored ? JSON.parse(stored) : [];
-          const idx = list.findIndex((a) => a.actionId === savedAction.actionId);
-          if (idx >= 0) {
-            list[idx] = savedAction;
-          } else {
-            list.unshift(savedAction);
-          }
-          localStorage.setItem('rng_embed_actions', JSON.stringify(list));
-        } catch {}
-      }
-
       onSave(savedAction);
       onClose();
     } catch (err: unknown) {
@@ -330,9 +285,9 @@ function ActionTemplateModalInner({
   const templateOptions: DropdownOption[] = [
     { value: '', label: 'None (Default Confirmation)' },
     ...availableTemplates.map((t) => ({
-      value: t.id || t.templateId || '',
+      value: t.templateId || t.id || '',
       label: t.name || 'Unnamed Template',
-      description: t.description || (t.category ? `Category: ${t.category}` : undefined) || `ID: ${t.id || t.templateId}`
+      description: t.description || (t.category ? `Category: ${t.category}` : undefined) || `ID: ${t.templateId || t.id}`
     }))
   ];
 

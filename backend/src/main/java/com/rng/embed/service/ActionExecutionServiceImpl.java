@@ -31,6 +31,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -432,10 +433,12 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             result = result.replace("{channel}", "<#" + channel.getId() + ">");
         }
         if (targetMember != null) {
-            result = result.replace("{target_user}", targetMember.getAsMention());
+            result = result.replace("{target_user}", targetMember.getAsMention())
+                    .replace("{targetUser}", targetMember.getAsMention());
         }
         if (targetRole != null) {
             result = result.replace("{target_role}", "@" + targetRole.getName())
+                    .replace("{targetRole}", "@" + targetRole.getName())
                     .replace("{role}", "@" + targetRole.getName());
         }
         if (selectedOption != null) {
@@ -443,6 +446,14 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
         }
 
         return result;
+    }
+
+    private Optional<EmbedTemplate> resolveTemplate(String templateId) {
+        if (templateId == null || templateId.isBlank()) {
+            return Optional.empty();
+        }
+        return embedTemplateRepository.findByTemplateId(templateId)
+                .or(() -> embedTemplateRepository.findById(templateId));
     }
 
     private void cleanupSession(String guildId, String userId, String messageId) {
@@ -576,17 +587,36 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             }
             guild.addRoleToMember(targetMember, targetRole).complete();
 
-            if (action.getResponseType() == ResponseType.PUBLIC_EMBED && action.getResponseEmbedTemplateId() != null) {
-                EmbedTemplate template = embedTemplateRepository.findById(action.getResponseEmbedTemplateId()).orElse(null);
+            String feedbackTemplate = action.getReplyContent();
+            if (feedbackTemplate == null || feedbackTemplate.isBlank()) {
+                feedbackTemplate = action.getConfirmationMessage();
+            }
+            String feedbackMsg;
+            String targetRoleMention = targetRole != null ? (targetRole.getAsMention() != null ? targetRole.getAsMention() : "@" + targetRole.getName()) : "";
+            String targetMemberMention = targetMember != null ? (targetMember.getAsMention() != null ? targetMember.getAsMention() : targetMember.getEffectiveName()) : "";
+            if (feedbackTemplate != null && !feedbackTemplate.isBlank()) {
+                feedbackMsg = interpolate(feedbackTemplate, guild, operator, targetMember, targetRole, null, null);
+            } else {
+                feedbackMsg = "✅ Granted role " + targetRoleMention + " to " + targetMemberMention + ".";
+            }
+
+            String responseTplId = action.getResponseEmbedTemplateId();
+            if (responseTplId != null && !responseTplId.isBlank()) {
+                EmbedTemplate template = resolveTemplate(responseTplId).orElse(null);
                 if (template != null && embedTemplateRenderer.isPresent()) {
-                    Map<String, String> vars = Map.of(
-                            "user", operator != null && operator.getAsMention() != null ? operator.getAsMention() : "",
-                            "targetUser", targetMember != null && targetMember.getAsMention() != null ? targetMember.getAsMention() : "",
-                            "targetRole", targetRole != null && targetRole.getAsMention() != null ? targetRole.getAsMention() : "",
-                            "server", guild != null && guild.getName() != null ? guild.getName() : ""
-                    );
+                    Map<String, String> vars = new HashMap<>();
+                    vars.put("user", operator != null && operator.getAsMention() != null ? operator.getAsMention() : "");
+                    vars.put("username", operator != null && operator.getUser() != null && operator.getUser().getName() != null ? operator.getUser().getName() : "");
+                    vars.put("targetUser", targetMember != null && targetMember.getAsMention() != null ? targetMember.getAsMention() : "");
+                    vars.put("target_user", targetMember != null && targetMember.getAsMention() != null ? targetMember.getAsMention() : "");
+                    vars.put("targetRole", targetRole != null && targetRole.getAsMention() != null ? targetRole.getAsMention() : "");
+                    vars.put("target_role", targetRole != null && targetRole.getAsMention() != null ? targetRole.getAsMention() : "");
+                    vars.put("role", targetRole != null && targetRole.getAsMention() != null ? targetRole.getAsMention() : "");
+                    vars.put("server", guild != null && guild.getName() != null ? guild.getName() : "");
+
                     MessageCreateData msgData = embedTemplateRenderer.get().renderToMessageData(template, vars);
                     if (hook != null) {
+                        hook.editOriginal(feedbackMsg).queue();
                         var sentMsgAction = hook.sendMessage(msgData);
                         if (sentMsgAction != null) {
                             var sentMsg = sentMsgAction.complete();
@@ -596,7 +626,7 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                 }
             }
             if (hook != null) {
-                hook.editOriginal("✅ Assigned role " + targetRole.getName() + " to " + targetMember.getEffectiveName()).queue();
+                hook.editOriginal(feedbackMsg).queue();
             }
             return ActionExecutionResult.success("Role assigned");
         }
@@ -626,7 +656,7 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                     .filter(op -> op.getOperationType() == CompoundOperation.OperationType.SEND_DM_TEMPLATE)
                     .findFirst()
                     .ifPresent(op -> {
-                        EmbedTemplate dmTpl = embedTemplateRepository.findById(op.getTemplateId()).orElse(null);
+                        EmbedTemplate dmTpl = resolveTemplate(op.getTemplateId()).orElse(null);
                         if (dmTpl != null && embedTemplateRenderer.isPresent()) {
                             Map<String, String> vars = Map.of(
                                     "ticketid", ticketId,

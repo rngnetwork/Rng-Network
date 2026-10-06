@@ -110,13 +110,7 @@ function ButtonModalContent({
 
         if (typeof window !== 'undefined') {
           try {
-            const stored = localStorage.getItem('rng_embed_actions');
-            if (stored) {
-              const parsed = JSON.parse(stored);
-              if (Array.isArray(parsed)) {
-                loaded.push(...parsed);
-              }
-            }
+            localStorage.removeItem('rng_embed_actions');
           } catch {}
         }
 

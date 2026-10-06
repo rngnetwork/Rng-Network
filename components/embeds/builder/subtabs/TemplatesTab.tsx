@@ -16,8 +16,6 @@ export interface TemplatesTabProps {
   serverId?: string;
 }
 
-const STORAGE_KEY_TEMPLATES = 'rng_discord_user_templates';
-
 export function TemplatesTab({
   currentBuilderState,
   onLoadTemplate,
@@ -53,7 +51,7 @@ export function TemplatesTab({
     }, 3500);
   };
 
-  // Load templates from API or localStorage
+  // Load templates strictly from MongoDB API
   useEffect(() => {
     let isMounted = true;
     const loadData = async () => {
@@ -103,30 +101,20 @@ export function TemplatesTab({
           });
           setUserTemplates(mapped);
         } else if (isMounted) {
-          if (typeof window !== 'undefined') {
-            try {
-              const stored = localStorage.getItem(STORAGE_KEY_TEMPLATES);
-              if (stored) {
-                setUserTemplates(JSON.parse(stored));
-              }
-            } catch {
-              // ignore
-            }
-          }
+          setUserTemplates([]);
         }
       } catch {
-        // Fallback to local storage
-        if (typeof window !== 'undefined') {
-          try {
-            const stored = localStorage.getItem(STORAGE_KEY_TEMPLATES);
-            if (stored && isMounted) {
-              setUserTemplates(JSON.parse(stored));
-            }
-          } catch {
-            // ignore JSON error
-          }
+        if (isMounted) {
+          setUserTemplates([]);
         }
       } finally {
+        // Clean up any stale legacy localStorage template keys from browser
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.removeItem('rng_discord_user_templates');
+            localStorage.removeItem('rng_embed_templates');
+          } catch {}
+        }
         if (isMounted) setIsLoading(false);
       }
     };
@@ -176,13 +164,16 @@ export function TemplatesTab({
         if (saveRes.data.templateId) assignedId = String(saveRes.data.templateId);
         else if (saveRes.data.id) assignedId = String(saveRes.data.id);
       }
-      showToast('Template saved successfully to cloud!');
-    } catch {
-      showToast('Saved to local browser storage (offline mode).', 'success');
+      showToast('Template saved successfully to MongoDB!');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save template to MongoDB.';
+      showToast(msg, 'error');
+      return;
     }
 
     const newTmpl: TemplateItem = {
       id: assignedId,
+      templateId: assignedId,
       name: newTemplateName.trim(),
       badge: newTemplateBadge.trim() || 'Custom',
       description: newTemplateDesc.trim() || 'Custom user created template.',
@@ -190,15 +181,7 @@ export function TemplatesTab({
       state: JSON.parse(JSON.stringify(templateState))
     };
 
-    const updated = [newTmpl, ...userTemplates];
-    setUserTemplates(updated);
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(STORAGE_KEY_TEMPLATES, JSON.stringify(updated));
-      } catch {
-        // ignore
-      }
-    }
+    setUserTemplates((prev) => [newTmpl, ...prev]);
 
     setIsCreateModalOpen(false);
     setNewTemplateName('');
@@ -214,19 +197,11 @@ export function TemplatesTab({
     }
     try {
       await api.deleteTemplate(id);
-      showToast('Template deleted successfully.');
-    } catch {
-      showToast('Deleted from local storage.', 'success');
-    }
-
-    const updated = userTemplates.filter((t) => t.id !== id);
-    setUserTemplates(updated);
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(STORAGE_KEY_TEMPLATES, JSON.stringify(updated));
-      } catch {
-        // ignore
-      }
+      showToast('Template deleted successfully from MongoDB.');
+      setUserTemplates((prev) => prev.filter((t) => t.id !== id && t.templateId !== id));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete template from MongoDB.';
+      showToast(msg, 'error');
     }
   };
 
@@ -302,13 +277,6 @@ export function TemplatesTab({
 
     const updated = userTemplates.map((t) => t.id === editingTemplate.id ? updatedItem : t);
     setUserTemplates(updated);
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(STORAGE_KEY_TEMPLATES, JSON.stringify(updated));
-      } catch {
-        // ignore
-      }
-    }
     setEditingTemplate(null);
   };
 
@@ -353,13 +321,6 @@ export function TemplatesTab({
 
         const updated = [importedTmpl, ...userTemplates];
         setUserTemplates(updated);
-        if (typeof window !== 'undefined') {
-          try {
-            localStorage.setItem(STORAGE_KEY_TEMPLATES, JSON.stringify(updated));
-          } catch {
-            // ignore
-          }
-        }
         showToast(`Template "${importedTmpl.name}" imported successfully!`);
       } catch (err) {
         showToast(`Import error: ${err instanceof Error ? err.message : 'Invalid JSON'}`, 'error');

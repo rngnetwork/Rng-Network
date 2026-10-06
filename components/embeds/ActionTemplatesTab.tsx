@@ -70,17 +70,7 @@ export function ActionTemplatesTab({
       }
       if (typeof window !== 'undefined') {
         try {
-          const stored = localStorage.getItem('rng_embed_actions');
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed)) {
-              const map = new Map<string, EmbedAction>();
-              [...loaded, ...parsed].forEach((a: EmbedAction) => {
-                if (a.actionId) map.set(a.actionId, a);
-              });
-              loaded = Array.from(map.values());
-            }
-          }
+          localStorage.removeItem('rng_embed_actions');
         } catch {}
       }
 
@@ -135,17 +125,7 @@ export function ActionTemplatesTab({
         }
         if (typeof window !== 'undefined') {
           try {
-            const stored = localStorage.getItem('rng_embed_actions');
-            if (stored) {
-              const parsed = JSON.parse(stored);
-              if (Array.isArray(parsed)) {
-                const map = new Map<string, EmbedAction>();
-                [...loaded, ...parsed].forEach((a: EmbedAction) => {
-                  if (a.actionId) map.set(a.actionId, a);
-                });
-                loaded = Array.from(map.values());
-              }
-            }
+            localStorage.removeItem('rng_embed_actions');
           } catch {}
         }
         const filtered = serverId
@@ -185,16 +165,6 @@ export function ActionTemplatesTab({
     try {
       await api.deleteActionTemplate(actionId);
       setActions((prev) => prev.filter((a) => a.actionId !== actionId));
-      if (typeof window !== 'undefined') {
-        try {
-          const stored = localStorage.getItem('rng_embed_actions');
-          if (stored) {
-            const parsed: EmbedAction[] = JSON.parse(stored);
-            const filtered = parsed.filter((a) => a.actionId !== actionId);
-            localStorage.setItem('rng_embed_actions', JSON.stringify(filtered));
-          }
-        } catch {}
-      }
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete action template');
     }
@@ -214,19 +184,13 @@ export function ActionTemplatesTab({
   const handleSavedAction = (saved: EmbedAction) => {
     setActions((prev) => {
       const idx = prev.findIndex((a) => a.actionId === saved.actionId);
-      let next: EmbedAction[];
       if (idx !== -1) {
-        next = [...prev];
+        const next = [...prev];
         next[idx] = saved;
+        return next;
       } else {
-        next = [saved, ...prev];
+        return [saved, ...prev];
       }
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('rng_embed_actions', JSON.stringify(next));
-        } catch {}
-      }
-      return next;
     });
   };
 

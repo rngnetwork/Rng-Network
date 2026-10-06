@@ -66,13 +66,7 @@ export function SelectMenuSettingsModal({
         let list: EmbedAction[] = res.success && res.data ? res.data : [];
         if (typeof window !== 'undefined') {
           try {
-            const stored = localStorage.getItem('rng_embed_actions');
-            if (stored) {
-              const parsed = JSON.parse(stored);
-              if (Array.isArray(parsed)) {
-                list = [...list, ...parsed];
-              }
-            }
+            localStorage.removeItem('rng_embed_actions');
           } catch {}
         }
         const map = new Map<string, EmbedAction>();
