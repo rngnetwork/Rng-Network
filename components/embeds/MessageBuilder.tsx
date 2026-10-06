@@ -66,7 +66,8 @@ export function MessageBuilder({
   const effectiveActions = useMemo(() => {
     const raw = (serverScopedActions && serverScopedActions.length > 0) ? serverScopedActions : availableActions;
     if (!serverId) return raw;
-    return raw.filter((a) => a.isGlobal || a.serverId === serverId || (a.serverIds && a.serverIds.includes(serverId)));
+    const filtered = raw.filter((a) => a.isGlobal || a.serverId === serverId || (a.serverIds && a.serverIds.includes(serverId)));
+    return filtered.length > 0 ? filtered : raw;
   }, [serverScopedActions, availableActions, serverId]);
 
   // Modals state

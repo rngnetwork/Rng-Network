@@ -34,6 +34,15 @@ export function TemplatesTab({
   const [isPublicTemplate, setIsPublicTemplate] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
+  // Edit template state
+  const [editingTemplate, setEditingTemplate] = useState<TemplateItem | null>(null);
+  const [editTemplateName, setEditTemplateName] = useState('');
+  const [editTemplateBadge, setEditTemplateBadge] = useState('Custom');
+  const [editTemplateDesc, setEditTemplateDesc] = useState('');
+  const [editIsPublic, setEditIsPublic] = useState(false);
+  const [editOverwriteCanvas, setEditOverwriteCanvas] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
@@ -49,7 +58,8 @@ export function TemplatesTab({
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const response = await api.fetchTemplates({ serverId });
+        const effectiveServerId = serverId && serverId !== 'default' ? serverId : undefined;
+        const response = await api.fetchTemplates(effectiveServerId ? { serverId: effectiveServerId } : {});
         const rawItems = Array.isArray(response?.data)
           ? response.data
           : Array.isArray((response?.data as unknown as { content?: unknown[] })?.content)
@@ -65,6 +75,8 @@ export function TemplatesTab({
               badge: bt.category || 'Cloud',
               description: bt.description || 'Cloud synchronized template.',
               createdAt: bt.createdAt ? new Date(bt.createdAt).toLocaleDateString() : undefined,
+              isPublic: bt.isPublic ?? bt.public ?? false,
+              serverId: bt.serverId,
               state: {
                 message: { content: (p.content as string) || '' },
                 type17Containers: (p.containers as Type17Container[]) || []
@@ -186,6 +198,70 @@ export function TemplatesTab({
         // ignore
       }
     }
+  };
+
+  const handleOpenEditModal = (tmpl: TemplateItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingTemplate(tmpl);
+    setEditTemplateName(tmpl.name);
+    setEditTemplateDesc(tmpl.description || '');
+    setEditTemplateBadge(tmpl.badge || 'Custom');
+    setEditIsPublic(Boolean(tmpl.isPublic));
+    setEditOverwriteCanvas(false);
+  };
+
+  const handleSaveEditTemplate = async () => {
+    if (!editingTemplate || !editTemplateName.trim()) {
+      showToast('Please enter a template name.', 'error');
+      return;
+    }
+    setIsUpdating(true);
+
+    const targetState = editOverwriteCanvas && currentBuilderState
+      ? currentBuilderState
+      : editingTemplate.state;
+
+    const payloadState = {
+      content: targetState.message?.content || '',
+      containers: targetState.type17Containers || []
+    };
+
+    try {
+      await api.saveTemplate({
+        id: editingTemplate.id,
+        name: editTemplateName.trim(),
+        description: editTemplateDesc.trim() || 'Custom template',
+        category: editTemplateBadge.trim() || 'Custom',
+        serverId: editingTemplate.serverId || (serverId && serverId !== 'default' ? serverId : 'default'),
+        isPublic: editIsPublic,
+        payload: payloadState
+      });
+      showToast('Template updated successfully!');
+    } catch {
+      showToast('Updated in local browser storage.', 'success');
+    } finally {
+      setIsUpdating(false);
+    }
+
+    const updatedItem: TemplateItem = {
+      ...editingTemplate,
+      name: editTemplateName.trim(),
+      badge: editTemplateBadge.trim() || 'Custom',
+      description: editTemplateDesc.trim(),
+      isPublic: editIsPublic,
+      state: JSON.parse(JSON.stringify(targetState))
+    };
+
+    const updated = userTemplates.map((t) => t.id === editingTemplate.id ? updatedItem : t);
+    setUserTemplates(updated);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEY_TEMPLATES, JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+    }
+    setEditingTemplate(null);
   };
 
   // Export a template as JSON file
@@ -405,6 +481,14 @@ export function TemplatesTab({
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <button
                       type="button"
+                      onClick={(e) => handleOpenEditModal(tmpl, e)}
+                      style={{ background: 'transparent', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '12px' }}
+                      title="Edit Template"
+                    >
+                      <i className="fa-solid fa-pen-to-square hover:text-white" />
+                    </button>
+                    <button
+                      type="button"
                       onClick={(e) => handleExportTemplate(tmpl, e)}
                       style={{ background: 'transparent', border: 'none', color: '#949ba4', cursor: 'pointer', fontSize: '12px' }}
                       title="Export as JSON"
@@ -544,6 +628,113 @@ export function TemplatesTab({
                 >
                   <i className="fa-solid fa-check" style={{ marginRight: '6px' }} />
                   Save Template
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Template Modal */}
+      {editingTemplate && (
+        <div
+          className="modal-overlay open"
+          onClick={() => setEditingTemplate(null)}
+        >
+          <div
+            className="modal-dialog"
+            style={{ maxWidth: '480px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-pen-to-square" style={{ color: '#38bdf8' }} />
+                <span>Edit Template</span>
+                <span className="component-modal-badge blurple">{editingTemplate.badge || 'CUSTOM'}</span>
+              </div>
+              <button className="btn-container-close" onClick={() => setEditingTemplate(null)}>
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div className="form-group">
+                <label className="form-label">Template Name</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Template Name"
+                  value={editTemplateName}
+                  onChange={(e) => setEditTemplateName(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Category Badge</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. Onboarding, Moderation, Support"
+                  value={editTemplateBadge}
+                  onChange={(e) => setEditTemplateBadge(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Description</label>
+                <textarea
+                  className="form-input"
+                  rows={3}
+                  placeholder="Brief description of this template layout..."
+                  value={editTemplateDesc}
+                  onChange={(e) => setEditTemplateDesc(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input
+                  type="checkbox"
+                  id="chk_edit_public_template"
+                  checked={editIsPublic}
+                  onChange={(e) => setEditIsPublic(e.target.checked)}
+                  style={{ accentColor: '#38bdf8', width: '16px', height: '16px' }}
+                />
+                <label htmlFor="chk_edit_public_template" style={{ fontSize: '12.5px', color: '#dbdee1', cursor: 'pointer' }}>
+                  Make template publicly visible to server members
+                </label>
+              </div>
+
+              {currentBuilderState && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', borderRadius: '8px', background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                  <input
+                    type="checkbox"
+                    id="chk_edit_overwrite_canvas"
+                    checked={editOverwriteCanvas}
+                    onChange={(e) => setEditOverwriteCanvas(e.target.checked)}
+                    style={{ accentColor: '#38bdf8', width: '16px', height: '16px' }}
+                  />
+                  <label htmlFor="chk_edit_overwrite_canvas" style={{ fontSize: '12px', color: '#e0f2fe', cursor: 'pointer' }}>
+                    Overwrite template layout with current builder canvas ({currentBuilderState.type17Containers?.length || 0} container{currentBuilderState.type17Containers?.length !== 1 ? 's' : ''})
+                  </label>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <button
+                  type="button"
+                  className="modal-btn-cancel"
+                  onClick={() => setEditingTemplate(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn-ctrl-green"
+                  style={{ padding: '8px 18px', fontSize: '12.5px', borderRadius: '6px' }}
+                  onClick={handleSaveEditTemplate}
+                  disabled={isUpdating}
+                >
+                  <i className={isUpdating ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-check"} style={{ marginRight: '6px' }} />
+                  {isUpdating ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </div>

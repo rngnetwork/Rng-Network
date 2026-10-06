@@ -74,38 +74,25 @@ export default function EmbedsPage() {
   const loadActions = useCallback(async (targetServerId?: string) => {
     const srvId = targetServerId !== undefined ? targetServerId : selectedServerId;
     try {
-      const res = srvId ? await api.fetchServerActions(srvId) : await api.fetchActionTemplates();
-      if (res.success && res.data) {
-        const filtered = srvId
-          ? res.data.filter((a) => a.isGlobal || a.serverId === srvId || (a.serverIds && a.serverIds.includes(srvId)))
-          : res.data;
-        setAvailableActions(filtered);
-      }
+      const [serverRes, globalRes] = await Promise.all([
+        srvId ? api.fetchServerActions(srvId) : Promise.resolve({ success: true, data: [] as EmbedAction[] }),
+        api.fetchActionTemplates()
+      ]);
+      const serverActions = (serverRes.success && serverRes.data) ? serverRes.data : [];
+      const globalActions = (globalRes.success && globalRes.data) ? globalRes.data : [];
+      const map = new Map<string, EmbedAction>();
+      [...serverActions, ...globalActions].forEach((a) => {
+        if (a.actionId) map.set(a.actionId, a);
+      });
+      setAvailableActions(Array.from(map.values()));
     } catch (e) {
       console.warn('Failed to load action templates:', e);
     }
   }, [selectedServerId]);
 
   useEffect(() => {
-    let isMounted = true;
-    const fetchActions = async () => {
-      try {
-        const res = selectedServerId ? await api.fetchServerActions(selectedServerId) : await api.fetchActionTemplates();
-        if (isMounted && res.success && res.data) {
-          const filtered = selectedServerId
-            ? res.data.filter((a) => a.isGlobal || a.serverId === selectedServerId || (a.serverIds && a.serverIds.includes(selectedServerId)))
-            : res.data;
-          setAvailableActions(filtered);
-        }
-      } catch (e) {
-        console.warn('Failed to load action templates:', e);
-      }
-    };
-    fetchActions();
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedServerId]);
+    loadActions();
+  }, [loadActions]);
 
   const loadChannelsForServer = useCallback(async (srvId: string) => {
     if (!srvId) return;
@@ -237,6 +224,7 @@ export default function EmbedsPage() {
       {activeTopTab === 'templates' && (
         <div style={{ flex: 1, overflowY: 'auto' }}>
           <TemplatesTab
+            serverId={selectedServerId || 'default'}
             currentBuilderState={{
               message: { content: messageContent },
               type17Containers: containers

@@ -88,7 +88,14 @@ function ActionTemplateModalInner({
   const [responseType, setResponseType] = useState<ResponseType>(initialAction?.responseType || 'PUBLIC_EMBED');
   const [responseEmbedTemplateId, setResponseEmbedTemplateId] = useState(initialAction?.responseEmbedTemplateId || '');
   const [confirmationMessage, setConfirmationMessage] = useState(initialAction?.confirmationMessage || '');
-  const [availableTemplates, setAvailableTemplates] = useState<TemplateData[]>([]);
+  const [availableTemplates, setAvailableTemplates] = useState<Array<{
+    id: string;
+    templateId?: string;
+    name: string;
+    description?: string;
+    isPublic?: boolean;
+    category?: string;
+  }>>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
 
   // Multi-select session dependencies
@@ -120,14 +127,87 @@ function ActionTemplateModalInner({
       setLoadingTemplates(true);
       try {
         const effectiveServerId = serverId || (selectedServerIds[0] ?? undefined);
-        const res = await api.fetchTemplates({ serverId: effectiveServerId });
-        if (isMounted && res.success && res.data) {
-          const raw = res.data as unknown;
-          if (Array.isArray(raw)) {
-            setAvailableTemplates(raw as TemplateData[]);
-          } else if (raw && typeof raw === 'object' && Array.isArray((raw as { content?: TemplateData[] }).content)) {
-            setAvailableTemplates((raw as { content: TemplateData[] }).content);
+        const [serverRes, publicRes] = await Promise.all([
+          effectiveServerId ? api.fetchTemplates({ serverId: effectiveServerId }) : api.fetchTemplates({}),
+          api.fetchTemplates({})
+        ]);
+
+        type TemplateItemShape = {
+          id: string;
+          templateId?: string;
+          name: string;
+          description?: string;
+          isPublic?: boolean;
+          category?: string;
+        };
+
+        const parseList = (res: any): TemplateItemShape[] => {
+          if (!res || !res.data) return [];
+          const list = Array.isArray(res.data) ? res.data : (Array.isArray(res.data.content) ? res.data.content : []);
+          return list.map((item: any) => ({
+            id: String(item.id || item.templateId),
+            templateId: item.templateId ? String(item.templateId) : String(item.id),
+            name: String(item.name || 'Untitled Template'),
+            description: item.description ? String(item.description) : undefined,
+            isPublic: Boolean(item.isPublic ?? item.public),
+            category: item.category ? String(item.category) : undefined
+          }));
+        };
+
+        const serverItems = parseList(serverRes);
+        const publicItems = parseList(publicRes);
+
+        // Local storage templates fallback
+        const localTemplates: TemplateItemShape[] = [];
+        if (typeof window !== 'undefined') {
+          try {
+            const raw1 = localStorage.getItem('rng_discord_user_templates');
+            const raw2 = localStorage.getItem('rng_embed_templates');
+            if (raw1) {
+              const parsed = JSON.parse(raw1);
+              if (Array.isArray(parsed)) {
+                localTemplates.push(
+                  ...parsed.map((item: any) => ({
+                    id: String(item.id),
+                    templateId: String(item.id),
+                    name: String(item.name || 'Untitled Template'),
+                    description: item.description ? String(item.description) : undefined,
+                    isPublic: true,
+                    category: item.badge ? String(item.badge) : undefined
+                  }))
+                );
+              }
+            }
+            if (raw2) {
+              const parsed = JSON.parse(raw2);
+              if (Array.isArray(parsed)) {
+                localTemplates.push(
+                  ...parsed.map((item: any) => ({
+                    id: String(item.id),
+                    templateId: item.templateId ? String(item.templateId) : String(item.id),
+                    name: String(item.name || 'Untitled Template'),
+                    description: item.description ? String(item.description) : undefined,
+                    isPublic: Boolean(item.isPublic ?? item.public),
+                    category: item.category ? String(item.category) : undefined
+                  }))
+                );
+              }
+            }
+          } catch {
+            // ignore JSON parse errors
           }
+        }
+
+        const combinedMap = new Map<string, TemplateItemShape>();
+        [...serverItems, ...publicItems, ...localTemplates].forEach((tmpl) => {
+          const key = tmpl.id || tmpl.templateId;
+          if (key && !combinedMap.has(key)) {
+            combinedMap.set(key, tmpl);
+          }
+        });
+
+        if (isMounted) {
+          setAvailableTemplates(Array.from(combinedMap.values()));
         }
       } catch (err) {
         console.warn('Could not load templates for ActionTemplateModal:', err);
@@ -206,7 +286,9 @@ function ActionTemplateModalInner({
         }
         savedAction = res.data;
       } else {
-        const res = await api.createActionTemplate(payload, effectiveServerIds[0] || serverId);
+        const res = isGlobal
+          ? await api.createActionTemplate(payload)
+          : await api.createActionTemplate(payload, effectiveServerIds[0] || serverId);
         if (!res.success || !res.data) {
           throw new Error(res.message || 'Failed to create action template.');
         }
@@ -233,9 +315,9 @@ function ActionTemplateModalInner({
   const templateOptions: DropdownOption[] = [
     { value: '', label: 'None (Default Confirmation)' },
     ...availableTemplates.map((t) => ({
-      value: t.id,
-      label: t.name,
-      description: t.description || `Template ID: ${t.id}`
+      value: t.id || t.templateId || '',
+      label: t.name || 'Unnamed Template',
+      description: t.description || (t.category ? `Category: ${t.category}` : undefined) || `ID: ${t.id || t.templateId}`
     }))
   ];
 

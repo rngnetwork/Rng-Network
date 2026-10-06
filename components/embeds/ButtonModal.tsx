@@ -64,27 +64,53 @@ function ButtonModalContent({
   const [emojiTriggerRect, setEmojiTriggerRect] = useState<DOMRect | null>(null);
 
   const [fetchedActions, setFetchedActions] = useState<EmbedAction[]>([]);
-  const actionsList = (availableActions && availableActions.length > 0) ? availableActions : fetchedActions;
+  const actionsList = React.useMemo(() => {
+    const map = new Map<string, EmbedAction>();
+    if (availableActions && availableActions.length > 0) {
+      availableActions.forEach((a) => { if (a.actionId) map.set(a.actionId, a); });
+    }
+    fetchedActions.forEach((a) => { if (a.actionId) map.set(a.actionId, a); });
+    return Array.from(map.values());
+  }, [availableActions, fetchedActions]);
+
   const [actionSourceMode, setActionSourceMode] = useState<'template' | 'custom'>(
-    (buttonData.custom_id?.startsWith('rng_act_') || (availableActions && availableActions.length > 0)) ? 'template' : 'custom'
+    (buttonData.custom_id?.startsWith('rng_act_') || !buttonData.custom_id) ? 'template' : 'custom'
   );
 
   useEffect(() => {
-    if (!availableActions || availableActions.length === 0) {
-      let isMounted = true;
-      api.fetchActionTemplates().then((res) => {
-        if (isMounted && res.success && res.data && res.data.length > 0) {
-          setFetchedActions(res.data);
-          if (buttonData.custom_id?.startsWith('rng_act_') || !buttonData.custom_id) {
-            setActionSourceMode('template');
-          }
+    let isMounted = true;
+    const loadActions = async () => {
+      try {
+        const res = await api.fetchActionTemplates();
+        let loaded = res.success && res.data ? res.data : [];
+        if (typeof window !== 'undefined') {
+          try {
+            const stored = localStorage.getItem('rng_embed_actions');
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              if (Array.isArray(parsed)) {
+                const map = new Map<string, EmbedAction>();
+                [...loaded, ...parsed].forEach((a: EmbedAction) => {
+                  if (a.actionId) map.set(a.actionId, a);
+                });
+                loaded = Array.from(map.values());
+              }
+            }
+          } catch {}
         }
-      }).catch(() => {});
-      return () => {
-        isMounted = false;
-      };
-    }
-  }, [availableActions, buttonData.custom_id]);
+        if (isMounted && loaded.length > 0) {
+          setFetchedActions(loaded);
+        }
+      } catch (err) {
+        console.warn('Could not fetch action templates in ButtonModal:', err);
+      }
+    };
+
+    loadActions();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleOpenEmojiPicker = (e: React.MouseEvent<HTMLButtonElement>) => {
     setEmojiTriggerRect(e.currentTarget.getBoundingClientRect());
@@ -377,27 +403,45 @@ function ButtonModalContent({
                   </div>
                 </div>
 
-                {actionSourceMode === 'template' && actionsList.length > 0 ? (
-                  <div className="space-y-1.5">
-                    <GlassmorphicDropdown
-                      options={actionsList.map((act) => ({
-                        value: act.actionId,
-                        label: act.name,
-                        description: act.description || act.actionId,
-                        badge: act.actionType
-                      }))}
-                      value={customId}
-                      onChange={(val) => setCustomId(val)}
-                      placeholder="Select interactive action template..."
-                      searchable
-                    />
-                    <div className="flex items-center justify-between text-[11px] text-zinc-500 font-mono px-1">
-                      <span>Bound ID: {customId || 'None'}</span>
-                      {customId.startsWith('rng_act_') && (
-                        <span className="text-emerald-400">✓ JDA Gateway Handled</span>
-                      )}
+                {actionSourceMode === 'template' ? (
+                  actionsList.length > 0 ? (
+                    <div className="space-y-1.5">
+                      <GlassmorphicDropdown
+                        options={actionsList.map((act) => ({
+                          value: act.actionId,
+                          label: act.name,
+                          description: act.description || act.actionId,
+                          badge: act.actionType
+                        }))}
+                        value={customId}
+                        onChange={(val) => setCustomId(val)}
+                        placeholder="Select interactive action template..."
+                        searchable
+                      />
+                      <div className="flex items-center justify-between text-[11px] text-zinc-500 font-mono px-1">
+                        <span>Bound ID: {customId || 'None'}</span>
+                        {customId.startsWith('rng_act_') && (
+                          <span className="text-emerald-400">✓ JDA Gateway Handled</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="p-3 rounded-lg bg-black/40 border border-amber-500/30 text-amber-300 text-xs flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <span>No action templates created yet.</span>
+                        <button
+                          type="button"
+                          onClick={() => setActionSourceMode('custom')}
+                          className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-200 text-[10.5px] font-semibold hover:bg-amber-500/30 transition-colors"
+                        >
+                          Use Custom ID
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-zinc-400">
+                        Create an Action Template under the <strong>Action Templates</strong> tab above, then map it here.
+                      </p>
+                    </div>
+                  )
                 ) : (
                   <div>
                     <input
@@ -409,9 +453,7 @@ function ButtonModalContent({
                       onChange={(e) => setCustomId(e.target.value)}
                     />
                     <p className="text-[10.5px] text-zinc-500 mt-1">
-                      {actionsList.length === 0
-                        ? 'No action templates found. Type a custom ID or configure templates in the Action Templates tab.'
-                        : 'Custom Discord component custom_id string.'}
+                      Custom Discord component custom_id string.
                     </p>
                   </div>
                 )}

@@ -260,6 +260,8 @@ export interface TemplateItem {
   category?: string;
   tags?: string[];
   createdAt?: string;
+  isPublic?: boolean;
+  serverId?: string;
   state: {
     message: { content: string };
     type17Containers: Type17Container[];
@@ -357,6 +359,7 @@ export interface BackendEmbedTemplate {
   tags: string[];
   category: string;
   public: boolean;
+  isPublic?: boolean;
   active: boolean;
   version: number;
   payloadJson: Record<string, unknown>;
