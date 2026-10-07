@@ -78,16 +78,16 @@ public class EmbedActionServiceImpl implements EmbedActionService {
         @CacheEvict(value = "action:templates", allEntries = true)
     })
     public EmbedActionDto createAction(CreateActionRequest request, String operatorEmail) {
+        User operator = tryResolveOperatorUser(operatorEmail);
+        boolean isHighCommand = operator != null && ((operator.getRole() != null && 
+                (operator.getRole().equals("ROLE_CHIEF_HIGH_COMMAND") || operator.getRole().equals("ROLE_HIGH_COMMAND")))
+                || (operator.getRoleList() != null && (operator.getRoleList().contains("ROLE_CHIEF_HIGH_COMMAND")
+                || operator.getRoleList().contains("ROLE_HIGH_COMMAND"))));
+
         if (Boolean.TRUE.equals(request.isGlobal())) {
             if (operatorEmail == null || operatorEmail.isBlank()) {
                 throw new AccessDeniedException("Operator clearance required to create global action templates");
             }
-            User operator = resolveOperatorUser(operatorEmail);
-
-            boolean isHighCommand = (operator.getRole() != null && 
-                    (operator.getRole().equals("ROLE_CHIEF_HIGH_COMMAND") || operator.getRole().equals("ROLE_HIGH_COMMAND")))
-                    || (operator.getRoleList() != null && (operator.getRoleList().contains("ROLE_CHIEF_HIGH_COMMAND")
-                    || operator.getRoleList().contains("ROLE_HIGH_COMMAND")));
             if (!isHighCommand) {
                 throw new AccessDeniedException("Only High Command can create global action templates");
             }
@@ -101,7 +101,14 @@ public class EmbedActionServiceImpl implements EmbedActionService {
                 List<String> targetServerIds = request.serverIds() != null && !request.serverIds().isEmpty()
                         ? request.serverIds()
                         : (request.serverId() != null ? List.of(request.serverId()) : List.of());
-                boolean isAccessible = template.isPublic() || (template.getServerId() != null && targetServerIds.contains(template.getServerId()));
+                boolean isAuthor = operator != null && (String.valueOf(operator.getId()).equals(template.getAuthorId())
+                        || (operator.getEmail() != null && operator.getEmail().equalsIgnoreCase(template.getAuthorName())));
+                boolean isAccessible = template.isPublic()
+                        || template.getServerId() == null
+                        || Boolean.TRUE.equals(request.isGlobal())
+                        || isHighCommand
+                        || isAuthor
+                        || (template.getServerId() != null && targetServerIds.contains(template.getServerId()));
                 if (!isAccessible) {
                     throw new AccessDeniedException("Referenced embed template is not accessible for specified serverIds");
                 }
@@ -161,15 +168,16 @@ public class EmbedActionServiceImpl implements EmbedActionService {
         EmbedAction existing = embedActionRepository.findByActionId(actionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Action Template not found with ID: " + actionId));
 
+        User operator = tryResolveOperatorUser(operatorEmail);
+        boolean isHighCommand = operator != null && ((operator.getRole() != null && 
+                (operator.getRole().equals("ROLE_CHIEF_HIGH_COMMAND") || operator.getRole().equals("ROLE_HIGH_COMMAND")))
+                || (operator.getRoleList() != null && (operator.getRoleList().contains("ROLE_CHIEF_HIGH_COMMAND")
+                || operator.getRoleList().contains("ROLE_HIGH_COMMAND"))));
+
         if (existing.isGlobal() || Boolean.TRUE.equals(request.isGlobal())) {
             if (operatorEmail == null || operatorEmail.isBlank()) {
                 throw new AccessDeniedException("Operator clearance required to modify global action templates");
             }
-            User operator = resolveOperatorUser(operatorEmail);
-            boolean isHighCommand = (operator.getRole() != null && 
-                    (operator.getRole().equals("ROLE_CHIEF_HIGH_COMMAND") || operator.getRole().equals("ROLE_HIGH_COMMAND")))
-                    || (operator.getRoleList() != null && (operator.getRoleList().contains("ROLE_CHIEF_HIGH_COMMAND")
-                    || operator.getRoleList().contains("ROLE_HIGH_COMMAND")));
             if (!isHighCommand) {
                 throw new AccessDeniedException("Only High Command can modify global action templates");
             }
@@ -184,7 +192,15 @@ public class EmbedActionServiceImpl implements EmbedActionService {
                 List<String> targetServerIds = request.serverIds() != null && !request.serverIds().isEmpty()
                         ? request.serverIds()
                         : (request.serverId() != null ? List.of(request.serverId()) : existingServerIds);
-                boolean isAccessible = template.isPublic() || (template.getServerId() != null && targetServerIds.contains(template.getServerId()));
+                boolean isGlobalAction = existing.isGlobal() || Boolean.TRUE.equals(request.isGlobal());
+                boolean isAuthor = operator != null && (String.valueOf(operator.getId()).equals(template.getAuthorId())
+                        || (operator.getEmail() != null && operator.getEmail().equalsIgnoreCase(template.getAuthorName())));
+                boolean isAccessible = template.isPublic()
+                        || template.getServerId() == null
+                        || isGlobalAction
+                        || isHighCommand
+                        || isAuthor
+                        || (template.getServerId() != null && targetServerIds.contains(template.getServerId()));
                 if (!isAccessible) {
                     throw new AccessDeniedException("Referenced embed template is not accessible for specified serverIds");
                 }
@@ -364,5 +380,20 @@ public class EmbedActionServiceImpl implements EmbedActionService {
         }
         return userRepository.findByEmail(operatorIdentifier)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + operatorIdentifier));
+    }
+
+    private User tryResolveOperatorUser(String operatorIdentifier) {
+        if (operatorIdentifier == null || operatorIdentifier.isBlank()) {
+            return null;
+        }
+        try {
+            Long userId = Long.parseLong(operatorIdentifier);
+            Optional<User> byId = userRepository.findById(userId);
+            if (byId.isPresent()) {
+                return byId.get();
+            }
+        } catch (NumberFormatException ignored) {
+        }
+        return userRepository.findByEmail(operatorIdentifier).orElse(null);
     }
 }

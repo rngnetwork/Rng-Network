@@ -70,12 +70,10 @@ function ButtonModalContent({
 
   const [fetchedActions, setFetchedActions] = useState<EmbedAction[]>([]);
   const actionsList = React.useMemo(() => {
-    const map = new Map<string, EmbedAction>();
-    if (availableActions && availableActions.length > 0) {
-      availableActions.forEach((a) => { if (a.actionId) map.set(a.actionId, a); });
+    if (fetchedActions.length > 0) {
+      return fetchedActions;
     }
-    fetchedActions.forEach((a) => { if (a.actionId) map.set(a.actionId, a); });
-    return Array.from(map.values());
+    return availableActions || [];
   }, [availableActions, fetchedActions]);
 
   const [actionSourceMode, setActionSourceMode] = useState<'template' | 'custom'>(

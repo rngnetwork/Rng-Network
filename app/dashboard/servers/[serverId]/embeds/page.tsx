@@ -242,7 +242,10 @@ export default function ServerEmbedsPage() {
             <button
               type="button"
               className={`main-tab-btn ${activeTopTab === 'builder' ? 'active' : ''}`}
-              onClick={() => setActiveTopTab('builder')}
+              onClick={() => {
+                setActiveTopTab('builder');
+                loadActions();
+              }}
             >
               <i className="fa-solid fa-cube text-red-500" />
               <span>Components V2 Builder</span>
@@ -322,6 +325,7 @@ export default function ServerEmbedsPage() {
             onSelectAction={() => {
               loadActions();
             }}
+            onActionsUpdated={loadActions}
           />
         </div>
       )}

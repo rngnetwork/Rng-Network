@@ -59,8 +59,8 @@ export function TemplatesTab({
       try {
         const effectiveServerId = serverId && serverId !== 'default' ? serverId : undefined;
         const [serverRes, publicRes] = await Promise.all([
-          effectiveServerId ? api.fetchTemplates({ serverId: effectiveServerId }) : api.fetchTemplates({}),
-          api.fetchTemplates({})
+          effectiveServerId ? api.fetchTemplates({ serverId: effectiveServerId, size: 100 }) : api.fetchTemplates({ size: 100 }),
+          api.fetchTemplates({ size: 100 })
         ]);
 
         const extractItems = (response: any): BackendEmbedTemplate[] => {

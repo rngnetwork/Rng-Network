@@ -30,11 +30,13 @@ import {
 interface ActionTemplatesTabProps {
   serverId?: string;
   onSelectAction?: (action: EmbedAction) => void;
+  onActionsUpdated?: () => void;
 }
 
 export function ActionTemplatesTab({
   serverId,
-  onSelectAction
+  onSelectAction,
+  onActionsUpdated
 }: ActionTemplatesTabProps) {
   const [actions, setActions] = useState<EmbedAction[]>([]);
   const [logs, setLogs] = useState<InteractionLogItem[]>([]);
@@ -165,6 +167,7 @@ export function ActionTemplatesTab({
     try {
       await api.deleteActionTemplate(actionId);
       setActions((prev) => prev.filter((a) => a.actionId !== actionId));
+      onActionsUpdated?.();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete action template');
     }
@@ -192,6 +195,8 @@ export function ActionTemplatesTab({
         return [saved, ...prev];
       }
     });
+    onActionsUpdated?.();
+    onSelectAction?.(saved);
   };
 
   // Filter actions

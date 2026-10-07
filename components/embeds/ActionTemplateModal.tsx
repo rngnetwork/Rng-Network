@@ -128,8 +128,8 @@ function ActionTemplateModalInner({
       try {
         const effectiveServerId = serverId || (selectedServerIds[0] ?? undefined);
         const [serverRes, publicRes] = await Promise.all([
-          effectiveServerId ? api.fetchTemplates({ serverId: effectiveServerId }) : api.fetchTemplates({}),
-          api.fetchTemplates({})
+          effectiveServerId ? api.fetchTemplates({ serverId: effectiveServerId, size: 100 }) : api.fetchTemplates({ size: 100 }),
+          api.fetchTemplates({ size: 100 })
         ]);
 
         type TemplateItemShape = {
