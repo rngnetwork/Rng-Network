@@ -65,6 +65,9 @@ class ActionExecutionServiceTest {
     private StringRedisTemplate redisTemplate;
 
     @Mock
+    private DiscordDispatchService discordDispatchService;
+
+    @Mock
     private ButtonInteractionEvent buttonEvent;
 
     @Mock
@@ -511,5 +514,51 @@ class ActionExecutionServiceTest {
         verify(channelAction, atLeastOnce()).addPermissionOverride(eq(operator), any(), any());
         verify(channelAction, atLeastOnce()).addPermissionOverride(eq(targetMember), any(), any());
         verify(mockHook).editOriginal(contains("Created ticket"));
+    }
+
+    @Test
+    @DisplayName("Should dispatch Components V2 wire payload via Discord REST API v10 when discordDispatchService is present")
+    void should_dispatch_components_v2_follow_up_embed_via_discord_rest_api() {
+        ActionExecutionServiceImpl customService = new ActionExecutionServiceImpl(
+                interactionLogRepository,
+                embedTemplateRepository,
+                embedActionRepository,
+                embedTemplateRenderer,
+                redisTemplate,
+                discordDispatchService
+        );
+
+        EmbedAction action = EmbedAction.builder()
+                .actionId("rng_act_reply_v2")
+                .actionType(ActionType.REPLY)
+                .responseType(ResponseType.PUBLIC_EMBED)
+                .responseEmbedTemplateId("tpl_follow_v2")
+                .build();
+        when(embedActionRepository.findByActionId("rng_act_reply_v2")).thenReturn(Optional.of(action));
+
+        EmbedTemplate followUpTpl = EmbedTemplate.builder()
+                .templateId("tpl_follow_v2")
+                .name("Follow-Up V2")
+                .payload(Map.of("flags", 32768, "components", List.of(Map.of("type", 17))))
+                .build();
+        when(embedTemplateRepository.findById("tpl_follow_v2")).thenReturn(Optional.of(followUpTpl));
+
+        Map<String, Object> wirePayload = Map.of("flags", 32768, "components", List.of(Map.of("type", 17)));
+        when(embedTemplateRenderer.renderInterpolatedWirePayload(eq(followUpTpl), anyMap())).thenReturn(wirePayload);
+
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        com.fasterxml.jackson.databind.JsonNode responseNode = mapper.createObjectNode().put("id", "msg_snowflake_v2");
+        when(discordDispatchService.dispatchToChannel(eq("chan_1"), eq(wirePayload), isNull())).thenReturn(responseNode);
+
+        net.dv8tion.jda.api.interactions.Interaction mockInteraction = mock(net.dv8tion.jda.api.interactions.Interaction.class);
+        when(hook.getInteraction()).thenReturn(mockInteraction);
+        when(mockInteraction.getMessageChannel()).thenReturn(channel);
+
+        ActionExecutionResult result = customService.executeComponentAction(
+                "rng_act_reply_v2", guild, clickingMember, hook, Map.of());
+
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.getNewGeneratedMessageId()).isEqualTo("msg_snowflake_v2");
+        verify(discordDispatchService).dispatchToChannel(eq("chan_1"), eq(wirePayload), isNull());
     }
 }

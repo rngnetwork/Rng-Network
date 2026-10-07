@@ -1,5 +1,6 @@
 package com.rng.embed.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rng.embed.domain.EmbedTemplate;
@@ -13,6 +14,7 @@ import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -90,6 +92,38 @@ public class EmbedTemplateRendererImpl implements EmbedTemplateRenderer {
         }
 
         return builder.build();
+    }
+
+    @Override
+    public Map<String, Object> renderInterpolatedWirePayload(EmbedTemplate template, Map<String, String> variables) {
+        if (template == null || template.getPayload() == null || template.getPayload().isEmpty()) {
+            Map<String, Object> fallback = new HashMap<>();
+            fallback.put("content", "⚠️ Empty response template");
+            return fallback;
+        }
+
+        try {
+            String rawJson = objectMapper.writeValueAsString(template.getPayload());
+            String interpolatedJson = interpolateVariables(rawJson, variables);
+            Map<String, Object> fullPayload = objectMapper.readValue(
+                    interpolatedJson,
+                    new TypeReference<Map<String, Object>>() {}
+            );
+
+            Map<String, Object> wirePayload = new HashMap<>();
+            wirePayload.put("flags", 32768);
+
+            if (fullPayload.containsKey("components") && fullPayload.get("components") instanceof List<?> list && !list.isEmpty()) {
+                wirePayload.put("components", list);
+            } else {
+                return fullPayload;
+            }
+
+            return wirePayload;
+        } catch (Exception e) {
+            log.error("Failed to render interpolated wire payload for template {}: {}", template.getId(), e.getMessage());
+            return template.getPayload();
+        }
     }
 
     private void processComponentNode(JsonNode node, StringBuilder contentBuilder, List<ActionRow> actionRows) {

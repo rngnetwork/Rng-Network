@@ -198,4 +198,55 @@ class EmbedTemplateRendererTest {
         assertThat(row.getButtons()).hasSize(1);
         assertThat(row.getButtons().get(0).getCustomId()).isEqualTo("rng_act_confirm");
     }
+
+    @Test
+    @DisplayName("Should render interpolated Discord Components V2 wire payload preserving Type 17 Container and flags")
+    void should_render_interpolated_wire_payload_preserving_type17_container_and_flags() {
+        Map<String, Object> payload = Map.of(
+                "flags", 32768,
+                "components", List.of(
+                        Map.of(
+                                "type", 17,
+                                "accent_color", 43260,
+                                "components", List.of(
+                                        Map.of("type", 10, "content", "Server: {server}\nOperator: {user}"),
+                                        Map.of(
+                                                "type", 1,
+                                                "components", List.of(
+                                                        Map.of("type", 2, "style", 1, "label", "Action Button", "custom_id", "rng_act_123")
+                                                )
+                                        )
+                                )
+                        )
+                )
+        );
+
+        EmbedTemplate template = EmbedTemplate.builder()
+                .templateId("tmpl_v2_wire")
+                .name("Wire Payload Test")
+                .payload(payload)
+                .build();
+
+        Map<String, String> vars = Map.of(
+                "server", "RNG Testing Server",
+                "user", "<@RachitSWE>"
+        );
+
+        Map<String, Object> wirePayload = renderer.renderInterpolatedWirePayload(template, vars);
+        assertThat(wirePayload).isNotNull();
+        assertThat(wirePayload.get("flags")).isEqualTo(32768);
+        assertThat(wirePayload).containsKey("components");
+
+        List<?> components = (List<?>) wirePayload.get("components");
+        assertThat(components).hasSize(1);
+        Map<?, ?> container = (Map<?, ?>) components.get(0);
+        assertThat(container.get("type")).isEqualTo(17);
+        assertThat(container.get("accent_color")).isEqualTo(43260);
+
+        List<?> inner = (List<?>) container.get("components");
+        assertThat(inner).hasSize(2);
+        Map<?, ?> textComp = (Map<?, ?>) inner.get(0);
+        assertThat(textComp.get("type")).isEqualTo(10);
+        assertThat(textComp.get("content")).isEqualTo("Server: RNG Testing Server\nOperator: <@RachitSWE>");
+    }
 }

@@ -307,7 +307,8 @@ public class EmbedActionServiceImpl implements EmbedActionService {
         }
 
         // 2. Durable MongoDB lookup
-        Optional<EmbedAction> actionOpt = embedActionRepository.findByActionId(actionId);
+        Optional<EmbedAction> actionOpt = embedActionRepository.findByActionId(actionId)
+                .or(() -> embedActionRepository.findById(actionId));
         actionOpt.ifPresent(this::cacheAction);
         return actionOpt;
     }

@@ -1,5 +1,6 @@
 package com.rng.embed.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.rng.common.exception.ResourceNotFoundException;
 import com.rng.embed.domain.ActionType;
 import com.rng.embed.domain.CompoundOperation;
@@ -51,6 +52,7 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
     private final EmbedActionRepository embedActionRepository;
     private final Optional<EmbedTemplateRenderer> embedTemplateRenderer;
     private final Optional<StringRedisTemplate> redisTemplate;
+    private final Optional<DiscordDispatchService> discordDispatchService;
 
     public ActionExecutionServiceImpl(
             InteractionLogRepository interactionLogRepository,
@@ -58,11 +60,22 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             EmbedActionRepository embedActionRepository,
             @Autowired(required = false) EmbedTemplateRenderer embedTemplateRenderer,
             @Autowired(required = false) StringRedisTemplate redisTemplate) {
+        this(interactionLogRepository, embedTemplateRepository, embedActionRepository, embedTemplateRenderer, redisTemplate, null);
+    }
+
+    public ActionExecutionServiceImpl(
+            InteractionLogRepository interactionLogRepository,
+            EmbedTemplateRepository embedTemplateRepository,
+            EmbedActionRepository embedActionRepository,
+            @Autowired(required = false) EmbedTemplateRenderer embedTemplateRenderer,
+            @Autowired(required = false) StringRedisTemplate redisTemplate,
+            @Autowired(required = false) DiscordDispatchService discordDispatchService) {
         this.interactionLogRepository = interactionLogRepository;
         this.embedTemplateRepository = embedTemplateRepository;
         this.embedActionRepository = embedActionRepository;
         this.embedTemplateRenderer = Optional.ofNullable(embedTemplateRenderer);
         this.redisTemplate = Optional.ofNullable(redisTemplate);
+        this.discordDispatchService = Optional.ofNullable(discordDispatchService);
     }
 
     @Override
@@ -700,14 +713,30 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
         vars.put("server", guild != null && guild.getName() != null ? guild.getName() : "");
         vars.put("channel", channel != null ? "<#" + channel.getId() + ">" : "");
 
-        MessageCreateData msgData = embedTemplateRenderer.get().renderToMessageData(template, vars);
         ResponseType rType = action.getResponseType() != null ? action.getResponseType() : ResponseType.PUBLIC_EMBED;
 
         if (rType == ResponseType.PUBLIC_EMBED || rType == ResponseType.PUBLIC_TEXT) {
+            // First attempt: Dispatch authentic Discord Components V2 wire payload directly via Discord REST API v10
+            if (channel != null && discordDispatchService.isPresent()) {
+                try {
+                    Map<String, Object> wirePayload = embedTemplateRenderer.get().renderInterpolatedWirePayload(template, vars);
+                    JsonNode dispatchResult = discordDispatchService.get().dispatchToChannel(channel.getId(), wirePayload, null);
+                    String messageId = dispatchResult != null && dispatchResult.has("id") ? dispatchResult.get("id").asText() : null;
+                    log.info("Dispatched public Components V2 follow-up embed {} to channel {} via Discord REST API v10 (messageId: {})",
+                            responseTplId, channel.getId(), messageId);
+                    return ActionExecutionResult.intermediate(messageId);
+                } catch (Exception e) {
+                    log.warn("Discord REST API v10 dispatch failed ({}), falling back to JDA sendMessage: {}",
+                            e.getMessage(), e.getClass().getSimpleName());
+                }
+            }
+
+            // Fallback: Dispatch via JDA MessageCreateData
+            MessageCreateData msgData = embedTemplateRenderer.get().renderToMessageData(template, vars);
             if (channel != null) {
                 try {
                     var sentMsg = channel.sendMessage(msgData).complete();
-                    log.info("Dispatched public follow-up embed {} to channel {}", responseTplId, channel.getId());
+                    log.info("Dispatched public follow-up embed {} to channel {} via JDA", responseTplId, channel.getId());
                     return ActionExecutionResult.intermediate(sentMsg != null ? sentMsg.getId() : null);
                 } catch (Exception e) {
                     log.warn("Direct channel sendMessage failed ({}), attempting hook.sendMessage: {}", e.getMessage(), e.getClass().getSimpleName());
@@ -723,6 +752,7 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                 return ActionExecutionResult.intermediate(sentMsg != null ? sentMsg.getId() : null);
             }
         } else if (rType == ResponseType.DM_EMBED) {
+            MessageCreateData msgData = embedTemplateRenderer.get().renderToMessageData(template, vars);
             if (operator != null && operator.getUser() != null) {
                 try {
                     var pc = operator.getUser().openPrivateChannel().complete();
@@ -740,6 +770,7 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
         } else {
             // EPHEMERAL_EMBED / default
             if (hook != null) {
+                MessageCreateData msgData = embedTemplateRenderer.get().renderToMessageData(template, vars);
                 var sentMsgAction = hook.sendMessage(msgData);
                 var sentMsg = sentMsgAction != null ? sentMsgAction.complete() : null;
                 return ActionExecutionResult.intermediate(sentMsg != null ? sentMsg.getId() : null);

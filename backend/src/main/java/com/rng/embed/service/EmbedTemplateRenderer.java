@@ -12,4 +12,5 @@ import java.util.Map;
 public interface EmbedTemplateRenderer {
     String interpolateVariables(String rawJson, Map<String, String> variables);
     MessageCreateData renderToMessageData(EmbedTemplate template, Map<String, String> variables);
+    Map<String, Object> renderInterpolatedWirePayload(EmbedTemplate template, Map<String, String> variables);
 }

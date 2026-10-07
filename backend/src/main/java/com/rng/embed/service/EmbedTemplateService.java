@@ -116,8 +116,20 @@ public class EmbedTemplateService {
         User operator = userRepository.findById(operatorUserId)
                 .orElseThrow(() -> new UnauthorizedException("Authenticated operator record not found."));
 
-        boolean isAuthor = String.valueOf(operatorUserId).equals(template.getAuthorId());
-        boolean isHighCommand = operator.getRole().contains("HIGH_COMMAND") || operator.getRole().contains("SUPER_ADMIN");
+        boolean isAuthor = template.getAuthorId() == null
+                || template.getAuthorId().isBlank()
+                || String.valueOf(operatorUserId).equals(template.getAuthorId())
+                || (operator.getEmail() != null && (
+                    operator.getEmail().equalsIgnoreCase(template.getAuthorId())
+                    || operator.getEmail().equalsIgnoreCase(template.getAuthorName())));
+
+        boolean isHighCommand = com.rng.identity.domain.PersonnelHierarchy.isHighCommand(operator)
+                || com.rng.identity.domain.PersonnelHierarchy.isChiefHighCommand(operator)
+                || (operator.getRole() != null && (
+                    operator.getRole().contains("HIGH_COMMAND")
+                    || operator.getRole().contains("SUPER_ADMIN")
+                    || operator.getRole().contains("ADMIN")));
+
         if (!isAuthor && !isHighCommand) {
             throw new ForbiddenException("Only the original template author or High Command may modify this template.");
         }
@@ -181,9 +193,13 @@ public class EmbedTemplateService {
 
         boolean isAuthor = template.getAuthorId() == null
                 || template.getAuthorId().isBlank()
-                || String.valueOf(operatorUserId).equals(template.getAuthorId());
+                || String.valueOf(operatorUserId).equals(template.getAuthorId())
+                || (operator.getEmail() != null && (
+                    operator.getEmail().equalsIgnoreCase(template.getAuthorId())
+                    || operator.getEmail().equalsIgnoreCase(template.getAuthorName())));
 
         boolean isHighCommand = com.rng.identity.domain.PersonnelHierarchy.isHighCommand(operator)
+                || com.rng.identity.domain.PersonnelHierarchy.isChiefHighCommand(operator)
                 || (operator.getRole() != null && (
                     operator.getRole().contains("HIGH_COMMAND")
                     || operator.getRole().contains("SUPER_ADMIN")
