@@ -63,6 +63,7 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
         this(interactionLogRepository, embedTemplateRepository, embedActionRepository, embedTemplateRenderer, redisTemplate, null);
     }
 
+    @Autowired
     public ActionExecutionServiceImpl(
             InteractionLogRepository interactionLogRepository,
             EmbedTemplateRepository embedTemplateRepository,
