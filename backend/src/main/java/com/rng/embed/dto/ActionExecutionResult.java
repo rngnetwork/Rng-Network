@@ -42,4 +42,8 @@ public class ActionExecutionResult {
                 .isTerminal(true)
                 .build();
     }
+
+    public String getMessage() {
+        return errorMessage != null ? errorMessage : responseMessage;
+    }
 }

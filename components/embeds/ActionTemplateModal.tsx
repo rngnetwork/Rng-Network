@@ -247,7 +247,7 @@ function ActionTemplateModalInner({
       welcomeMessage: actionType === 'TICKET' ? welcomeMessage.trim() : undefined,
       replyContent: (actionType === 'REPLY' || actionType === 'ROLE') ? replyContent.trim() : undefined,
       isEphemeral: responseType === 'EPHEMERAL_TEXT' || responseType === 'EPHEMERAL_EMBED' || (actionType === 'REPLY' && isEphemeral),
-      dmContent: actionType === 'DM' ? dmContent.trim() : undefined,
+      dmContent: (actionType === 'DM' || actionType === 'TICKET') ? (dmContent.trim() || undefined) : undefined,
       requiredUser: actionType === 'ROLE' ? true : requiredUser,
       requiredRole: actionType === 'ROLE' ? true : requiredRole,
       responseType,
@@ -634,6 +634,20 @@ function ActionTemplateModalInner({
                   rows={2}
                   className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs resize-none"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs text-zinc-300 mb-1.5">Direct Message Notification / Audit Log (Optional)</label>
+                <textarea
+                  value={dmContent}
+                  onChange={(e) => setDmContent(e.target.value)}
+                  placeholder="e.g. A support ticket has been opened for {targetUser} regarding role {targetRole}."
+                  rows={2}
+                  className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs resize-none"
+                />
+                <p className="text-[10px] text-zinc-500 mt-1">
+                  Variables supported: {`{user}`}, {`{targetUser}`}, {`{targetRole}`}, {`{server}`}, {`{channel}`}. Delivered via DM (falls back to ticket channel if DMs are closed).
+                </p>
               </div>
             </div>
           )}

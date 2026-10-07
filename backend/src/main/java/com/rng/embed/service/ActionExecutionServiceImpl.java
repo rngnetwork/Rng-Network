@@ -675,7 +675,148 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             return ActionExecutionResult.success("Reply acknowledged");
         }
 
-        return ActionExecutionResult.failure("Unsupported component action type");
+        if (action.getActionType() == ActionType.TICKET) {
+            MessageChannel channel = null;
+            if (hook != null && hook.getInteraction() != null) {
+                try {
+                    channel = hook.getInteraction().getMessageChannel();
+                } catch (Exception ignored) {
+                }
+            }
+
+            Member botMember = resolveBotMember(guild);
+            if (botMember != null && !botMember.hasPermission(Permission.MANAGE_CHANNEL)) {
+                if (hook != null) {
+                    hook.editOriginal("❌ Bot configuration error: Bot lacks 'Manage Channels' permission to create tickets.").queue();
+                }
+                return ActionExecutionResult.failure("Bot lacks MANAGE_CHANNEL permission");
+            }
+
+            String prefix = (action.getChannelPrefix() != null && !action.getChannelPrefix().isBlank())
+                    ? action.getChannelPrefix()
+                    : "ticket-";
+            String ticketId = UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+            String channelName = prefix + ticketId;
+
+            Member targetMember = resolveTargetMember(guild, operator, sessionData);
+
+            TextChannel ticketChannel;
+            try {
+                var channelAction = guild.createTextChannel(channelName)
+                        .addPermissionOverride(guild.getPublicRole(), Collections.emptyList(), List.of(Permission.VIEW_CHANNEL))
+                        .addPermissionOverride(operator, List.of(Permission.VIEW_CHANNEL, Permission.MESSAGE_SEND, Permission.MESSAGE_HISTORY, Permission.MESSAGE_ATTACH_FILES, Permission.MESSAGE_EMBED_LINKS), Collections.emptyList());
+                if (targetMember != null && !targetMember.equals(operator)) {
+                    channelAction = channelAction.addPermissionOverride(targetMember, List.of(Permission.VIEW_CHANNEL, Permission.MESSAGE_SEND, Permission.MESSAGE_HISTORY, Permission.MESSAGE_ATTACH_FILES, Permission.MESSAGE_EMBED_LINKS), Collections.emptyList());
+                }
+                ticketChannel = channelAction.complete();
+            } catch (Exception e) {
+                log.error("Failed to create ticket channel {} in guild {}: {}", channelName, guild.getId(), e.getMessage(), e);
+                if (hook != null) {
+                    hook.editOriginal("❌ Failed to create support ticket channel: " + e.getMessage()).queue();
+                }
+                return ActionExecutionResult.failure("Failed to create ticket channel: " + e.getMessage());
+            }
+
+            String welcome = interpolate(action.getWelcomeMessage(), guild, operator, targetMember, null, ticketChannel, null);
+            if (welcome.isBlank()) {
+                welcome = "👋 Welcome " + operator.getAsMention() + " to your support ticket! Staff will assist you shortly.";
+            }
+            ticketChannel.sendMessage(welcome).queue();
+
+            // Handle DM logs or compound operations if configured
+            if (action.getCompoundOperations() != null && !action.getCompoundOperations().isEmpty()) {
+                action.getCompoundOperations().stream()
+                        .filter(op -> op.getOperationType() == CompoundOperation.OperationType.SEND_DM_TEMPLATE)
+                        .findFirst()
+                        .ifPresent(op -> {
+                            EmbedTemplate dmTpl = resolveTemplate(op.getTemplateId()).orElse(null);
+                            if (dmTpl != null && embedTemplateRenderer.isPresent()) {
+                                Map<String, String> vars = Map.of(
+                                        "ticketid", ticketId,
+                                        "server", guild != null ? guild.getName() : "",
+                                        "user", operator != null ? operator.getAsMention() : "",
+                                        "targetUser", targetMember != null ? targetMember.getAsMention() : ""
+                                );
+                                MessageCreateData dmData = embedTemplateRenderer.get().renderToMessageData(dmTpl, vars);
+                                if (operator != null && operator.getUser() != null) {
+                                    dispatchDMLogsWithFallback(operator.getUser(), ticketChannel, dmData);
+                                }
+                            }
+                        });
+            } else if (action.getDmContent() != null && !action.getDmContent().isBlank()) {
+                String dmText = interpolate(action.getDmContent(), guild, operator, targetMember, null, ticketChannel, null);
+                if (operator != null && operator.getUser() != null) {
+                    dispatchDMLogsWithFallback(operator.getUser(), ticketChannel, MessageCreateData.fromContent(dmText));
+                }
+            }
+
+            if (hook != null) {
+                hook.editOriginal("✅ Support ticket created: " + ticketChannel.getAsMention()).queue();
+            }
+
+            if (action.getResponseEmbedTemplateId() != null && !action.getResponseEmbedTemplateId().isBlank()) {
+                return dispatchFollowUpTemplateMessage(action, guild, operator, targetMember, null, ticketChannel, hook);
+            }
+
+            return ActionExecutionResult.builder()
+                    .success(true)
+                    .ticketId(ticketId)
+                    .channelId(ticketChannel.getId())
+                    .isTerminal(action.getResponseEmbedTemplateId() == null || action.getResponseEmbedTemplateId().isBlank())
+                    .build();
+        }
+
+        if (action.getActionType() == ActionType.DM) {
+            Member targetMember = resolveTargetMember(guild, operator, sessionData);
+            MessageChannel channel = null;
+            if (hook != null && hook.getInteraction() != null) {
+                try {
+                    channel = hook.getInteraction().getMessageChannel();
+                } catch (Exception ignored) {
+                }
+            }
+
+            String rawContent = action.getDmContent() != null && !action.getDmContent().isBlank()
+                    ? action.getDmContent()
+                    : action.getReplyContent();
+            String dmText = interpolate(rawContent, guild, operator, targetMember, null, channel, null);
+            if (dmText.isBlank()) {
+                dmText = "Thank you for verifying on **" + guild.getName() + "**!";
+            }
+
+            final String finalDmText = dmText;
+            User targetUser = (targetMember != null && targetMember.getUser() != null)
+                    ? targetMember.getUser()
+                    : (operator != null ? operator.getUser() : null);
+
+            if (targetUser != null) {
+                try {
+                    var pc = targetUser.openPrivateChannel().complete();
+                    pc.sendMessage(finalDmText).complete();
+                    if (hook != null) {
+                        hook.editOriginal("✅ Direct message sent! Please check your private messages.").queue();
+                    }
+                } catch (Exception e) {
+                    log.warn("Direct messaging failed for user {}, falling back: {}", targetUser.getId(), e.getMessage());
+                    if (hook != null) {
+                        hook.editOriginal("⚠️ Could not send a DM. Please enable direct messages from server members in your Privacy Settings. Message:\n\n" + finalDmText).queue();
+                    }
+                }
+            } else if (hook != null) {
+                hook.editOriginal("❌ Could not resolve target user for Direct Message.").queue();
+            }
+
+            if (action.getResponseEmbedTemplateId() != null && !action.getResponseEmbedTemplateId().isBlank()) {
+                return dispatchFollowUpTemplateMessage(action, guild, operator, targetMember, null, channel, hook);
+            }
+
+            return ActionExecutionResult.success("Direct message delivered");
+        }
+
+        if (hook != null) {
+            hook.editOriginal("❌ Unsupported action type: " + action.getActionType()).queue();
+        }
+        return ActionExecutionResult.failure("Unsupported component action type: " + action.getActionType());
     }
 
     private ActionExecutionResult dispatchFollowUpTemplateMessage(
@@ -784,20 +925,38 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
     @Override
     public ActionExecutionResult executeCompoundAction(String actionId, Guild guild, Member operator, InteractionHook hook, Map<String, String> sessionData) {
         EmbedAction action = embedActionRepository.findByActionId(actionId)
+                .or(() -> embedActionRepository.findById(actionId))
                 .orElseThrow(() -> new ResourceNotFoundException("Action not found: " + actionId));
+
+        Member botMember = resolveBotMember(guild);
+        if (botMember != null && !botMember.hasPermission(Permission.MANAGE_CHANNEL)) {
+            if (hook != null) {
+                hook.editOriginal("❌ Bot configuration error: Bot lacks 'Manage Channels' permission to create tickets.").queue();
+            }
+            return ActionExecutionResult.failure("Bot lacks MANAGE_CHANNEL permission");
+        }
 
         String ticketId = UUID.randomUUID().toString().replace("-", "").substring(0, 6);
         String channelName = (action.getChannelPrefix() != null ? action.getChannelPrefix() : "ticket-") + ticketId;
 
         Member targetMember = resolveTargetMember(guild, operator, sessionData);
 
-        var channelAction = guild.createTextChannel(channelName)
-                .addPermissionOverride(guild.getPublicRole(), Collections.emptyList(), List.of(Permission.VIEW_CHANNEL))
-                .addPermissionOverride(operator, List.of(Permission.VIEW_CHANNEL, Permission.MESSAGE_SEND, Permission.MESSAGE_HISTORY, Permission.MESSAGE_ATTACH_FILES, Permission.MESSAGE_EMBED_LINKS), Collections.emptyList());
-        if (targetMember != null && !targetMember.equals(operator)) {
-            channelAction = channelAction.addPermissionOverride(targetMember, List.of(Permission.VIEW_CHANNEL, Permission.MESSAGE_SEND, Permission.MESSAGE_HISTORY, Permission.MESSAGE_ATTACH_FILES, Permission.MESSAGE_EMBED_LINKS), Collections.emptyList());
+        TextChannel ticketChannel;
+        try {
+            var channelAction = guild.createTextChannel(channelName)
+                    .addPermissionOverride(guild.getPublicRole(), Collections.emptyList(), List.of(Permission.VIEW_CHANNEL))
+                    .addPermissionOverride(operator, List.of(Permission.VIEW_CHANNEL, Permission.MESSAGE_SEND, Permission.MESSAGE_HISTORY, Permission.MESSAGE_ATTACH_FILES, Permission.MESSAGE_EMBED_LINKS), Collections.emptyList());
+            if (targetMember != null && !targetMember.equals(operator)) {
+                channelAction = channelAction.addPermissionOverride(targetMember, List.of(Permission.VIEW_CHANNEL, Permission.MESSAGE_SEND, Permission.MESSAGE_HISTORY, Permission.MESSAGE_ATTACH_FILES, Permission.MESSAGE_EMBED_LINKS), Collections.emptyList());
+            }
+            ticketChannel = channelAction.complete();
+        } catch (Exception e) {
+            log.error("Failed to create compound ticket channel {} in guild {}: {}", channelName, guild != null ? guild.getId() : "null", e.getMessage(), e);
+            if (hook != null) {
+                hook.editOriginal("❌ Failed to create support ticket channel: " + e.getMessage()).queue();
+            }
+            return ActionExecutionResult.failure("Failed to create ticket channel: " + e.getMessage());
         }
-        TextChannel ticketChannel = channelAction.complete();
 
         if (action.getCompoundOperations() != null) {
             action.getCompoundOperations().stream()

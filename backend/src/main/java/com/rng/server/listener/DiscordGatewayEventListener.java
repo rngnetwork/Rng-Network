@@ -227,16 +227,31 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
         }
 
         ActionExecutionResult result = null;
-        if (action.getCompoundOperations() != null && !action.getCompoundOperations().isEmpty()) {
-            result = actionExecutionService.get().executeCompoundAction(componentId, event.getGuild(), member, event.getHook(), sessionData);
-        } else if (action.getResponseType() == ResponseType.PUBLIC_EMBED || action.getResponseType() == ResponseType.PUBLIC_TEXT || (action.getResponseEmbedTemplateId() != null && !action.getResponseEmbedTemplateId().isBlank())) {
-            result = actionExecutionService.get().executeComponentAction(componentId, event.getGuild(), member, event.getHook(), sessionData);
-        } else {
-            actionExecutionService.get().executeButtonAction(event, action, sessionData);
+        try {
+            if (action.getCompoundOperations() != null && !action.getCompoundOperations().isEmpty()) {
+                result = actionExecutionService.get().executeCompoundAction(componentId, event.getGuild(), member, event.getHook(), sessionData);
+            } else if (action.getResponseType() == ResponseType.PUBLIC_EMBED || action.getResponseType() == ResponseType.PUBLIC_TEXT || (action.getResponseEmbedTemplateId() != null && !action.getResponseEmbedTemplateId().isBlank())) {
+                result = actionExecutionService.get().executeComponentAction(componentId, event.getGuild(), member, event.getHook(), sessionData);
+            } else {
+                actionExecutionService.get().executeButtonAction(event, action, sessionData);
+            }
+        } catch (Exception e) {
+            log.error("Error executing button action {}: {}", componentId, e.getMessage(), e);
+            if (event.getHook() != null) {
+                event.getHook().editOriginal("❌ Error executing action: " + e.getMessage()).queue();
+            }
+            return;
         }
 
-        if (result != null && result.isSuccess() && !result.isTerminal() && result.getNewGeneratedMessageId() != null) {
-            carryoverSession(guildId, event.getChannel().getId(), userId, messageId, result.getNewGeneratedMessageId(), sessionData);
+        if (result != null) {
+            if (!result.isSuccess()) {
+                if (event.getHook() != null) {
+                    String msg = result.getErrorMessage() != null ? result.getErrorMessage() : result.getMessage();
+                    event.getHook().editOriginal("❌ Action failed: " + (msg != null ? msg : "Unknown error")).queue();
+                }
+            } else if (!result.isTerminal() && result.getNewGeneratedMessageId() != null) {
+                carryoverSession(guildId, event.getChannel().getId(), userId, messageId, result.getNewGeneratedMessageId(), sessionData);
+            }
         }
     }
 
