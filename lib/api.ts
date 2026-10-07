@@ -1246,7 +1246,7 @@ export const api = {
     params?: { serverId?: string; category?: string; tag?: string; page?: number; size?: number },
     token?: string
   ): Promise<ApiResponseEnvelope<PageData<TemplateData>>> {
-    const effectiveToken = token || getStoredAccessToken();
+    let effectiveToken = token || getStoredAccessToken();
     const query = new URLSearchParams();
     if (params?.serverId) query.set('serverId', params.serverId);
     if (params?.category) query.set('category', params.category);
@@ -1254,34 +1254,80 @@ export const api = {
     if (params?.page !== undefined) query.set('page', String(params.page));
     if (params?.size !== undefined) query.set('size', String(params.size));
 
-    const response = await fetch(`${API_BASE}/api/v1/embeds/templates?${query.toString()}`, {
+    let response = await fetch(`${API_BASE}/api/v1/embeds/templates?${query.toString()}`, {
       method: 'GET',
       headers: {
         ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
       },
       credentials: 'include',
     });
+
+    if (response.status === 401) {
+      try {
+        const refreshRes = await this.refreshToken();
+        if (refreshRes.success && refreshRes.data?.accessToken) {
+          effectiveToken = refreshRes.data.accessToken;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('accessToken', effectiveToken);
+            localStorage.setItem('token', effectiveToken);
+          }
+          response = await fetch(`${API_BASE}/api/v1/embeds/templates?${query.toString()}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${effectiveToken}`,
+            },
+            credentials: 'include',
+          });
+        }
+      } catch (e) {
+        console.warn('Token refresh failed during fetchEmbedTemplates:', e);
+      }
+    }
+
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || 'Failed to fetch templates');
     return data;
   },
 
   async fetchEmbedTemplateById(id: string, token?: string): Promise<ApiResponseEnvelope<TemplateData>> {
-    const effectiveToken = token || getStoredAccessToken();
-    const response = await fetch(`${API_BASE}/api/v1/embeds/templates/${id}`, {
+    let effectiveToken = token || getStoredAccessToken();
+    let response = await fetch(`${API_BASE}/api/v1/embeds/templates/${id}`, {
       method: 'GET',
       headers: {
         ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
       },
       credentials: 'include',
     });
+
+    if (response.status === 401) {
+      try {
+        const refreshRes = await this.refreshToken();
+        if (refreshRes.success && refreshRes.data?.accessToken) {
+          effectiveToken = refreshRes.data.accessToken;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('accessToken', effectiveToken);
+            localStorage.setItem('token', effectiveToken);
+          }
+          response = await fetch(`${API_BASE}/api/v1/embeds/templates/${id}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${effectiveToken}`,
+            },
+            credentials: 'include',
+          });
+        }
+      } catch (e) {
+        console.warn('Token refresh failed during fetchEmbedTemplateById:', e);
+      }
+    }
+
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || 'Template not found');
     return data;
   },
 
   async createEmbedTemplate(payload: CreateTemplatePayload, token?: string): Promise<ApiResponseEnvelope<TemplateData>> {
-    const effectiveToken = token || getStoredAccessToken();
+    let effectiveToken = token || getStoredAccessToken();
     const targetPayload = payload.payload || payload.payloadJson || {};
     const isPublicVal = payload.isPublic ?? payload.publicTemplate ?? false;
     const normalizedBody = {
@@ -1291,7 +1337,7 @@ export const api = {
       isPublic: isPublicVal,
       publicTemplate: isPublicVal,
     };
-    const response = await fetch(`${API_BASE}/api/v1/embeds/templates`, {
+    let response = await fetch(`${API_BASE}/api/v1/embeds/templates`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1300,13 +1346,38 @@ export const api = {
       credentials: 'include',
       body: JSON.stringify(normalizedBody),
     });
+
+    if (response.status === 401) {
+      try {
+        const refreshRes = await this.refreshToken();
+        if (refreshRes.success && refreshRes.data?.accessToken) {
+          effectiveToken = refreshRes.data.accessToken;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('accessToken', effectiveToken);
+            localStorage.setItem('token', effectiveToken);
+          }
+          response = await fetch(`${API_BASE}/api/v1/embeds/templates`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${effectiveToken}`,
+            },
+            credentials: 'include',
+            body: JSON.stringify(normalizedBody),
+          });
+        }
+      } catch (e) {
+        console.warn('Token refresh failed during createEmbedTemplate:', e);
+      }
+    }
+
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || 'Failed to create template');
     return data;
   },
 
   async updateEmbedTemplate(id: string, payload: UpdateTemplatePayload, token?: string): Promise<ApiResponseEnvelope<TemplateData>> {
-    const effectiveToken = token || getStoredAccessToken();
+    let effectiveToken = token || getStoredAccessToken();
     const targetPayload = payload.payload || payload.payloadJson;
     const isPublicVal = payload.isPublic ?? payload.publicTemplate;
     const normalizedBody = {
@@ -1314,7 +1385,7 @@ export const api = {
       ...(targetPayload ? { payload: targetPayload, payloadJson: targetPayload } : {}),
       ...(isPublicVal !== undefined ? { isPublic: isPublicVal, publicTemplate: isPublicVal } : {}),
     };
-    const response = await fetch(`${API_BASE}/api/v1/embeds/templates/${id}`, {
+    let response = await fetch(`${API_BASE}/api/v1/embeds/templates/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -1323,20 +1394,68 @@ export const api = {
       credentials: 'include',
       body: JSON.stringify(normalizedBody),
     });
+
+    if (response.status === 401) {
+      try {
+        const refreshRes = await this.refreshToken();
+        if (refreshRes.success && refreshRes.data?.accessToken) {
+          effectiveToken = refreshRes.data.accessToken;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('accessToken', effectiveToken);
+            localStorage.setItem('token', effectiveToken);
+          }
+          response = await fetch(`${API_BASE}/api/v1/embeds/templates/${id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${effectiveToken}`,
+            },
+            credentials: 'include',
+            body: JSON.stringify(normalizedBody),
+          });
+        }
+      } catch (e) {
+        console.warn('Token refresh failed during updateEmbedTemplate:', e);
+      }
+    }
+
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || 'Failed to update template');
     return data;
   },
 
   async deleteEmbedTemplate(id: string, token?: string): Promise<ApiResponseEnvelope<boolean>> {
-    const effectiveToken = token || getStoredAccessToken();
-    const response = await fetch(`${API_BASE}/api/v1/embeds/templates/${id}`, {
+    let effectiveToken = token || getStoredAccessToken();
+    let response = await fetch(`${API_BASE}/api/v1/embeds/templates/${id}`, {
       method: 'DELETE',
       headers: {
         ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
       },
       credentials: 'include',
     });
+
+    if (response.status === 401) {
+      try {
+        const refreshRes = await this.refreshToken();
+        if (refreshRes.success && refreshRes.data?.accessToken) {
+          effectiveToken = refreshRes.data.accessToken;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('accessToken', effectiveToken);
+            localStorage.setItem('token', effectiveToken);
+          }
+          response = await fetch(`${API_BASE}/api/v1/embeds/templates/${id}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${effectiveToken}`,
+            },
+            credentials: 'include',
+          });
+        }
+      } catch (e) {
+        console.warn('Token refresh failed during deleteEmbedTemplate:', e);
+      }
+    }
+
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || 'Failed to delete template');
     return data;

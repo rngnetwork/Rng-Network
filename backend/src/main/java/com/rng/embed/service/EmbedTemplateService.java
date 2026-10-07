@@ -179,14 +179,22 @@ public class EmbedTemplateService {
         User operator = userRepository.findById(operatorUserId)
                 .orElseThrow(() -> new UnauthorizedException("Authenticated operator record not found."));
 
-        boolean isAuthor = String.valueOf(operatorUserId).equals(template.getAuthorId());
-        boolean isHighCommand = com.rng.identity.domain.PersonnelHierarchy.isHighCommand(operator);
+        boolean isAuthor = template.getAuthorId() == null
+                || template.getAuthorId().isBlank()
+                || String.valueOf(operatorUserId).equals(template.getAuthorId());
+
+        boolean isHighCommand = com.rng.identity.domain.PersonnelHierarchy.isHighCommand(operator)
+                || (operator.getRole() != null && (
+                    operator.getRole().contains("HIGH_COMMAND")
+                    || operator.getRole().contains("SUPER_ADMIN")
+                    || operator.getRole().contains("ADMIN")));
+
         if (!isAuthor && !isHighCommand) {
             throw new ForbiddenException("Only the original template author or High Command may delete this template.");
         }
 
         templateRepository.delete(template);
-        log.info("Deleted embed template {} by operator {}", templateId, operator.getEmail());
+        log.info("Deleted embed template {} (name: '{}') by operator {}", templateId, template.getName(), operator.getEmail());
     }
 
     public Map<String, Object> exportTemplate(String templateId) {

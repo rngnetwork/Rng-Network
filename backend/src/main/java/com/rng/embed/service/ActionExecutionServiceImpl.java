@@ -230,6 +230,7 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                             responseMsg = "✅ Granted role @" + targetRole.getName() + " to " + targetMember.getAsMention() + ".";
                         }
                         hook.editOriginal(responseMsg).queue();
+                        dispatchFollowUpTemplateMessage(action, guild, clickingMember, targetMember, targetRole, channel, hook);
                         recordAuditLog(action, guild.getId(), channel.getId(), messageId, user.getId(), user.getName(), "SUCCESS", "Added role @" + targetRole.getName() + " to " + targetMember.getUser().getName());
                     },
                     error -> {
@@ -245,6 +246,7 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                             responseMsg = "✅ Removed role @" + targetRole.getName() + " from " + targetMember.getAsMention() + ".";
                         }
                         hook.editOriginal(responseMsg).queue();
+                        dispatchFollowUpTemplateMessage(action, guild, clickingMember, targetMember, targetRole, channel, hook);
                         recordAuditLog(action, guild.getId(), channel.getId(), messageId, user.getId(), user.getName(), "SUCCESS", "Removed role @" + targetRole.getName() + " from " + targetMember.getUser().getName());
                     },
                     error -> {
@@ -318,12 +320,18 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             Map<String, String> sessionData,
             String selectedOption) {
 
-        String content = interpolate(action.getReplyContent(), guild, clickingMember, clickingMember, null, channel, selectedOption);
+        Member targetMember = resolveTargetMember(guild, clickingMember, sessionData);
+        Role targetRole = resolveTargetRole(guild, action, sessionData);
+
+        String content = interpolate(action.getReplyContent(), guild, clickingMember, targetMember, targetRole, channel, selectedOption);
         if (content.isBlank()) {
             content = "✅ Action acknowledged.";
         }
 
         hook.editOriginal(content).queue();
+        if (action.getResponseEmbedTemplateId() != null && !action.getResponseEmbedTemplateId().isBlank()) {
+            dispatchFollowUpTemplateMessage(action, guild, clickingMember, targetMember, targetRole, channel, hook);
+        }
         recordAuditLog(action, guild.getId(), channel.getId(), messageId, user.getId(), user.getName(), "SUCCESS", "Sent reply message");
     }
 
@@ -587,6 +595,14 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             }
             guild.addRoleToMember(targetMember, targetRole).complete();
 
+            MessageChannel channel = null;
+            if (hook != null && hook.getInteraction() != null) {
+                try {
+                    channel = hook.getInteraction().getMessageChannel();
+                } catch (Exception ignored) {
+                }
+            }
+
             String feedbackTemplate = action.getReplyContent();
             if (feedbackTemplate == null || feedbackTemplate.isBlank()) {
                 feedbackTemplate = action.getConfirmationMessage();
@@ -595,42 +611,142 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             String targetRoleMention = targetRole != null ? (targetRole.getAsMention() != null ? targetRole.getAsMention() : "@" + targetRole.getName()) : "";
             String targetMemberMention = targetMember != null ? (targetMember.getAsMention() != null ? targetMember.getAsMention() : targetMember.getEffectiveName()) : "";
             if (feedbackTemplate != null && !feedbackTemplate.isBlank()) {
-                feedbackMsg = interpolate(feedbackTemplate, guild, operator, targetMember, targetRole, null, null);
+                feedbackMsg = interpolate(feedbackTemplate, guild, operator, targetMember, targetRole, channel, null);
             } else {
                 feedbackMsg = "✅ Granted role " + targetRoleMention + " to " + targetMemberMention + ".";
             }
 
-            String responseTplId = action.getResponseEmbedTemplateId();
-            if (responseTplId != null && !responseTplId.isBlank()) {
-                EmbedTemplate template = resolveTemplate(responseTplId).orElse(null);
-                if (template != null && embedTemplateRenderer.isPresent()) {
-                    Map<String, String> vars = new HashMap<>();
-                    vars.put("user", operator != null && operator.getAsMention() != null ? operator.getAsMention() : "");
-                    vars.put("username", operator != null && operator.getUser() != null && operator.getUser().getName() != null ? operator.getUser().getName() : "");
-                    vars.put("targetUser", targetMember != null && targetMember.getAsMention() != null ? targetMember.getAsMention() : "");
-                    vars.put("target_user", targetMember != null && targetMember.getAsMention() != null ? targetMember.getAsMention() : "");
-                    vars.put("targetRole", targetRole != null && targetRole.getAsMention() != null ? targetRole.getAsMention() : "");
-                    vars.put("target_role", targetRole != null && targetRole.getAsMention() != null ? targetRole.getAsMention() : "");
-                    vars.put("role", targetRole != null && targetRole.getAsMention() != null ? targetRole.getAsMention() : "");
-                    vars.put("server", guild != null && guild.getName() != null ? guild.getName() : "");
-
-                    MessageCreateData msgData = embedTemplateRenderer.get().renderToMessageData(template, vars);
-                    if (hook != null) {
-                        hook.editOriginal(feedbackMsg).queue();
-                        var sentMsgAction = hook.sendMessage(msgData);
-                        if (sentMsgAction != null) {
-                            var sentMsg = sentMsgAction.complete();
-                            return ActionExecutionResult.intermediate(sentMsg != null ? sentMsg.getId() : null);
-                        }
-                    }
-                }
-            }
             if (hook != null) {
                 hook.editOriginal(feedbackMsg).queue();
             }
+
+            if (action.getResponseEmbedTemplateId() != null && !action.getResponseEmbedTemplateId().isBlank()) {
+                return dispatchFollowUpTemplateMessage(action, guild, operator, targetMember, targetRole, channel, hook);
+            }
+
             return ActionExecutionResult.success("Role assigned");
         }
+
+        if (action.getActionType() == ActionType.REPLY) {
+            MessageChannel channel = null;
+            if (hook != null && hook.getInteraction() != null) {
+                try {
+                    channel = hook.getInteraction().getMessageChannel();
+                } catch (Exception ignored) {
+                }
+            }
+
+            Member targetMember = resolveTargetMember(guild, operator, sessionData);
+            Role targetRole = resolveTargetRole(guild, action, sessionData);
+
+            String feedbackTemplate = action.getReplyContent();
+            if (feedbackTemplate == null || feedbackTemplate.isBlank()) {
+                feedbackTemplate = action.getConfirmationMessage();
+            }
+            String feedbackMsg;
+            if (feedbackTemplate != null && !feedbackTemplate.isBlank()) {
+                feedbackMsg = interpolate(feedbackTemplate, guild, operator, targetMember, targetRole, channel, null);
+            } else {
+                feedbackMsg = "✅ Action acknowledged.";
+            }
+
+            if (hook != null) {
+                hook.editOriginal(feedbackMsg).queue();
+            }
+
+            if (action.getResponseEmbedTemplateId() != null && !action.getResponseEmbedTemplateId().isBlank()) {
+                return dispatchFollowUpTemplateMessage(action, guild, operator, targetMember, targetRole, channel, hook);
+            }
+
+            return ActionExecutionResult.success("Reply acknowledged");
+        }
+
         return ActionExecutionResult.failure("Unsupported component action type");
+    }
+
+    private ActionExecutionResult dispatchFollowUpTemplateMessage(
+            EmbedAction action,
+            Guild guild,
+            Member operator,
+            Member targetMember,
+            Role targetRole,
+            MessageChannel channel,
+            InteractionHook hook) {
+
+        String responseTplId = action != null ? action.getResponseEmbedTemplateId() : null;
+        if (responseTplId == null || responseTplId.isBlank()) {
+            return ActionExecutionResult.success("No response template configured");
+        }
+
+        EmbedTemplate template = resolveTemplate(responseTplId).orElse(null);
+        if (template == null) {
+            log.warn("Response template ID '{}' could not be resolved from MongoDB! Checked templateId and _id.", responseTplId);
+            return ActionExecutionResult.failure("Response template not found: " + responseTplId);
+        }
+
+        if (embedTemplateRenderer.isEmpty()) {
+            log.warn("EmbedTemplateRenderer is not available to render template '{}'", responseTplId);
+            return ActionExecutionResult.failure("EmbedTemplateRenderer unavailable");
+        }
+
+        Map<String, String> vars = new HashMap<>();
+        vars.put("user", operator != null && operator.getAsMention() != null ? operator.getAsMention() : "");
+        vars.put("username", operator != null && operator.getUser() != null && operator.getUser().getName() != null ? operator.getUser().getName() : "");
+        vars.put("targetUser", targetMember != null && targetMember.getAsMention() != null ? targetMember.getAsMention() : "");
+        vars.put("target_user", targetMember != null && targetMember.getAsMention() != null ? targetMember.getAsMention() : "");
+        vars.put("targetRole", targetRole != null ? (targetRole.getAsMention() != null ? targetRole.getAsMention() : "@" + targetRole.getName()) : "");
+        vars.put("target_role", targetRole != null ? (targetRole.getAsMention() != null ? targetRole.getAsMention() : "@" + targetRole.getName()) : "");
+        vars.put("role", targetRole != null ? (targetRole.getAsMention() != null ? targetRole.getAsMention() : "@" + targetRole.getName()) : "");
+        vars.put("server", guild != null && guild.getName() != null ? guild.getName() : "");
+        vars.put("channel", channel != null ? "<#" + channel.getId() + ">" : "");
+
+        MessageCreateData msgData = embedTemplateRenderer.get().renderToMessageData(template, vars);
+        ResponseType rType = action.getResponseType() != null ? action.getResponseType() : ResponseType.PUBLIC_EMBED;
+
+        if (rType == ResponseType.PUBLIC_EMBED || rType == ResponseType.PUBLIC_TEXT) {
+            if (channel != null) {
+                try {
+                    var sentMsg = channel.sendMessage(msgData).complete();
+                    log.info("Dispatched public follow-up embed {} to channel {}", responseTplId, channel.getId());
+                    return ActionExecutionResult.intermediate(sentMsg != null ? sentMsg.getId() : null);
+                } catch (Exception e) {
+                    log.warn("Direct channel sendMessage failed ({}), attempting hook.sendMessage: {}", e.getMessage(), e.getClass().getSimpleName());
+                    if (hook != null) {
+                        var sentMsgAction = hook.sendMessage(msgData);
+                        var sentMsg = sentMsgAction != null ? sentMsgAction.complete() : null;
+                        return ActionExecutionResult.intermediate(sentMsg != null ? sentMsg.getId() : null);
+                    }
+                }
+            } else if (hook != null) {
+                var sentMsgAction = hook.sendMessage(msgData);
+                var sentMsg = sentMsgAction != null ? sentMsgAction.complete() : null;
+                return ActionExecutionResult.intermediate(sentMsg != null ? sentMsg.getId() : null);
+            }
+        } else if (rType == ResponseType.DM_EMBED) {
+            if (operator != null && operator.getUser() != null) {
+                try {
+                    var pc = operator.getUser().openPrivateChannel().complete();
+                    var sentMsg = pc.sendMessage(msgData).complete();
+                    return ActionExecutionResult.intermediate(sentMsg != null ? sentMsg.getId() : null);
+                } catch (Exception e) {
+                    log.warn("DM delivery failed, falling back to hook: {}", e.getMessage());
+                    if (hook != null) {
+                        var sentMsgAction = hook.sendMessage(msgData);
+                        var sentMsg = sentMsgAction != null ? sentMsgAction.complete() : null;
+                        return ActionExecutionResult.intermediate(sentMsg != null ? sentMsg.getId() : null);
+                    }
+                }
+            }
+        } else {
+            // EPHEMERAL_EMBED / default
+            if (hook != null) {
+                var sentMsgAction = hook.sendMessage(msgData);
+                var sentMsg = sentMsgAction != null ? sentMsgAction.complete() : null;
+                return ActionExecutionResult.intermediate(sentMsg != null ? sentMsg.getId() : null);
+            }
+        }
+
+        return ActionExecutionResult.success("Follow-up processed");
     }
 
     @Override

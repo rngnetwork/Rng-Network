@@ -302,6 +302,7 @@ export default function ServerEmbedsPage() {
       {activeTopTab === 'templates' && (
         <div style={{ flex: 1, overflowY: 'auto' }}>
           <TemplatesTab
+            serverId={serverId}
             currentBuilderState={{
               message: { content: messageContent },
               type17Containers: containers

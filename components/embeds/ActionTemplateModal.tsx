@@ -284,11 +284,15 @@ function ActionTemplateModalInner({
 
   const templateOptions: DropdownOption[] = [
     { value: '', label: 'None (Default Confirmation)' },
-    ...availableTemplates.map((t) => ({
-      value: t.templateId || t.id || '',
-      label: t.name || 'Unnamed Template',
-      description: t.description || (t.category ? `Category: ${t.category}` : undefined) || `ID: ${t.templateId || t.id}`
-    }))
+    ...availableTemplates.map((t) => {
+      const isDuplicateName = availableTemplates.filter((x) => x.name.toLowerCase() === t.name.toLowerCase()).length > 1;
+      const displayLabel = isDuplicateName ? `${t.name} [${t.templateId || t.id}]` : (t.name || 'Unnamed Template');
+      return {
+        value: t.templateId || t.id || '',
+        label: displayLabel,
+        description: t.description || (t.category ? `Category: ${t.category}` : undefined) || `ID: ${t.templateId || t.id}`
+      };
+    })
   ];
 
   return (

@@ -58,12 +58,31 @@ export function TemplatesTab({
       setIsLoading(true);
       try {
         const effectiveServerId = serverId && serverId !== 'default' ? serverId : undefined;
-        const response = await api.fetchTemplates(effectiveServerId ? { serverId: effectiveServerId } : {});
-        const rawItems = Array.isArray(response?.data)
-          ? response.data
-          : Array.isArray((response?.data as unknown as { content?: unknown[] })?.content)
-          ? ((response.data as unknown as { content: BackendEmbedTemplate[] }).content)
-          : [];
+        const [serverRes, publicRes] = await Promise.all([
+          effectiveServerId ? api.fetchTemplates({ serverId: effectiveServerId }) : api.fetchTemplates({}),
+          api.fetchTemplates({})
+        ]);
+
+        const extractItems = (response: any): BackendEmbedTemplate[] => {
+          if (!response?.data) return [];
+          if (Array.isArray(response.data)) return response.data;
+          if (Array.isArray(response.data.content)) return response.data.content;
+          return [];
+        };
+
+        const serverItems = extractItems(serverRes);
+        const publicItems = extractItems(publicRes);
+
+        // Deduplicate templates strictly from MongoDB by templateId or id
+        const combinedMap = new Map<string, BackendEmbedTemplate>();
+        [...serverItems, ...publicItems].forEach((bt) => {
+          const key = bt.templateId || bt.id;
+          if (key && !combinedMap.has(key)) {
+            combinedMap.set(key, bt);
+          }
+        });
+
+        const rawItems = Array.from(combinedMap.values());
 
         if (isMounted && rawItems.length > 0) {
           const mapped: TemplateItem[] = rawItems.map((bt: BackendEmbedTemplate) => {
@@ -88,7 +107,7 @@ export function TemplatesTab({
               id: bt.templateId || bt.id,
               templateId: bt.templateId || bt.id,
               name: bt.name,
-              badge: bt.category || 'Cloud',
+              badge: bt.category || (bt.serverId ? 'Server' : 'Global'),
               description: bt.description || 'Cloud synchronized template.',
               createdAt: bt.createdAt ? new Date(bt.createdAt).toLocaleDateString() : undefined,
               isPublic: bt.isPublic ?? bt.public ?? false,
