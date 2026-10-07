@@ -426,22 +426,45 @@ function ButtonModalContent({
                   actionsList.length > 0 ? (
                     <div className="space-y-1.5">
                       <GlassmorphicDropdown
-                        options={actionsList.map((act) => ({
-                          value: act.actionId,
-                          label: act.name,
-                          description: act.description || act.actionId,
-                          badge: act.actionType
-                        }))}
+                        options={[
+                          ...(customId && customId.startsWith('rng_act_') && !actionsList.some((act) => act.actionId === customId)
+                            ? [{
+                                value: customId,
+                                label: `${customId} (Unregistered / Stale)`,
+                                description: 'This action was deleted or does not exist in registry. Please re-select.',
+                                badge: 'STALE'
+                              }]
+                            : []),
+                          ...actionsList.map((act) => ({
+                            value: act.actionId,
+                            label: act.name,
+                            description: act.description || act.actionId,
+                            badge: act.actionType
+                          }))
+                        ]}
                         value={customId}
                         onChange={(val) => setCustomId(val)}
                         placeholder="Select interactive action template..."
                         searchable
                       />
+                      {customId && customId.startsWith('rng_act_') && !actionsList.some((act) => act.actionId === customId) && (
+                        <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2">
+                          <i className="fa-solid fa-triangle-exclamation text-amber-400 mt-0.5 shrink-0" />
+                          <div className="space-y-0.5">
+                            <span className="font-semibold text-white">Stale / Unregistered Action ID:</span>
+                            <p className="text-[11px] text-amber-200/80 leading-relaxed">
+                              This button references <code className="font-mono text-amber-300">{customId}</code>, which was deleted or not found in the active action registry. Please re-select an active template above before dispatching.
+                            </p>
+                          </div>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between text-[11px] text-zinc-500 font-mono px-1">
                         <span>Bound ID: {customId || 'None'}</span>
-                        {customId.startsWith('rng_act_') && (
+                        {customId.startsWith('rng_act_') && actionsList.some((act) => act.actionId === customId) ? (
                           <span className="text-emerald-400">✓ JDA Gateway Handled</span>
-                        )}
+                        ) : customId.startsWith('rng_act_') ? (
+                          <span className="text-amber-400 font-semibold">⚠️ Unregistered in Registry</span>
+                        ) : null}
                       </div>
                     </div>
                   ) : (
@@ -462,7 +485,7 @@ function ButtonModalContent({
                     </div>
                   )
                 ) : (
-                  <div>
+                  <div className="space-y-1.5">
                     <input
                       type="text"
                       className="form-input"
@@ -471,7 +494,18 @@ function ButtonModalContent({
                       value={customId}
                       onChange={(e) => setCustomId(e.target.value)}
                     />
-                    <p className="text-[10.5px] text-zinc-500 mt-1">
+                    {customId && customId.startsWith('rng_act_') && !actionsList.some((act) => act.actionId === customId) && (
+                      <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2">
+                        <i className="fa-solid fa-triangle-exclamation text-amber-400 mt-0.5 shrink-0" />
+                        <div className="space-y-0.5">
+                          <span className="font-semibold text-white">Stale / Unregistered Action ID:</span>
+                          <p className="text-[11px] text-amber-200/80 leading-relaxed">
+                            <code className="font-mono text-amber-300">{customId}</code> is not registered in the database. Clicking this button in Discord will trigger an action not found error.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    <p className="text-[10.5px] text-zinc-500">
                       Custom Discord component custom_id string.
                     </p>
                   </div>

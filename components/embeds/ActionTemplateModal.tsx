@@ -157,13 +157,23 @@ function ActionTemplateModalInner({
         const serverItems = parseList(serverRes);
         const publicItems = parseList(publicRes);
 
-        // Strictly MongoDB - deduplicate server and public templates by templateId or id
-        const combinedMap = new Map<string, TemplateItemShape>();
+        // Strictly MongoDB - deduplicate server and public templates by both templateId and mongo id
+        const seenKeys = new Set<string>();
+        const uniqueTemplates: TemplateItemShape[] = [];
+
         [...serverItems, ...publicItems].forEach((tmpl) => {
-          const key = tmpl.templateId || tmpl.id;
-          if (key && !combinedMap.has(key)) {
-            combinedMap.set(key, tmpl);
+          const tId = tmpl.templateId?.trim();
+          const mId = tmpl.id?.trim();
+          const key = tId || mId;
+          if (!key) return;
+
+          if (seenKeys.has(key) || (tId && seenKeys.has(tId)) || (mId && seenKeys.has(mId))) {
+            return;
           }
+
+          if (tId) seenKeys.add(tId);
+          if (mId) seenKeys.add(mId);
+          uniqueTemplates.push(tmpl);
         });
 
         // Purge any stale legacy localStorage template and action keys from user browser
@@ -176,7 +186,7 @@ function ActionTemplateModalInner({
         }
 
         if (isMounted) {
-          setAvailableTemplates(Array.from(combinedMap.values()));
+          setAvailableTemplates(uniqueTemplates);
         }
       } catch (err) {
         console.warn('Could not load templates for ActionTemplateModal:', err);
@@ -282,18 +292,31 @@ function ActionTemplateModalInner({
     { value: 'DM_EMBED', label: 'Direct Message Embed' }
   ];
 
-  const templateOptions: DropdownOption[] = [
-    { value: '', label: 'None (Default Confirmation)' },
-    ...availableTemplates.map((t) => {
-      const isDuplicateName = availableTemplates.filter((x) => x.name.toLowerCase() === t.name.toLowerCase()).length > 1;
-      const displayLabel = isDuplicateName ? `${t.name} [${t.templateId || t.id}]` : (t.name || 'Unnamed Template');
-      return {
-        value: t.templateId || t.id || '',
+  const templateOptions: DropdownOption[] = React.useMemo(() => {
+    const options: DropdownOption[] = [
+      { value: '', label: 'None (Default Confirmation)' }
+    ];
+    const seenValues = new Set<string>(['']);
+
+    availableTemplates.forEach((t) => {
+      const val = (t.templateId || t.id || '').trim();
+      if (!val || seenValues.has(val)) return;
+      seenValues.add(val);
+
+      const isDuplicateName = availableTemplates.filter(
+        (x) => x.name.toLowerCase() === t.name.toLowerCase() && (x.templateId || x.id) !== val
+      ).length > 0;
+      const displayLabel = isDuplicateName ? `${t.name} [${val}]` : (t.name || 'Unnamed Template');
+
+      options.push({
+        value: val,
         label: displayLabel,
-        description: t.description || (t.category ? `Category: ${t.category}` : undefined) || `ID: ${t.templateId || t.id}`
-      };
-    })
-  ];
+        description: t.description || (t.category ? `Category: ${t.category}` : undefined) || `ID: ${val}`
+      });
+    });
+
+    return options;
+  }, [availableTemplates]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">

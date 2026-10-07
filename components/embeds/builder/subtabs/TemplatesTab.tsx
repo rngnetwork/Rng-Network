@@ -73,16 +73,26 @@ export function TemplatesTab({
         const serverItems = extractItems(serverRes);
         const publicItems = extractItems(publicRes);
 
-        // Deduplicate templates strictly from MongoDB by templateId or id
-        const combinedMap = new Map<string, BackendEmbedTemplate>();
+        // Deduplicate templates strictly from MongoDB by both templateId and mongo id
+        const seenKeys = new Set<string>();
+        const uniqueTemplates: BackendEmbedTemplate[] = [];
+
         [...serverItems, ...publicItems].forEach((bt) => {
-          const key = bt.templateId || bt.id;
-          if (key && !combinedMap.has(key)) {
-            combinedMap.set(key, bt);
+          const tId = bt.templateId ? String(bt.templateId).trim() : undefined;
+          const mId = bt.id ? String(bt.id).trim() : undefined;
+          const key = tId || mId;
+          if (!key) return;
+
+          if (seenKeys.has(key) || (tId && seenKeys.has(tId)) || (mId && seenKeys.has(mId))) {
+            return;
           }
+
+          if (tId) seenKeys.add(tId);
+          if (mId) seenKeys.add(mId);
+          uniqueTemplates.push(bt);
         });
 
-        const rawItems = Array.from(combinedMap.values());
+        const rawItems = uniqueTemplates;
 
         if (isMounted && rawItems.length > 0) {
           const mapped: TemplateItem[] = rawItems.map((bt: BackendEmbedTemplate) => {
