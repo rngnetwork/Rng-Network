@@ -61,14 +61,12 @@ public class EmbedTemplateRendererImpl implements EmbedTemplateRenderer {
             List<ActionRow> actionRows = new ArrayList<>();
 
             // Inspect top-level components (Components V2 wire payload)
-            if (rootNode.has("components") && rootNode.get("components").isArray()) {
+            if (rootNode.has("components") && rootNode.get("components").isArray() && !rootNode.get("components").isEmpty()) {
                 for (JsonNode node : rootNode.get("components")) {
                     processComponentNode(node, contentBuilder, actionRows);
                 }
-            }
-
-            // Inspect top-level containers if present (UI state builder payload)
-            if (rootNode.has("containers") && rootNode.get("containers").isArray()) {
+            } else if (rootNode.has("containers") && rootNode.get("containers").isArray() && !rootNode.get("containers").isEmpty()) {
+                // Fallback for UI state builder payload lacking compiled components array
                 for (JsonNode containerNode : rootNode.get("containers")) {
                     processContainerNode(containerNode, contentBuilder, actionRows);
                 }

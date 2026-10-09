@@ -615,14 +615,17 @@ function ActionTemplateModalInner({
               </h3>
 
               <div>
-                <label className="block text-xs text-zinc-300 mb-1.5">Ticket Channel Prefix</label>
+                <label className="block text-xs text-zinc-300 mb-1.5">Ticket Channel Name / Pattern</label>
                 <input
                   type="text"
                   value={channelPrefix}
                   onChange={(e) => setChannelPrefix(e.target.value)}
-                  placeholder="ticket-"
+                  placeholder="e.g. ticket-0017 or ticket-{hexCode}"
                   className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs font-mono"
                 />
+                <p className="text-[10px] text-zinc-500 mt-1">
+                  Custom exact name (e.g. <code className="text-zinc-300">ticket-0017</code>) or dynamic pattern using <code className="text-zinc-300">{`{hexCode}`}</code> or <code className="text-zinc-300">{`{username}`}</code>.
+                </p>
               </div>
 
               <div>
@@ -630,10 +633,13 @@ function ActionTemplateModalInner({
                 <textarea
                   value={welcomeMessage}
                   onChange={(e) => setWelcomeMessage(e.target.value)}
-                  placeholder="Welcome {user}! Support staff will be with you shortly."
+                  placeholder="Welcome {user}! Support staff will be with you shortly regarding role {targetRole}."
                   rows={2}
                   className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs resize-none"
                 />
+                <p className="text-[10px] text-zinc-500 mt-1">
+                  Variables supported: {`{user}`}, {`{username}`}, {`{targetUser}`}, {`{targetRole}`}, {`{server}`}, {`{channel}`}
+                </p>
               </div>
 
               <div>

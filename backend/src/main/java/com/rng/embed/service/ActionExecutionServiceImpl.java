@@ -294,11 +294,11 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             return;
         }
 
-        String prefix = (action.getChannelPrefix() != null && !action.getChannelPrefix().isBlank())
-                ? action.getChannelPrefix()
-                : "ticket-";
-        String sanitizedUsername = user.getName().toLowerCase().replaceAll("[^a-z0-9-_]", "");
-        String channelName = prefix + sanitizedUsername;
+        Member targetMember = resolveTargetMember(guild, clickingMember, sessionData);
+        Role targetRole = resolveTargetRole(guild, action, sessionData);
+
+        String ticketId = UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+        String channelName = resolveTicketChannelName(action.getChannelPrefix(), ticketId, clickingMember, targetMember);
 
         guild.createTextChannel(channelName)
                 .addPermissionOverride(guild.getPublicRole(), null, EnumSet.of(Permission.VIEW_CHANNEL))
@@ -307,7 +307,7 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                         null)
                 .queue(
                         ticketChannel -> {
-                            String welcome = interpolate(action.getWelcomeMessage(), guild, clickingMember, clickingMember, null, ticketChannel, selectedOption);
+                            String welcome = interpolate(action.getWelcomeMessage(), guild, clickingMember, targetMember, targetRole, ticketChannel, selectedOption);
                             if (welcome.isBlank()) {
                                 welcome = "👋 Welcome " + clickingMember.getAsMention() + " to your support ticket! Staff will assist you shortly.";
                             }
@@ -360,17 +360,24 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             Map<String, String> sessionData,
             String selectedOption) {
 
+        Member targetMember = resolveTargetMember(guild, clickingMember, sessionData);
+        Role targetRole = resolveTargetRole(guild, action, sessionData);
+
         String rawContent = action.getDmContent() != null && !action.getDmContent().isBlank()
                 ? action.getDmContent()
                 : action.getReplyContent();
-        String dmText = interpolate(rawContent, guild, clickingMember, clickingMember, null, channel, selectedOption);
+        String dmText = interpolate(rawContent, guild, clickingMember, targetMember, targetRole, channel, selectedOption);
 
         if (dmText.isBlank()) {
             dmText = "Thank you for verifying on **" + guild.getName() + "**!";
         }
 
         final String finalDmText = dmText;
-        user.openPrivateChannel().queue(
+        User targetUser = (targetMember != null && targetMember.getUser() != null)
+                ? targetMember.getUser()
+                : user;
+
+        targetUser.openPrivateChannel().queue(
                 pc -> pc.sendMessage(finalDmText).queue(
                         success -> {
                             hook.editOriginal("✅ Direct message sent! Please check your private messages.").queue();
@@ -412,21 +419,124 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
     }
 
     private Role resolveTargetRole(Guild guild, EmbedAction action, Map<String, String> sessionData) {
-        if (sessionData != null && (sessionData.containsKey("targetRole") || sessionData.containsKey("target_role"))) {
-            String targetRoleId = sessionData.getOrDefault("targetRole", sessionData.get("target_role"));
-            if (targetRoleId != null && !targetRoleId.isBlank()) {
-                if (guild != null) {
-                    Role role = guild.getRoleById(targetRoleId);
-                    if (role != null) {
-                        return role;
+        if (guild == null) {
+            return null;
+        }
+        if (sessionData != null) {
+            List<String> keys = List.of("targetRole", "target_role", "roleId", "role_id", "selected_option");
+            for (String key : keys) {
+                String roleId = sessionData.get(key);
+                if (roleId != null && !roleId.isBlank()) {
+                    try {
+                        Role role = guild.getRoleById(roleId);
+                        if (role != null) {
+                            return role;
+                        }
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+            if (sessionData.containsKey("selected_options")) {
+                String raw = sessionData.get("selected_options");
+                if (raw != null) {
+                    for (String part : raw.split(",")) {
+                        String trimmed = part.trim();
+                        if (!trimmed.isBlank()) {
+                            try {
+                                Role role = guild.getRoleById(trimmed);
+                                if (role != null) {
+                                    return role;
+                                }
+                            } catch (Exception ignored) {
+                            }
+                        }
                     }
                 }
             }
         }
         if (action != null && action.getRoleId() != null && !action.getRoleId().isBlank()) {
-            return guild != null ? guild.getRoleById(action.getRoleId()) : null;
+            try {
+                return guild.getRoleById(action.getRoleId());
+            } catch (Exception ignored) {
+            }
         }
         return null;
+    }
+
+    private String resolveTicketChannelName(String configuredPrefix, String ticketId, Member operator, Member targetMember) {
+        if (configuredPrefix == null || configuredPrefix.isBlank()) {
+            return "ticket-" + ticketId;
+        }
+
+        String name = configuredPrefix.trim();
+        boolean hasHexTag = name.contains("{hexCode}") || name.contains("{hexcode}")
+                || name.contains("{ticketId}") || name.contains("{ticketid}")
+                || name.contains("{id}");
+
+        if (hasHexTag) {
+            name = name.replace("{hexCode}", ticketId)
+                    .replace("{hexcode}", ticketId)
+                    .replace("{ticketId}", ticketId)
+                    .replace("{ticketid}", ticketId)
+                    .replace("{id}", ticketId);
+        } else if (name.endsWith("-")) {
+            name = name + ticketId;
+        }
+
+        if (targetMember != null && targetMember.getUser() != null && targetMember.getUser().getName() != null) {
+            String sanitizedTarget = targetMember.getUser().getName().toLowerCase().replaceAll("[^a-z0-9-_]", "");
+            name = name.replace("{targetUser}", sanitizedTarget)
+                    .replace("{target_user}", sanitizedTarget);
+        }
+        if (operator != null && operator.getUser() != null && operator.getUser().getName() != null) {
+            String sanitizedOp = operator.getUser().getName().toLowerCase().replaceAll("[^a-z0-9-_]", "");
+            name = name.replace("{user}", sanitizedOp)
+                    .replace("{username}", sanitizedOp);
+        }
+
+        name = name.toLowerCase().replaceAll("[^a-z0-9-_]", "-").replaceAll("-+", "-");
+        if (name.length() > 100) {
+            name = name.substring(0, 100);
+        }
+        return name;
+    }
+
+    private Map<String, String> buildTemplateVariables(
+            String ticketId,
+            Guild guild,
+            Member operator,
+            Member targetMember,
+            Role targetRole,
+            MessageChannel channel) {
+
+        Map<String, String> vars = new HashMap<>();
+        vars.put("user", operator != null && operator.getAsMention() != null ? operator.getAsMention() : "");
+        vars.put("username", operator != null && operator.getUser() != null && operator.getUser().getName() != null ? operator.getUser().getName() : "");
+        vars.put("user_id", operator != null && operator.getId() != null ? operator.getId() : "");
+        vars.put("targetUser", targetMember != null && targetMember.getAsMention() != null ? targetMember.getAsMention() : "");
+        vars.put("target_user", targetMember != null && targetMember.getAsMention() != null ? targetMember.getAsMention() : "");
+
+        String roleName = (targetRole != null && targetRole.getName() != null) ? targetRole.getName() : "";
+        String roleMention = "";
+        if (targetRole != null) {
+            roleMention = targetRole.getAsMention() != null ? targetRole.getAsMention() : ("@" + roleName);
+        }
+        vars.put("targetRole", roleMention);
+        vars.put("target_role", roleMention);
+        vars.put("role", roleMention);
+        vars.put("targetRoleName", roleName);
+        vars.put("target_role_name", roleName);
+        vars.put("role_name", roleName);
+        vars.put("server", guild != null && guild.getName() != null ? guild.getName() : "");
+        vars.put("channel", channel != null ? "<#" + channel.getId() + ">" : "");
+        if (ticketId != null) {
+            vars.put("ticketId", ticketId);
+            vars.put("ticketid", ticketId);
+            vars.put("hexCode", ticketId);
+            vars.put("hexcode", ticketId);
+            vars.put("id", ticketId);
+        }
+        return vars;
     }
 
     private String interpolate(
@@ -444,24 +554,41 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
 
         String result = text;
         if (clickingMember != null) {
-            result = result.replace("{user}", clickingMember.getAsMention())
-                    .replace("{username}", clickingMember.getUser().getName())
-                    .replace("{user_id}", clickingMember.getId());
+            if (clickingMember.getAsMention() != null) {
+                result = result.replace("{user}", clickingMember.getAsMention());
+            }
+            if (clickingMember.getUser() != null && clickingMember.getUser().getName() != null) {
+                result = result.replace("{username}", clickingMember.getUser().getName());
+            }
+            if (clickingMember.getId() != null) {
+                result = result.replace("{user_id}", clickingMember.getId());
+            }
         }
-        if (guild != null) {
+        if (guild != null && guild.getName() != null) {
             result = result.replace("{server}", guild.getName());
         }
-        if (channel != null) {
+        if (channel != null && channel.getId() != null) {
             result = result.replace("{channel}", "<#" + channel.getId() + ">");
         }
         if (targetMember != null) {
-            result = result.replace("{target_user}", targetMember.getAsMention())
-                    .replace("{targetUser}", targetMember.getAsMention());
+            if (targetMember.getAsMention() != null) {
+                result = result.replace("{target_user}", targetMember.getAsMention())
+                        .replace("{targetUser}", targetMember.getAsMention());
+            }
+            if (targetMember.getUser() != null && targetMember.getUser().getName() != null) {
+                result = result.replace("{target_username}", targetMember.getUser().getName())
+                        .replace("{targetUsername}", targetMember.getUser().getName());
+            }
         }
         if (targetRole != null) {
-            result = result.replace("{target_role}", "@" + targetRole.getName())
-                    .replace("{targetRole}", "@" + targetRole.getName())
-                    .replace("{role}", "@" + targetRole.getName());
+            String roleName = targetRole.getName() != null ? targetRole.getName() : "";
+            String roleDisplay = "@" + roleName;
+            result = result.replace("{target_role}", roleDisplay)
+                    .replace("{targetRole}", roleDisplay)
+                    .replace("{role}", roleDisplay)
+                    .replace("{targetRoleName}", roleName)
+                    .replace("{target_role_name}", roleName)
+                    .replace("{role_name}", roleName);
         }
         if (selectedOption != null) {
             result = result.replace("{selected_option}", selectedOption);
@@ -692,13 +819,11 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                 return ActionExecutionResult.failure("Bot lacks MANAGE_CHANNEL permission");
             }
 
-            String prefix = (action.getChannelPrefix() != null && !action.getChannelPrefix().isBlank())
-                    ? action.getChannelPrefix()
-                    : "ticket-";
-            String ticketId = UUID.randomUUID().toString().replace("-", "").substring(0, 6);
-            String channelName = prefix + ticketId;
-
             Member targetMember = resolveTargetMember(guild, operator, sessionData);
+            Role targetRole = resolveTargetRole(guild, action, sessionData);
+
+            String ticketId = UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+            String channelName = resolveTicketChannelName(action.getChannelPrefix(), ticketId, operator, targetMember);
 
             TextChannel ticketChannel;
             try {
@@ -710,14 +835,14 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                 }
                 ticketChannel = channelAction.complete();
             } catch (Exception e) {
-                log.error("Failed to create ticket channel {} in guild {}: {}", channelName, guild.getId(), e.getMessage(), e);
+                log.error("Failed to create ticket channel {} in guild {}: {}", channelName, guild != null ? guild.getId() : "null", e.getMessage(), e);
                 if (hook != null) {
                     hook.editOriginal("❌ Failed to create support ticket channel: " + e.getMessage()).queue();
                 }
                 return ActionExecutionResult.failure("Failed to create ticket channel: " + e.getMessage());
             }
 
-            String welcome = interpolate(action.getWelcomeMessage(), guild, operator, targetMember, null, ticketChannel, null);
+            String welcome = interpolate(action.getWelcomeMessage(), guild, operator, targetMember, targetRole, ticketChannel, null);
             if (welcome.isBlank()) {
                 welcome = "👋 Welcome " + operator.getAsMention() + " to your support ticket! Staff will assist you shortly.";
             }
@@ -731,22 +856,23 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                         .ifPresent(op -> {
                             EmbedTemplate dmTpl = resolveTemplate(op.getTemplateId()).orElse(null);
                             if (dmTpl != null && embedTemplateRenderer.isPresent()) {
-                                Map<String, String> vars = Map.of(
-                                        "ticketid", ticketId,
-                                        "server", guild != null ? guild.getName() : "",
-                                        "user", operator != null ? operator.getAsMention() : "",
-                                        "targetUser", targetMember != null ? targetMember.getAsMention() : ""
-                                );
+                                Map<String, String> vars = buildTemplateVariables(ticketId, guild, operator, targetMember, targetRole, ticketChannel);
                                 MessageCreateData dmData = embedTemplateRenderer.get().renderToMessageData(dmTpl, vars);
-                                if (operator != null && operator.getUser() != null) {
-                                    dispatchDMLogsWithFallback(operator.getUser(), ticketChannel, dmData);
+                                User dmRecipient = (targetMember != null && targetMember.getUser() != null)
+                                        ? targetMember.getUser()
+                                        : (operator != null ? operator.getUser() : null);
+                                if (dmRecipient != null) {
+                                    dispatchDMLogsWithFallback(dmRecipient, ticketChannel, dmData);
                                 }
                             }
                         });
             } else if (action.getDmContent() != null && !action.getDmContent().isBlank()) {
-                String dmText = interpolate(action.getDmContent(), guild, operator, targetMember, null, ticketChannel, null);
-                if (operator != null && operator.getUser() != null) {
-                    dispatchDMLogsWithFallback(operator.getUser(), ticketChannel, MessageCreateData.fromContent(dmText));
+                String dmText = interpolate(action.getDmContent(), guild, operator, targetMember, targetRole, ticketChannel, null);
+                User dmRecipient = (targetMember != null && targetMember.getUser() != null)
+                        ? targetMember.getUser()
+                        : (operator != null ? operator.getUser() : null);
+                if (dmRecipient != null) {
+                    dispatchDMLogsWithFallback(dmRecipient, ticketChannel, MessageCreateData.fromContent(dmText));
                 }
             }
 
@@ -755,7 +881,7 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             }
 
             if (action.getResponseEmbedTemplateId() != null && !action.getResponseEmbedTemplateId().isBlank()) {
-                return dispatchFollowUpTemplateMessage(action, guild, operator, targetMember, null, ticketChannel, hook);
+                return dispatchFollowUpTemplateMessage(action, guild, operator, targetMember, targetRole, ticketChannel, hook);
             }
 
             return ActionExecutionResult.builder()
@@ -768,6 +894,7 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
 
         if (action.getActionType() == ActionType.DM) {
             Member targetMember = resolveTargetMember(guild, operator, sessionData);
+            Role targetRole = resolveTargetRole(guild, action, sessionData);
             MessageChannel channel = null;
             if (hook != null && hook.getInteraction() != null) {
                 try {
@@ -779,7 +906,7 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             String rawContent = action.getDmContent() != null && !action.getDmContent().isBlank()
                     ? action.getDmContent()
                     : action.getReplyContent();
-            String dmText = interpolate(rawContent, guild, operator, targetMember, null, channel, null);
+            String dmText = interpolate(rawContent, guild, operator, targetMember, targetRole, channel, null);
             if (dmText.isBlank()) {
                 dmText = "Thank you for verifying on **" + guild.getName() + "**!";
             }
@@ -807,7 +934,7 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             }
 
             if (action.getResponseEmbedTemplateId() != null && !action.getResponseEmbedTemplateId().isBlank()) {
-                return dispatchFollowUpTemplateMessage(action, guild, operator, targetMember, null, channel, hook);
+                return dispatchFollowUpTemplateMessage(action, guild, operator, targetMember, targetRole, channel, hook);
             }
 
             return ActionExecutionResult.success("Direct message delivered");
@@ -844,16 +971,7 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             return ActionExecutionResult.failure("EmbedTemplateRenderer unavailable");
         }
 
-        Map<String, String> vars = new HashMap<>();
-        vars.put("user", operator != null && operator.getAsMention() != null ? operator.getAsMention() : "");
-        vars.put("username", operator != null && operator.getUser() != null && operator.getUser().getName() != null ? operator.getUser().getName() : "");
-        vars.put("targetUser", targetMember != null && targetMember.getAsMention() != null ? targetMember.getAsMention() : "");
-        vars.put("target_user", targetMember != null && targetMember.getAsMention() != null ? targetMember.getAsMention() : "");
-        vars.put("targetRole", targetRole != null ? (targetRole.getAsMention() != null ? targetRole.getAsMention() : "@" + targetRole.getName()) : "");
-        vars.put("target_role", targetRole != null ? (targetRole.getAsMention() != null ? targetRole.getAsMention() : "@" + targetRole.getName()) : "");
-        vars.put("role", targetRole != null ? (targetRole.getAsMention() != null ? targetRole.getAsMention() : "@" + targetRole.getName()) : "");
-        vars.put("server", guild != null && guild.getName() != null ? guild.getName() : "");
-        vars.put("channel", channel != null ? "<#" + channel.getId() + ">" : "");
+        Map<String, String> vars = buildTemplateVariables(null, guild, operator, targetMember, targetRole, channel);
 
         ResponseType rType = action.getResponseType() != null ? action.getResponseType() : ResponseType.PUBLIC_EMBED;
 
@@ -894,15 +1012,35 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                 return ActionExecutionResult.intermediate(sentMsg != null ? sentMsg.getId() : null);
             }
         } else if (rType == ResponseType.DM_EMBED) {
-            MessageCreateData msgData = embedTemplateRenderer.get().renderToMessageData(template, vars);
-            if (operator != null && operator.getUser() != null) {
+            User dmRecipient = (targetMember != null && targetMember.getUser() != null)
+                    ? targetMember.getUser()
+                    : (operator != null ? operator.getUser() : null);
+            if (dmRecipient != null) {
                 try {
-                    var pc = operator.getUser().openPrivateChannel().complete();
-                    var sentMsg = pc.sendMessage(msgData).complete();
-                    return ActionExecutionResult.intermediate(sentMsg != null ? sentMsg.getId() : null);
+                    var pc = dmRecipient.openPrivateChannel().complete();
+                    if (pc != null) {
+                        if (discordDispatchService.isPresent()) {
+                            try {
+                                Map<String, Object> wirePayload = embedTemplateRenderer.get().renderInterpolatedWirePayload(template, vars);
+                                JsonNode dispatchResult = discordDispatchService.get().dispatchToChannel(pc.getId(), wirePayload, null);
+                                String messageId = dispatchResult != null && dispatchResult.has("id") ? dispatchResult.get("id").asText() : null;
+                                log.info("Dispatched Components V2 DM follow-up embed {} to DM channel {} (recipient {}) via Discord REST API v10 (messageId: {})",
+                                        responseTplId, pc.getId(), dmRecipient.getId(), messageId);
+                                return ActionExecutionResult.intermediate(messageId);
+                            } catch (Exception e) {
+                                log.warn("Discord REST API v10 DM dispatch failed ({}), falling back to JDA pc.sendMessage: {}",
+                                        e.getMessage(), e.getClass().getSimpleName());
+                            }
+                        }
+
+                        MessageCreateData msgData = embedTemplateRenderer.get().renderToMessageData(template, vars);
+                        var sentMsg = pc.sendMessage(msgData).complete();
+                        return ActionExecutionResult.intermediate(sentMsg != null ? sentMsg.getId() : null);
+                    }
                 } catch (Exception e) {
                     log.warn("DM delivery failed, falling back to hook: {}", e.getMessage());
                     if (hook != null) {
+                        MessageCreateData msgData = embedTemplateRenderer.get().renderToMessageData(template, vars);
                         var sentMsgAction = hook.sendMessage(msgData);
                         var sentMsg = sentMsgAction != null ? sentMsgAction.complete() : null;
                         return ActionExecutionResult.intermediate(sentMsg != null ? sentMsg.getId() : null);
@@ -936,10 +1074,11 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             return ActionExecutionResult.failure("Bot lacks MANAGE_CHANNEL permission");
         }
 
-        String ticketId = UUID.randomUUID().toString().replace("-", "").substring(0, 6);
-        String channelName = (action.getChannelPrefix() != null ? action.getChannelPrefix() : "ticket-") + ticketId;
-
         Member targetMember = resolveTargetMember(guild, operator, sessionData);
+        Role targetRole = resolveTargetRole(guild, action, sessionData);
+
+        String ticketId = UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+        String channelName = resolveTicketChannelName(action.getChannelPrefix(), ticketId, operator, targetMember);
 
         TextChannel ticketChannel;
         try {
@@ -965,15 +1104,13 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                     .ifPresent(op -> {
                         EmbedTemplate dmTpl = resolveTemplate(op.getTemplateId()).orElse(null);
                         if (dmTpl != null && embedTemplateRenderer.isPresent()) {
-                            Map<String, String> vars = Map.of(
-                                    "ticketid", ticketId,
-                                    "server", guild != null ? guild.getName() : "",
-                                    "user", operator != null ? operator.getAsMention() : "",
-                                    "targetUser", targetMember != null ? targetMember.getAsMention() : ""
-                            );
+                            Map<String, String> vars = buildTemplateVariables(ticketId, guild, operator, targetMember, targetRole, ticketChannel);
                             MessageCreateData dmData = embedTemplateRenderer.get().renderToMessageData(dmTpl, vars);
-                            if (operator != null && operator.getUser() != null) {
-                                dispatchDMLogsWithFallback(operator.getUser(), ticketChannel, dmData);
+                            User dmRecipient = (operator != null && operator.getUser() != null)
+                                    ? operator.getUser()
+                                    : (targetMember != null ? targetMember.getUser() : null);
+                            if (dmRecipient != null) {
+                                dispatchDMLogsWithFallback(dmRecipient, ticketChannel, dmData);
                             }
                         }
                     });
