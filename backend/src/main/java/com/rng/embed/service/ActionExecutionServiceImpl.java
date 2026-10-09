@@ -366,7 +366,7 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
         String rawContent = action.getDmContent() != null && !action.getDmContent().isBlank()
                 ? action.getDmContent()
                 : action.getReplyContent();
-        String dmText = interpolate(rawContent, guild, clickingMember, targetMember, targetRole, channel, selectedOption);
+        String dmText = interpolate(rawContent, guild, clickingMember, targetMember, targetRole, channel, selectedOption, true);
 
         if (dmText.isBlank()) {
             dmText = "Thank you for verifying on **" + guild.getName() + "**!";
@@ -508,6 +508,18 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             Member targetMember,
             Role targetRole,
             MessageChannel channel) {
+        boolean isDm = (channel instanceof net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel);
+        return buildTemplateVariables(ticketId, guild, operator, targetMember, targetRole, channel, isDm);
+    }
+
+    private Map<String, String> buildTemplateVariables(
+            String ticketId,
+            Guild guild,
+            Member operator,
+            Member targetMember,
+            Role targetRole,
+            MessageChannel channel,
+            boolean isDm) {
 
         Map<String, String> vars = new HashMap<>();
         vars.put("user", operator != null && operator.getAsMention() != null ? operator.getAsMention() : "");
@@ -519,7 +531,14 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
         String roleName = (targetRole != null && targetRole.getName() != null) ? targetRole.getName() : "";
         String roleMention = "";
         if (targetRole != null) {
-            roleMention = targetRole.getAsMention() != null ? targetRole.getAsMention() : ("@" + roleName);
+            // In Discord DMs, role snowflakes (<@&ID>) cannot be resolved without guild context and render as "@unknown-role".
+            // Using "@" + roleName ensures the human-readable role name is cleanly displayed in direct messages.
+            // In Server/Guild channels, role mentions (<@&ID>) render the interactive colored Discord role badge.
+            if (isDm) {
+                roleMention = "@" + roleName;
+            } else {
+                roleMention = targetRole.getAsMention() != null ? targetRole.getAsMention() : ("@" + roleName);
+            }
         }
         vars.put("targetRole", roleMention);
         vars.put("target_role", roleMention);
@@ -547,6 +566,19 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             Role targetRole,
             MessageChannel channel,
             String selectedOption) {
+        boolean isDm = (channel instanceof net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel);
+        return interpolate(text, guild, clickingMember, targetMember, targetRole, channel, selectedOption, isDm);
+    }
+
+    private String interpolate(
+            String text,
+            Guild guild,
+            Member clickingMember,
+            Member targetMember,
+            Role targetRole,
+            MessageChannel channel,
+            String selectedOption,
+            boolean isDm) {
 
         if (text == null || text.isBlank()) {
             return "";
@@ -582,7 +614,12 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
         }
         if (targetRole != null) {
             String roleName = targetRole.getName() != null ? targetRole.getName() : "";
-            String roleDisplay = "@" + roleName;
+            String roleDisplay;
+            if (isDm) {
+                roleDisplay = "@" + roleName;
+            } else {
+                roleDisplay = targetRole.getAsMention() != null ? targetRole.getAsMention() : ("@" + roleName);
+            }
             result = result.replace("{target_role}", roleDisplay)
                     .replace("{targetRole}", roleDisplay)
                     .replace("{role}", roleDisplay)
@@ -856,7 +893,7 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                         .ifPresent(op -> {
                             EmbedTemplate dmTpl = resolveTemplate(op.getTemplateId()).orElse(null);
                             if (dmTpl != null && embedTemplateRenderer.isPresent()) {
-                                Map<String, String> vars = buildTemplateVariables(ticketId, guild, operator, targetMember, targetRole, ticketChannel);
+                                Map<String, String> vars = buildTemplateVariables(ticketId, guild, operator, targetMember, targetRole, ticketChannel, true);
                                 MessageCreateData dmData = embedTemplateRenderer.get().renderToMessageData(dmTpl, vars);
                                 User dmRecipient = (operator != null && operator.getUser() != null)
                                         ? operator.getUser()
@@ -913,7 +950,7 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             String rawContent = action.getDmContent() != null && !action.getDmContent().isBlank()
                     ? action.getDmContent()
                     : action.getReplyContent();
-            String dmText = interpolate(rawContent, guild, operator, targetMember, targetRole, channel, null);
+            String dmText = interpolate(rawContent, guild, operator, targetMember, targetRole, channel, null, true);
             if (dmText.isBlank()) {
                 dmText = "Thank you for verifying on **" + guild.getName() + "**!";
             }
@@ -978,9 +1015,10 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             return ActionExecutionResult.failure("EmbedTemplateRenderer unavailable");
         }
 
-        Map<String, String> vars = buildTemplateVariables(null, guild, operator, targetMember, targetRole, channel);
-
         ResponseType rType = action.getResponseType() != null ? action.getResponseType() : ResponseType.PUBLIC_EMBED;
+        boolean isDm = (rType == ResponseType.DM_EMBED) || (channel instanceof net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel);
+
+        Map<String, String> vars = buildTemplateVariables(null, guild, operator, targetMember, targetRole, channel, isDm);
 
         if (rType == ResponseType.PUBLIC_EMBED || rType == ResponseType.PUBLIC_TEXT) {
             // First attempt: Dispatch authentic Discord Components V2 wire payload directly via Discord REST API v10
@@ -1111,7 +1149,7 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                     .ifPresent(op -> {
                         EmbedTemplate dmTpl = resolveTemplate(op.getTemplateId()).orElse(null);
                         if (dmTpl != null && embedTemplateRenderer.isPresent()) {
-                            Map<String, String> vars = buildTemplateVariables(ticketId, guild, operator, targetMember, targetRole, ticketChannel);
+                            Map<String, String> vars = buildTemplateVariables(ticketId, guild, operator, targetMember, targetRole, ticketChannel, true);
                             MessageCreateData dmData = embedTemplateRenderer.get().renderToMessageData(dmTpl, vars);
                             User dmRecipient = (operator != null && operator.getUser() != null)
                                     ? operator.getUser()

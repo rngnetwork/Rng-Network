@@ -561,4 +561,108 @@ class ActionExecutionServiceTest {
         assertThat(result.getNewGeneratedMessageId()).isEqualTo("msg_snowflake_v2");
         verify(discordDispatchService).dispatchToChannel(eq("chan_1"), eq(wirePayload), isNull());
     }
+
+    @Test
+    @DisplayName("DM follow-up embed formats targetRole as @RoleName to avoid @unknown-role in DMs")
+    void should_format_role_as_name_in_dm_embed_to_avoid_unknown_role() {
+        ActionExecutionServiceImpl customService = new ActionExecutionServiceImpl(
+                interactionLogRepository,
+                embedTemplateRepository,
+                embedActionRepository,
+                embedTemplateRenderer,
+                redisTemplate,
+                discordDispatchService
+        );
+
+        EmbedAction action = EmbedAction.builder()
+                .actionId("rng_act_dm_role_embed")
+                .actionType(ActionType.REPLY)
+                .responseType(ResponseType.DM_EMBED)
+                .responseEmbedTemplateId("tpl_dm_role_logs")
+                .roleId("role_vip_99")
+                .build();
+        when(embedActionRepository.findByActionId("rng_act_dm_role_embed")).thenReturn(Optional.of(action));
+
+        Role mockRole = mock(Role.class);
+        when(mockRole.getName()).thenReturn("Fn staff !!");
+        lenient().when(mockRole.getAsMention()).thenReturn("<@&role_vip_99>");
+        when(guild.getRoleById("role_vip_99")).thenReturn(mockRole);
+
+        EmbedTemplate followUpTpl = EmbedTemplate.builder()
+                .templateId("tpl_dm_role_logs")
+                .name("DM Role Logs")
+                .payload(Map.of("content", "Role Given: {targetRole}"))
+                .build();
+        when(embedTemplateRepository.findById("tpl_dm_role_logs")).thenReturn(Optional.of(followUpTpl));
+
+        net.dv8tion.jda.api.requests.restaction.CacheRestAction<net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel> pcRestAction = mock(net.dv8tion.jda.api.requests.restaction.CacheRestAction.class);
+        net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel pc = mock(net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel.class);
+        when(user.openPrivateChannel()).thenReturn(pcRestAction);
+        when(pcRestAction.complete()).thenReturn(pc);
+        when(pc.getId()).thenReturn("dm_chan_123");
+
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        com.fasterxml.jackson.databind.JsonNode responseNode = mapper.createObjectNode().put("id", "msg_dm_snowflake");
+        when(discordDispatchService.dispatchToChannel(eq("dm_chan_123"), any(), isNull())).thenReturn(responseNode);
+
+        customService.executeComponentAction("rng_act_dm_role_embed", guild, clickingMember, hook, Map.of("targetRole", "role_vip_99"));
+
+        org.mockito.ArgumentCaptor<Map<String, String>> varsCaptor = org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(embedTemplateRenderer).renderInterpolatedWirePayload(eq(followUpTpl), varsCaptor.capture());
+
+        Map<String, String> capturedVars = varsCaptor.getValue();
+        assertThat(capturedVars.get("targetRole")).isEqualTo("@Fn staff !!");
+        assertThat(capturedVars.get("targetRoleName")).isEqualTo("Fn staff !!");
+    }
+
+    @Test
+    @DisplayName("Public server follow-up embed formats targetRole as <@&roleId> to mention role on server")
+    void should_format_role_as_mention_in_public_server_embed() {
+        ActionExecutionServiceImpl customService = new ActionExecutionServiceImpl(
+                interactionLogRepository,
+                embedTemplateRepository,
+                embedActionRepository,
+                embedTemplateRenderer,
+                redisTemplate,
+                discordDispatchService
+        );
+
+        EmbedAction action = EmbedAction.builder()
+                .actionId("rng_act_public_role_embed")
+                .actionType(ActionType.REPLY)
+                .responseType(ResponseType.PUBLIC_EMBED)
+                .responseEmbedTemplateId("tpl_public_role_logs")
+                .roleId("role_vip_99")
+                .build();
+        when(embedActionRepository.findByActionId("rng_act_public_role_embed")).thenReturn(Optional.of(action));
+
+        Role mockRole = mock(Role.class);
+        when(mockRole.getName()).thenReturn("Fn staff !!");
+        when(mockRole.getAsMention()).thenReturn("<@&role_vip_99>");
+        when(guild.getRoleById("role_vip_99")).thenReturn(mockRole);
+
+        EmbedTemplate followUpTpl = EmbedTemplate.builder()
+                .templateId("tpl_public_role_logs")
+                .name("Public Server Role Logs")
+                .payload(Map.of("content", "Role Given: {targetRole}"))
+                .build();
+        when(embedTemplateRepository.findById("tpl_public_role_logs")).thenReturn(Optional.of(followUpTpl));
+
+        net.dv8tion.jda.api.interactions.Interaction mockInteraction = mock(net.dv8tion.jda.api.interactions.Interaction.class);
+        when(hook.getInteraction()).thenReturn(mockInteraction);
+        when(mockInteraction.getMessageChannel()).thenReturn(channel);
+
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        com.fasterxml.jackson.databind.JsonNode responseNode = mapper.createObjectNode().put("id", "msg_public_snowflake");
+        when(discordDispatchService.dispatchToChannel(eq("chan_1"), any(), isNull())).thenReturn(responseNode);
+
+        customService.executeComponentAction("rng_act_public_role_embed", guild, clickingMember, hook, Map.of("targetRole", "role_vip_99"));
+
+        org.mockito.ArgumentCaptor<Map<String, String>> varsCaptor = org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(embedTemplateRenderer).renderInterpolatedWirePayload(eq(followUpTpl), varsCaptor.capture());
+
+        Map<String, String> capturedVars = varsCaptor.getValue();
+        assertThat(capturedVars.get("targetRole")).isEqualTo("<@&role_vip_99>");
+        assertThat(capturedVars.get("targetRoleName")).isEqualTo("Fn staff !!");
+    }
 }
