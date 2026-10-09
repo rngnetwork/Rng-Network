@@ -652,7 +652,7 @@ function ActionTemplateModalInner({
                   className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs resize-none"
                 />
                 <p className="text-[10px] text-zinc-500 mt-1">
-                  Variables supported: {`{user}`}, {`{targetUser}`}, {`{targetRole}`}, {`{server}`}, {`{channel}`}. Delivered via DM (falls back to ticket channel if DMs are closed).
+                  Variables supported: {`{user}`}, {`{targetUser}`}, {`{targetRole}`}, {`{server}`}, {`{channel}`}. Delivered to the operator via DM. Note: When a Follow-Up Embed Template with Direct Message Embed is configured below, the rich log embed is delivered directly and this plain message is skipped.
                 </p>
               </div>
             </div>

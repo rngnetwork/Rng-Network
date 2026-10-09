@@ -858,21 +858,28 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                             if (dmTpl != null && embedTemplateRenderer.isPresent()) {
                                 Map<String, String> vars = buildTemplateVariables(ticketId, guild, operator, targetMember, targetRole, ticketChannel);
                                 MessageCreateData dmData = embedTemplateRenderer.get().renderToMessageData(dmTpl, vars);
-                                User dmRecipient = (targetMember != null && targetMember.getUser() != null)
-                                        ? targetMember.getUser()
-                                        : (operator != null ? operator.getUser() : null);
+                                User dmRecipient = (operator != null && operator.getUser() != null)
+                                        ? operator.getUser()
+                                        : (targetMember != null ? targetMember.getUser() : null);
                                 if (dmRecipient != null) {
                                     dispatchDMLogsWithFallback(dmRecipient, ticketChannel, dmData);
                                 }
                             }
                         });
             } else if (action.getDmContent() != null && !action.getDmContent().isBlank()) {
-                String dmText = interpolate(action.getDmContent(), guild, operator, targetMember, targetRole, ticketChannel, null);
-                User dmRecipient = (targetMember != null && targetMember.getUser() != null)
-                        ? targetMember.getUser()
-                        : (operator != null ? operator.getUser() : null);
-                if (dmRecipient != null) {
-                    dispatchDMLogsWithFallback(dmRecipient, ticketChannel, MessageCreateData.fromContent(dmText));
+                // If a response embed template is configured for DMs, it delivers the rich DM logs.
+                // Suppress raw dmContent text to avoid duplicate/unwanted plain messages (only logs DMed).
+                boolean hasFollowUpDm = action.getResponseEmbedTemplateId() != null
+                        && !action.getResponseEmbedTemplateId().isBlank()
+                        && (action.getResponseType() == null || action.getResponseType() == ResponseType.DM_EMBED);
+                if (!hasFollowUpDm) {
+                    User dmRecipient = (operator != null && operator.getUser() != null)
+                            ? operator.getUser()
+                            : (targetMember != null ? targetMember.getUser() : null);
+                    if (dmRecipient != null) {
+                        String dmText = interpolate(action.getDmContent(), guild, operator, targetMember, targetRole, ticketChannel, null);
+                        dispatchDMLogsWithFallback(dmRecipient, ticketChannel, MessageCreateData.fromContent(dmText));
+                    }
                 }
             }
 
@@ -1012,9 +1019,9 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                 return ActionExecutionResult.intermediate(sentMsg != null ? sentMsg.getId() : null);
             }
         } else if (rType == ResponseType.DM_EMBED) {
-            User dmRecipient = (targetMember != null && targetMember.getUser() != null)
-                    ? targetMember.getUser()
-                    : (operator != null ? operator.getUser() : null);
+            User dmRecipient = (operator != null && operator.getUser() != null)
+                    ? operator.getUser()
+                    : (targetMember != null ? targetMember.getUser() : null);
             if (dmRecipient != null) {
                 try {
                     var pc = dmRecipient.openPrivateChannel().complete();
