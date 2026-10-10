@@ -287,8 +287,6 @@ function ActionTemplateModalInner({
   const responseTypeOptions: DropdownOption[] = [
     { value: 'PUBLIC_EMBED', label: 'Public Embed (Components V2)' },
     { value: 'EPHEMERAL_EMBED', label: 'Ephemeral Embed' },
-    { value: 'EPHEMERAL_TEXT', label: 'Ephemeral Text' },
-    { value: 'PUBLIC_TEXT', label: 'Public Text' },
     { value: 'DM_EMBED', label: 'Direct Message Embed' }
   ];
 
@@ -554,23 +552,6 @@ function ActionTemplateModalInner({
           {/* Type-Specific Fields */}
           {actionType === 'ROLE' && (
             <div className="p-4 rounded-xl bg-indigo-500/[0.04] border border-indigo-500/20 space-y-4">
-              <h3 className="text-xs font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-2">
-                <Shield className="w-4 h-4" /> Role Assignment Rules
-              </h3>
-
-              {/* Dynamic Role Callout */}
-              <div className="p-3.5 bg-indigo-950/40 border border-indigo-500/30 rounded-xl text-xs text-indigo-200 flex items-start gap-2.5">
-                <AlertCircle className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <span className="font-semibold text-white">Dynamic Role Resolution (No Hardcoding):</span>
-                  <p className="text-zinc-300 text-[11px] leading-relaxed">
-                    Hardcoded role IDs are prohibited. The target role is dynamically resolved at runtime from the embed message&apos;s compulsory <code className="px-1 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono">RoleSelect</code> menu (<code className="px-1 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono">{"{targetRole}"}</code>).
-                  </p>
-                  <p className="text-zinc-400 text-[11px] leading-relaxed">
-                    Operators can only grant roles strictly below their authentic highest Discord server role. Website clearance ranks do not bypass Discord hierarchy.
-                  </p>
-                </div>
-              </div>
 
               <div>
                 <label className="block text-xs text-zinc-300 mb-1.5">Role Operation Subtype</label>
@@ -593,7 +574,7 @@ function ActionTemplateModalInner({
               </div>
 
               <div>
-                <label className="block text-xs text-zinc-300 mb-1.5">Feedback / Reply Content</label>
+                <label className="block text-xs text-zinc-300 mb-1.5">Feedback Content</label>
                 <input
                   type="text"
                   value={replyContent}
@@ -602,7 +583,7 @@ function ActionTemplateModalInner({
                   className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs"
                 />
                 <p className="text-[10px] text-zinc-500 mt-1">
-                  Variables supported: {`{targetUser}`}, {`{user}`}, {`{targetRole}`}, {`{server}`}
+                  Variables supported: {`{targetUser}`}, {`{user}`}, {`{targetRole}`}, {`{server}`}, {`{channel}`}.
                 </p>
               </div>
             </div>
@@ -652,7 +633,10 @@ function ActionTemplateModalInner({
                   className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs resize-none"
                 />
                 <p className="text-[10px] text-zinc-500 mt-1">
-                  Variables supported: {`{user}`}, {`{targetUser}`}, {`{targetRole}`}, {`{server}`}, {`{channel}`}. Delivered to the operator via DM. Note: When a Follow-Up Embed Template with Direct Message Embed is configured below, the rich log embed is delivered directly and this plain message is skipped.
+                  Variables supported: {`{user}`}, {`{targetUser}`}, {`{targetRole}`}, {`{server}`}, {`{channel}`}. <br/>
+                  <span className="text-[9px] text-zinc-500">
+                    Delivered to the operator via DM. Note: When a Follow-Up Embed Template with Direct Message Embed is configured below, the rich log embed is delivered directly and this plain message is skipped.
+                  </span>
                 </p>
               </div>
             </div>
@@ -673,7 +657,7 @@ function ActionTemplateModalInner({
                   rows={3}
                   className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs resize-none"
                 />
-                <p className="text-[10px] text-zinc-500 mt-1">Variables supported: {`{user}`}, {`{server}`}</p>
+                <p className="text-[10px] text-zinc-500 mt-1">Variables supported: {`{user}`}, {`{server}`}, {`{channel}`}</p>
               </div>
 
               <label className="flex items-center gap-3 cursor-pointer text-xs text-zinc-300">
@@ -739,58 +723,6 @@ function ActionTemplateModalInner({
                   <p className="text-[11px] text-zinc-500 mt-1">Fetching embed templates...</p>
                 )}
               </div>
-            </div>
-
-            <div>
-              <label className="block text-xs text-zinc-300 mb-1.5">Execution Confirmation Message</label>
-              <input
-                type="text"
-                value={confirmationMessage}
-                onChange={(e) => setConfirmationMessage(e.target.value)}
-                placeholder="Custom confirmation message (optional)..."
-                className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs"
-              />
-            </div>
-          </div>
-
-          {/* Multi-Select Chaining Requirements */}
-          <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
-                <HelpCircle className="w-4 h-4 text-zinc-400" /> Multi-Select Session Dependencies
-              </h3>
-              <span className="text-[10px] text-zinc-500 font-mono">15-min Redis Window</span>
-            </div>
-            <p className="text-xs text-zinc-400">
-              Require the operator to interact with dynamic selector menus on the same message before execution:
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <label className="flex items-center gap-2.5 p-2.5 rounded-lg bg-black/30 border border-white/5 cursor-pointer text-xs text-zinc-300 hover:border-white/10 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={actionType === 'ROLE' ? true : requiredUser}
-                  disabled={actionType === 'ROLE'}
-                  onChange={(e) => setRequiredUser(e.target.checked)}
-                  className="w-4 h-4 rounded text-red-500 bg-black/40 border-white/10 disabled:opacity-50"
-                />
-                <span className={actionType === 'ROLE' ? 'text-indigo-300 font-medium' : ''}>
-                  Require User Select input {actionType === 'ROLE' && '(Compulsory)'}
-                </span>
-              </label>
-
-              <label className="flex items-center gap-2.5 p-2.5 rounded-lg bg-black/30 border border-white/5 cursor-pointer text-xs text-zinc-300 hover:border-white/10 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={actionType === 'ROLE' ? true : requiredRole}
-                  disabled={actionType === 'ROLE'}
-                  onChange={(e) => setRequiredRole(e.target.checked)}
-                  className="w-4 h-4 rounded text-red-500 bg-black/40 border-white/10 disabled:opacity-50"
-                />
-                <span className={actionType === 'ROLE' ? 'text-indigo-300 font-medium' : ''}>
-                  Require Role Select input {actionType === 'ROLE' && '(Compulsory)'}
-                </span>
-              </label>
             </div>
           </div>
         </form>
