@@ -304,7 +304,7 @@ export function LoadModal({
           id: bt.templateId || bt.id || String(Math.random()),
           name: bt.name || 'Untitled Template',
           desc: bt.description || 'Custom template from database',
-          badge: (bt as any).badge || bt.category || (bt.isPublic ? 'Public' : 'Custom'),
+          badge: String((bt as any).badge || bt.category || (bt.isPublic ? 'public' : 'custom')).toLowerCase(),
           isPublic: bt.isPublic,
           containerCount: containers.length,
           componentCount: compCount,
@@ -557,10 +557,11 @@ export function LoadModal({
                             padding: '2px 8px',
                             borderRadius: '4px',
                             fontSize: '11px',
-                            fontWeight: 700
+                            fontWeight: 700,
+                            textTransform: 'lowercase'
                           }}
                         >
-                          {tmpl.badge}
+                          {tmpl.badge.toLowerCase()}
                         </span>
                         <span style={{ fontSize: '11px', color: '#6b7280' }}>
                           {tmpl.containerCount} Container{tmpl.containerCount === 1 ? '' : 's'} • {tmpl.componentCount} Comp{tmpl.componentCount === 1 ? '' : 's'}

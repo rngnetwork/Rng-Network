@@ -27,6 +27,10 @@ interface EditTabProps {
   setCollapsedAuthors: React.Dispatch<React.SetStateAction<Record<number, boolean>>>;
   availableActions?: EmbedAction[];
   serverId?: string;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
 export function EditTab({
@@ -46,7 +50,11 @@ export function EditTab({
   collapsedAuthors,
   setCollapsedAuthors,
   availableActions = [],
-  serverId
+  serverId,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false
 }: EditTabProps) {
   // Active text input tracking for cursor-aware emoji insertion
   const lastActiveInputRef = useRef<{
@@ -463,6 +471,51 @@ export function EditTab({
           title="Clear Builder"
         >
           Clear
+        </button>
+        <div style={{ width: '1px', height: '18px', background: 'rgba(255, 255, 255, 0.15)', margin: '0 4px' }} />
+        <button
+          type="button"
+          onClick={onUndo}
+          disabled={!canUndo}
+          title="Undo last edit action (Ctrl + Z)"
+          style={{
+            background: canUndo ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.03)',
+            border: canUndo ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(255, 255, 255, 0.06)',
+            color: canUndo ? '#e4e4e7' : '#71717a',
+            borderRadius: '6px',
+            padding: '6px 12px',
+            fontSize: '11.5px',
+            fontWeight: 600,
+            cursor: canUndo ? 'pointer' : 'not-allowed',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.15s'
+          }}
+        >
+          <i className="fa-solid fa-rotate-left" /> Undo
+        </button>
+        <button
+          type="button"
+          onClick={onRedo}
+          disabled={!canRedo}
+          title="Redo edit action (Ctrl + Y)"
+          style={{
+            background: canRedo ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.03)',
+            border: canRedo ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(255, 255, 255, 0.06)',
+            color: canRedo ? '#e4e4e7' : '#71717a',
+            borderRadius: '6px',
+            padding: '6px 12px',
+            fontSize: '11.5px',
+            fontWeight: 600,
+            cursor: canRedo ? 'pointer' : 'not-allowed',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.15s'
+          }}
+        >
+          <i className="fa-solid fa-rotate-right" /> Redo
         </button>
         <button
           type="button"

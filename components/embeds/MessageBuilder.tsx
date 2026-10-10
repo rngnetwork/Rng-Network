@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Type17Container, DiscordButtonComponent, DiscordActionRowComponent, DiscordInnerComponent, EmbedAction } from './types';
 import { ChannelItem, ServerItem } from '@/lib/api';
@@ -92,6 +92,230 @@ export function MessageBuilder({
   const [dragOverComp, setDragOverComp] = useState<{ cIdx: number; compIdx: number } | null>(null);
   const [draggedContainer, setDraggedContainer] = useState<number | null>(null);
   const [collapsedAuthors, setCollapsedAuthors] = useState<Record<number, boolean>>({});
+
+  // ---------------------------------------------------------------------------
+  // Undo / Redo History Stack (Strictly observes actions in the Edit tab)
+  // ---------------------------------------------------------------------------
+  interface HistorySnapshot {
+    containers: Type17Container[];
+    messageContent: string;
+  }
+
+  const cloneSnapshot = (snapshot: HistorySnapshot): HistorySnapshot => ({
+    containers: JSON.parse(JSON.stringify(snapshot.containers || [])),
+    messageContent: snapshot.messageContent || ''
+  });
+
+  const pastRef = useRef<HistorySnapshot[]>([]);
+  const futureRef = useRef<HistorySnapshot[]>([]);
+  const lastRecordedSnapshotRef = useRef<HistorySnapshot>({
+    containers: JSON.parse(JSON.stringify(containers || [])),
+    messageContent: messageContent || ''
+  });
+  const isUndoRedoActiveRef = useRef<boolean>(false);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [historyCounts, setHistoryCounts] = useState({ past: 0, future: 0, hasPending: false });
+
+  // Observe each and every action done in the Edit tab
+  useEffect(() => {
+    if (activeSubTab !== 'edit') {
+      lastRecordedSnapshotRef.current = {
+        containers: JSON.parse(JSON.stringify(containers || [])),
+        messageContent: messageContent || ''
+      };
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      return;
+    }
+
+    if (isUndoRedoActiveRef.current) {
+      isUndoRedoActiveRef.current = false;
+      lastRecordedSnapshotRef.current = {
+        containers: JSON.parse(JSON.stringify(containers || [])),
+        messageContent: messageContent || ''
+      };
+      return;
+    }
+
+    const currentSerialized = JSON.stringify({ c: containers, m: messageContent });
+    const lastSerialized = JSON.stringify({
+      c: lastRecordedSnapshotRef.current.containers,
+      m: lastRecordedSnapshotRef.current.messageContent
+    });
+
+    if (currentSerialized === lastSerialized) {
+      return;
+    }
+
+    // Determine if this is a discrete structural action or continuous text editing
+    const lastContainers = lastRecordedSnapshotRef.current.containers;
+    const isStructuralChange =
+      containers.length !== lastContainers.length ||
+      containers.some((c, i) => {
+        const lastC = lastContainers[i];
+        if (!lastC) return true;
+        if ((c.components?.length || 0) !== (lastC.components?.length || 0)) return true;
+        if ((c.fields?.length || 0) !== (lastC.fields?.length || 0)) return true;
+        if (c.id !== lastC.id) return true;
+        return false;
+      });
+
+    if (isStructuralChange) {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      pastRef.current.push(cloneSnapshot(lastRecordedSnapshotRef.current));
+      if (pastRef.current.length > 60) {
+        pastRef.current.shift();
+      }
+      futureRef.current = [];
+      lastRecordedSnapshotRef.current = {
+        containers: JSON.parse(JSON.stringify(containers)),
+        messageContent: messageContent || ''
+      };
+      setHistoryCounts({ past: pastRef.current.length, future: 0, hasPending: false });
+    } else {
+      setHistoryCounts((prev) => ({ ...prev, hasPending: true }));
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      debounceTimerRef.current = setTimeout(() => {
+        pastRef.current.push(cloneSnapshot(lastRecordedSnapshotRef.current));
+        if (pastRef.current.length > 60) {
+          pastRef.current.shift();
+        }
+        futureRef.current = [];
+        lastRecordedSnapshotRef.current = {
+          containers: JSON.parse(JSON.stringify(containers)),
+          messageContent: messageContent || ''
+        };
+        debounceTimerRef.current = null;
+        setHistoryCounts({ past: pastRef.current.length, future: 0, hasPending: false });
+      }, 350);
+    }
+  }, [containers, messageContent, activeSubTab]);
+
+  const handleUndo = useCallback(() => {
+    if (activeSubTab !== 'edit') return;
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+      const uncommittedCurrent: HistorySnapshot = {
+        containers: JSON.parse(JSON.stringify(containers)),
+        messageContent: messageContent || ''
+      };
+      const target = cloneSnapshot(lastRecordedSnapshotRef.current);
+      futureRef.current.push(uncommittedCurrent);
+      isUndoRedoActiveRef.current = true;
+      lastRecordedSnapshotRef.current = target;
+      setContainers(target.containers);
+      setMessageContent(target.messageContent);
+      onDirtyChange?.();
+      setHistoryCounts({
+        past: pastRef.current.length,
+        future: futureRef.current.length,
+        hasPending: false
+      });
+      return;
+    }
+
+    if (pastRef.current.length === 0) return;
+
+    const previous = pastRef.current.pop()!;
+    const currentSnapshot: HistorySnapshot = {
+      containers: JSON.parse(JSON.stringify(containers)),
+      messageContent: messageContent || ''
+    };
+    futureRef.current.push(currentSnapshot);
+
+    isUndoRedoActiveRef.current = true;
+    lastRecordedSnapshotRef.current = cloneSnapshot(previous);
+    setContainers(previous.containers);
+    setMessageContent(previous.messageContent);
+    onDirtyChange?.();
+    setHistoryCounts({
+      past: pastRef.current.length,
+      future: futureRef.current.length,
+      hasPending: false
+    });
+  }, [activeSubTab, containers, messageContent, setContainers, setMessageContent, onDirtyChange]);
+
+  const handleRedo = useCallback(() => {
+    if (activeSubTab !== 'edit') return;
+    if (futureRef.current.length === 0) return;
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+
+    const next = futureRef.current.pop()!;
+    const currentSnapshot: HistorySnapshot = {
+      containers: JSON.parse(JSON.stringify(containers)),
+      messageContent: messageContent || ''
+    };
+    pastRef.current.push(currentSnapshot);
+
+    isUndoRedoActiveRef.current = true;
+    lastRecordedSnapshotRef.current = cloneSnapshot(next);
+    setContainers(next.containers);
+    setMessageContent(next.messageContent);
+    onDirtyChange?.();
+    setHistoryCounts({
+      past: pastRef.current.length,
+      future: futureRef.current.length,
+      hasPending: false
+    });
+  }, [activeSubTab, containers, messageContent, setContainers, setMessageContent, onDirtyChange]);
+
+  // Global Keyboard Shortcuts (Ctrl+Z to Undo, Ctrl+Y or Ctrl+Shift+Z to Redo)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Strictly observe actions in the edit tab only
+      if (activeSubTab !== 'edit') return;
+
+      // Do not intercept if a modal overlay is open
+      if (typeof document !== 'undefined' && document.querySelector('.modal-overlay.open')) {
+        return;
+      }
+
+      const isMac = typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+      const isModifier = isMac ? e.metaKey : e.ctrlKey;
+
+      if (!isModifier) return;
+
+      // Undo: Ctrl+Z / Cmd+Z (without Shift)
+      if ((e.key === 'z' || e.key === 'Z') && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleUndo();
+        return;
+      }
+
+      // Redo: Ctrl+Y / Cmd+Y OR Ctrl+Shift+Z / Cmd+Shift+Z
+      if (
+        (e.key === 'y' || e.key === 'Y') ||
+        ((e.key === 'z' || e.key === 'Z') && e.shiftKey)
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleRedo();
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, { capture: true });
+    };
+  }, [activeSubTab, handleUndo, handleRedo]);
+
+  const canUndo = historyCounts.past > 0 || historyCounts.hasPending;
+  const canRedo = historyCounts.future > 0;
 
   // Helper to open emoji picker
   const handleOpenEmojiPicker = (
@@ -408,6 +632,10 @@ export function MessageBuilder({
           setCollapsedAuthors={setCollapsedAuthors}
           availableActions={effectiveActions}
           serverId={serverId}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          canUndo={canUndo}
+          canRedo={canRedo}
         />
       )}
 

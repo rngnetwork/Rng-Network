@@ -26,11 +26,28 @@ export function TextDisplayEditor({
     const start = el.selectionStart || 0;
     const end = el.selectionEnd || 0;
     const selText = currentText.substring(start, end);
-    const newText = currentText.substring(0, start) + prefix + selText + suffix + currentText.substring(end);
+
+    let replacement = '';
+    if (prefix === '> ') {
+      if (selText.length === 0) {
+        replacement = '> ';
+      } else {
+        const lines = selText.split(/\r?\n/);
+        replacement = lines.map((line) => `> ${line}`).join('\n');
+      }
+    } else {
+      replacement = prefix + selText + suffix;
+    }
+
+    const newText = currentText.substring(0, start) + replacement + currentText.substring(end);
     onUpdateComponent(cIdx, compIdx, { ...comp, text: newText, content: newText });
     setTimeout(() => {
       el.focus();
-      el.setSelectionRange(start + prefix.length, end + prefix.length);
+      if (start === end) {
+        el.setSelectionRange(start + replacement.length, start + replacement.length);
+      } else {
+        el.setSelectionRange(start, start + replacement.length);
+      }
     }, 0);
   };
 
