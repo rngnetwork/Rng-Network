@@ -1,13 +1,16 @@
-import { test, describe } from 'node:test';
+import { test, describe, vi, afterEach } from 'vitest';
 import assert from 'node:assert/strict';
 import {
   TIMEZONE_OPTIONS,
   getDefaultUserTimezone,
   zonedTimeToUtcIso,
   formatUtcPreview
-} from '../../lib/timezones.ts';
+} from '@/lib/timezones';
 
 describe('Timezone Catalog & Utilities (lib/timezones.ts)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   describe('TIMEZONE_OPTIONS catalog', () => {
     test('contains at least 40 rich timezone entries', () => {
@@ -65,32 +68,26 @@ describe('Timezone Catalog & Utilities (lib/timezones.ts)', () => {
     });
 
     test('safely falls back to UTC if Intl is unavailable or throws', () => {
-      const originalDateTimeFormat = Intl.DateTimeFormat;
-      try {
-        // Mock error
-        Intl.DateTimeFormat = function () {
-          throw new Error('Simulated Intl failure');
-        };
-        assert.strictEqual(getDefaultUserTimezone(), 'UTC');
-      } finally {
-        Intl.DateTimeFormat = originalDateTimeFormat;
-      }
+      vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(() => {
+        throw new Error('Simulated Intl failure');
+      });
+      assert.strictEqual(getDefaultUserTimezone(), 'UTC');
     });
 
     test('safely falls back to UTC if resolved timezone is empty', () => {
-      const originalDateTimeFormat = Intl.DateTimeFormat;
-      try {
-        Intl.DateTimeFormat = function () {
-          return {
-            resolvedOptions() {
-              return { timeZone: '' };
-            }
-          };
-        };
-        assert.strictEqual(getDefaultUserTimezone(), 'UTC');
-      } finally {
-        Intl.DateTimeFormat = originalDateTimeFormat;
-      }
+      vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(() => ({
+        resolvedOptions: () => ({
+          locale: 'en',
+          calendar: 'gregory',
+          numberingSystem: 'latn',
+          timeZone: '',
+        }),
+        format: () => '',
+        formatToParts: () => [],
+        formatRange: () => '',
+        formatRangeToParts: () => [],
+      }));
+      assert.strictEqual(getDefaultUserTimezone(), 'UTC');
     });
   });
 
@@ -106,29 +103,24 @@ describe('Timezone Catalog & Utilities (lib/timezones.ts)', () => {
     });
 
     test('accurately converts America/New_York during Daylight Saving Time (EDT, UTC-4)', () => {
-      // Oct 2 is within EDT (UTC-4)
       const result = zonedTimeToUtcIso('2026-10-02', '12:00', 'America/New_York');
       assert.strictEqual(result, '2026-10-02T16:00:00.000Z');
     });
 
     test('accurately converts America/New_York during Standard Time (EST, UTC-5)', () => {
-      // Dec 2 is within EST (UTC-5)
       const result = zonedTimeToUtcIso('2026-12-02', '12:00', 'America/New_York');
       assert.strictEqual(result, '2026-12-02T17:00:00.000Z');
     });
 
     test('accurately converts Asia/Tokyo (UTC+9) with day rollover', () => {
-      // 03:00 in Tokyo on Oct 2 is 18:00 on Oct 1 in UTC
       const result = zonedTimeToUtcIso('2026-10-02', '03:00', 'Asia/Tokyo');
       assert.strictEqual(result, '2026-10-01T18:00:00.000Z');
     });
 
     test('accurately converts Europe/London during BST (UTC+1) and GMT (UTC+0)', () => {
-      // July 1 is BST (UTC+1)
       const bstResult = zonedTimeToUtcIso('2026-07-01', '12:00', 'Europe/London');
       assert.strictEqual(bstResult, '2026-07-01T11:00:00.000Z');
 
-      // Jan 1 is GMT (UTC+0)
       const gmtResult = zonedTimeToUtcIso('2026-01-01', '12:00', 'Europe/London');
       assert.strictEqual(gmtResult, '2026-01-01T12:00:00.000Z');
     });
@@ -168,14 +160,12 @@ describe('Timezone Catalog & Utilities (lib/timezones.ts)', () => {
     });
 
     test('handles future targets in hours and days', () => {
-      // 2 hours ahead
       const target2h = '2026-10-02T14:00:00.000Z';
       const preview2h = formatUtcPreview(target2h, fixedNow);
       assert.strictEqual(preview2h.isPast, false);
       assert.strictEqual(preview2h.diffMinutes, 120);
       assert.strictEqual(preview2h.relativeText, 'in 2 hours');
 
-      // 3 days ahead
       const target3d = '2026-10-05T12:00:00.000Z';
       const preview3d = formatUtcPreview(target3d, fixedNow);
       assert.strictEqual(preview3d.isPast, false);
@@ -184,14 +174,12 @@ describe('Timezone Catalog & Utilities (lib/timezones.ts)', () => {
     });
 
     test('handles past targets in hours and days', () => {
-      // 3 hours ago
       const target3h = '2026-10-02T09:00:00.000Z';
       const preview3h = formatUtcPreview(target3h, fixedNow);
       assert.strictEqual(preview3h.isPast, true);
       assert.strictEqual(preview3h.diffMinutes, -180);
       assert.strictEqual(preview3h.relativeText, '3 hours ago');
 
-      // 1 day ago
       const target1d = '2026-10-01T12:00:00.000Z';
       const preview1d = formatUtcPreview(target1d, fixedNow);
       assert.strictEqual(preview1d.isPast, true);
