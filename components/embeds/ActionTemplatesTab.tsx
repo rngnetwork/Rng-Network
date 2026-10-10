@@ -399,31 +399,6 @@ export function ActionTemplatesTab({
                         </div>
                       )}
 
-                      {action.actionType === 'REPLY' && (
-                        <div className="flex items-center justify-between pt-1 border-t border-white/5">
-                          <span className="text-zinc-500 text-[11px]">Visibility:</span>
-                          <span className="text-amber-300 text-[11px] font-semibold">
-                            {action.isEphemeral ? 'Ephemeral' : 'Public'}
-                          </span>
-                        </div>
-                      )}
-
-                      {(action.requiredUser || action.requiredRole) && (
-                        <div className="flex items-center gap-1.5 pt-1 border-t border-white/5">
-                          <span className="text-[10px] text-zinc-500">Requires:</span>
-                          {action.requiredUser && (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-500/10 text-red-400 border border-red-500/20">
-                              User Select
-                            </span>
-                          )}
-                          {action.requiredRole && (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                              Role Select
-                            </span>
-                          )}
-                        </div>
-                      )}
-
                       {action.description && (
                         <p className="text-xs text-zinc-500 line-clamp-2 pt-1 border-t border-white/5">
                           {action.description}
@@ -432,20 +407,8 @@ export function ActionTemplatesTab({
                     </div>
                   </div>
 
-                  {/* Bottom Footer: Use Action + Duplicate + Blue Edit + Red Delete */}
-                  <div className="px-5 py-3.5 bg-black/30 border-t border-white/10 flex items-center justify-between gap-2 mt-auto">
-                    <div>
-                      {onSelectAction && (
-                        <button
-                          type="button"
-                          onClick={() => onSelectAction(action)}
-                          className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-white/10 hover:bg-white/20 transition-all border border-white/10 shadow-sm cursor-pointer"
-                        >
-                          Use Action
-                        </button>
-                      )}
-                    </div>
-
+                  {/* Bottom Footer: Duplicate + Blue Edit + Red Delete */}
+                  <div className="px-5 py-3.5 bg-black/30 border-t border-white/10 flex items-center justify-end gap-2 mt-auto">
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
