@@ -80,6 +80,18 @@ function ActionTemplateModalInner({
   const [welcomeMessage, setWelcomeMessage] = useState(initialAction?.welcomeMessage || 'Welcome {user} to support!');
 
   // Reply / DM specific
+  const [replyMode, setReplyMode] = useState<'TEXT' | 'EMBED'>(() => {
+    if (initialAction?.actionType === 'REPLY' && initialAction?.responseEmbedTemplateId) {
+      return 'EMBED';
+    }
+    return 'TEXT';
+  });
+  const [dmMode, setDmMode] = useState<'TEXT' | 'EMBED'>(() => {
+    if (initialAction?.actionType === 'DM' && initialAction?.responseEmbedTemplateId) {
+      return 'EMBED';
+    }
+    return 'TEXT';
+  });
   const [replyContent, setReplyContent] = useState(initialAction?.replyContent || '');
   const [isEphemeral, setIsEphemeral] = useState(initialAction ? initialAction.isEphemeral !== false : true);
   const [dmContent, setDmContent] = useState(initialAction?.dmContent || '');
@@ -232,6 +244,48 @@ function ActionTemplateModalInner({
         ? selectedServerIds
         : (serverId ? [serverId] : []);
 
+    let effectiveReplyContent: string | undefined = undefined;
+    let effectiveDmContent: string | undefined = undefined;
+    let effectiveResponseEmbedTemplateId: string | undefined = undefined;
+    let effectiveResponseType: ResponseType = responseType;
+    let effectiveIsEphemeral: boolean = isEphemeral;
+
+    if (actionType === 'REPLY') {
+      if (replyMode === 'TEXT') {
+        effectiveReplyContent = replyContent.trim();
+        effectiveResponseEmbedTemplateId = undefined;
+        effectiveIsEphemeral = isEphemeral;
+        effectiveResponseType = isEphemeral ? 'EPHEMERAL_TEXT' : 'PUBLIC_TEXT';
+      } else {
+        effectiveReplyContent = undefined;
+        effectiveResponseEmbedTemplateId = responseEmbedTemplateId.trim() || undefined;
+        effectiveIsEphemeral = isEphemeral;
+        effectiveResponseType = isEphemeral ? 'EPHEMERAL_EMBED' : 'PUBLIC_EMBED';
+      }
+    } else if (actionType === 'DM') {
+      if (dmMode === 'TEXT') {
+        effectiveDmContent = dmContent.trim() || undefined;
+        effectiveResponseEmbedTemplateId = undefined;
+        effectiveIsEphemeral = isEphemeral;
+        effectiveResponseType = 'DM_EMBED';
+      } else {
+        effectiveDmContent = undefined;
+        effectiveResponseEmbedTemplateId = responseEmbedTemplateId.trim() || undefined;
+        effectiveIsEphemeral = isEphemeral;
+        effectiveResponseType = 'DM_EMBED';
+      }
+    } else if (actionType === 'ROLE') {
+      effectiveReplyContent = replyContent.trim() || undefined;
+      effectiveResponseEmbedTemplateId = responseEmbedTemplateId.trim() || undefined;
+      effectiveResponseType = responseType;
+      effectiveIsEphemeral = responseType === 'EPHEMERAL_TEXT' || responseType === 'EPHEMERAL_EMBED' || isEphemeral;
+    } else if (actionType === 'TICKET') {
+      effectiveDmContent = dmContent.trim() || undefined;
+      effectiveResponseEmbedTemplateId = responseEmbedTemplateId.trim() || undefined;
+      effectiveResponseType = responseType;
+      effectiveIsEphemeral = responseType === 'EPHEMERAL_TEXT' || responseType === 'EPHEMERAL_EMBED' || isEphemeral;
+    }
+
     const payload: CreateActionPayload = {
       serverId: isGlobal ? undefined : (effectiveServerIds[0] || serverId),
       serverIds: effectiveServerIds,
@@ -245,13 +299,13 @@ function ActionTemplateModalInner({
       roleName: undefined,
       channelPrefix: actionType === 'TICKET' ? channelPrefix.trim() : undefined,
       welcomeMessage: actionType === 'TICKET' ? welcomeMessage.trim() : undefined,
-      replyContent: (actionType === 'REPLY' || actionType === 'ROLE') ? replyContent.trim() : undefined,
-      isEphemeral: responseType === 'EPHEMERAL_TEXT' || responseType === 'EPHEMERAL_EMBED' || (actionType === 'REPLY' && isEphemeral),
-      dmContent: (actionType === 'DM' || actionType === 'TICKET') ? (dmContent.trim() || undefined) : undefined,
+      replyContent: effectiveReplyContent,
+      isEphemeral: effectiveIsEphemeral,
+      dmContent: effectiveDmContent,
       requiredUser: actionType === 'ROLE' ? true : requiredUser,
       requiredRole: actionType === 'ROLE' ? true : requiredRole,
-      responseType,
-      responseEmbedTemplateId: responseEmbedTemplateId.trim() || undefined,
+      responseType: effectiveResponseType,
+      responseEmbedTemplateId: effectiveResponseEmbedTemplateId,
       confirmationMessage: confirmationMessage.trim() || undefined,
       compoundOperations: initialAction?.compoundOperations
     };
@@ -645,30 +699,100 @@ function ActionTemplateModalInner({
           {actionType === 'REPLY' && (
             <div className="p-4 rounded-xl bg-amber-500/[0.04] border border-amber-500/20 space-y-4">
               <h3 className="text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-2">
-                <MessageSquare className="w-4 h-4" /> Bot Response Configuration
+                <MessageSquare className="w-4 h-4" /> Bot Reply Configuration
               </h3>
 
-              <div>
-                <label className="block text-xs text-zinc-300 mb-1.5">Message Content</label>
-                <textarea
-                  value={replyContent}
-                  onChange={(e) => setReplyContent(e.target.value)}
-                  placeholder="Message content to reply with..."
-                  rows={3}
-                  className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs resize-none"
-                />
-                <p className="text-[10px] text-zinc-500 mt-1">Variables supported: {`{user}`}, {`{server}`}, {`{channel}`}</p>
+              {/* Segmented Mode Navigation */}
+              <div className="flex items-center p-1 rounded-xl bg-black/40 border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setReplyMode('TEXT')}
+                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
+                    replyMode === 'TEXT'
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-sm'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent'
+                  }`}
+                >
+                  Text Message
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReplyMode('EMBED')}
+                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
+                    replyMode === 'EMBED'
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-sm'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent'
+                  }`}
+                >
+                  Embedded Message
+                </button>
               </div>
 
-              <label className="flex items-center gap-3 cursor-pointer text-xs text-zinc-300">
-                <input
-                  type="checkbox"
-                  checked={isEphemeral}
-                  onChange={(e) => setIsEphemeral(e.target.checked)}
-                  className="w-4 h-4 rounded text-red-500 focus:ring-0 bg-black/40 border-white/10"
-                />
-                <span>Ephemeral Response (Only visible to the clicking user)</span>
-              </label>
+              {replyMode === 'TEXT' ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs text-zinc-300 mb-1.5">Message Content</label>
+                    <input
+                      type="text"
+                      value={replyContent}
+                      onChange={(e) => setReplyContent(e.target.value)}
+                      placeholder="Type your message..."
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white text-xs focus:border-amber-500 focus:outline-none transition-colors"
+                    />
+                    <p className="text-[10px] text-zinc-500 mt-1">
+                      Variables supported {`{user}`}, {`{server}`}, {`{channel}`}
+                    </p>
+                  </div>
+
+                  {/* Minimal Toggle Switch */}
+                  <label className="flex items-center justify-between cursor-pointer group py-1 select-none">
+                    <span className="text-xs text-zinc-300 font-medium group-hover:text-white transition-colors">
+                      Is this message ephemeral?
+                    </span>
+                    <div className="relative inline-flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={isEphemeral}
+                        onChange={(e) => setIsEphemeral(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-zinc-800 border border-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 peer-checked:after:bg-white after:border-zinc-600 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500 peer-checked:border-amber-400" />
+                    </div>
+                  </label>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs text-zinc-300 mb-1.5">Embed Template</label>
+                    <GlassmorphicDropdown
+                      options={templateOptions.filter((t) => t.value !== '')}
+                      value={responseEmbedTemplateId}
+                      onChange={(val) => setResponseEmbedTemplateId(val)}
+                      placeholder="Select embed template..."
+                      searchable
+                    />
+                    {loadingTemplates && (
+                      <p className="text-[11px] text-zinc-500 mt-1">Fetching embed templates...</p>
+                    )}
+                  </div>
+
+                  {/* Minimal Toggle Switch */}
+                  <label className="flex items-center justify-between cursor-pointer group py-1 select-none">
+                    <span className="text-xs text-zinc-300 font-medium group-hover:text-white transition-colors">
+                      Is this message ephemeral?
+                    </span>
+                    <div className="relative inline-flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={isEphemeral}
+                        onChange={(e) => setIsEphemeral(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-zinc-800 border border-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 peer-checked:after:bg-white after:border-zinc-600 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500 peer-checked:border-amber-400" />
+                    </div>
+                  </label>
+                </div>
+              )}
             </div>
           )}
 
@@ -678,53 +802,133 @@ function ActionTemplateModalInner({
                 <Mail className="w-4 h-4" /> Direct Message Configuration
               </h3>
 
-              <div>
-                <label className="block text-xs text-zinc-300 mb-1.5">Direct Message Content</label>
-                <textarea
-                  value={dmContent}
-                  onChange={(e) => setDmContent(e.target.value)}
-                  placeholder="Direct message to deliver to the user's Discord inbox..."
-                  rows={3}
-                  className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs resize-none"
-                />
-                <p className="text-[10px] text-zinc-500 mt-1">
-                  If the member has closed DMs, the bot automatically falls back to an ephemeral channel message or ticket log.
-                </p>
+              {/* Segmented Mode Navigation */}
+              <div className="flex items-center p-1 rounded-xl bg-black/40 border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setDmMode('TEXT')}
+                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
+                    dmMode === 'TEXT'
+                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30 shadow-sm'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent'
+                  }`}
+                >
+                  Text Message
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDmMode('EMBED')}
+                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
+                    dmMode === 'EMBED'
+                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30 shadow-sm'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent'
+                  }`}
+                >
+                  Embedded Message
+                </button>
               </div>
+
+              {dmMode === 'TEXT' ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs text-zinc-300 mb-1.5">Direct Message Content</label>
+                    <input
+                      type="text"
+                      value={dmContent}
+                      onChange={(e) => setDmContent(e.target.value)}
+                      placeholder="Type your message..."
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white text-xs focus:border-purple-500 focus:outline-none transition-colors"
+                    />
+                    <p className="text-[10px] text-zinc-500 mt-1">
+                      Variables supported {`{user}`}, {`{server}`}, {`{channel}`}
+                    </p>
+                  </div>
+
+                  {/* Minimal Toggle Switch */}
+                  <label className="flex items-center justify-between cursor-pointer group py-1 select-none">
+                    <span className="text-xs text-zinc-300 font-medium group-hover:text-white transition-colors">
+                      Is this message ephemeral?
+                    </span>
+                    <div className="relative inline-flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={isEphemeral}
+                        onChange={(e) => setIsEphemeral(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-zinc-800 border border-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 peer-checked:after:bg-white after:border-zinc-600 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-500 peer-checked:border-purple-400" />
+                    </div>
+                  </label>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs text-zinc-300 mb-1.5">Embed Template</label>
+                    <GlassmorphicDropdown
+                      options={templateOptions.filter((t) => t.value !== '')}
+                      value={responseEmbedTemplateId}
+                      onChange={(val) => setResponseEmbedTemplateId(val)}
+                      placeholder="Select embed template..."
+                      searchable
+                    />
+                    {loadingTemplates && (
+                      <p className="text-[11px] text-zinc-500 mt-1">Fetching embed templates...</p>
+                    )}
+                  </div>
+
+                  {/* Minimal Toggle Switch */}
+                  <label className="flex items-center justify-between cursor-pointer group py-1 select-none">
+                    <span className="text-xs text-zinc-300 font-medium group-hover:text-white transition-colors">
+                      Is this message ephemeral?
+                    </span>
+                    <div className="relative inline-flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={isEphemeral}
+                        onChange={(e) => setIsEphemeral(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-zinc-800 border border-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 peer-checked:after:bg-white after:border-zinc-600 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-500 peer-checked:border-purple-400" />
+                    </div>
+                  </label>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Response Configuration Section */}
-          <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-4">
-            <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
-              <Layers className="w-4 h-4 text-zinc-400" /> Response & Follow-Up Configuration
-            </h3>
+          {/* Response Configuration Section (Only for ROLE and TICKET workflows) */}
+          {(actionType === 'ROLE' || actionType === 'TICKET') && (
+            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-4">
+              <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+                <Layers className="w-4 h-4 text-zinc-400" /> Response & Follow-Up Configuration
+              </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-zinc-300 mb-1.5">Response Type</label>
-                <GlassmorphicDropdown
-                  options={responseTypeOptions}
-                  value={responseType}
-                  onChange={(val) => setResponseType(val as ResponseType)}
-                />
-              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-zinc-300 mb-1.5">Response Type</label>
+                  <GlassmorphicDropdown
+                    options={responseTypeOptions}
+                    value={responseType}
+                    onChange={(val) => setResponseType(val as ResponseType)}
+                  />
+                </div>
 
-              <div>
-                <label className="block text-xs text-zinc-300 mb-1.5">Follow-Up Embed Template</label>
-                <GlassmorphicDropdown
-                  options={templateOptions}
-                  value={responseEmbedTemplateId}
-                  onChange={(val) => setResponseEmbedTemplateId(val)}
-                  placeholder="Select follow-up embed..."
-                  searchable
-                />
-                {loadingTemplates && (
-                  <p className="text-[11px] text-zinc-500 mt-1">Fetching embed templates...</p>
-                )}
+                <div>
+                  <label className="block text-xs text-zinc-300 mb-1.5">Follow-Up Embed Template</label>
+                  <GlassmorphicDropdown
+                    options={templateOptions}
+                    value={responseEmbedTemplateId}
+                    onChange={(val) => setResponseEmbedTemplateId(val)}
+                    placeholder="Select follow-up embed..."
+                    searchable
+                  />
+                  {loadingTemplates && (
+                    <p className="text-[11px] text-zinc-500 mt-1">Fetching embed templates...</p>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </form>
 
         {/* Footer Actions */}

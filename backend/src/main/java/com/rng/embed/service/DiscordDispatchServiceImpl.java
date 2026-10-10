@@ -23,6 +23,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -83,6 +84,54 @@ public class DiscordDispatchServiceImpl implements DiscordDispatchService {
                     .uri(url)
                     .header(HttpHeaders.AUTHORIZATION, "Bot " + token);
             return sendRequest(requestSpec, payload, fileAttachments);
+        });
+    }
+
+    @Override
+    public JsonNode editOriginalInteraction(String applicationId, String interactionToken, Map<String, Object> payload) {
+        String url = DISCORD_API_BASE + "/webhooks/" + applicationId + "/" + interactionToken + "/messages/@original";
+        Map<String, Object> finalPayload = new HashMap<>(payload);
+        if (!finalPayload.containsKey("flags")) {
+            finalPayload.put("flags", 32768);
+        }
+
+        return executeWithRetry(() -> {
+            RestClient.RequestBodySpec requestSpec = restClient.patch()
+                    .uri(url);
+            String token = cleanToken(botToken);
+            if (!token.isBlank() && !token.equalsIgnoreCase("your-discord-bot-token")) {
+                requestSpec.header(HttpHeaders.AUTHORIZATION, "Bot " + token);
+            }
+            return requestSpec
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(finalPayload)
+                    .retrieve()
+                    .body(JsonNode.class);
+        });
+    }
+
+    @Override
+    public JsonNode sendFollowUpInteraction(String applicationId, String interactionToken, Map<String, Object> payload, boolean ephemeral) {
+        String url = DISCORD_API_BASE + "/webhooks/" + applicationId + "/" + interactionToken;
+        Map<String, Object> finalPayload = new HashMap<>(payload);
+        int flags = 32768;
+        if (ephemeral) {
+            flags |= 64;
+        }
+        finalPayload.put("flags", flags);
+
+        return executeWithRetry(() -> {
+            RestClient.RequestBodySpec requestSpec = restClient.post()
+                    .uri(url);
+            String token = cleanToken(botToken);
+            if (!token.isBlank() && !token.equalsIgnoreCase("your-discord-bot-token")) {
+                requestSpec.header(HttpHeaders.AUTHORIZATION, "Bot " + token);
+            }
+            return requestSpec
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(finalPayload)
+                    .retrieve()
+                    .body(JsonNode.class);
         });
     }
 

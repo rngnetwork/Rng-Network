@@ -164,10 +164,18 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
 
         // Pre-resolve action to determine ephemeral vs public acknowledgment
         Optional<EmbedAction> actionOpt = embedActionService.flatMap(eas -> eas.resolveAction(componentId));
-        boolean isPublic = actionOpt.isPresent() && (actionOpt.get().getResponseType() == ResponseType.PUBLIC_EMBED || actionOpt.get().getResponseType() == ResponseType.PUBLIC_TEXT);
+        boolean isEphemeral = actionOpt.map(a -> {
+            if (a.getResponseType() == ResponseType.PUBLIC_EMBED || a.getResponseType() == ResponseType.PUBLIC_TEXT) {
+                return false;
+            }
+            if (a.getResponseType() == ResponseType.EPHEMERAL_EMBED || a.getResponseType() == ResponseType.EPHEMERAL_TEXT) {
+                return true;
+            }
+            return a.isEphemeral();
+        }).orElse(true);
 
         // Sub-50ms acknowledgment - guarantees Discord SLA window (<3000ms)
-        event.deferReply(!isPublic).queue();
+        event.deferReply(isEphemeral).queue();
 
         String messageId = event.getMessageId();
 
@@ -311,10 +319,21 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
                 return;
             }
 
-            // Immediate sub-50ms ephemeral acknowledgment
-            event.deferReply(true).queue();
-
             String actionId = isActionOption ? firstValue : componentId;
+            Optional<EmbedAction> actionOpt = embedActionService.flatMap(eas -> eas.resolveAction(actionId));
+            boolean isEphemeral = actionOpt.map(a -> {
+                if (a.getResponseType() == ResponseType.PUBLIC_EMBED || a.getResponseType() == ResponseType.PUBLIC_TEXT) {
+                    return false;
+                }
+                if (a.getResponseType() == ResponseType.EPHEMERAL_EMBED || a.getResponseType() == ResponseType.EPHEMERAL_TEXT) {
+                    return true;
+                }
+                return a.isEphemeral();
+            }).orElse(true);
+
+            // Immediate sub-50ms acknowledgment
+            event.deferReply(isEphemeral).queue();
+
             String messageId = event.getMessageId();
 
             String rateLimitKey = "ratelimit:member:" + guildId + ":" + userId;
@@ -332,7 +351,6 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
                 return;
             }
 
-            Optional<EmbedAction> actionOpt = embedActionService.get().resolveAction(actionId);
             if (actionOpt.isEmpty()) {
                 event.getHook().editOriginal("❌ Action template not found or no longer active: " + actionId).queue();
                 return;

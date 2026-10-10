@@ -337,15 +337,36 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
         Member targetMember = resolveTargetMember(guild, clickingMember, sessionData);
         Role targetRole = resolveTargetRole(guild, action, sessionData);
 
+        if (action.getResponseEmbedTemplateId() != null && !action.getResponseEmbedTemplateId().isBlank()) {
+            EmbedTemplate template = resolveTemplate(action.getResponseEmbedTemplateId()).orElse(null);
+            if (template != null) {
+                boolean isDm = (channel instanceof net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel);
+                Map<String, String> vars = buildTemplateVariables(null, guild, clickingMember, targetMember, targetRole, channel, isDm);
+                if (discordDispatchService.isPresent() && embedTemplateRenderer.isPresent()) {
+                    try {
+                        Map<String, Object> wirePayload = embedTemplateRenderer.get().renderInterpolatedWirePayload(template, vars);
+                        discordDispatchService.get().editOriginalInteraction(hook.getId(), hook.getToken(), wirePayload);
+                        recordAuditLog(action, guild.getId(), channel.getId(), messageId, user.getId(), user.getName(), "SUCCESS", "Sent embed reply");
+                        return;
+                    } catch (Exception e) {
+                        log.warn("Discord REST API v10 edit original interaction failed ({}), falling back to JDA: {}", e.getMessage(), e.getClass().getSimpleName());
+                    }
+                }
+                if (embedTemplateRenderer.isPresent()) {
+                    MessageCreateData msgData = embedTemplateRenderer.get().renderToMessageData(template, vars);
+                    hook.editOriginal(net.dv8tion.jda.api.utils.messages.MessageEditData.fromCreateData(msgData)).queue();
+                    recordAuditLog(action, guild.getId(), channel.getId(), messageId, user.getId(), user.getName(), "SUCCESS", "Sent embed reply via JDA fallback");
+                    return;
+                }
+            }
+        }
+
         String content = interpolate(action.getReplyContent(), guild, clickingMember, targetMember, targetRole, channel, selectedOption);
         if (content.isBlank()) {
             content = "✅ Action acknowledged.";
         }
 
         hook.editOriginal(content).queue();
-        if (action.getResponseEmbedTemplateId() != null && !action.getResponseEmbedTemplateId().isBlank()) {
-            dispatchFollowUpTemplateMessage(action, guild, clickingMember, targetMember, targetRole, channel, hook);
-        }
         recordAuditLog(action, guild.getId(), channel.getId(), messageId, user.getId(), user.getName(), "SUCCESS", "Sent reply message");
     }
 
@@ -362,6 +383,49 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
 
         Member targetMember = resolveTargetMember(guild, clickingMember, sessionData);
         Role targetRole = resolveTargetRole(guild, action, sessionData);
+        User targetUser = (targetMember != null && targetMember.getUser() != null)
+                ? targetMember.getUser()
+                : user;
+
+        if (action.getResponseEmbedTemplateId() != null && !action.getResponseEmbedTemplateId().isBlank()) {
+            EmbedTemplate template = resolveTemplate(action.getResponseEmbedTemplateId()).orElse(null);
+            if (template != null) {
+                Map<String, String> vars = buildTemplateVariables(null, guild, clickingMember, targetMember, targetRole, channel, true);
+                targetUser.openPrivateChannel().queue(
+                        pc -> {
+                            if (discordDispatchService.isPresent() && embedTemplateRenderer.isPresent()) {
+                                try {
+                                    Map<String, Object> wirePayload = embedTemplateRenderer.get().renderInterpolatedWirePayload(template, vars);
+                                    discordDispatchService.get().dispatchToChannel(pc.getId(), wirePayload, null);
+                                    hook.editOriginal("✅ Direct message sent! Please check your private messages.").queue();
+                                    recordAuditLog(action, guild.getId(), channel.getId(), messageId, user.getId(), user.getName(), "SUCCESS", "Sent embed DM to " + user.getName());
+                                    return;
+                                } catch (Exception e) {
+                                    log.warn("Discord REST API v10 DM dispatch failed: {}", e.getMessage());
+                                }
+                            }
+                            if (embedTemplateRenderer.isPresent()) {
+                                MessageCreateData msgData = embedTemplateRenderer.get().renderToMessageData(template, vars);
+                                pc.sendMessage(msgData).queue(
+                                        success -> {
+                                            hook.editOriginal("✅ Direct message sent! Please check your private messages.").queue();
+                                            recordAuditLog(action, guild.getId(), channel.getId(), messageId, user.getId(), user.getName(), "SUCCESS", "Sent embed DM to " + user.getName());
+                                        },
+                                        error -> {
+                                            hook.editOriginal("⚠️ Could not send a DM. Please enable direct messages from server members in your Privacy Settings.").queue();
+                                            recordAuditLog(action, guild.getId(), channel.getId(), messageId, user.getId(), user.getName(), "FALLBACK", "Closed DMs; fallback to ephemeral message");
+                                        }
+                                );
+                            }
+                        },
+                        error -> {
+                            hook.editOriginal("⚠️ Could not open private channel. Please check your Discord Privacy Settings.").queue();
+                            recordAuditLog(action, guild.getId(), channel.getId(), messageId, user.getId(), user.getName(), "FALLBACK", "Failed to open private channel");
+                        }
+                );
+                return;
+            }
+        }
 
         String rawContent = action.getDmContent() != null && !action.getDmContent().isBlank()
                 ? action.getDmContent()
@@ -373,9 +437,6 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
         }
 
         final String finalDmText = dmText;
-        User targetUser = (targetMember != null && targetMember.getUser() != null)
-                ? targetMember.getUser()
-                : user;
 
         targetUser.openPrivateChannel().queue(
                 pc -> pc.sendMessage(finalDmText).queue(
@@ -899,7 +960,7 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                                         ? operator.getUser()
                                         : (targetMember != null ? targetMember.getUser() : null);
                                 if (dmRecipient != null) {
-                                    dispatchDMLogsWithFallback(dmRecipient, ticketChannel, dmData);
+                                    dispatchDMLogsWithFallback(dmRecipient, ticketChannel, dmTpl, vars, dmData);
                                 }
                             }
                         });
@@ -1085,8 +1146,16 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                 } catch (Exception e) {
                     log.warn("DM delivery failed, falling back to hook: {}", e.getMessage());
                     if (hook != null) {
+                        if (discordDispatchService.isPresent() && embedTemplateRenderer.isPresent()) {
+                            try {
+                                Map<String, Object> wirePayload = embedTemplateRenderer.get().renderInterpolatedWirePayload(template, vars);
+                                discordDispatchService.get().sendFollowUpInteraction(hook.getId(), hook.getToken(), wirePayload, true);
+                                return ActionExecutionResult.intermediate(null);
+                            } catch (Exception ignored) {
+                            }
+                        }
                         MessageCreateData msgData = embedTemplateRenderer.get().renderToMessageData(template, vars);
-                        var sentMsgAction = hook.sendMessage(msgData);
+                        var sentMsgAction = hook.sendMessage(msgData).setEphemeral(true);
                         var sentMsg = sentMsgAction != null ? sentMsgAction.complete() : null;
                         return ActionExecutionResult.intermediate(sentMsg != null ? sentMsg.getId() : null);
                     }
@@ -1095,8 +1164,18 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
         } else {
             // EPHEMERAL_EMBED / default
             if (hook != null) {
+                if (discordDispatchService.isPresent() && embedTemplateRenderer.isPresent()) {
+                    try {
+                        Map<String, Object> wirePayload = embedTemplateRenderer.get().renderInterpolatedWirePayload(template, vars);
+                        discordDispatchService.get().sendFollowUpInteraction(hook.getId(), hook.getToken(), wirePayload, true);
+                        return ActionExecutionResult.intermediate(null);
+                    } catch (Exception e) {
+                        log.warn("REST API follow-up interaction failed ({}), falling back to hook.sendMessage: {}",
+                                e.getMessage(), e.getClass().getSimpleName());
+                    }
+                }
                 MessageCreateData msgData = embedTemplateRenderer.get().renderToMessageData(template, vars);
-                var sentMsgAction = hook.sendMessage(msgData);
+                var sentMsgAction = hook.sendMessage(msgData).setEphemeral(true);
                 var sentMsg = sentMsgAction != null ? sentMsgAction.complete() : null;
                 return ActionExecutionResult.intermediate(sentMsg != null ? sentMsg.getId() : null);
             }
@@ -1155,7 +1234,7 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                                     ? operator.getUser()
                                     : (targetMember != null ? targetMember.getUser() : null);
                             if (dmRecipient != null) {
-                                dispatchDMLogsWithFallback(dmRecipient, ticketChannel, dmData);
+                                dispatchDMLogsWithFallback(dmRecipient, ticketChannel, dmTpl, vars, dmData);
                             }
                         }
                     });
@@ -1174,6 +1253,15 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
 
     @Override
     public ActionExecutionResult dispatchDMLogsWithFallback(User user, TextChannel ticketChannel, MessageCreateData logData) {
+        return dispatchDMLogsWithFallback(user, ticketChannel, null, null, logData);
+    }
+
+    private ActionExecutionResult dispatchDMLogsWithFallback(
+            User user,
+            TextChannel ticketChannel,
+            EmbedTemplate dmTpl,
+            Map<String, String> vars,
+            MessageCreateData logData) {
         try {
             if (user == null) {
                 throw new IllegalArgumentException("User cannot be null for direct messaging");
@@ -1186,15 +1274,41 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             if (pc == null) {
                 throw new IllegalStateException("PrivateChannel is null");
             }
-            pc.sendMessage(logData).complete();
+
+            // Dispatch authentic Components V2 wire payload via Discord REST API v10
+            if (dmTpl != null && discordDispatchService.isPresent() && embedTemplateRenderer.isPresent()) {
+                try {
+                    Map<String, Object> wirePayload = embedTemplateRenderer.get().renderInterpolatedWirePayload(dmTpl, vars);
+                    discordDispatchService.get().dispatchToChannel(pc.getId(), wirePayload, null);
+                    log.info("Dispatched Components V2 DM logs to user {} (private channel {}) via REST API v10", user.getId(), pc.getId());
+                    return ActionExecutionResult.builder().success(true).dmDelivered(true).build();
+                } catch (Exception e) {
+                    log.warn("Discord REST API v10 DM log dispatch failed ({}), attempting JDA pc.sendMessage: {}", e.getMessage(), e.getClass().getSimpleName());
+                }
+            }
+
+            if (logData != null) {
+                pc.sendMessage(logData).complete();
+            }
             return ActionExecutionResult.builder().success(true).dmDelivered(true).build();
         } catch (Exception ex) {
             log.warn("Direct messaging failed for user {}, falling back to ticket channel: {}", user != null ? user.getId() : "unknown", ex.getMessage());
             try {
                 if (ticketChannel != null) {
-                    var sendAction = ticketChannel.sendMessage(logData);
-                    if (sendAction != null) {
-                        sendAction.complete();
+                    if (dmTpl != null && discordDispatchService.isPresent() && embedTemplateRenderer.isPresent()) {
+                        try {
+                            Map<String, Object> wirePayload = embedTemplateRenderer.get().renderInterpolatedWirePayload(dmTpl, vars);
+                            discordDispatchService.get().dispatchToChannel(ticketChannel.getId(), wirePayload, null);
+                            return ActionExecutionResult.builder().success(true).dmDelivered(false).build();
+                        } catch (Exception e) {
+                            log.warn("Failed to dispatch wire payload to fallback ticket channel: {}", e.getMessage());
+                        }
+                    }
+                    if (logData != null) {
+                        var sendAction = ticketChannel.sendMessage(logData);
+                        if (sendAction != null) {
+                            sendAction.complete();
+                        }
                     }
                 }
             } catch (Exception fallbackEx) {
