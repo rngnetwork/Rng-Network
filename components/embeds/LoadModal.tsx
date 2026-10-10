@@ -401,42 +401,6 @@ export function LoadModal({
               <i className="fa-solid fa-database" style={{ marginRight: '6px' }} />
               Saved Templates ({savedTemplates.length})
             </button>
-
-            <button
-              type="button"
-              className={`btn-style-chip ${activeTab === 'presets' ? 'active' : ''}`}
-              onClick={() => setActiveTab('presets')}
-              style={{
-                padding: '6px 16px',
-                fontSize: '12.5px',
-                borderRadius: '8px',
-                border: activeTab === 'presets' ? '1px solid #22c55e' : '1px solid rgba(255,255,255,0.1)',
-                background: activeTab === 'presets' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(0,0,0,0.3)',
-                color: activeTab === 'presets' ? '#4ade80' : '#949ba4',
-                cursor: 'pointer'
-              }}
-            >
-              <i className="fa-solid fa-layer-group" style={{ marginRight: '6px' }} />
-              Pre-built Presets ({sampleTemplates.length})
-            </button>
-
-            <button
-              type="button"
-              className={`btn-style-chip ${activeTab === 'components' ? 'active' : ''}`}
-              onClick={() => setActiveTab('components')}
-              style={{
-                padding: '6px 16px',
-                fontSize: '12.5px',
-                borderRadius: '8px',
-                border: activeTab === 'components' ? '1px solid #5865F2' : '1px solid rgba(255,255,255,0.1)',
-                background: activeTab === 'components' ? 'rgba(88, 101, 242, 0.15)' : 'rgba(0,0,0,0.3)',
-                color: activeTab === 'components' ? '#5865F2' : '#949ba4',
-                cursor: 'pointer'
-              }}
-            >
-              <i className="fa-solid fa-cube" style={{ marginRight: '6px' }} />
-              Components ({sampleComponents.length})
-            </button>
           </div>
 
           {activeTab === 'saved' && (
@@ -588,8 +552,8 @@ export function LoadModal({
                         <span
                           className="template-badge"
                           style={{
-                            background: tmpl.isPublic ? 'rgba(56, 189, 248, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                            color: tmpl.isPublic ? '#38bdf8' : '#4ade80',
+                            background: 'rgba(56, 189, 248, 0.15)',
+                            color: '#38bdf8',
                             padding: '2px 8px',
                             borderRadius: '4px',
                             fontSize: '11px',

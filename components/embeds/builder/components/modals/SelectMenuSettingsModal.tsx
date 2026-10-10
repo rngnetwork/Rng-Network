@@ -616,7 +616,7 @@ export function SelectMenuSettingsModal({
                           background: '#1e1f22',
                           padding: '10px',
                           borderRadius: '6px',
-                          border: isActionBound ? '1px solid rgba(52, 211, 153, 0.3)' : '1px solid rgba(255, 255, 255, 0.06)'
+                          border: isActionBound ? '1px solid rgba(211, 52, 52, 0.3)' : '1px solid rgba(255, 255, 255, 0.06)'
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -665,7 +665,7 @@ export function SelectMenuSettingsModal({
                           <input
                             type="text"
                             className="form-input"
-                            style={{ flex: 1, fontSize: '11.5px', color: isActionBound ? '#34d399' : 'var(--discord-cyan)' }}
+                            style={{ flex: 1, fontSize: '11.5px', color: isActionBound ? '#d33434' : 'var(--discord-cyan)' }}
                             placeholder="Option Value"
                             value={opt.value}
                             onChange={(e) => handleUpdateOption(optIdx, { value: e.target.value })}
@@ -687,19 +687,18 @@ export function SelectMenuSettingsModal({
                               style={{
                                 fontSize: '11px',
                                 background: 'rgba(0,0,0,0.4)',
-                                border: isActionBound ? '1px solid #34d399' : '1px solid rgba(255,255,255,0.1)',
+                                border: isActionBound ? '1px solid #d33434' : '1px solid rgba(255,255,255,0.1)',
                                 borderRadius: '4px',
-                                color: isActionBound ? '#34d399' : '#a1a1aa',
+                                color: isActionBound ? 'rgb(113, 252, 0)' : '#d4d4d4',
                                 padding: '4px 6px',
                                 maxWidth: '140px',
                                 textOverflow: 'ellipsis'
                               }}
                               title="Bind option to an Action Template"
                             >
-                              <option value="">Manual Value</option>
                               {actionsList.map((act) => (
-                                <option key={act.actionId} value={act.actionId}>
-                                  ⚡ {act.name}
+                                <option key={act.actionId} value={act.actionId} style={{background: 'rgba(0,0,0,0.5)'}}>
+                                {act.name}
                                 </option>
                               ))}
                             </select>
@@ -802,11 +801,6 @@ export function SelectMenuSettingsModal({
                     </button>
                   )}
                 </div>
-
-                <p className="text-[11.5px] text-zinc-400 leading-relaxed">
-                  When a button is mapped to this select menu, choosing an option saves the selection, and clicking the mapped button in Discord invokes the action template mapped to that chosen option.
-                </p>
-
                 {mappedButton ? (
                   <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
