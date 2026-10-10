@@ -1,24 +1,44 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Type17Container, DiscordInnerComponent } from './types';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Type17Container, DiscordInnerComponent, BackendEmbedTemplate } from './types';
+import { api } from '@/lib/api';
+import { parseDiscordPayloadToState } from './validation';
 
 interface LoadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLoadTemplate: (state: { message: { content: string }; type17Containers: Type17Container[] }) => void;
   onLoadComponent: (comp: DiscordInnerComponent) => void;
+  serverId?: string;
+}
+
+interface LoadedSavedTemplate {
+  id: string;
+  badge: string;
+  name: string;
+  desc: string;
+  isPublic?: boolean;
+  containerCount: number;
+  componentCount: number;
+  state: {
+    message: { content: string };
+    type17Containers: Type17Container[];
+  };
 }
 
 export function LoadModal({
   isOpen,
   onClose,
   onLoadTemplate,
-  onLoadComponent
+  onLoadComponent,
+  serverId
 }: LoadModalProps) {
-  const [activeTab, setActiveTab] = useState<'templates' | 'components'>('templates');
-
-  if (!isOpen) return null;
+  const [activeTab, setActiveTab] = useState<'saved' | 'presets' | 'components'>('saved');
+  const [savedTemplates, setSavedTemplates] = useState<LoadedSavedTemplate[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const sampleTemplates = [
     {
@@ -222,6 +242,107 @@ export function LoadModal({
     }
   ];
 
+  const loadSavedTemplates = useCallback(async () => {
+    setIsLoading(true);
+    setFetchError(null);
+    try {
+      const effectiveServerId = serverId && serverId !== 'default' ? serverId : undefined;
+      const [serverRes, publicRes] = await Promise.all([
+        effectiveServerId ? api.fetchTemplates({ serverId: effectiveServerId, size: 100 }) : api.fetchTemplates({ size: 100 }),
+        api.fetchTemplates({ size: 100 })
+      ]);
+
+      const extractItems = (response: any): BackendEmbedTemplate[] => {
+        if (!response?.data) return [];
+        if (Array.isArray(response.data)) return response.data;
+        if (Array.isArray(response.data.content)) return response.data.content;
+        return [];
+      };
+
+      const serverItems = extractItems(serverRes);
+      const publicItems = extractItems(publicRes);
+
+      const seenKeys = new Set<string>();
+      const uniqueTemplates: BackendEmbedTemplate[] = [];
+
+      [...serverItems, ...publicItems].forEach((bt) => {
+        const tId = bt.templateId ? String(bt.templateId).trim() : undefined;
+        const mId = bt.id ? String(bt.id).trim() : undefined;
+        const key = tId || mId;
+        if (!key) return;
+
+        if (seenKeys.has(key) || (tId && seenKeys.has(tId)) || (mId && seenKeys.has(mId))) {
+          return;
+        }
+
+        if (tId) seenKeys.add(tId);
+        if (mId) seenKeys.add(mId);
+        uniqueTemplates.push(bt);
+      });
+
+      const parsedList: LoadedSavedTemplate[] = uniqueTemplates.map((bt) => {
+        const p = (bt.payload || bt.payloadJson || {}) as Record<string, unknown>;
+        let containers: Type17Container[] = [];
+        let content = '';
+
+        if (Array.isArray(p.containers)) {
+          containers = p.containers as Type17Container[];
+          content = String(p.content || p.builderContent || '');
+        } else if (Array.isArray(p.components)) {
+          try {
+            const parsed = parseDiscordPayloadToState(p);
+            containers = parsed.containers || [];
+            content = parsed.messageContent || '';
+          } catch {
+            containers = [];
+          }
+        }
+
+        const compCount = containers.reduce((acc, c) => acc + (c.components?.length || 0), 0);
+
+        return {
+          id: bt.templateId || bt.id || String(Math.random()),
+          name: bt.name || 'Untitled Template',
+          desc: bt.description || 'Custom template from database',
+          badge: (bt as any).badge || bt.category || (bt.isPublic ? 'Public' : 'Custom'),
+          isPublic: bt.isPublic,
+          containerCount: containers.length,
+          componentCount: compCount,
+          state: {
+            message: { content },
+            type17Containers: containers
+          }
+        };
+      });
+
+      setSavedTemplates(parsedList);
+    } catch (err: any) {
+      console.error('Error fetching templates in LoadModal:', err);
+      setFetchError('Failed to load saved templates from server.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [serverId]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadSavedTemplates();
+    }
+  }, [isOpen, loadSavedTemplates]);
+
+  const filteredSavedTemplates = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return savedTemplates;
+    return savedTemplates.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        t.desc.toLowerCase().includes(q) ||
+        t.badge.toLowerCase().includes(q)
+    );
+  }, [savedTemplates, searchQuery]);
+
+  if (!isOpen) return null;
+
   return (
     <div
       className="modal-overlay open"
@@ -243,7 +364,7 @@ export function LoadModal({
       <div
         className="modal-dialog"
         style={{
-          maxWidth: '680px',
+          maxWidth: '720px',
           width: '100%',
           boxShadow: '0 30px 80px rgba(0, 0, 0, 0.9), 0 0 35px rgba(34, 197, 94, 0.12)'
         }}
@@ -253,7 +374,7 @@ export function LoadModal({
             <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <i className="fa-solid fa-cloud-arrow-down" style={{ color: '#4ade80', fontSize: '14px' }} />
             </div>
-            <span>Load Templates</span>
+            <span>Load Templates & Presets</span>
           </div>
           <button className="btn-container-close" onClick={onClose} type="button">
             <i className="fa-solid fa-xmark" />
@@ -261,27 +382,246 @@ export function LoadModal({
         </div>
 
         {/* Top Mode Selector Tabs */}
-        <div style={{ display: 'flex', gap: '8px', padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <button
-            type="button"
-            className={`btn-style-chip ${activeTab === 'templates' ? 'active' : ''}`}
-            onClick={() => setActiveTab('templates')}
-            style={{
-              padding: '6px 16px',
-              fontSize: '12.5px',
-              borderRadius: '8px',
-              border: activeTab === 'templates' ? '1px solid #22c55e' : '1px solid rgba(255,255,255,0.1)',
-              background: activeTab === 'templates' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(0,0,0,0.3)',
-              color: activeTab === 'templates' ? '#4ade80' : '#949ba4'
-            }}
-          >
-            <i className="fa-solid fa-layer-group" style={{ marginRight: '6px' }} />
-            Pre-built Templates ({sampleTemplates.length})
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              className={`btn-style-chip ${activeTab === 'saved' ? 'active' : ''}`}
+              onClick={() => setActiveTab('saved')}
+              style={{
+                padding: '6px 16px',
+                fontSize: '12.5px',
+                borderRadius: '8px',
+                border: activeTab === 'saved' ? '1px solid #22c55e' : '1px solid rgba(255,255,255,0.1)',
+                background: activeTab === 'saved' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(0,0,0,0.3)',
+                color: activeTab === 'saved' ? '#4ade80' : '#949ba4',
+                cursor: 'pointer'
+              }}
+            >
+              <i className="fa-solid fa-database" style={{ marginRight: '6px' }} />
+              Saved Templates ({savedTemplates.length})
+            </button>
+
+            <button
+              type="button"
+              className={`btn-style-chip ${activeTab === 'presets' ? 'active' : ''}`}
+              onClick={() => setActiveTab('presets')}
+              style={{
+                padding: '6px 16px',
+                fontSize: '12.5px',
+                borderRadius: '8px',
+                border: activeTab === 'presets' ? '1px solid #22c55e' : '1px solid rgba(255,255,255,0.1)',
+                background: activeTab === 'presets' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(0,0,0,0.3)',
+                color: activeTab === 'presets' ? '#4ade80' : '#949ba4',
+                cursor: 'pointer'
+              }}
+            >
+              <i className="fa-solid fa-layer-group" style={{ marginRight: '6px' }} />
+              Pre-built Presets ({sampleTemplates.length})
+            </button>
+
+            <button
+              type="button"
+              className={`btn-style-chip ${activeTab === 'components' ? 'active' : ''}`}
+              onClick={() => setActiveTab('components')}
+              style={{
+                padding: '6px 16px',
+                fontSize: '12.5px',
+                borderRadius: '8px',
+                border: activeTab === 'components' ? '1px solid #5865F2' : '1px solid rgba(255,255,255,0.1)',
+                background: activeTab === 'components' ? 'rgba(88, 101, 242, 0.15)' : 'rgba(0,0,0,0.3)',
+                color: activeTab === 'components' ? '#5865F2' : '#949ba4',
+                cursor: 'pointer'
+              }}
+            >
+              <i className="fa-solid fa-cube" style={{ marginRight: '6px' }} />
+              Components ({sampleComponents.length})
+            </button>
+          </div>
+
+          {activeTab === 'saved' && (
+            <button
+              type="button"
+              onClick={loadSavedTemplates}
+              disabled={isLoading}
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: '#949ba4',
+                borderRadius: '6px',
+                padding: '5px 10px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+              title="Refresh templates from server"
+            >
+              <i className={`fa-solid fa-arrows-rotate ${isLoading ? 'fa-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
+          )}
         </div>
 
+        {/* Search bar for Saved Templates */}
+        {activeTab === 'saved' && (
+          <div style={{ padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ position: 'relative' }}>
+              <i
+                className="fa-solid fa-magnifying-glass"
+                style={{
+                  position: 'absolute',
+                  left: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'rgba(255,255,255,0.4)',
+                  fontSize: '12px'
+                }}
+              />
+              <input
+                type="text"
+                placeholder="Search saved templates by name, badge, or description..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  background: 'rgba(0,0,0,0.35)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '8px',
+                  padding: '7px 12px 7px 34px',
+                  color: '#fff',
+                  fontSize: '12px',
+                  outline: 'none'
+                }}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: 'rgba(255,255,255,0.4)',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  <i className="fa-solid fa-xmark" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto', padding: '16px 20px' }}>
-          {activeTab === 'templates' ? (
+          {activeTab === 'saved' ? (
+            isLoading ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: '#949ba4' }}>
+                <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '24px', color: '#22c55e', marginBottom: '12px' }} />
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>Fetching templates from server...</div>
+                <div style={{ fontSize: '11.5px', marginTop: '4px' }}>Loading stored embed layouts</div>
+              </div>
+            ) : fetchError ? (
+              <div style={{ textAlign: 'center', padding: '30px 20px', background: 'rgba(239, 68, 68, 0.08)', borderRadius: '10px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                <i className="fa-solid fa-triangle-exclamation" style={{ color: '#ef4444', fontSize: '20px', marginBottom: '8px' }} />
+                <div style={{ color: '#f87171', fontSize: '13px', fontWeight: 600 }}>{fetchError}</div>
+                <button
+                  type="button"
+                  onClick={loadSavedTemplates}
+                  style={{
+                    marginTop: '10px',
+                    padding: '5px 14px',
+                    background: 'rgba(239, 68, 68, 0.2)',
+                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                    color: '#fff',
+                    borderRadius: '6px',
+                    fontSize: '11.5px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Retry
+                </button>
+              </div>
+            ) : filteredSavedTemplates.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: '#949ba4' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                  <i className="fa-solid fa-folder-open" style={{ fontSize: '20px', color: 'rgba(255,255,255,0.3)' }} />
+                </div>
+                <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#fff' }}>
+                  {searchQuery ? 'No matching templates found' : 'No saved templates found'}
+                </div>
+                <div style={{ fontSize: '11.5px', marginTop: '4px', maxWidth: '360px', margin: '4px auto 0' }}>
+                  {searchQuery
+                    ? `No templates matched "${searchQuery}". Try a different keyword.`
+                    : 'Save your customized embeds as templates in the Templates tab to reload them here anytime.'}
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {filteredSavedTemplates.map((tmpl) => (
+                  <div
+                    key={tmpl.id}
+                    className="template-card"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      borderRadius: '12px',
+                      padding: '14px 16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                    onClick={() => {
+                      onLoadTemplate(tmpl.state);
+                      onClose();
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span
+                          className="template-badge"
+                          style={{
+                            background: tmpl.isPublic ? 'rgba(56, 189, 248, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                            color: tmpl.isPublic ? '#38bdf8' : '#4ade80',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 700
+                          }}
+                        >
+                          {tmpl.badge}
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#6b7280' }}>
+                          {tmpl.containerCount} Container{tmpl.containerCount === 1 ? '' : 's'} • {tmpl.componentCount} Comp{tmpl.componentCount === 1 ? '' : 's'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-ctrl-green"
+                        style={{ padding: '4px 12px', fontSize: '11.5px', borderRadius: '6px' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onLoadTemplate(tmpl.state);
+                          onClose();
+                        }}
+                      >
+                        Load Template
+                      </button>
+                    </div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>{tmpl.name}</div>
+                    <div style={{ fontSize: '12px', color: '#949ba4' }}>{tmpl.desc}</div>
+                  </div>
+                ))}
+              </div>
+            )
+          ) : activeTab === 'presets' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {sampleTemplates.map((tmpl) => (
                 <div

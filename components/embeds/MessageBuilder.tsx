@@ -407,6 +407,7 @@ export function MessageBuilder({
           collapsedAuthors={collapsedAuthors}
           setCollapsedAuthors={setCollapsedAuthors}
           availableActions={effectiveActions}
+          serverId={serverId}
         />
       )}
 
@@ -459,12 +460,14 @@ export function MessageBuilder({
         onSave={handleSaveButtonModal}
         availableActions={effectiveActions}
         serverId={serverId}
+        allContainers={containers}
       />
 
       {/* LOAD PRESET MODAL */}
       <LoadModal
         isOpen={isLoadModalOpen}
         onClose={() => setIsLoadModalOpen(false)}
+        serverId={serverId}
         onLoadTemplate={(presetState) => {
           if (onLoadTemplate) onLoadTemplate(presetState);
           setIsLoadModalOpen(false);

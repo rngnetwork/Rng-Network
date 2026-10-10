@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { DiscordButtonComponent, ButtonStyle, EmbedAction } from './types';
+import { DiscordButtonComponent, ButtonStyle, EmbedAction, Type17Container } from './types';
 import { DiscordEmojiPicker } from './DiscordEmojiPicker';
 import { EmojiItem } from './emoji-data';
 import { renderDiscordEmoji } from './DiscordEmojiRenderer';
@@ -15,6 +15,7 @@ interface ButtonModalProps {
   onSave: (updated: DiscordButtonComponent) => void;
   availableActions?: EmbedAction[];
   serverId?: string;
+  allContainers?: Type17Container[];
 }
 
 function getInitialEmojiStr(emoji: DiscordButtonComponent['emoji']): string {
@@ -31,7 +32,8 @@ export function ButtonModal({
   buttonData,
   onSave,
   availableActions,
-  serverId
+  serverId,
+  allContainers
 }: ButtonModalProps) {
   if (!isOpen || !buttonData) return null;
 
@@ -42,6 +44,7 @@ export function ButtonModal({
       onSave={onSave}
       availableActions={availableActions}
       serverId={serverId}
+      allContainers={allContainers}
     />
   );
 }
@@ -51,13 +54,15 @@ function ButtonModalContent({
   onClose,
   onSave,
   availableActions,
-  serverId
+  serverId,
+  allContainers
 }: {
   buttonData: DiscordButtonComponent;
   onClose: () => void;
   onSave: (updated: DiscordButtonComponent) => void;
   availableActions?: EmbedAction[];
   serverId?: string;
+  allContainers?: Type17Container[];
 }) {
   const [label, setLabel] = useState(buttonData.label || '');
   const [style, setStyle] = useState<ButtonStyle>(buttonData.style || 1);
@@ -75,6 +80,38 @@ function ButtonModalContent({
     }
     return availableActions || [];
   }, [availableActions, fetchedActions]);
+
+  // Check which actions are already used by other buttons or select menus in the message canvas
+  const canvasUsedActions = React.useMemo(() => {
+    const buttonActions = new Map<string, string>();
+    const userSelectActions = new Set<string>();
+    const roleSelectActions = new Set<string>();
+
+    if (!allContainers) return { buttonActions, userSelectActions, roleSelectActions };
+
+    for (const c of allContainers) {
+      for (const comp of c.components || []) {
+        if (comp.type === 1 && (comp as any).components) {
+          for (const btn of (comp as any).components) {
+            if (btn.id !== buttonData.id && btn.custom_id && btn.custom_id.startsWith('rng_act_')) {
+              buttonActions.set(btn.custom_id, btn.label || btn.custom_id);
+            }
+          }
+        }
+        if (comp.type === 5 && (comp as any).custom_id && (comp as any).custom_id.startsWith('rng_act_')) {
+          userSelectActions.add((comp as any).custom_id);
+        }
+        if (comp.type === 6 && (comp as any).custom_id && (comp as any).custom_id.startsWith('rng_act_')) {
+          roleSelectActions.add((comp as any).custom_id);
+        }
+      }
+    }
+    return { buttonActions, userSelectActions, roleSelectActions };
+  }, [allContainers, buttonData.id]);
+
+  const selectedAction = React.useMemo(() => {
+    return actionsList.find((act) => act.actionId === customId);
+  }, [actionsList, customId]);
 
   const [actionSourceMode, setActionSourceMode] = useState<'template' | 'custom'>(
     (buttonData.custom_id?.startsWith('rng_act_') || !buttonData.custom_id) ? 'template' : 'custom'
@@ -435,18 +472,64 @@ function ButtonModalContent({
                                 badge: 'STALE'
                               }]
                             : []),
-                          ...actionsList.map((act) => ({
-                            value: act.actionId,
-                            label: act.name,
-                            description: act.description || act.actionId,
-                            badge: act.actionType
-                          }))
+                          ...actionsList.map((act) => {
+                            const isUsedByOtherButton = canvasUsedActions.buttonActions.has(act.actionId);
+                            const otherBtnLabel = canvasUsedActions.buttonActions.get(act.actionId);
+                            return {
+                              value: act.actionId,
+                              label: act.name,
+                              description: isUsedByOtherButton
+                                ? `⚠️ Already mapped to button "${otherBtnLabel}" in this message`
+                                : (act.description || act.actionId),
+                              badge: act.actionType,
+                              disabled: isUsedByOtherButton
+                            };
+                          })
                         ]}
                         value={customId}
                         onChange={(val) => setCustomId(val)}
                         placeholder="Select interactive action template..."
                         searchable
                       />
+
+                      {/* 3-Way Role Grant Component Binding Status Widget */}
+                      {selectedAction && (selectedAction.actionType === 'ROLE' || selectedAction.requiredUser || selectedAction.requiredRole) && (
+                        <div className="p-2.5 rounded-lg bg-indigo-950/40 border border-indigo-500/30 text-xs space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-indigo-300 flex items-center gap-1.5">
+                              <i className="fa-solid fa-link text-indigo-400" />
+                              Role Grant 3-Way Component Binding
+                            </span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">
+                              1 Button • 1 User • 1 Role
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-zinc-400 leading-relaxed">
+                            This action coordinates execution between a Button, a User Select, and a Role Select in this message.
+                          </p>
+                          <div className="grid grid-cols-3 gap-1.5 pt-1 text-[11px]">
+                            <div className="p-1.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 flex items-center gap-1">
+                              <i className="fa-solid fa-check text-[10px]" /> Button (This)
+                            </div>
+                            <div className={`p-1.5 rounded border text-[11px] flex items-center gap-1 ${
+                              canvasUsedActions.userSelectActions.has(selectedAction.actionId)
+                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                                : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                            }`}>
+                              <i className={`fa-solid ${canvasUsedActions.userSelectActions.has(selectedAction.actionId) ? 'fa-check' : 'fa-circle-exclamation'} text-[10px]`} />
+                              User Select
+                            </div>
+                            <div className={`p-1.5 rounded border text-[11px] flex items-center gap-1 ${
+                              canvasUsedActions.roleSelectActions.has(selectedAction.actionId)
+                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                                : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                            }`}>
+                              <i className={`fa-solid ${canvasUsedActions.roleSelectActions.has(selectedAction.actionId) ? 'fa-check' : 'fa-circle-exclamation'} text-[10px]`} />
+                              Role Select
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       {customId && customId.startsWith('rng_act_') && !actionsList.some((act) => act.actionId === customId) && (
                         <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2">
                           <i className="fa-solid fa-triangle-exclamation text-amber-400 mt-0.5 shrink-0" />

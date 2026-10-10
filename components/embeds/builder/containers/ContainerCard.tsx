@@ -38,6 +38,9 @@ interface ContainerCardProps {
   draggedComp?: { cIdx: number; compIdx: number } | null;
   dragOverComp?: { cIdx: number; compIdx: number } | null;
   availableActions?: EmbedAction[];
+  allContainers?: Type17Container[];
+  onUpdateContainers?: (updated: Type17Container[]) => void;
+  serverId?: string;
 }
 
 export function ContainerCard({
@@ -69,7 +72,10 @@ export function ContainerCard({
   onCompDrop,
   draggedComp,
   dragOverComp,
-  availableActions = []
+  availableActions = [],
+  allContainers = [],
+  onUpdateContainers,
+  serverId
 }: ContainerCardProps) {
   return (
     <div
@@ -167,6 +173,9 @@ export function ContainerCard({
               isDragging={isDragging}
               isDragOver={isDragOver}
               availableActions={availableActions}
+              allContainers={allContainers}
+              onUpdateContainers={onUpdateContainers}
+              serverId={serverId}
             />
           );
         })}

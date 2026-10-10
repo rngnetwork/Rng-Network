@@ -126,20 +126,6 @@ export function PaletteModal({
               </div>
               <span className="type-card-desc">Guild role picker, wrapped in Action Row.</span>
             </div>
-            <div className="type-select-card" onClick={() => handleSelect(7)}>
-              <div className="type-card-top">
-                <span className="type-card-name">Mentionable Select</span>
-                <span className="type-number-pill">Type 7</span>
-              </div>
-              <span className="type-card-desc">User/Role selector, wrapped in Action Row.</span>
-            </div>
-            <div className="type-select-card" onClick={() => handleSelect(8)}>
-              <div className="type-card-top">
-                <span className="type-card-name">Channel Select</span>
-                <span className="type-number-pill">Type 8</span>
-              </div>
-              <span className="type-card-desc">Channel picker, wrapped in Action Row.</span>
-            </div>
           </div>
         </div>
       </div>

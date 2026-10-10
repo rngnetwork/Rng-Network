@@ -24,6 +24,7 @@ import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.EntitySelectInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -145,7 +146,9 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
     @Override
     public void onButtonInteraction(@NotNull ButtonInteractionEvent event) {
         String componentId = event.getComponentId();
-        if (!componentId.startsWith("rng_act_")) {
+        boolean isDirectAction = componentId.startsWith("rng_act_");
+        boolean isInvokeButton = componentId.startsWith("rng_btn_invoke_");
+        if (!isDirectAction && !isInvokeButton) {
             return;
         }
 
@@ -162,8 +165,27 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
             return;
         }
 
+        String messageId = event.getMessageId();
+        Map<String, String> sessionData = getSessionData(guildId, userId, messageId);
+
+        final String effectiveActionId;
+        if (isInvokeButton) {
+            String selectId = componentId.substring("rng_btn_invoke_".length());
+            String selectedOption = sessionData.get("selected_option:" + selectId);
+            if (selectedOption == null || selectedOption.isBlank()) {
+                selectedOption = sessionData.get("selected_option");
+            }
+            if (selectedOption == null || selectedOption.isBlank()) {
+                event.reply("⚠️ Please select an option from the menu first!").setEphemeral(true).queue();
+                return;
+            }
+            effectiveActionId = selectedOption;
+        } else {
+            effectiveActionId = componentId;
+        }
+
         // Pre-resolve action to determine ephemeral vs public acknowledgment
-        Optional<EmbedAction> actionOpt = embedActionService.flatMap(eas -> eas.resolveAction(componentId));
+        Optional<EmbedAction> actionOpt = embedActionService.flatMap(eas -> eas.resolveAction(effectiveActionId));
         boolean isEphemeral = actionOpt.map(a -> {
             if (a.getResponseType() == ResponseType.PUBLIC_EMBED || a.getResponseType() == ResponseType.PUBLIC_TEXT) {
                 return false;
@@ -176,8 +198,6 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
 
         // Sub-50ms acknowledgment - guarantees Discord SLA window (<3000ms)
         event.deferReply(isEphemeral).queue();
-
-        String messageId = event.getMessageId();
 
         // Sliding-window rate limit: 3 interactions per 5 seconds per member
         String rateLimitKey = "ratelimit:member:" + guildId + ":" + userId;
@@ -196,12 +216,11 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
         }
 
         if (actionOpt.isEmpty()) {
-            event.getHook().editOriginal("❌ Action template not found or no longer active: " + componentId).queue();
+            event.getHook().editOriginal("❌ Action template not found or no longer active: " + effectiveActionId).queue();
             return;
         }
 
         EmbedAction action = actionOpt.get();
-        Map<String, String> sessionData = getSessionData(guildId, userId, messageId);
 
         try {
             validateCallerIdentity(event, sessionData);
@@ -237,14 +256,14 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
         ActionExecutionResult result = null;
         try {
             if (action.getCompoundOperations() != null && !action.getCompoundOperations().isEmpty()) {
-                result = actionExecutionService.get().executeCompoundAction(componentId, event.getGuild(), member, event.getHook(), sessionData);
+                result = actionExecutionService.get().executeCompoundAction(effectiveActionId, event.getGuild(), member, event.getHook(), sessionData);
             } else if (action.getResponseType() == ResponseType.PUBLIC_EMBED || action.getResponseType() == ResponseType.PUBLIC_TEXT || (action.getResponseEmbedTemplateId() != null && !action.getResponseEmbedTemplateId().isBlank())) {
-                result = actionExecutionService.get().executeComponentAction(componentId, event.getGuild(), member, event.getHook(), sessionData);
+                result = actionExecutionService.get().executeComponentAction(effectiveActionId, event.getGuild(), member, event.getHook(), sessionData);
             } else {
                 actionExecutionService.get().executeButtonAction(event, action, sessionData);
             }
         } catch (Exception e) {
-            log.error("Error executing button action {}: {}", componentId, e.getMessage(), e);
+            log.error("Error executing button action {}: {}", effectiveActionId, e.getMessage(), e);
             if (event.getHook() != null) {
                 event.getHook().editOriginal("❌ Error executing action: " + e.getMessage()).queue();
             }
@@ -309,7 +328,9 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
         String userName = event.getUser() != null ? event.getUser().getName() : "unknown";
         String guildId = event.getGuild() != null ? event.getGuild().getId() : null;
 
-        if (isActionComponent || isActionOption) {
+        boolean hasInvokeButton = messageHasInvokeButton(event.getMessage());
+
+        if (!hasInvokeButton && (isActionComponent || isActionOption)) {
             log.info("Gateway StringSelectInteraction (Action) received: componentId='{}', value='{}', user='{}' ({}), guild='{}'",
                     componentId, firstValue, userName, userId, guildId != null ? guildId : "none");
 
@@ -369,7 +390,7 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
             }
 
             actionExecutionService.get().executeStringSelectAction(event, action, sessionData);
-        } else if (isHandledSelectComponent(componentId, event.getMessage(), event.getJDA())) {
+        } else if (hasInvokeButton || isHandledSelectComponent(componentId, event.getMessage(), event.getJDA())) {
             log.info("Gateway StringSelectInteraction (Intermediate) received: componentId='{}', values='{}', user='{}' ({}), guild='{}'",
                     componentId, values, userName, userId, guildId != null ? guildId : "none");
 
@@ -387,6 +408,7 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
                 try {
                     if (firstValue != null) {
                         rt.opsForHash().put(sessionKey, "selected_option", firstValue);
+                        rt.opsForHash().put(sessionKey, "selected_option:" + componentId, firstValue);
                         rt.opsForHash().put(sessionKey, "selected_options", String.join(",", values));
                         rt.opsForHash().put(sessionKey, "last_updated", String.valueOf(System.currentTimeMillis()));
                         rt.expire(sessionKey, Duration.ofMinutes(15));
@@ -517,5 +539,35 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
                 return Collections.<String, String>emptyMap();
             }
         }).orElse(Collections.emptyMap());
+    }
+
+    public boolean messageHasInvokeButton(Message message) {
+        if (message == null || message.getComponents() == null) {
+            return false;
+        }
+        try {
+            for (var top : message.getComponents()) {
+                if (top.getType() == net.dv8tion.jda.api.components.Component.Type.ACTION_ROW) {
+                    for (var btn : top.asActionRow().getButtons()) {
+                        if (btn.getCustomId() != null && btn.getCustomId().startsWith("rng_btn_invoke_")) {
+                            return true;
+                        }
+                    }
+                } else if (top.getType() == net.dv8tion.jda.api.components.Component.Type.CONTAINER) {
+                    for (var child : top.asContainer().getComponents()) {
+                        if (child.getType() == net.dv8tion.jda.api.components.Component.Type.ACTION_ROW) {
+                            for (var btn : child.asActionRow().getButtons()) {
+                                if (btn.getCustomId() != null && btn.getCustomId().startsWith("rng_btn_invoke_")) {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Error inspecting message components for invoke button: {}", e.getMessage());
+        }
+        return false;
     }
 }

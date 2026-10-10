@@ -9,7 +9,8 @@ import {
   DiscordMediaGalleryComponent,
   DiscordFileComponent,
   DiscordButtonComponent,
-  EmbedAction
+  EmbedAction,
+  Type17Container
 } from '../../types';
 import { ActionRowEditor } from './ActionRowEditor';
 import { SelectMenuEditor } from './SelectMenuEditor';
@@ -38,6 +39,9 @@ interface ComponentItemRendererProps {
   isDragging?: boolean;
   isDragOver?: boolean;
   availableActions?: EmbedAction[];
+  allContainers?: Type17Container[];
+  onUpdateContainers?: (updated: Type17Container[]) => void;
+  serverId?: string;
 }
 
 const TYPE_NAMES: Record<number, string> = {
@@ -76,7 +80,10 @@ export function ComponentItemRenderer({
   onDrop,
   isDragging = false,
   isDragOver = false,
-  availableActions = []
+  availableActions = [],
+  allContainers = [],
+  onUpdateContainers,
+  serverId
 }: ComponentItemRendererProps) {
   const [isSectionSettingsOpen, setIsSectionSettingsOpen] = useState(false);
   const [isSeparatorSettingsOpen, setIsSeparatorSettingsOpen] = useState(false);
@@ -305,6 +312,9 @@ export function ComponentItemRenderer({
           comp={comp as DiscordSelectComponent}
           onSave={(updated) => onUpdateComponent(cIdx, compIdx, updated)}
           availableActions={availableActions}
+          allContainers={allContainers}
+          onUpdateContainers={onUpdateContainers}
+          serverId={serverId}
         />
       )}
     </div>

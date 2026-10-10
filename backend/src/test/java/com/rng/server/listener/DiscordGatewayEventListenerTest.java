@@ -396,4 +396,80 @@ class DiscordGatewayEventListenerTest {
         verify(hashOperations).putAll(expectedKey, sessionData);
         verify(redisTemplate).expire(expectedKey, Duration.ofMinutes(15));
     }
+
+    @Test
+    @DisplayName("Should warn ephemerally when invoke button is clicked before selecting an option")
+    void should_warn_ephemerally_when_invoke_button_clicked_without_selecting_option() {
+        when(buttonEvent.getComponentId()).thenReturn("rng_btn_invoke_menu_1");
+        when(user.getId()).thenReturn("usr_1");
+        when(guild.getId()).thenReturn("gld_1");
+        when(buttonEvent.getMessageId()).thenReturn("msg_123");
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(hashOperations.entries("interaction:session:gld_1:usr_1:msg_123")).thenReturn(Collections.emptyMap());
+        when(buttonEvent.reply("⚠️ Please select an option from the menu first!")).thenReturn(replyCallbackAction);
+        when(replyCallbackAction.setEphemeral(true)).thenReturn(replyCallbackAction);
+
+        listener.onButtonInteraction(buttonEvent);
+
+        verify(buttonEvent).reply("⚠️ Please select an option from the menu first!");
+        verify(replyCallbackAction).setEphemeral(true);
+        verify(replyCallbackAction).queue();
+        verify(buttonEvent, never()).deferReply(anyBoolean());
+    }
+
+    @Test
+    @DisplayName("Should execute mapped action when invoke button is clicked with selected option in session")
+    void should_execute_mapped_action_when_invoke_button_clicked_with_selected_option() {
+        when(buttonEvent.getComponentId()).thenReturn("rng_btn_invoke_menu_1");
+        when(user.getId()).thenReturn("usr_1");
+        when(guild.getId()).thenReturn("gld_1");
+        when(buttonEvent.getMessageId()).thenReturn("msg_123");
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        Map<Object, Object> session = new HashMap<>();
+        session.put("selected_option:menu_1", "rng_act_grant_role");
+        when(hashOperations.entries("interaction:session:gld_1:usr_1:msg_123")).thenReturn(session);
+
+        EmbedAction action = EmbedAction.builder()
+                .actionId("rng_act_grant_role")
+                .responseType(ResponseType.EPHEMERAL_TEXT)
+                .build();
+        when(embedActionService.resolveAction("rng_act_grant_role")).thenReturn(Optional.of(action));
+        when(rateLimiterService.tryAcquire(anyString(), anyInt(), anyLong())).thenReturn(true);
+
+        listener.onButtonInteraction(buttonEvent);
+
+        verify(buttonEvent).deferReply(true);
+        verify(actionExecutionService).executeButtonAction(eq(buttonEvent), eq(action), anyMap());
+    }
+
+    @Test
+    @DisplayName("Should defer string select interaction when message contains an invoke button")
+    void should_defer_string_select_when_message_contains_invoke_button() {
+        when(stringSelectEvent.getComponentId()).thenReturn("sel_roles");
+        when(stringSelectEvent.getValues()).thenReturn(List.of("rng_act_premium_role"));
+        when(user.getId()).thenReturn("usr_1");
+        when(guild.getId()).thenReturn("gld_1");
+        when(stringSelectEvent.getMessageId()).thenReturn("msg_123");
+
+        Message message = mock(Message.class);
+        net.dv8tion.jda.api.components.MessageTopLevelComponentUnion topComponent = mock(net.dv8tion.jda.api.components.MessageTopLevelComponentUnion.class);
+        net.dv8tion.jda.api.components.actionrow.ActionRow actionRow = mock(net.dv8tion.jda.api.components.actionrow.ActionRow.class);
+        net.dv8tion.jda.api.components.buttons.Button invokeBtn = mock(net.dv8tion.jda.api.components.buttons.Button.class);
+        when(invokeBtn.getCustomId()).thenReturn("rng_btn_invoke_sel_roles");
+        when(actionRow.getButtons()).thenReturn(List.of(invokeBtn));
+        when(topComponent.getType()).thenReturn(net.dv8tion.jda.api.components.Component.Type.ACTION_ROW);
+        when(topComponent.asActionRow()).thenReturn(actionRow);
+        when(message.getComponents()).thenReturn(List.of(topComponent));
+        when(stringSelectEvent.getMessage()).thenReturn(message);
+        when(stringSelectEvent.deferEdit()).thenReturn(editCallbackAction);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+
+        listener.onStringSelectInteraction(stringSelectEvent);
+
+        verify(stringSelectEvent).deferEdit();
+        verify(editCallbackAction).queue();
+        verify(hashOperations).put("interaction:session:gld_1:usr_1:msg_123", "selected_option", "rng_act_premium_role");
+        verify(hashOperations).put("interaction:session:gld_1:usr_1:msg_123", "selected_option:sel_roles", "rng_act_premium_role");
+        verify(actionExecutionService, never()).executeStringSelectAction(any(), any(), any());
+    }
 }
