@@ -11,6 +11,8 @@ import { UnsavedChangesBar } from '@/components/ui/UnsavedChangesBar';
 import { api, ServerDetail, ChannelItem } from '@/lib/api';
 import { EmojiItem } from '@/components/embeds/emoji-data';
 import { buildDiscordV2MessagePayload } from '@/components/embeds/validation';
+import { motion } from 'framer-motion';
+import { Boxes, Layers, Zap } from 'lucide-react';
 
 export default function ServerEmbedsPage() {
   const params = useParams();
@@ -225,38 +227,71 @@ export default function ServerEmbedsPage() {
 
   return (
     <div className="main-workspace w-full h-[calc(100vh-110px)] flex flex-col overflow-hidden">
-      {/* Top Header Bar for Scoped Server */}
-      <header className="top-nav-bar">
-        <div className="flex items-center gap-5">          
-          <div className="main-tabs-group">
-            <button
-              type="button"
-              className={`main-tab-btn ${activeTopTab === 'builder' ? 'active' : ''}`}
-              onClick={() => {
-                setActiveTopTab('builder');
-                loadActions();
-              }}
-            >
-              <i className="fa-solid fa-cube text-red-500" />
-              <span>Components V2 Builder</span>
-            </button>
-            <button
-              type="button"
-              className={`main-tab-btn ${activeTopTab === 'templates' ? 'active' : ''}`}
-              onClick={() => setActiveTopTab('templates')}
-            >
-              <i className="fa-solid fa-layer-group text-amber-400" />
-              <span>Templates</span>
-            </button>
-            <button
-              type="button"
-              className={`main-tab-btn ${activeTopTab === 'actions' ? 'active' : ''}`}
-              onClick={() => setActiveTopTab('actions')}
-            >
-              <i className="fa-solid fa-bolt text-cyan-400" />
-              <span>Action Templates</span>
-            </button>
-          </div>
+      {/* Top Header Bar for Scoped Server with Glowing Tabs */}
+      <header className="relative flex items-center justify-between pb-3 border-b border-white/10 shrink-0">
+        <div className="flex items-center gap-2 overflow-x-auto">
+          <button
+            type="button"
+            className={`relative flex items-center gap-2.5 px-4 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition-all duration-200 cursor-pointer ${
+              activeTopTab === 'builder'
+                ? 'text-white bg-red-500/10 border border-red-500/30 shadow-[0_0_15px_rgba(225,29,46,0.25)]'
+                : 'text-zinc-400 hover:text-white hover:bg-white/[0.03] border border-transparent'
+            }`}
+            onClick={() => {
+              setActiveTopTab('builder');
+              loadActions();
+            }}
+          >
+            <Boxes size={16} className={activeTopTab === 'builder' ? 'text-red-400' : 'text-zinc-500'} />
+            <span>Components V2 Builder</span>
+            {activeTopTab === 'builder' && (
+              <motion.div
+                layoutId="embedTopActiveTabIndicator"
+                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                className="absolute -bottom-3 left-2 right-2 h-0.5 bg-gradient-to-r from-red-500 via-red-400 to-red-600 shadow-[0_0_10px_#ef4444]"
+              />
+            )}
+          </button>
+
+          <button
+            type="button"
+            className={`relative flex items-center gap-2.5 px-4 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition-all duration-200 cursor-pointer ${
+              activeTopTab === 'templates'
+                ? 'text-white bg-red-500/10 border border-red-500/30 shadow-[0_0_15px_rgba(225,29,46,0.25)]'
+                : 'text-zinc-400 hover:text-white hover:bg-white/[0.03] border border-transparent'
+            }`}
+            onClick={() => setActiveTopTab('templates')}
+          >
+            <Layers size={16} className={activeTopTab === 'templates' ? 'text-amber-400' : 'text-zinc-500'} />
+            <span>Templates</span>
+            {activeTopTab === 'templates' && (
+              <motion.div
+                layoutId="embedTopActiveTabIndicator"
+                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                className="absolute -bottom-3 left-2 right-2 h-0.5 bg-gradient-to-r from-red-500 via-red-400 to-red-600 shadow-[0_0_10px_#ef4444]"
+              />
+            )}
+          </button>
+
+          <button
+            type="button"
+            className={`relative flex items-center gap-2.5 px-4 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition-all duration-200 cursor-pointer ${
+              activeTopTab === 'actions'
+                ? 'text-white bg-red-500/10 border border-red-500/30 shadow-[0_0_15px_rgba(225,29,46,0.25)]'
+                : 'text-zinc-400 hover:text-white hover:bg-white/[0.03] border border-transparent'
+            }`}
+            onClick={() => setActiveTopTab('actions')}
+          >
+            <Zap size={16} className={activeTopTab === 'actions' ? 'text-cyan-400' : 'text-zinc-500'} />
+            <span>Action Templates</span>
+            {activeTopTab === 'actions' && (
+              <motion.div
+                layoutId="embedTopActiveTabIndicator"
+                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                className="absolute -bottom-3 left-2 right-2 h-0.5 bg-gradient-to-r from-red-500 via-red-400 to-red-600 shadow-[0_0_10px_#ef4444]"
+              />
+            )}
+          </button>
         </div>
       </header>
 
