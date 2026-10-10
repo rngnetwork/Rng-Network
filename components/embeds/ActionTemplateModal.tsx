@@ -266,12 +266,12 @@ function ActionTemplateModalInner({
       if (dmMode === 'TEXT') {
         effectiveDmContent = dmContent.trim() || undefined;
         effectiveResponseEmbedTemplateId = undefined;
-        effectiveIsEphemeral = isEphemeral;
+        effectiveIsEphemeral = false;
         effectiveResponseType = 'DM_EMBED';
       } else {
         effectiveDmContent = undefined;
         effectiveResponseEmbedTemplateId = responseEmbedTemplateId.trim() || undefined;
-        effectiveIsEphemeral = isEphemeral;
+        effectiveIsEphemeral = false;
         effectiveResponseType = 'DM_EMBED';
       }
     } else if (actionType === 'ROLE') {
@@ -843,22 +843,6 @@ function ActionTemplateModalInner({
                       Variables supported {`{user}`}, {`{server}`}, {`{channel}`}
                     </p>
                   </div>
-
-                  {/* Minimal Toggle Switch */}
-                  <label className="flex items-center justify-between cursor-pointer group py-1 select-none">
-                    <span className="text-xs text-zinc-300 font-medium group-hover:text-white transition-colors">
-                      Is this message ephemeral?
-                    </span>
-                    <div className="relative inline-flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={isEphemeral}
-                        onChange={(e) => setIsEphemeral(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-9 h-5 bg-zinc-800 border border-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 peer-checked:after:bg-white after:border-zinc-600 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-500 peer-checked:border-purple-400" />
-                    </div>
-                  </label>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -875,22 +859,6 @@ function ActionTemplateModalInner({
                       <p className="text-[11px] text-zinc-500 mt-1">Fetching embed templates...</p>
                     )}
                   </div>
-
-                  {/* Minimal Toggle Switch */}
-                  <label className="flex items-center justify-between cursor-pointer group py-1 select-none">
-                    <span className="text-xs text-zinc-300 font-medium group-hover:text-white transition-colors">
-                      Is this message ephemeral?
-                    </span>
-                    <div className="relative inline-flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={isEphemeral}
-                        onChange={(e) => setIsEphemeral(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-9 h-5 bg-zinc-800 border border-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 peer-checked:after:bg-white after:border-zinc-600 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-500 peer-checked:border-purple-400" />
-                    </div>
-                  </label>
                 </div>
               )}
             </div>

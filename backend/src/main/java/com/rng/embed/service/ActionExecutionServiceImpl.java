@@ -878,6 +878,10 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             Member targetMember = resolveTargetMember(guild, operator, sessionData);
             Role targetRole = resolveTargetRole(guild, action, sessionData);
 
+            if (action.getResponseEmbedTemplateId() != null && !action.getResponseEmbedTemplateId().isBlank()) {
+                return dispatchFollowUpTemplateMessage(action, guild, operator, targetMember, targetRole, channel, hook);
+            }
+
             String feedbackTemplate = action.getReplyContent();
             if (feedbackTemplate == null || feedbackTemplate.isBlank()) {
                 feedbackTemplate = action.getConfirmationMessage();
@@ -891,10 +895,6 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
 
             if (hook != null) {
                 hook.editOriginal(feedbackMsg).queue();
-            }
-
-            if (action.getResponseEmbedTemplateId() != null && !action.getResponseEmbedTemplateId().isBlank()) {
-                return dispatchFollowUpTemplateMessage(action, guild, operator, targetMember, targetRole, channel, hook);
             }
 
             return ActionExecutionResult.success("Reply acknowledged");
@@ -1008,6 +1008,13 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                 }
             }
 
+            if (action.getResponseEmbedTemplateId() != null && !action.getResponseEmbedTemplateId().isBlank()) {
+                if (hook != null) {
+                    hook.editOriginal("✅ Direct message sent! Please check your private messages.").queue();
+                }
+                return dispatchFollowUpTemplateMessage(action, guild, operator, targetMember, targetRole, channel, hook);
+            }
+
             String rawContent = action.getDmContent() != null && !action.getDmContent().isBlank()
                     ? action.getDmContent()
                     : action.getReplyContent();
@@ -1036,10 +1043,6 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
                 }
             } else if (hook != null) {
                 hook.editOriginal("❌ Could not resolve target user for Direct Message.").queue();
-            }
-
-            if (action.getResponseEmbedTemplateId() != null && !action.getResponseEmbedTemplateId().isBlank()) {
-                return dispatchFollowUpTemplateMessage(action, guild, operator, targetMember, targetRole, channel, hook);
             }
 
             return ActionExecutionResult.success("Direct message delivered");
