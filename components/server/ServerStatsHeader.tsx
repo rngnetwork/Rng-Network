@@ -59,10 +59,14 @@ export function ServerStatsHeader({ server }: ServerStatsHeaderProps) {
         onClick={toggleCollapse}
         title={isCollapsed ? "Expand server overview" : "Collapse server overview"}
         aria-label={isCollapsed ? "Expand server overview" : "Collapse server overview"}
-        className="absolute top-4 right-4 z-20 flex items-center justify-center w-8 h-8 rounded-xl bg-black/50 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 text-zinc-400 hover:text-white transition-all shadow-md group cursor-pointer"
+        className={`absolute z-20 flex items-center justify-center bg-black/50 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 text-zinc-400 hover:text-white transition-all shadow-md group cursor-pointer ${
+          isCollapsed
+            ? 'top-1/2 -translate-y-1/2 right-3 w-6 h-6 rounded-lg'
+            : 'top-4 right-4 w-8 h-8 rounded-xl'
+        }`}
       >
         {isCollapsed ? (
-          <ChevronDown size={16} className="transition-transform group-hover:translate-y-0.5 text-zinc-300 group-hover:text-red-400" />
+          <ChevronDown size={13} className="transition-transform group-hover:translate-y-0.5 text-zinc-300 group-hover:text-red-400" />
         ) : (
           <ChevronUp size={16} className="transition-transform group-hover:-translate-y-0.5 text-zinc-300 group-hover:text-red-400" />
         )}
@@ -76,10 +80,10 @@ export function ServerStatsHeader({ server }: ServerStatsHeaderProps) {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="relative z-10 px-6 py-3 flex items-center justify-between gap-4"
+            className="relative z-10 px-4 py-1.5 flex items-center justify-between gap-3"
           >
-            <div className="flex items-center gap-3.5 min-w-0 pr-10">
-              <div className="relative w-8 h-8 rounded-xl overflow-hidden border border-red-500/40 bg-black/60 shrink-0 flex items-center justify-center">
+            <div className="flex items-center gap-2.5 min-w-0 pr-8">
+              <div className="relative w-5 h-5 md:w-6 md:h-6 rounded-lg overflow-hidden border border-red-500/40 bg-black/60 shrink-0 flex items-center justify-center">
                 {avatarSrc ? (
                   <Image
                     src={avatarSrc}
@@ -89,16 +93,16 @@ export function ServerStatsHeader({ server }: ServerStatsHeaderProps) {
                     className="object-cover"
                   />
                 ) : (
-                  <span className="text-xs font-bold text-white font-mono">
+                  <span className="text-[10px] font-bold text-white font-mono">
                     {server.shortName || server.name.slice(0, 2).toUpperCase()}
                   </span>
                 )}
               </div>
-              <h2 className="text-sm font-bold text-white tracking-tight truncate">
+              <h2 className="text-xs md:text-sm font-bold text-white tracking-tight truncate">
                 {server.name}
               </h2>
-              <div className="hidden sm:flex items-center gap-2 font-mono text-xs text-zinc-300">
-                <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_#ef4444] animate-pulse" />
+              <div className="hidden sm:flex items-center gap-1.5 font-mono text-[11px] text-zinc-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_6px_#ef4444] animate-pulse" />
                 <span>{server.onlineCount} Online</span>
                 <span className="text-zinc-600">|</span>
                 <span>{server.totalCount} Members</span>

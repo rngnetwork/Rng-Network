@@ -226,10 +226,10 @@ export default function ServerEmbedsPage() {
   }
 
   return (
-    <div className="main-workspace w-full h-[calc(100vh-110px)] flex flex-col overflow-hidden">
+    <div className="main-workspace w-full flex-1 min-h-[640px] flex flex-col overflow-hidden">
       {/* Top Header Bar for Scoped Server with Glowing Tabs */}
-      <header className="relative flex items-center justify-between pb-3 border-b border-white/10 shrink-0">
-        <div className="flex items-center gap-2 overflow-x-auto">
+      <header className="relative border-b border-white/10 flex items-center justify-between shrink-0 mb-3">
+        <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden pb-2.5 w-full [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <button
             type="button"
             className={`relative flex items-center gap-2.5 px-4 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition-all duration-200 cursor-pointer ${
@@ -248,7 +248,7 @@ export default function ServerEmbedsPage() {
               <motion.div
                 layoutId="embedTopActiveTabIndicator"
                 transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                className="absolute -bottom-3 left-2 right-2 h-0.5 bg-gradient-to-r from-red-500 via-red-400 to-red-600 shadow-[0_0_10px_#ef4444]"
+                className="absolute -bottom-2.5 left-2 right-2 h-0.5 bg-gradient-to-r from-red-500 via-red-400 to-red-600 shadow-[0_0_10px_#ef4444]"
               />
             )}
           </button>
@@ -268,7 +268,7 @@ export default function ServerEmbedsPage() {
               <motion.div
                 layoutId="embedTopActiveTabIndicator"
                 transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                className="absolute -bottom-3 left-2 right-2 h-0.5 bg-gradient-to-r from-red-500 via-red-400 to-red-600 shadow-[0_0_10px_#ef4444]"
+                className="absolute -bottom-2.5 left-2 right-2 h-0.5 bg-gradient-to-r from-red-500 via-red-400 to-red-600 shadow-[0_0_10px_#ef4444]"
               />
             )}
           </button>
@@ -288,7 +288,7 @@ export default function ServerEmbedsPage() {
               <motion.div
                 layoutId="embedTopActiveTabIndicator"
                 transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                className="absolute -bottom-3 left-2 right-2 h-0.5 bg-gradient-to-r from-red-500 via-red-400 to-red-600 shadow-[0_0_10px_#ef4444]"
+                className="absolute -bottom-2.5 left-2 right-2 h-0.5 bg-gradient-to-r from-red-500 via-red-400 to-red-600 shadow-[0_0_10px_#ef4444]"
               />
             )}
           </button>

@@ -78,7 +78,7 @@ export default function ServerDetailLayout({
   }
 
   return (
-    <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto">
+    <div className="flex flex-col gap-2.5 w-full max-w-7xl mx-auto">
       {/* Back Link */}
       <div>
         <Link
@@ -94,7 +94,7 @@ export default function ServerDetailLayout({
       <ServerStatsHeader server={server} />
 
       {/* BOX 2: Bottom Box containing Navbar + Children */}
-      <div className="rounded-3xl bg-[#0e0e0e]/90 border border-red-500/20 p-6 md:p-8 backdrop-blur-xl shadow-[0_20px_50px_-15px_rgba(0,0,0,0.8),0_0_30px_rgba(225,29,46,0.12)] flex flex-col gap-6">
+      <div className="rounded-3xl bg-[#0e0e0e]/90 border border-red-500/20 p-4 md:p-5 backdrop-blur-xl shadow-[0_20px_50px_-15px_rgba(0,0,0,0.8),0_0_30px_rgba(225,29,46,0.12)] flex flex-col gap-3">
         {/* Horizontal Navigation Bar Component */}
         <Navbar serverId={serverId} />
 
