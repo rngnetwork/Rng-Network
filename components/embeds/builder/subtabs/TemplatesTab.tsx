@@ -1,9 +1,25 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { TemplateItem, Type17Container, BackendEmbedTemplate } from '../../types';
 import { api } from '@/lib/api';
 import { buildDiscordV2MessagePayload, parseDiscordPayloadToState } from '../../validation';
+import {
+  Layers,
+  Search,
+  Plus,
+  Download,
+  Edit2,
+  Trash2,
+  Copy,
+  Check,
+  Globe,
+  Server as ServerIcon,
+  RefreshCw,
+  FileDown,
+  Upload,
+  AlertCircle
+} from 'lucide-react';
 
 export interface TemplatesTabProps {
   currentBuilderState?: {
@@ -24,6 +40,10 @@ export function TemplatesTab({
   serverId = 'default'
 }: TemplatesTabProps) {
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+  const [scopeFilter, setScopeFilter] = useState<'ALL' | 'SERVER' | 'GLOBAL'>('ALL');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
   const [userTemplates, setUserTemplates] = useState<TemplateItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -44,6 +64,12 @@ export function TemplatesTab({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const handleCopyTemplateId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setToastMessage({ text, type });
     setTimeout(() => {
@@ -52,107 +78,101 @@ export function TemplatesTab({
   };
 
   // Load templates strictly from MongoDB API
-  useEffect(() => {
-    let isMounted = true;
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        const effectiveServerId = serverId && serverId !== 'default' ? serverId : undefined;
-        const [serverRes, publicRes] = await Promise.all([
-          effectiveServerId ? api.fetchTemplates({ serverId: effectiveServerId, size: 100 }) : api.fetchTemplates({ size: 100 }),
-          api.fetchTemplates({ size: 100 })
-        ]);
+  const loadTemplates = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const effectiveServerId = serverId && serverId !== 'default' ? serverId : undefined;
+      const [serverRes, publicRes] = await Promise.all([
+        effectiveServerId ? api.fetchTemplates({ serverId: effectiveServerId, size: 100 }) : api.fetchTemplates({ size: 100 }),
+        api.fetchTemplates({ size: 100 })
+      ]);
 
-        const extractItems = (response: any): BackendEmbedTemplate[] => {
-          if (!response?.data) return [];
-          if (Array.isArray(response.data)) return response.data;
-          if (Array.isArray(response.data.content)) return response.data.content;
-          return [];
-        };
+      const extractItems = (response: any): BackendEmbedTemplate[] => {
+        if (!response?.data) return [];
+        if (Array.isArray(response.data)) return response.data;
+        if (Array.isArray(response.data.content)) return response.data.content;
+        return [];
+      };
 
-        const serverItems = extractItems(serverRes);
-        const publicItems = extractItems(publicRes);
+      const serverItems = extractItems(serverRes);
+      const publicItems = extractItems(publicRes);
 
-        // Deduplicate templates strictly from MongoDB by both templateId and mongo id
-        const seenKeys = new Set<string>();
-        const uniqueTemplates: BackendEmbedTemplate[] = [];
+      // Deduplicate templates strictly from MongoDB by both templateId and mongo id
+      const seenKeys = new Set<string>();
+      const uniqueTemplates: BackendEmbedTemplate[] = [];
 
-        [...serverItems, ...publicItems].forEach((bt) => {
-          const tId = bt.templateId ? String(bt.templateId).trim() : undefined;
-          const mId = bt.id ? String(bt.id).trim() : undefined;
-          const key = tId || mId;
-          if (!key) return;
+      [...serverItems, ...publicItems].forEach((bt) => {
+        const tId = bt.templateId ? String(bt.templateId).trim() : undefined;
+        const mId = bt.id ? String(bt.id).trim() : undefined;
+        const key = tId || mId;
+        if (!key) return;
 
-          if (seenKeys.has(key) || (tId && seenKeys.has(tId)) || (mId && seenKeys.has(mId))) {
-            return;
+        if (seenKeys.has(key) || (tId && seenKeys.has(tId)) || (mId && seenKeys.has(mId))) {
+          return;
+        }
+
+        if (tId) seenKeys.add(tId);
+        if (mId) seenKeys.add(mId);
+        uniqueTemplates.push(bt);
+      });
+
+      const rawItems = uniqueTemplates;
+
+      if (rawItems.length > 0) {
+        const mapped: TemplateItem[] = rawItems.map((bt: BackendEmbedTemplate) => {
+          const p = (bt.payload || bt.payloadJson || {}) as Record<string, unknown>;
+          let containers: Type17Container[] = [];
+          let content = '';
+
+          if (Array.isArray(p.containers)) {
+            containers = p.containers as Type17Container[];
+            content = String(p.content || p.builderContent || '');
+          } else if (Array.isArray(p.components)) {
+            try {
+              const parsed = parseDiscordPayloadToState(p);
+              containers = parsed.containers || [];
+              content = parsed.messageContent || '';
+            } catch {
+              containers = [];
+            }
           }
 
-          if (tId) seenKeys.add(tId);
-          if (mId) seenKeys.add(mId);
-          uniqueTemplates.push(bt);
-        });
-
-        const rawItems = uniqueTemplates;
-
-        if (isMounted && rawItems.length > 0) {
-          const mapped: TemplateItem[] = rawItems.map((bt: BackendEmbedTemplate) => {
-            const p = (bt.payload || bt.payloadJson || {}) as Record<string, unknown>;
-            let containers: Type17Container[] = [];
-            let content = '';
-
-            if (Array.isArray(p.containers)) {
-              containers = p.containers as Type17Container[];
-              content = String(p.content || p.builderContent || '');
-            } else if (Array.isArray(p.components)) {
-              try {
-                const parsed = parseDiscordPayloadToState(p);
-                containers = parsed.containers || [];
-                content = parsed.messageContent || '';
-              } catch {
-                containers = [];
-              }
+          return {
+            id: bt.templateId || bt.id,
+            templateId: bt.templateId || bt.id,
+            name: bt.name,
+            badge: bt.category || (bt.serverId ? 'Server' : 'Global'),
+            description: bt.description || 'Cloud synchronized template.',
+            createdAt: bt.createdAt ? new Date(bt.createdAt).toLocaleDateString() : undefined,
+            isPublic: bt.isPublic ?? bt.public ?? false,
+            serverId: bt.serverId,
+            state: {
+              message: { content },
+              type17Containers: containers
             }
-
-            return {
-              id: bt.templateId || bt.id,
-              templateId: bt.templateId || bt.id,
-              name: bt.name,
-              badge: bt.category || (bt.serverId ? 'Server' : 'Global'),
-              description: bt.description || 'Cloud synchronized template.',
-              createdAt: bt.createdAt ? new Date(bt.createdAt).toLocaleDateString() : undefined,
-              isPublic: bt.isPublic ?? bt.public ?? false,
-              serverId: bt.serverId,
-              state: {
-                message: { content },
-                type17Containers: containers
-              }
-            };
-          });
-          setUserTemplates(mapped);
-        } else if (isMounted) {
-          setUserTemplates([]);
-        }
-      } catch {
-        if (isMounted) {
-          setUserTemplates([]);
-        }
-      } finally {
-        // Clean up any stale legacy localStorage template keys from browser
-        if (typeof window !== 'undefined') {
-          try {
-            localStorage.removeItem('rng_discord_user_templates');
-            localStorage.removeItem('rng_embed_templates');
-          } catch {}
-        }
-        if (isMounted) setIsLoading(false);
+          };
+        });
+        setUserTemplates(mapped);
+      } else {
+        setUserTemplates([]);
       }
-    };
-
-    loadData();
-    return () => {
-      isMounted = false;
-    };
+    } catch {
+      setUserTemplates([]);
+    } finally {
+      // Clean up any stale legacy localStorage template keys from browser
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem('rng_discord_user_templates');
+          localStorage.removeItem('rng_embed_templates');
+        } catch {}
+      }
+      setIsLoading(false);
+    }
   }, [serverId]);
+
+  useEffect(() => {
+    loadTemplates();
+  }, [loadTemplates]);
 
   const handleSaveCurrentAsTemplate = async () => {
     if (!newTemplateName.trim()) {
@@ -364,41 +384,45 @@ export function TemplatesTab({
     return [...userTemplates];
   }, [userTemplates]);
 
+  const categories = useMemo(() => {
+    return Array.from(new Set(userTemplates.map((t) => t.badge).filter(Boolean)));
+  }, [userTemplates]);
+
   const filtered = useMemo(() => {
+    let list = userTemplates;
+    if (categoryFilter !== 'ALL') {
+      list = list.filter((t) => t.badge === categoryFilter);
+    }
+    if (scopeFilter === 'SERVER') {
+      list = list.filter((t) => !t.isPublic && t.serverId);
+    } else if (scopeFilter === 'GLOBAL') {
+      list = list.filter((t) => t.isPublic || !t.serverId);
+    }
     const q = search.toLowerCase().trim();
-    if (!q) return allTemplates;
-    return allTemplates.filter(
-      (t) =>
-        t.name.toLowerCase().includes(q) ||
-        t.badge.toLowerCase().includes(q) ||
-        t.description.toLowerCase().includes(q)
-    );
-  }, [allTemplates, search]);
+    if (q) {
+      list = list.filter(
+        (t) =>
+          t.name.toLowerCase().includes(q) ||
+          t.badge.toLowerCase().includes(q) ||
+          t.description?.toLowerCase().includes(q) ||
+          t.id.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [userTemplates, categoryFilter, scopeFilter, search]);
 
   return (
-    <div style={{ padding: '20px', width: '100%', maxWidth: '1400px', margin: '0 auto', position: 'relative' }}>
+    <div className="w-full h-full flex flex-col bg-[#0b0c0e] text-white overflow-hidden">
       {/* Toast Notification Banner */}
       {toastMessage && (
         <div
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            right: '24px',
-            zIndex: 9999,
-            padding: '12px 20px',
-            borderRadius: '10px',
-            background: toastMessage.type === 'success' ? '#064e3b' : '#7f1d1d',
-            border: `1px solid ${toastMessage.type === 'success' ? '#059669' : '#dc2626'}`,
-            color: '#fff',
-            fontSize: '13px',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
-          }}
+          className={`fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl border text-xs font-semibold flex items-center gap-2 shadow-2xl ${
+            toastMessage.type === 'success'
+              ? 'bg-[#064e3b] border-[#059669] text-white'
+              : 'bg-[#7f1d1d] border-[#dc2626] text-white'
+          }`}
         >
-          <i className={toastMessage.type === 'success' ? 'fa-solid fa-circle-check text-emerald-400' : 'fa-solid fa-circle-exclamation text-red-400'} />
+          <Check className="w-4 h-4 text-emerald-400" />
           <span>{toastMessage.text}</span>
         </div>
       )}
@@ -412,176 +436,281 @@ export function TemplatesTab({
         style={{ display: 'none' }}
       />
 
-      {/* Top Header Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
+      {/* Top Bar - Matching ActionTemplatesTab */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 border-b border-white/10 bg-white/[0.01]">
         <div>
-          <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <i className="fa-solid fa-layer-group" style={{ color: 'var(--color-primary)' }} />
-            Discord Templates Gallery
-          </h2>
-          <p style={{ color: 'var(--color-foreground-muted)', fontSize: '13px', marginTop: '4px' }}>
-            Pre-built and custom Type 17 & Components V2 presets. Instant 1-click loading and cloud synchronization.
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+              <span className="text-red-500">
+                <Layers className="w-5 h-5" />
+              </span>
+              Discord Templates Gallery
+            </h1>
+            <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-red-400">
+              Components V2
+            </span>
+          </div>
+          <p className="text-xs text-zinc-400 mt-1">
+            Pre-built and custom Type 17 &amp; Components V2 presets. Instant 1-click loading and cloud synchronization.
           </p>
         </div>
 
-        {(allowSearch || allowCreate) && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            {/* Search Box */}
-            {allowSearch && (
-              <div style={{ position: 'relative', width: '240px' }}>
-                <input
-                  type="text"
-                  className="form-input"
-                  style={{ paddingLeft: '32px', fontSize: '13px', height: '38px', borderRadius: '8px' }}
-                  placeholder="Search templates..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-                <i
-                  className="fa-solid fa-magnifying-glass"
-                  style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#949ba4', fontSize: '12px' }}
-                />
-              </div>
-            )}
+        <div className="flex items-center gap-3">
+          {/* Import JSON Button */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            title="Import Template from JSON File"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white bg-black/40 hover:bg-white/5 border border-white/10 transition-colors cursor-pointer"
+          >
+            <Upload className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Import JSON</span>
+          </button>
 
-            {/* Import Button */}
+          {/* Save Current as Template Button */}
+          {allowCreate && (
             <button
               type="button"
-              className="btn-header-action"
-              style={{ padding: '8px 14px', fontSize: '12.5px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
-              onClick={() => fileInputRef.current?.click()}
-              title="Import Template from JSON File"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-500 active:scale-95 transition-all shadow-lg shadow-red-600/30 cursor-pointer"
             >
-              <i className="fa-solid fa-file-arrow-up" />
-              <span>Import JSON</span>
+              <Plus className="w-4 h-4" />
+              <span>Save Current as Template</span>
             </button>
+          )}
+        </div>
+      </div>
 
-            {/* Create / Save Template Button */}
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        {/* Controls & Filter Bar - Matching ActionTemplatesTab */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          {/* Search Input */}
+          {allowSearch && (
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search templates by name, badge, description..."
+                className="w-full pl-10 pr-4 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs placeholder:text-zinc-500 focus:border-red-500 focus:outline-none transition-colors"
+              />
+            </div>
+          )}
+
+          {/* Category & Scope Filters */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCategoryFilter('ALL')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                categoryFilter === 'ALL'
+                  ? 'bg-red-500/20 text-red-400 border border-red-500/40 shadow-sm'
+                  : 'bg-black/30 text-zinc-400 hover:text-white border border-white/5'
+              }`}
+            >
+              All Types
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setCategoryFilter(cat)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  categoryFilter === cat
+                    ? 'bg-red-500/20 text-red-400 border border-red-500/40 shadow-sm'
+                    : 'bg-black/30 text-zinc-400 hover:text-white border border-white/5'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+
+            <div className="w-[1px] h-6 bg-white/10 mx-1 hidden sm:block" />
+
+            {/* Scope Filters */}
+            {(['ALL', 'SERVER', 'GLOBAL'] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setScopeFilter(s)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  scopeFilter === s
+                    ? 'bg-white/10 text-white border border-white/20 shadow-sm'
+                    : 'bg-black/30 text-zinc-400 hover:text-white border border-white/5'
+                }`}
+              >
+                {s === 'ALL' ? 'All Scopes' : s === 'SERVER' ? 'Server' : 'Global'}
+              </button>
+            ))}
+
+            {/* Refresh Button */}
+            <button
+              type="button"
+              onClick={loadTemplates}
+              title="Refresh templates"
+              className="p-2 rounded-lg bg-black/30 border border-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* Loading Indicator */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20 text-zinc-500 text-xs gap-2">
+            <div className="w-5 h-5 border-2 border-white/20 border-t-red-500 rounded-full animate-spin" />
+            <span>Loading templates...</span>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center rounded-2xl bg-white/[0.01] border border-white/5 p-8">
+            <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 text-zinc-500 mb-3">
+              <Layers className="w-8 h-8" />
+            </div>
+            <h3 className="text-sm font-bold text-white mb-1">No Templates Found</h3>
+            <p className="text-xs text-zinc-500 max-w-sm mb-4">
+              {search || categoryFilter !== 'ALL'
+                ? 'No templates match your current search and filter criteria.'
+                : 'Get started by saving your current canvas as a reusable Discord Components V2 template.'}
+            </p>
             {allowCreate && (
               <button
                 type="button"
-                className="btn-dispatch-submit"
-                style={{ width: 'auto', padding: '9px 18px', fontSize: '12.5px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
                 onClick={() => setIsCreateModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-500 transition-colors shadow-lg shadow-red-600/30 cursor-pointer"
               >
-                <i className="fa-solid fa-plus" />
+                <Plus className="w-3.5 h-3.5" />
                 <span>Save Current as Template</span>
               </button>
             )}
           </div>
-        )}
-      </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filtered.map((tmpl) => {
+              const isUserCreated = userTemplates.some((d) => d.id === tmpl.id);
+              return (
+                <div
+                  key={tmpl.id}
+                  className="group relative flex flex-col justify-between rounded-2xl bg-[#141519] border border-white/10 hover:border-red-500/40 hover:shadow-xl hover:shadow-black/60 transition-all duration-200 overflow-hidden"
+                >
+                  {/* 1. Wireframe Header: $templateName$ */}
+                  <div className="px-5 py-3.5 bg-black/40 border-b border-white/10 flex items-center justify-between gap-3">
+                    <h3 className="text-base font-bold text-white group-hover:text-red-400 transition-colors truncate">
+                      {tmpl.name}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-white/[0.04] border border-white/10 text-zinc-400 shrink-0">
+                      {tmpl.state.type17Containers?.length || 0} Container{(tmpl.state.type17Containers?.length || 0) !== 1 ? 's' : ''}
+                    </span>
+                  </div>
 
-      {isLoading && (
-        <div style={{ padding: '20px', textAlign: 'center', color: '#949ba4', fontSize: '13px' }}>
-          <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }} />
-          Loading templates...
-        </div>
-      )}
-
-      {/* Templates Grid */}
-      <div className="templates-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
-        {filtered.map((tmpl) => {
-          const isUserCreated = userTemplates.some((d) => d.id === tmpl.id);
-          return (
-            <div
-              key={tmpl.id}
-              className="template-card"
-              style={{
-                background: 'rgba(18, 18, 23, 0.85)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '14px',
-                padding: '18px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                gap: '12px',
-                position: 'relative',
-                transition: 'all 0.2s',
-                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)'
-              }}
-            >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span
-                    className="template-badge"
-                    style={{
-                      background: isUserCreated ? 'rgba(0, 168, 252, 0.15)' : 'rgba(225, 29, 46, 0.15)',
-                      color: isUserCreated ? '#00a8fc' : '#FF3B4D',
-                      padding: '3px 8px',
-                      borderRadius: '5px',
-                      fontSize: '11px',
-                      fontWeight: 700
-                    }}
-                  >
-                    {tmpl.badge}
-                  </span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={(e) => handleOpenEditModal(tmpl, e)}
-                      style={{ background: 'transparent', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '12px' }}
-                      title="Edit Template"
-                    >
-                      <i className="fa-solid fa-pen-to-square hover:text-white" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => handleExportTemplate(tmpl, e)}
-                      style={{ background: 'transparent', border: 'none', color: '#949ba4', cursor: 'pointer', fontSize: '12px' }}
-                      title="Export as JSON"
-                    >
-                      <i className="fa-solid fa-download hover:text-white" />
-                    </button>
-                    {isUserCreated && (
+                  {/* 2. Wireframe Middle Section: ID chip, Type badge, Scope badge */}
+                  <div className="p-5 space-y-4">
+                    {/* Dark chip bar: tmpl_... with Copy icon on the right */}
+                    <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-black/60 border border-white/10 shadow-inner">
+                      <span className="font-mono text-xs font-semibold text-red-400 truncate">
+                        {tmpl.id}
+                      </span>
                       <button
                         type="button"
-                        onClick={(e) => handleDeleteUserTemplate(tmpl.id, e)}
-                        style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}
-                        title="Delete Template"
+                        onClick={() => handleCopyTemplateId(tmpl.id)}
+                        title="Copy Template ID"
+                        className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
                       >
-                        <i className="fa-solid fa-trash hover:text-red-400" />
+                        {copiedId === tmpl.id ? (
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
                       </button>
-                    )}
+                    </div>
+
+                    {/* Type & Scope Badges with explicit labels */}
+                    <div className="space-y-2.5 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-zinc-400 font-semibold text-xs">Type:</span>
+                        <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-blue-500/10 border border-blue-500/30 text-blue-400">
+                          <span>{tmpl.badge}</span>
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-zinc-400 font-semibold text-xs">Scope:</span>
+                        {tmpl.isPublic || !tmpl.serverId ? (
+                          <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-500/10 border border-indigo-500/30 text-indigo-400">
+                            <Globe className="w-3 h-3" /> Global
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-zinc-500/10 border border-zinc-500/30 text-zinc-300">
+                            <ServerIcon className="w-3 h-3" /> Server
+                          </span>
+                        )}
+                      </div>
+
+                      {tmpl.description && (
+                        <p className="text-xs text-zinc-500 line-clamp-2 pt-1 border-t border-white/5">
+                          {tmpl.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 3. Wireframe Footer: Load Template + Export + Blue Edit + Red Delete */}
+                  <div className="px-5 py-3.5 bg-black/30 border-t border-white/10 flex items-center justify-between gap-2 mt-auto">
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onLoadTemplate(tmpl.state);
+                          showToast(`Template "${tmpl.name}" loaded into canvas!`);
+                        }}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 border border-emerald-400/30 shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Load Template</span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {/* Export JSON Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleExportTemplate(tmpl, e)}
+                        className="p-2 rounded-xl text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-colors cursor-pointer"
+                        title="Export as JSON"
+                      >
+                        <FileDown className="w-3.5 h-3.5" />
+                      </button>
+
+                      {/* Wireframe Blue Edit Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleOpenEditModal(tmpl, e)}
+                        className="p-2 rounded-xl text-white bg-blue-600 hover:bg-blue-500 border border-blue-400/30 shadow-md shadow-blue-600/20 transition-all active:scale-95 cursor-pointer"
+                        title="Edit Template"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+
+                      {/* Wireframe Red Delete Button */}
+                      {isUserCreated && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteUserTemplate(tmpl.id, e)}
+                          className="p-2 rounded-xl text-white bg-red-600 hover:bg-red-500 border border-red-400/30 shadow-md shadow-red-600/20 transition-all active:scale-95 cursor-pointer"
+                          title="Delete Template"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>
-                  {tmpl.name}
-                </div>
-                <div style={{ fontSize: '12.5px', color: '#949ba4', lineHeight: 1.45 }}>
-                  {tmpl.description}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                <span style={{ fontSize: '11px', color: '#6d6f78' }}>
-                  {tmpl.state.type17Containers?.length || 0} Container{(tmpl.state.type17Containers?.length || 0) !== 1 ? 's' : ''}
-                </span>
-                <button
-                  type="button"
-                  className="btn-ctrl-green"
-                  style={{ padding: '6px 16px', fontSize: '12px', borderRadius: '6px' }}
-                  onClick={() => {
-                    onLoadTemplate(tmpl.state);
-                    showToast(`Template "${tmpl.name}" loaded into canvas!`);
-                  }}
-                >
-                  <i className="fa-solid fa-cloud-arrow-down" style={{ marginRight: '6px' }} />
-                  Load Template
-                </button>
-              </div>
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        )}
       </div>
-
-      {filtered.length === 0 && !isLoading && (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#949ba4' }}>
-          <i className="fa-solid fa-magnifying-glass" style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.5 }} />
-          <div style={{ fontSize: '15px', fontWeight: 600, color: '#fff' }}>No templates found</div>
-          <div style={{ fontSize: '13px', marginTop: '4px' }}>Try searching for a different keyword or create a new template.</div>
-        </div>
-      )}
 
       {/* Save Template Modal */}
       {allowCreate && isCreateModalOpen && (
