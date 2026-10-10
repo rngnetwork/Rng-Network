@@ -227,17 +227,7 @@ export default function ServerEmbedsPage() {
     <div className="main-workspace w-full h-[calc(100vh-110px)] flex flex-col overflow-hidden">
       {/* Top Header Bar for Scoped Server */}
       <header className="top-nav-bar">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-black/50 border border-white/10 shadow-inner">
-            <i className="fa-brands fa-discord text-indigo-400 text-sm" />
-            <span className="text-xs font-bold text-white tracking-wide">
-              {server?.name || `Server ${serverId}`}
-            </span>
-            <span className="text-[10px] font-mono text-zinc-400 bg-white/5 border border-white/5 px-2 py-0.5 rounded">
-              {channels.length} channels
-            </span>
-          </div>
-          
+        <div className="flex items-center gap-5">          
           <div className="main-tabs-group">
             <button
               type="button"
@@ -266,17 +256,6 @@ export default function ServerEmbedsPage() {
               <i className="fa-solid fa-bolt text-cyan-400" />
               <span>Action Templates</span>
             </button>
-          </div>
-        </div>
-
-        <div className="top-nav-actions">
-          <div className="status-pill">
-            <span className="status-indicator-dot" />
-            <span>Server Synced</span>
-          </div>
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-md bg-white/[0.04] border border-white/[0.08] text-[11.5px] text-zinc-400 font-mono">
-            <span className="text-red-400 font-bold">{containers.length}</span>
-            <span>Container{containers.length === 1 ? '' : 's'}</span>
           </div>
         </div>
       </header>
