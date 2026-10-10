@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { Type17Container, DiscordButtonComponent, DiscordActionRowComponent, DiscordInnerComponent, EmbedAction } from './types';
 import { ChannelItem, ServerItem } from '@/lib/api';
 import { EmojiItem } from './emoji-data';
@@ -292,45 +293,92 @@ export function MessageBuilder({
 
   return (
     <div className="unified-workspace-shell">
-      {/* SUB-TABS: [ Edit ] [ Preview ] [ Raw ] [ Dispatch ] */}
-      <nav className="sub-tabs-header">
-        <div className="sub-tabs-pills">
+      {/* SUB-TABS: [ Edit ] [ Preview ] [ Raw ] [ Dispatch ] - Server Glowing Tab Style */}
+      <nav className="flex items-center justify-between px-4 py-2.5 bg-black/40 border-b border-white/10 shrink-0 gap-3">
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-black/50 border border-white/10 shadow-inner">
           <button
             type="button"
-            className={`sub-tab-btn ${activeSubTab === 'edit' ? 'active' : ''}`}
+            className={`relative flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl transition-all duration-200 cursor-pointer ${
+              activeSubTab === 'edit'
+                ? 'text-white bg-red-500/10 border border-red-500/30 shadow-[0_0_15px_rgba(225,29,46,0.25)]'
+                : 'text-zinc-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+            }`}
             onClick={() => setActiveSubTab('edit')}
           >
             <i className="fa-solid fa-pen-to-square text-[#00A8FC]" />
             <span>Edit</span>
+            {activeSubTab === 'edit' && (
+              <motion.div
+                layoutId="builderSubTabIndicator"
+                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                className="absolute -bottom-1 left-2 right-2 h-0.5 bg-gradient-to-r from-red-500 via-red-400 to-red-600 shadow-[0_0_8px_#ef4444]"
+              />
+            )}
           </button>
+
           <button
             type="button"
-            className={`sub-tab-btn ${activeSubTab === 'preview' ? 'active' : ''}`}
+            className={`relative flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl transition-all duration-200 cursor-pointer ${
+              activeSubTab === 'preview'
+                ? 'text-white bg-red-500/10 border border-red-500/30 shadow-[0_0_15px_rgba(225,29,46,0.25)]'
+                : 'text-zinc-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+            }`}
             onClick={() => setActiveSubTab('preview')}
           >
             <i className="fa-brands fa-discord text-[#5865F2]" />
             <span>Preview</span>
+            {activeSubTab === 'preview' && (
+              <motion.div
+                layoutId="builderSubTabIndicator"
+                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                className="absolute -bottom-1 left-2 right-2 h-0.5 bg-gradient-to-r from-red-500 via-red-400 to-red-600 shadow-[0_0_8px_#ef4444]"
+              />
+            )}
           </button>
+
           <button
             type="button"
-            className={`sub-tab-btn ${activeSubTab === 'raw' ? 'active' : ''}`}
+            className={`relative flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl transition-all duration-200 cursor-pointer ${
+              activeSubTab === 'raw'
+                ? 'text-white bg-red-500/10 border border-red-500/30 shadow-[0_0_15px_rgba(225,29,46,0.25)]'
+                : 'text-zinc-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+            }`}
             onClick={() => setActiveSubTab('raw')}
           >
             <i className="fa-solid fa-code text-[#EC4899]" />
             <span>Raw</span>
+            {activeSubTab === 'raw' && (
+              <motion.div
+                layoutId="builderSubTabIndicator"
+                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                className="absolute -bottom-1 left-2 right-2 h-0.5 bg-gradient-to-r from-red-500 via-red-400 to-red-600 shadow-[0_0_8px_#ef4444]"
+              />
+            )}
           </button>
+
           <button
             type="button"
-            className={`sub-tab-btn ${activeSubTab === 'dispatch' ? 'active' : ''}`}
+            className={`relative flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl transition-all duration-200 cursor-pointer ${
+              activeSubTab === 'dispatch'
+                ? 'text-white bg-red-500/10 border border-red-500/30 shadow-[0_0_15px_rgba(225,29,46,0.25)]'
+                : 'text-zinc-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+            }`}
             onClick={() => setActiveSubTab('dispatch')}
           >
             <i className="fa-solid fa-paper-plane text-[#E11D2E]" />
             <span>Dispatch</span>
+            {activeSubTab === 'dispatch' && (
+              <motion.div
+                layoutId="builderSubTabIndicator"
+                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                className="absolute -bottom-1 left-2 right-2 h-0.5 bg-gradient-to-r from-red-500 via-red-400 to-red-600 shadow-[0_0_8px_#ef4444]"
+              />
+            )}
           </button>
         </div>
 
         <div className="hidden sm:flex items-center gap-3">
-          <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-white/[0.04] border border-white/[0.08] text-[11px] text-zinc-400 font-mono">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/40 border border-white/10 text-[11px] text-zinc-400 font-mono shadow-inner">
             <span className="text-zinc-200 font-semibold">{containers.length}</span> Container{containers.length === 1 ? '' : 's'}
             <span className="text-zinc-600">•</span>
             <span className="text-zinc-200 font-semibold">{containers.reduce((acc, c) => acc + (c.components?.length || 0), 0)}</span> Components
