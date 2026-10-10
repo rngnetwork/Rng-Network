@@ -326,11 +326,6 @@ export function ActionTemplatesTab({
                     <h3 className="text-base font-bold text-white group-hover:text-red-400 transition-colors truncate">
                       {action.name}
                     </h3>
-                    {action.responseType && (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-white/[0.04] border border-white/10 text-zinc-400 shrink-0">
-                        {action.responseType}
-                      </span>
-                    )}
                   </div>
 
                   {/* Middle Body Box: ID Chip, Type, Scope, details */}
@@ -379,25 +374,6 @@ export function ActionTemplatesTab({
                           </span>
                         )}
                       </div>
-
-                      {/* Role, Ticket, Reply, Flags details */}
-                      {action.actionType === 'ROLE' && (
-                        <div className="flex items-center justify-between pt-1 border-t border-white/5">
-                          <span className="text-zinc-500 text-[11px]">Target Role:</span>
-                          <span className="font-semibold text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20 text-xs">
-                            {action.roleName || action.roleId || 'Unknown Role'}
-                          </span>
-                        </div>
-                      )}
-
-                      {action.actionType === 'TICKET' && (
-                        <div className="flex items-center justify-between pt-1 border-t border-white/5">
-                          <span className="text-zinc-500 text-[11px]">Prefix:</span>
-                          <span className="font-mono text-emerald-300 text-[11px]">
-                            {action.channelPrefix || 'ticket-'}
-                          </span>
-                        </div>
-                      )}
 
                       {action.description && (
                         <p className="text-xs text-zinc-500 line-clamp-2 pt-1 border-t border-white/5">
