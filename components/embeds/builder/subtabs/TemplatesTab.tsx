@@ -13,8 +13,6 @@ import {
   Trash2,
   Copy,
   Check,
-  Globe,
-  Server as ServerIcon,
   RefreshCw,
   FileDown,
   Upload,
@@ -32,6 +30,12 @@ export interface TemplatesTabProps {
   serverId?: string;
 }
 
+const sanitizeBadge = (val: string): string => {
+  if (!val) return '';
+  const firstWord = val.trim().split(/\s+/)[0] || '';
+  return firstWord.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+};
+
 export function TemplatesTab({
   currentBuilderState,
   onLoadTemplate,
@@ -41,14 +45,13 @@ export function TemplatesTab({
 }: TemplatesTabProps) {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
-  const [scopeFilter, setScopeFilter] = useState<'ALL' | 'SERVER' | 'GLOBAL'>('ALL');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const [userTemplates, setUserTemplates] = useState<TemplateItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
-  const [newTemplateBadge, setNewTemplateBadge] = useState('Custom');
+  const [newTemplateBadge, setNewTemplateBadge] = useState('custom');
   const [newTemplateDesc, setNewTemplateDesc] = useState('');
   const [isPublicTemplate, setIsPublicTemplate] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -56,7 +59,7 @@ export function TemplatesTab({
   // Edit template state
   const [editingTemplate, setEditingTemplate] = useState<TemplateItem | null>(null);
   const [editTemplateName, setEditTemplateName] = useState('');
-  const [editTemplateBadge, setEditTemplateBadge] = useState('Custom');
+  const [editTemplateBadge, setEditTemplateBadge] = useState('custom');
   const [editTemplateDesc, setEditTemplateDesc] = useState('');
   const [editIsPublic, setEditIsPublic] = useState(false);
   const [editOverwriteCanvas, setEditOverwriteCanvas] = useState(false);
@@ -141,7 +144,7 @@ export function TemplatesTab({
             id: bt.templateId || bt.id,
             templateId: bt.templateId || bt.id,
             name: bt.name,
-            badge: bt.category || (bt.serverId ? 'Server' : 'Global'),
+            badge: sanitizeBadge(bt.category || '') || 'custom',
             description: bt.description || 'Cloud synchronized template.',
             createdAt: bt.createdAt ? new Date(bt.createdAt).toLocaleDateString() : undefined,
             isPublic: bt.isPublic ?? bt.public ?? false,
@@ -199,12 +202,13 @@ export function TemplatesTab({
       content: templateState.message?.content || ''
     };
 
+    const finalBadge = sanitizeBadge(newTemplateBadge) || 'custom';
     let assignedId = `tmpl_user_${Date.now()}`;
     try {
       const saveRes = await api.saveTemplate({
         name: newTemplateName.trim(),
         description: newTemplateDesc.trim() || 'Custom template',
-        category: newTemplateBadge.trim() || 'Custom',
+        category: finalBadge,
         serverId: effectiveServerId,
         isPublic: isPublicTemplate,
         payload: payloadToSend
@@ -224,7 +228,7 @@ export function TemplatesTab({
       id: assignedId,
       templateId: assignedId,
       name: newTemplateName.trim(),
-      badge: newTemplateBadge.trim() || 'Custom',
+      badge: finalBadge,
       description: newTemplateDesc.trim() || 'Custom user created template.',
       createdAt: new Date().toLocaleDateString(),
       state: JSON.parse(JSON.stringify(templateState))
@@ -235,7 +239,7 @@ export function TemplatesTab({
     setIsCreateModalOpen(false);
     setNewTemplateName('');
     setNewTemplateDesc('');
-    setNewTemplateBadge('Custom');
+    setNewTemplateBadge('custom');
     setIsPublicTemplate(false);
   };
 
@@ -259,7 +263,7 @@ export function TemplatesTab({
     setEditingTemplate(tmpl);
     setEditTemplateName(tmpl.name);
     setEditTemplateDesc(tmpl.description || '');
-    setEditTemplateBadge(tmpl.badge || 'Custom');
+    setEditTemplateBadge(sanitizeBadge(tmpl.badge) || 'custom');
     setEditIsPublic(Boolean(tmpl.isPublic));
     setEditOverwriteCanvas(false);
   };
@@ -283,12 +287,13 @@ export function TemplatesTab({
       content: targetState.message?.content || ''
     };
 
+    const finalBadge = sanitizeBadge(editTemplateBadge) || 'custom';
     try {
       if (editingTemplate.id.startsWith('tmpl_user_')) {
         const createRes = await api.saveTemplate({
           name: editTemplateName.trim(),
           description: editTemplateDesc.trim() || 'Custom template',
-          category: editTemplateBadge.trim() || 'Custom',
+          category: finalBadge,
           serverId: editingTemplate.serverId || (serverId && serverId !== 'default' ? serverId : undefined),
           isPublic: editIsPublic,
           payload: payloadState
@@ -302,7 +307,7 @@ export function TemplatesTab({
           id: editingTemplate.id,
           name: editTemplateName.trim(),
           description: editTemplateDesc.trim() || 'Custom template',
-          category: editTemplateBadge.trim() || 'Custom',
+          category: finalBadge,
           serverId: editingTemplate.serverId || (serverId && serverId !== 'default' ? serverId : undefined),
           isPublic: editIsPublic,
           payload: payloadState
@@ -318,7 +323,7 @@ export function TemplatesTab({
     const updatedItem: TemplateItem = {
       ...editingTemplate,
       name: editTemplateName.trim(),
-      badge: editTemplateBadge.trim() || 'Custom',
+      badge: finalBadge,
       description: editTemplateDesc.trim(),
       isPublic: editIsPublic,
       state: JSON.parse(JSON.stringify(targetState))
@@ -359,7 +364,7 @@ export function TemplatesTab({
         const importedTmpl: TemplateItem = {
           id: `tmpl_user_${Date.now()}`,
           name: String(parsed.name).trim() || 'Imported Template',
-          badge: String(parsed.badge || 'Imported'),
+          badge: sanitizeBadge(String(parsed.badge || 'custom')) || 'custom',
           description: String(parsed.description || 'Imported from JSON file.'),
           createdAt: new Date().toLocaleDateString(),
           state: {
@@ -385,18 +390,13 @@ export function TemplatesTab({
   }, [userTemplates]);
 
   const categories = useMemo(() => {
-    return Array.from(new Set(userTemplates.map((t) => t.badge).filter(Boolean)));
+    return Array.from(new Set(userTemplates.map((t) => sanitizeBadge(t.badge) || 'custom')));
   }, [userTemplates]);
 
   const filtered = useMemo(() => {
     let list = userTemplates;
     if (categoryFilter !== 'ALL') {
-      list = list.filter((t) => t.badge === categoryFilter);
-    }
-    if (scopeFilter === 'SERVER') {
-      list = list.filter((t) => !t.isPublic && t.serverId);
-    } else if (scopeFilter === 'GLOBAL') {
-      list = list.filter((t) => t.isPublic || !t.serverId);
+      list = list.filter((t) => (sanitizeBadge(t.badge) || 'custom') === categoryFilter);
     }
     const q = search.toLowerCase().trim();
     if (q) {
@@ -409,7 +409,7 @@ export function TemplatesTab({
       );
     }
     return list;
-  }, [userTemplates, categoryFilter, scopeFilter, search]);
+  }, [userTemplates, categoryFilter, search]);
 
   return (
     <div className="w-full h-full flex flex-col bg-[#0b0c0e] text-white overflow-hidden">
@@ -527,24 +527,6 @@ export function TemplatesTab({
               </button>
             ))}
 
-            <div className="w-[1px] h-6 bg-white/10 mx-1 hidden sm:block" />
-
-            {/* Scope Filters */}
-            {(['ALL', 'SERVER', 'GLOBAL'] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setScopeFilter(s)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  scopeFilter === s
-                    ? 'bg-white/10 text-white border border-white/20 shadow-sm'
-                    : 'bg-black/30 text-zinc-400 hover:text-white border border-white/5'
-                }`}
-              >
-                {s === 'ALL' ? 'All Scopes' : s === 'SERVER' ? 'Server' : 'Global'}
-              </button>
-            ))}
-
             {/* Refresh Button */}
             <button
               type="button"
@@ -625,26 +607,13 @@ export function TemplatesTab({
                       </button>
                     </div>
 
-                    {/* Type & Scope Badges with explicit labels */}
+                    {/* Type Badge with explicit label */}
                     <div className="space-y-2.5 text-xs">
                       <div className="flex items-center justify-between">
                         <span className="text-zinc-400 font-semibold text-xs">Type:</span>
-                        <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-blue-500/10 border border-blue-500/30 text-blue-400">
-                          <span>{tmpl.badge}</span>
+                        <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-blue-500/10 border border-blue-500/30 text-blue-400 font-mono">
+                          <span>{sanitizeBadge(tmpl.badge) || 'custom'}</span>
                         </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-zinc-400 font-semibold text-xs">Scope:</span>
-                        {tmpl.isPublic || !tmpl.serverId ? (
-                          <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-500/10 border border-indigo-500/30 text-indigo-400">
-                            <Globe className="w-3 h-3" /> Global
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-zinc-500/10 border border-zinc-500/30 text-zinc-300">
-                            <ServerIcon className="w-3 h-3" /> Server
-                          </span>
-                        )}
                       </div>
 
                       {tmpl.description && (
@@ -750,10 +719,13 @@ export function TemplatesTab({
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Onboarding, Moderation, Support"
+                  placeholder="e.g. onboarding"
                   value={newTemplateBadge}
-                  onChange={(e) => setNewTemplateBadge(e.target.value)}
+                  onChange={(e) => setNewTemplateBadge(sanitizeBadge(e.target.value))}
                 />
+                <span className="text-[11px] text-zinc-500 mt-1 block">
+                  Single lowercase keyword only (no spaces, no uppercase).
+                </span>
               </div>
 
               <div className="form-group">
@@ -765,19 +737,6 @@ export function TemplatesTab({
                   value={newTemplateDesc}
                   onChange={(e) => setNewTemplateDesc(e.target.value)}
                 />
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <input
-                  type="checkbox"
-                  id="chk_public_template"
-                  checked={isPublicTemplate}
-                  onChange={(e) => setIsPublicTemplate(e.target.checked)}
-                  style={{ accentColor: '#E11D2E', width: '16px', height: '16px' }}
-                />
-                <label htmlFor="chk_public_template" style={{ fontSize: '12.5px', color: '#dbdee1', cursor: 'pointer' }}>
-                  Make template publicly visible to server members
-                </label>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
@@ -817,7 +776,7 @@ export function TemplatesTab({
               <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <i className="fa-solid fa-pen-to-square" style={{ color: '#38bdf8' }} />
                 <span>Edit Template</span>
-                <span className="component-modal-badge blurple">{editingTemplate.badge || 'CUSTOM'}</span>
+                <span className="component-modal-badge blurple">{sanitizeBadge(editingTemplate.badge) || 'custom'}</span>
               </div>
               <button className="btn-container-close" onClick={() => setEditingTemplate(null)}>
                 <i className="fa-solid fa-xmark" />
@@ -840,10 +799,13 @@ export function TemplatesTab({
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Onboarding, Moderation, Support"
+                  placeholder="e.g. onboarding"
                   value={editTemplateBadge}
-                  onChange={(e) => setEditTemplateBadge(e.target.value)}
+                  onChange={(e) => setEditTemplateBadge(sanitizeBadge(e.target.value))}
                 />
+                <span className="text-[11px] text-zinc-500 mt-1 block">
+                  Single lowercase keyword only (no spaces, no uppercase).
+                </span>
               </div>
 
               <div className="form-group">
@@ -855,19 +817,6 @@ export function TemplatesTab({
                   value={editTemplateDesc}
                   onChange={(e) => setEditTemplateDesc(e.target.value)}
                 />
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <input
-                  type="checkbox"
-                  id="chk_edit_public_template"
-                  checked={editIsPublic}
-                  onChange={(e) => setEditIsPublic(e.target.checked)}
-                  style={{ accentColor: '#38bdf8', width: '16px', height: '16px' }}
-                />
-                <label htmlFor="chk_edit_public_template" style={{ fontSize: '12.5px', color: '#dbdee1', cursor: 'pointer' }}>
-                  Make template publicly visible to server members
-                </label>
               </div>
 
               {currentBuilderState && (
