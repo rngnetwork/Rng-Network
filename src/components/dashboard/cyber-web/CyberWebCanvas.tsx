@@ -1,7 +1,11 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { CYBER_NODES, CYBER_LINKS } from './cyberWebData';
+import { CYBER_NODES, CYBER_LINKS, type CyberNode } from './cyberWebData';
+
+export interface CyberWebCanvasProps {
+  nodes?: CyberNode[];
+}
 
 interface BokehParticle {
   x: number;
@@ -23,8 +27,14 @@ interface PhotonPacket {
   size: number;
 }
 
-export const CyberWebCanvas: React.FC = () => {
+export const CyberWebCanvas: React.FC<CyberWebCanvasProps> = ({ nodes = CYBER_NODES }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const nodesRef = useRef<CyberNode[]>(nodes);
+
+  // Keep live reference to current node positions so the render loop recalculates in real-time
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -96,8 +106,7 @@ export const CyberWebCanvas: React.FC = () => {
     }));
 
     // Active nodes mapping for starbursts
-    const activeNodes = CYBER_NODES.filter((n) => n.status === 'active');
-    const starburstAngles = activeNodes.map(() => Math.random() * Math.PI * 2);
+    const starburstAngles = [0, 0, 0, 0];
 
     let frame = 0;
 
@@ -129,9 +138,10 @@ export const CyberWebCanvas: React.FC = () => {
       ctx.save();
       ctx.translate(currentMouseX, currentMouseY);
 
-      // Node pixel coordinates lookup map
+      // Read live node coordinates from nodesRef
+      const liveNodes = nodesRef.current;
       const nodePos = new Map<string, { x: number; y: number; active: boolean }>();
-      CYBER_NODES.forEach((n) => {
+      liveNodes.forEach((n) => {
         nodePos.set(n.id, {
           x: (n.x / 100) * width,
           y: (n.y / 100) * height,
@@ -206,7 +216,8 @@ export const CyberWebCanvas: React.FC = () => {
       });
 
       // 3. Draw starburst filament spokes and stardust around active nodes
-      activeNodes.forEach((node, idx) => {
+      const liveActiveNodes = liveNodes.filter((n) => n.status === 'active');
+      liveActiveNodes.forEach((node, idx) => {
         const pos = nodePos.get(node.id);
         if (!pos) return;
 

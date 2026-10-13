@@ -29,6 +29,7 @@ export interface CyberLink {
 }
 
 export const CYBER_NODES: CyberNode[] = [
+  // Upper Tier (y: 20%)
   {
     id: 'auth-security',
     name: 'Authentication & Authorization',
@@ -36,8 +37,17 @@ export const CYBER_NODES: CyberNode[] = [
     status: 'active',
     route: '/dashboard/account',
     icon: KeyRound,
-    x: 24,
-    y: 30,
+    x: 22,
+    y: 20,
+  },
+  {
+    id: 'bot-module',
+    name: 'Bot Module Configuration',
+    subtitle: 'Autonomous Daemons & Event Sharding',
+    status: 'locked',
+    icon: Bot,
+    x: 50,
+    y: 20,
   },
   {
     id: 'whitelist-management',
@@ -46,9 +56,11 @@ export const CYBER_NODES: CyberNode[] = [
     status: 'active',
     route: '/dashboard/whitelist',
     icon: ShieldCheck,
-    x: 80,
-    y: 30,
+    x: 78,
+    y: 20,
   },
+
+  // Middle Tier (y: 47%)
   {
     id: 'discord-server-module',
     name: 'Discord Server Module',
@@ -56,27 +68,8 @@ export const CYBER_NODES: CyberNode[] = [
     status: 'active',
     route: '/dashboard/servers',
     icon: Server,
-    x: 20,
-    y: 58,
-  },
-  {
-    id: 'embed-builder',
-    name: 'Embed Builder',
-    subtitle: 'Components V2 Visual Message Engine',
-    status: 'active',
-    route: '/dashboard/embeds',
-    icon: Boxes,
-    x: 80,
-    y: 58,
-  },
-  {
-    id: 'bot-module',
-    name: 'Bot Module Configuration',
-    subtitle: 'Autonomous Daemons & Event Sharding',
-    status: 'locked',
-    icon: Bot,
-    x: 52,
-    y: 22,
+    x: 18,
+    y: 47,
   },
   {
     id: 'rng-finance',
@@ -85,16 +78,28 @@ export const CYBER_NODES: CyberNode[] = [
     status: 'locked',
     icon: Coins,
     x: 50,
-    y: 48,
+    y: 47,
   },
+  {
+    id: 'embed-builder',
+    name: 'Embed Builder',
+    subtitle: 'Components V2 Visual Message Engine',
+    status: 'active',
+    route: '/dashboard/embeds',
+    icon: Boxes,
+    x: 82,
+    y: 47,
+  },
+
+  // Lower Tier (y: 74%) - Safely above bottom fold on all devices
   {
     id: 'staff-management',
     name: 'Staff Database & Management',
     subtitle: 'Ministry Roster & Chain of Command',
     status: 'locked',
     icon: Users,
-    x: 22,
-    y: 84,
+    x: 24,
+    y: 74,
   },
   {
     id: 'analytics-audit',
@@ -103,7 +108,7 @@ export const CYBER_NODES: CyberNode[] = [
     status: 'locked',
     icon: Activity,
     x: 50,
-    y: 76,
+    y: 74,
   },
   {
     id: 'infrastructure-dashboard',
@@ -111,13 +116,13 @@ export const CYBER_NODES: CyberNode[] = [
     subtitle: 'Virtual Threads & Redis Cluster Health',
     status: 'locked',
     icon: Cpu,
-    x: 78,
-    y: 84,
+    x: 76,
+    y: 74,
   },
 ];
 
 export const CYBER_LINKS: CyberLink[] = [
-  // Core active laser links
+  // Active laser links interconnecting live hubs
   { from: 'auth-security', to: 'whitelist-management', status: 'active' },
   { from: 'auth-security', to: 'discord-server-module', status: 'active' },
   { from: 'whitelist-management', to: 'embed-builder', status: 'active' },
