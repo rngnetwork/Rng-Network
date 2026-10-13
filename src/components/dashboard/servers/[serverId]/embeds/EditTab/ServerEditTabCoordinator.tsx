@@ -9,7 +9,6 @@ import type {
   DiscordStringSelectComponent,
 } from '@/lib/model/embed';
 import { GlobalEditTabCoordinator } from '@/components/dashboard/embeds/EditTab/GlobalEditTabCoordinator';
-import { ServerDiscordEmojiPicker } from '../emoji/ServerDiscordEmojiPicker';
 
 export interface ServerEditTabCoordinatorProps {
   serverId: string;
@@ -18,39 +17,66 @@ export interface ServerEditTabCoordinatorProps {
   onChangeMessageContent: (content: string) => void;
   onAddContainer: () => void;
   onUpdateContainer: (
-    containerId: string,
+    cIdx: number,
     updates: Partial<Type17Container>
   ) => void;
-  onRemoveContainer: (containerId: string) => void;
-  onAddComponent: (containerId: string, componentType: ComponentType) => void;
-  onUpdateComponent: (
-    containerId: string,
-    componentId: string,
-    updates: Partial<DiscordInnerComponent>
+  onRemoveContainer: (cIdx: number) => void;
+  onMoveContainer: (cIdx: number, direction: 'up' | 'down') => void;
+  onUpdateAuthor: (cIdx: number, key: 'name' | 'icon_url', val: string) => void;
+  onUpdateFooter: (cIdx: number, key: 'text' | 'icon_url', val: string) => void;
+  onAddField: (cIdx: number) => void;
+  onUpdateField: (
+    cIdx: number,
+    fIdx: number,
+    key: 'name' | 'value' | 'inline',
+    val: string | boolean
   ) => void;
-  onRemoveComponent: (containerId: string, componentId: string) => void;
-  onEditButton: (containerId: string, button: DiscordButtonComponent) => void;
+  onRemoveField: (cIdx: number, fIdx: number) => void;
+  onAddComponent: (cIdx: number, componentType: ComponentType) => void;
+  onUpdateComponent: (
+    cIdx: number,
+    compIdx: number,
+    updated: DiscordInnerComponent
+  ) => void;
+  onRemoveComponent: (cIdx: number, compIdx: number) => void;
+  onDuplicateComponent: (cIdx: number, compIdx: number) => void;
+  onEditButton: (
+    cIdx: number,
+    button: DiscordButtonComponent,
+    rowId?: string
+  ) => void;
   onEditSelectMenu: (
-    containerId: string,
+    cIdx: number,
     select: DiscordStringSelectComponent
   ) => void;
+  onOpenPaletteModal: (cIdx: number) => void;
+  onOpenEmojiPicker?: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 export const ServerEditTabCoordinator: React.FC<
   ServerEditTabCoordinatorProps
 > = ({
-  serverId,
+  serverId: _serverId,
   messageContent,
   containers,
   onChangeMessageContent,
   onAddContainer,
   onUpdateContainer,
   onRemoveContainer,
+  onMoveContainer,
+  onUpdateAuthor,
+  onUpdateFooter,
+  onAddField,
+  onUpdateField,
+  onRemoveField,
   onAddComponent,
   onUpdateComponent,
   onRemoveComponent,
+  onDuplicateComponent,
   onEditButton,
   onEditSelectMenu,
+  onOpenPaletteModal,
+  onOpenEmojiPicker,
 }) => {
   return (
     <GlobalEditTabCoordinator
@@ -60,23 +86,20 @@ export const ServerEditTabCoordinator: React.FC<
       onAddContainer={onAddContainer}
       onUpdateContainer={onUpdateContainer}
       onRemoveContainer={onRemoveContainer}
+      onMoveContainer={onMoveContainer}
+      onUpdateAuthor={onUpdateAuthor}
+      onUpdateFooter={onUpdateFooter}
+      onAddField={onAddField}
+      onUpdateField={onUpdateField}
+      onRemoveField={onRemoveField}
       onAddComponent={onAddComponent}
       onUpdateComponent={onUpdateComponent}
       onRemoveComponent={onRemoveComponent}
+      onDuplicateComponent={onDuplicateComponent}
       onEditButton={onEditButton}
       onEditSelectMenu={onEditSelectMenu}
-      emojiPickerSlot={
-        <div className="max-w-md">
-          <ServerDiscordEmojiPicker
-            serverId={serverId}
-            onSelectEmojiToken={(token) => {
-              onChangeMessageContent(
-                messageContent ? `${messageContent} ${token}` : token
-              );
-            }}
-          />
-        </div>
-      }
+      onOpenPaletteModal={onOpenPaletteModal}
+      onOpenEmojiPicker={onOpenEmojiPicker}
     />
   );
 };
