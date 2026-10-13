@@ -38,6 +38,17 @@ export type EmbedBuilderAction =
   | { type: 'ADD_CONTAINER'; container?: Partial<Type17Container> }
   | { type: 'UPDATE_CONTAINER'; containerId: string; updates: Partial<Type17Container> }
   | { type: 'REMOVE_CONTAINER'; containerId: string }
+  | { type: 'MOVE_CONTAINER'; fromIndex: number; toIndex: number }
+  | { type: 'ADD_FIELD'; containerIndex: number }
+  | {
+      type: 'UPDATE_FIELD';
+      containerIndex: number;
+      fieldIndex: number;
+      updates: Partial<{ name: string; value: string; inline: boolean }>;
+    }
+  | { type: 'REMOVE_FIELD'; containerIndex: number; fieldIndex: number }
+  | { type: 'ADD_ACTION_ROW'; containerIndex?: number }
+  | { type: 'DUPLICATE_COMPONENT'; containerIndex: number; componentIndex: number }
   | {
       type: 'ADD_COMPONENT';
       containerId: string;
@@ -381,6 +392,123 @@ export function embedBuilderReducer(
         ),
         isDirty: true,
       };
+
+    case 'MOVE_CONTAINER': {
+      const containers = [...state.type17Containers];
+      if (
+        action.fromIndex < 0 ||
+        action.fromIndex >= containers.length ||
+        action.toIndex < 0 ||
+        action.toIndex >= containers.length
+      ) {
+        return state;
+      }
+      const [moved] = containers.splice(action.fromIndex, 1);
+      containers.splice(action.toIndex, 0, moved);
+      return {
+        ...state,
+        type17Containers: containers,
+        isDirty: true,
+      };
+    }
+
+    case 'ADD_FIELD': {
+      const containers = state.type17Containers.map((cnt, i) => {
+        if (i !== action.containerIndex) return cnt;
+        const fields = cnt.fields ? [...cnt.fields] : [];
+        if (fields.length >= 25) return cnt;
+        fields.push({
+          id: createComponentId('fld'),
+          name: 'New Field',
+          value: 'Field Content',
+          inline: false,
+        });
+        return { ...cnt, fields };
+      });
+      return {
+        ...state,
+        type17Containers: containers,
+        isDirty: true,
+      };
+    }
+
+    case 'UPDATE_FIELD': {
+      const containers = state.type17Containers.map((cnt, i) => {
+        if (i !== action.containerIndex) return cnt;
+        const fields = cnt.fields ? [...cnt.fields] : [];
+        if (action.fieldIndex < 0 || action.fieldIndex >= fields.length) return cnt;
+        fields[action.fieldIndex] = {
+          ...fields[action.fieldIndex],
+          ...action.updates,
+        };
+        return { ...cnt, fields };
+      });
+      return {
+        ...state,
+        type17Containers: containers,
+        isDirty: true,
+      };
+    }
+
+    case 'REMOVE_FIELD': {
+      const containers = state.type17Containers.map((cnt, i) => {
+        if (i !== action.containerIndex) return cnt;
+        const fields = cnt.fields
+          ? cnt.fields.filter((_, fi) => fi !== action.fieldIndex)
+          : [];
+        return { ...cnt, fields };
+      });
+      return {
+        ...state,
+        type17Containers: containers,
+        isDirty: true,
+      };
+    }
+
+    case 'ADD_ACTION_ROW': {
+      const targetIdx = action.containerIndex ?? 0;
+      const containers = state.type17Containers.map((cnt, i) => {
+        if (i !== targetIdx) return cnt;
+        const row: DiscordActionRowComponent = {
+          type: ComponentType.ACTION_ROW,
+          id: createComponentId('row'),
+          components: [
+            {
+              type: ComponentType.BUTTON,
+              id: createComponentId('btn'),
+              style: 1,
+              label: 'Primary Button',
+              custom_id: `rng_act_${Math.random().toString(16).slice(2, 18).padEnd(16, '0')}`,
+            },
+          ],
+        };
+        return { ...cnt, components: [...cnt.components, row] };
+      });
+      return {
+        ...state,
+        type17Containers: containers,
+        isDirty: true,
+      };
+    }
+
+    case 'DUPLICATE_COMPONENT': {
+      const containers = state.type17Containers.map((cnt, i) => {
+        if (i !== action.containerIndex) return cnt;
+        const items = [...cnt.components];
+        if (action.componentIndex < 0 || action.componentIndex >= items.length) return cnt;
+        const clone = JSON.parse(
+          JSON.stringify(items[action.componentIndex])
+        ) as DiscordInnerComponent;
+        clone.id = createComponentId('dup');
+        items.splice(action.componentIndex + 1, 0, clone);
+        return { ...cnt, components: items };
+      });
+      return {
+        ...state,
+        type17Containers: containers,
+        isDirty: true,
+      };
+    }
 
     case 'ADD_COMPONENT':
       return {
