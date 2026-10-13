@@ -100,13 +100,15 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ initialUser = 
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label="Open user profile menu"
         aria-expanded={isOpen}
-        className="relative flex items-center justify-center rounded-full hover:ring-2 hover:ring-brand-red/60 transition-all focus:outline-none focus:ring-2 focus:ring-brand-red/50"
+        className="relative flex items-center justify-center rounded-full transition-all duration-200 hover:ring-2 hover:ring-brand-red/80 hover:shadow-glow focus:outline-none focus:ring-2 focus:ring-brand-red shadow-sm cursor-pointer"
       >
         <Avatar
           src={avatarSrc}
           alt={fallbackName}
           fallback={fallbackName}
           size="lg"
+          status={activeProfile.status === 'OFFLINE' ? 'offline' : 'online'}
+          className="ring-1 ring-white/10"
         />
       </button>
 

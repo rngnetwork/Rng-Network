@@ -15,7 +15,9 @@ import {
 } from 'lucide-react';
 import { fetchUserManagedServers } from '@/lib/api/dashboard/servers';
 import { logout } from '@/lib/api/auth/session';
+import { getDiscordAvatarUrl } from '@/lib/api/auth/discord';
 import type { UserProfileData } from '@/lib/model/user';
+import { Avatar } from '@/components/common/feedback/Avatar';
 import { HamburgerMenu } from '@/components/common/navigation/HamburgerMenu';
 
 export interface DashboardSidebarNavProps {
@@ -232,9 +234,14 @@ export const DashboardSidebarNav: React.FC<DashboardSidebarNavProps> = ({
             {user && (
               <div className="px-3 py-2.5 rounded-apple-md bg-white/[0.02] border border-white/5 flex items-center justify-between">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-white/10 flex items-center justify-center text-xs font-bold text-zinc-200 shrink-0">
-                    {(user.fullName || user.email).charAt(0).toUpperCase()}
-                  </div>
+                  <Avatar
+                    src={getDiscordAvatarUrl(user.discordId, user.discordAvatar)}
+                    alt={user.fullName || user.email}
+                    fallback={user.fullName || user.email.split('@')[0]}
+                    size="md"
+                    status="online"
+                    className="shrink-0"
+                  />
                   <div className="flex flex-col min-w-0">
                     <span className="text-xs font-semibold text-white truncate">
                       {user.fullName || user.email.split('@')[0]}
@@ -244,7 +251,6 @@ export const DashboardSidebarNav: React.FC<DashboardSidebarNavProps> = ({
                     </span>
                   </div>
                 </div>
-                <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
               </div>
             )}
 
@@ -308,6 +314,26 @@ export const DashboardSidebarNav: React.FC<DashboardSidebarNavProps> = ({
                       );
                     })}
                 </nav>
+                {user && (
+                  <div className="px-3.5 py-3 mb-3 rounded-apple-md bg-white/[0.03] border border-white/5 flex items-center gap-3">
+                    <Avatar
+                      src={getDiscordAvatarUrl(user.discordId, user.discordAvatar)}
+                      alt={user.fullName || user.email}
+                      fallback={user.fullName || user.email.split('@')[0]}
+                      size="md"
+                      status="online"
+                      className="shrink-0"
+                    />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-semibold text-white truncate">
+                        {user.fullName || user.email.split('@')[0]}
+                      </span>
+                      <span className="text-[10px] text-brand-red font-mono truncate">
+                        {user.designations || user.role}
+                      </span>
+                    </div>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => void handleLogout()}
