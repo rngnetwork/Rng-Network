@@ -123,12 +123,12 @@ export const RngLoadingSpinner: React.FC<RngLoadingSpinnerProps> = ({
         >
           <Image
             priority
-            src="/assets/RNG_MAIN_LOGO_TRANSPARENT.png"
-            alt="RNG Logo"
+            src="/assets/LOGO_FOR_STAFFS.png"
+            alt="RNG RAC Logo"
             width={currentSize.logoPx}
             height={currentSize.logoPx}
             unoptimized
-            className={`${currentSize.logoClass} object-contain drop-shadow-[0_0_12px_rgba(225,29,46,0.65)]`}
+            className={`${currentSize.logoClass} object-cover rounded-full drop-shadow-[0_0_12px_rgba(225,29,46,0.65)]`}
           />
         </div>
       </div>

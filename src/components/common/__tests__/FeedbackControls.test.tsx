@@ -167,14 +167,14 @@ describe('Common Feedback Controls', () => {
   });
 
   describe('RngLoadingSpinner', () => {
-    it('renders with central RNG logo and status label', () => {
+    it('renders with central RNG RAC logo and status label', () => {
       render(<RngLoadingSpinner size="lg" label="Loading Control Center..." />);
 
       expect(screen.getByRole('status')).toBeInTheDocument();
       expect(screen.getByText('Loading Control Center...')).toBeInTheDocument();
-      const logo = screen.getByAltText('RNG Logo');
+      const logo = screen.getByAltText('RNG RAC Logo');
       expect(logo).toBeInTheDocument();
-      expect(logo).toHaveAttribute('src', '/assets/RNG_MAIN_LOGO_TRANSPARENT.png');
+      expect(logo).toHaveAttribute('src', '/assets/LOGO_FOR_STAFFS.png');
     });
 
     it('renders in fullScreen mode with ambient backdrop elements', () => {
@@ -182,8 +182,9 @@ describe('Common Feedback Controls', () => {
 
       expect(screen.getByRole('status')).toBeInTheDocument();
       expect(screen.getByText('Booting...')).toBeInTheDocument();
-      const logo = screen.getByAltText('RNG Logo');
+      const logo = screen.getByAltText('RNG RAC Logo');
       expect(logo).toBeInTheDocument();
+      expect(logo).toHaveAttribute('src', '/assets/LOGO_FOR_STAFFS.png');
     });
   });
 });
