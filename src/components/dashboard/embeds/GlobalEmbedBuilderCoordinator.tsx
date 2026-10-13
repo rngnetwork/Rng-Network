@@ -5,42 +5,47 @@ import {
   type DiscordButtonComponent,
   type DiscordStringSelectComponent,
   type TemplateData,
+  type Type17Container,
+  ComponentType,
 } from '@/lib/model/embed';
 import type { EmbedAction } from '@/lib/model/action';
 import {
   useEmbedBuilderReducer,
   parseDiscordPayloadToState,
 } from './useEmbedBuilderReducer';
-import { GlobalModeSwitcher } from './GlobalModeSwitcher';
-import { DiscordBotEmojiPicker } from './emoji/DiscordBotEmojiPicker';
+import { useEmbedHistory } from './useEmbedHistory';
+import { EmbedBuilderTopNavBar, type EmbedBuilderTopTab } from './EmbedBuilderTopNavBar';
+import { MessageBuilderWorkspace } from './MessageBuilderWorkspace';
 import { GlobalEditTabCoordinator } from './EditTab/GlobalEditTabCoordinator';
 import { GlobalPreviewCoordinator } from './PreviewTab/GlobalPreviewCoordinator';
 import { GlobalDispatchCoordinator } from './DispatchTab/GlobalDispatchCoordinator';
 import { MonacoDiscordJsonEditor } from './RawTab/MonacoDiscordJsonEditor';
 import { TemplateFilterBar } from './templates/TemplateFilterBar';
 import { SavedTemplateCard } from './templates/SavedTemplateCard';
+import { ActionTemplatesTab } from './ActionTemplatesTab';
+import { UnsavedChangesBar } from './UnsavedChangesBar';
+import { PaletteModal } from './modals/PaletteModal';
 import { ButtonConfigModal } from './modals/ButtonConfigModal';
 import { SelectMenuConfigModal } from './modals/SelectMenuConfigModal';
 import { SaveTemplateModal } from './modals/SaveTemplateModal';
+import { LoadPresetModal } from './modals/LoadPresetModal';
+import { DiscordBotEmojiPicker } from './emoji/DiscordBotEmojiPicker';
 import {
   fetchGlobalTemplates,
   createTemplate,
   deleteTemplate,
   fetchActionTemplates,
 } from '@/lib/api/dashboard/embeds';
-import { Button } from '@/components/common/input/Button';
 import { useToast } from '@/components/common/feedback/ToastProvider';
-import { RotateCcw, AlertTriangle } from 'lucide-react';
 
 export const GlobalEmbedBuilderCoordinator: React.FC = () => {
   const { toast } = useToast();
+  const [activeTopTab, setActiveTopTab] = useState<EmbedBuilderTopTab>('builder');
+
   const {
     state,
     dispatch,
     validationReport,
-    hasPendingDraft,
-    restorePendingDraft,
-    discardPendingDraft,
   } = useEmbedBuilderReducer();
 
   const [templates, setTemplates] = useState<TemplateData[]>([]);
@@ -49,16 +54,38 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [availableActions, setAvailableActions] = useState<EmbedAction[]>([]);
 
-  // Modals state
+  // Modals state (Rendered at upper z-index z-50)
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [isLoadPresetOpen, setIsLoadPresetOpen] = useState(false);
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [targetPaletteContainerIdx, setTargetPaletteContainerIdx] = useState(0);
+
   const [editingButton, setEditingButton] = useState<{
-    containerId: string;
+    cIdx: number;
     button: DiscordButtonComponent;
   } | null>(null);
+
   const [editingSelectMenu, setEditingSelectMenu] = useState<{
-    containerId: string;
+    cIdx: number;
     selectMenu: DiscordStringSelectComponent;
   } | null>(null);
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+
+  // Undo / Redo History Stack Hook
+  const history = useEmbedHistory({
+    containers: state.type17Containers,
+    messageContent: state.message.content,
+    onRestoreSnapshot: (snapshot) => {
+      dispatch({
+        type: 'LOAD_TEMPLATE',
+        state: {
+          message: { content: snapshot.messageContent },
+          type17Containers: snapshot.containers,
+        },
+      });
+    },
+    isEnabled: activeTopTab === 'builder' && state.activeSubTab === 'edit',
+  });
 
   const loadTemplatesList = useCallback(async () => {
     const token =
@@ -81,58 +108,29 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
-    const fetchTemplatesInitial = async () => {
-      const token =
-        typeof window !== 'undefined'
-          ? localStorage.getItem('rng_access_token') ||
-            localStorage.getItem('accessToken') ||
-            undefined
-          : undefined;
+    void loadTemplatesList();
+  }, [loadTemplatesList]);
 
-      try {
-        const res = await fetchGlobalTemplates({ page: 0, size: 50 }, token);
-        if (isMounted && res.success && res.data) {
-          setTemplates(res.data.content || []);
-        }
-      } catch {
-        // Handled by empty template list
-      } finally {
-        if (isMounted) {
-          setLoadingTemplates(false);
-        }
+  const loadActions = useCallback(async () => {
+    const token =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('rng_access_token') ||
+          localStorage.getItem('accessToken') ||
+          undefined
+        : undefined;
+    try {
+      const res = await fetchActionTemplates(undefined, token);
+      if (res.success && Array.isArray(res.data)) {
+        setAvailableActions(res.data);
       }
-    };
-
-    void fetchTemplatesInitial();
-    return () => {
-      isMounted = false;
-    };
+    } catch {
+      // Fallback
+    }
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
-    const loadActions = async () => {
-      const token =
-        typeof window !== 'undefined'
-          ? localStorage.getItem('rng_access_token') ||
-            localStorage.getItem('accessToken') ||
-            undefined
-          : undefined;
-      try {
-        const res = await fetchActionTemplates(undefined, token);
-        if (isMounted && res.success && Array.isArray(res.data)) {
-          setAvailableActions(res.data);
-        }
-      } catch {
-        // Fallback
-      }
-    };
     void loadActions();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  }, [loadActions]);
 
   const handleSaveTemplate = async (metadata: {
     name: string;
@@ -173,6 +171,7 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
           templateId: res.data.id,
           templateName: res.data.name,
         });
+        setIsSaveModalOpen(false);
         void loadTemplatesList();
       }
     } catch {
@@ -221,6 +220,7 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
         templateId: tpl.id,
         templateName: tpl.name,
       });
+      setActiveTopTab('builder');
       dispatch({ type: 'SET_ACTIVE_TAB', tab: 'edit' });
       toast({
         type: 'success',
@@ -249,156 +249,156 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
   });
 
   return (
-    <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto pb-16">
-      {hasPendingDraft && (
-        <div className="p-4 rounded-apple-xl bg-amber-500/10 border border-amber-500/30 flex flex-wrap items-center justify-between gap-3 shadow-apple-card">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="text-amber-400 shrink-0" size={20} />
-            <div>
-              <h4 className="text-sm font-bold text-white">
-                Unsaved Embed Draft Recovered (SEC-201)
-              </h4>
-              <p className="text-xs text-zinc-300">
-                A draft from a previous session was auto-saved to sessionStorage before expiry.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={discardPendingDraft}
-            >
-              Discard
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              onClick={restorePendingDraft}
-            >
-              Restore Draft
-            </Button>
-          </div>
-        </div>
-      )}
-
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
-            Discord Components V2 Embed Builder
-          </h1>
-          <p className="text-xs md:text-sm text-zinc-400 mt-1">
-            Visual designer, dark-mode simulation, and two-phase dispatch engine (Flags: 32768)
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            leftIcon={<RotateCcw size={14} />}
-            onClick={() => dispatch({ type: 'RESET_CANVAS' })}
-          >
-            Reset Canvas
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setIsSaveModalOpen(true)}
-          >
-            Save Template
-          </Button>
-        </div>
-      </div>
-
-      <GlobalModeSwitcher
-        activeTab={state.activeSubTab}
-        onChangeTab={(tab) => dispatch({ type: 'SET_ACTIVE_TAB', tab })}
+    <div className="flex flex-col w-full max-w-7xl mx-auto pb-12">
+      {/* 1. Top Most Navigation Bar (Separated from Builder) */}
+      <EmbedBuilderTopNavBar
+        activeTab={activeTopTab}
+        onChangeTab={setActiveTopTab}
         templateCount={templates.length}
-        violationCount={validationReport.violations.length}
+        actionCount={availableActions.length}
       />
 
-      {state.activeSubTab === 'edit' && (
-        <GlobalEditTabCoordinator
-          messageContent={state.message.content}
-          containers={state.type17Containers}
-          onChangeMessageContent={(content) =>
-            dispatch({ type: 'SET_MESSAGE_CONTENT', content })
-          }
+      {/* 2. Builder Mode Workspace */}
+      {activeTopTab === 'builder' && (
+        <MessageBuilderWorkspace
+          activeSubTab={state.activeSubTab}
+          onChangeSubTab={(tab) => dispatch({ type: 'SET_ACTIVE_TAB', tab })}
+          containerCount={state.type17Containers.length}
+          totalComponents={validationReport.totalComponents}
           onAddContainer={() => dispatch({ type: 'ADD_CONTAINER' })}
-          onUpdateContainer={(containerId, updates) =>
-            dispatch({ type: 'UPDATE_CONTAINER', containerId, updates })
-          }
-          onRemoveContainer={(containerId) =>
-            dispatch({ type: 'REMOVE_CONTAINER', containerId })
-          }
-          onAddComponent={(containerId, componentType) =>
-            dispatch({ type: 'ADD_COMPONENT', containerId, componentType })
-          }
-          onUpdateComponent={(containerId, componentId, updates) =>
-            dispatch({
-              type: 'UPDATE_COMPONENT',
-              containerId,
-              componentId,
-              updates,
-            })
-          }
-          onRemoveComponent={(containerId, componentId) =>
-            dispatch({ type: 'REMOVE_COMPONENT', containerId, componentId })
-          }
-          onEditButton={(containerId, button) =>
-            setEditingButton({ containerId, button })
-          }
-          onEditSelectMenu={(containerId, selectMenu) =>
-            setEditingSelectMenu({ containerId, selectMenu })
-          }
-          emojiPickerSlot={
-            <div className="max-w-md">
-              <DiscordBotEmojiPicker
-                onSelectEmojiToken={(token) => {
-                  dispatch({
-                    type: 'SET_MESSAGE_CONTENT',
-                    content: state.message.content
-                      ? `${state.message.content} ${token}`
-                      : token,
-                  });
-                }}
-              />
-            </div>
-          }
-        />
-      )}
-
-      {state.activeSubTab === 'preview' && (
-        <GlobalPreviewCoordinator
-          messageContent={state.message.content}
-          containers={state.type17Containers}
-        />
-      )}
-
-      {state.activeSubTab === 'dispatch' && (
-        <GlobalDispatchCoordinator validationReport={validationReport} />
-      )}
-
-      {state.activeSubTab === 'raw' && (
-        <MonacoDiscordJsonEditor
-          compiledPayload={validationReport.compiledPayload}
-          onApplyParsedState={(parsed) => {
-            dispatch({ type: 'LOAD_TEMPLATE', state: parsed });
-            toast({
-              type: 'success',
-              title: 'Payload Synced',
-              description: 'JSON state synchronized with visual canvas.',
-            });
+          onAddActionRow={() => dispatch({ type: 'ADD_ACTION_ROW', containerIndex: 0 })}
+          onOpenPaletteModal={() => {
+            setTargetPaletteContainerIdx(0);
+            setIsPaletteOpen(true);
           }}
-        />
+          onOpenLoadModal={() => setIsLoadPresetOpen(true)}
+          onClearCanvas={() => dispatch({ type: 'RESET_CANVAS' })}
+          onUndo={history.undo}
+          onRedo={history.redo}
+          canUndo={history.canUndo}
+          canRedo={history.canRedo}
+          onOpenEmojiPicker={() => setIsEmojiPickerOpen(true)}
+        >
+          {state.activeSubTab === 'edit' && (
+            <GlobalEditTabCoordinator
+              messageContent={state.message.content}
+              containers={state.type17Containers}
+              onChangeMessageContent={(content) =>
+                dispatch({ type: 'SET_MESSAGE_CONTENT', content })
+              }
+              onAddContainer={() => dispatch({ type: 'ADD_CONTAINER' })}
+              onUpdateContainer={(cIdx, updates) => {
+                const targetId = state.type17Containers[cIdx]?.id;
+                if (targetId) {
+                  dispatch({ type: 'UPDATE_CONTAINER', containerId: targetId, updates });
+                }
+              }}
+              onRemoveContainer={(cIdx) => {
+                const targetId = state.type17Containers[cIdx]?.id;
+                if (targetId) {
+                  dispatch({ type: 'REMOVE_CONTAINER', containerId: targetId });
+                }
+              }}
+              onMoveContainer={(fromIdx, direction) => {
+                const toIdx = direction === 'up' ? fromIdx - 1 : fromIdx + 1;
+                dispatch({ type: 'MOVE_CONTAINER', fromIndex: fromIdx, toIndex: toIdx });
+              }}
+              onUpdateAuthor={(cIdx, key, val) => {
+                const target = state.type17Containers[cIdx];
+                if (target) {
+                  const updatedAuthor = { ...target.author, [key]: val, name: key === 'name' ? val : target.author?.name || '' };
+                  dispatch({ type: 'UPDATE_CONTAINER', containerId: target.id, updates: { author: updatedAuthor } });
+                }
+              }}
+              onUpdateFooter={(cIdx, key, val) => {
+                const target = state.type17Containers[cIdx];
+                if (target) {
+                  const updatedFooter = { ...target.footer, [key]: val, text: key === 'text' ? val : target.footer?.text || '' };
+                  dispatch({ type: 'UPDATE_CONTAINER', containerId: target.id, updates: { footer: updatedFooter } });
+                }
+              }}
+              onAddField={(cIdx) => dispatch({ type: 'ADD_FIELD', containerIndex: cIdx })}
+              onUpdateField={(cIdx, fIdx, key, val) =>
+                dispatch({ type: 'UPDATE_FIELD', containerIndex: cIdx, fieldIndex: fIdx, updates: { [key]: val } })
+              }
+              onRemoveField={(cIdx, fIdx) =>
+                dispatch({ type: 'REMOVE_FIELD', containerIndex: cIdx, fieldIndex: fIdx })
+              }
+              onAddComponent={(cIdx, componentType) => {
+                const targetId = state.type17Containers[cIdx]?.id;
+                if (targetId) {
+                  dispatch({ type: 'ADD_COMPONENT', containerId: targetId, componentType });
+                }
+              }}
+              onUpdateComponent={(cIdx, compIdx, updates) => {
+                const targetContainer = state.type17Containers[cIdx];
+                const targetCompId = targetContainer?.components[compIdx]?.id;
+                if (targetContainer && targetCompId) {
+                  dispatch({
+                    type: 'UPDATE_COMPONENT',
+                    containerId: targetContainer.id,
+                    componentId: targetCompId,
+                    updates,
+                  });
+                }
+              }}
+              onRemoveComponent={(cIdx, compIdx) => {
+                const targetContainer = state.type17Containers[cIdx];
+                const targetCompId = targetContainer?.components[compIdx]?.id;
+                if (targetContainer && targetCompId) {
+                  dispatch({
+                    type: 'REMOVE_COMPONENT',
+                    containerId: targetContainer.id,
+                    componentId: targetCompId,
+                  });
+                }
+              }}
+              onDuplicateComponent={(cIdx, compIdx) =>
+                dispatch({ type: 'DUPLICATE_COMPONENT', containerIndex: cIdx, componentIndex: compIdx })
+              }
+              onEditButton={(cIdx, button) =>
+                setEditingButton({ cIdx, button })
+              }
+              onEditSelectMenu={(cIdx, selectMenu) =>
+                setEditingSelectMenu({ cIdx, selectMenu })
+              }
+              onOpenPaletteModal={(cIdx) => {
+                setTargetPaletteContainerIdx(cIdx);
+                setIsPaletteOpen(true);
+              }}
+              onOpenEmojiPicker={() => setIsEmojiPickerOpen(true)}
+            />
+          )}
+
+          {state.activeSubTab === 'preview' && (
+            <GlobalPreviewCoordinator
+              messageContent={state.message.content}
+              containers={state.type17Containers}
+            />
+          )}
+
+          {state.activeSubTab === 'dispatch' && (
+            <GlobalDispatchCoordinator validationReport={validationReport} />
+          )}
+
+          {state.activeSubTab === 'raw' && (
+            <MonacoDiscordJsonEditor
+              compiledPayload={validationReport.compiledPayload}
+              onApplyParsedState={(parsed) => {
+                dispatch({ type: 'LOAD_TEMPLATE', state: parsed });
+                toast({
+                  type: 'success',
+                  title: 'Payload Synced',
+                  description: 'JSON state synchronized with visual canvas.',
+                });
+              }}
+            />
+          )}
+        </MessageBuilderWorkspace>
       )}
 
-      {state.activeSubTab === 'templates' && (
+      {/* 3. Templates Tab Mode */}
+      {activeTopTab === 'templates' && (
         <div className="flex flex-col gap-6">
           <TemplateFilterBar
             searchQuery={templateSearch}
@@ -432,6 +432,51 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
         </div>
       )}
 
+      {/* 4. Action Templates Tab Mode */}
+      {activeTopTab === 'actions' && (
+        <ActionTemplatesTab
+          embedTemplates={templates}
+          onActionsUpdated={loadActions}
+        />
+      )}
+
+      {/* Floating Unsaved Changes Bar */}
+      <UnsavedChangesBar
+        isDirty={state.isDirty}
+        onSave={() => setIsSaveModalOpen(true)}
+        onReset={() => dispatch({ type: 'RESET_CANVAS' })}
+      />
+
+      {/* UPPER Z-INDEX MODALS LAYER (z-50) */}
+      <PaletteModal
+        isOpen={isPaletteOpen}
+        onClose={() => setIsPaletteOpen(false)}
+        onSelectComponent={(componentType) => {
+          const targetId = state.type17Containers[targetPaletteContainerIdx]?.id;
+          if (targetId) {
+            dispatch({ type: 'ADD_COMPONENT', containerId: targetId, componentType });
+          }
+        }}
+      />
+
+      <LoadPresetModal
+        isOpen={isLoadPresetOpen}
+        onClose={() => setIsLoadPresetOpen(false)}
+        savedTemplates={templates}
+        onLoadTemplate={(loadedState, name) => {
+          dispatch({
+            type: 'LOAD_TEMPLATE',
+            state: loadedState,
+            templateName: name,
+          });
+          toast({
+            type: 'success',
+            title: 'Preset Loaded',
+            description: `Loaded "${name || 'Preset'}" into editor.`,
+          });
+        }}
+      />
+
       {editingButton && (
         <ButtonConfigModal
           isOpen={Boolean(editingButton)}
@@ -440,12 +485,15 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
           onClose={() => setEditingButton(null)}
           onSave={(updatedBtn) => {
             if (updatedBtn.id) {
-              dispatch({
-                type: 'UPDATE_COMPONENT',
-                containerId: editingButton.containerId,
-                componentId: updatedBtn.id,
-                updates: updatedBtn,
-              });
+              const targetContainer = state.type17Containers[editingButton.cIdx];
+              if (targetContainer) {
+                dispatch({
+                  type: 'UPDATE_COMPONENT',
+                  containerId: targetContainer.id,
+                  componentId: updatedBtn.id,
+                  updates: updatedBtn,
+                });
+              }
             }
           }}
         />
@@ -459,12 +507,15 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
           onClose={() => setEditingSelectMenu(null)}
           onSave={(updatedMenu) => {
             if (updatedMenu.id) {
-              dispatch({
-                type: 'UPDATE_COMPONENT',
-                containerId: editingSelectMenu.containerId,
-                componentId: updatedMenu.id,
-                updates: updatedMenu,
-              });
+              const targetContainer = state.type17Containers[editingSelectMenu.cIdx];
+              if (targetContainer) {
+                dispatch({
+                  type: 'UPDATE_COMPONENT',
+                  containerId: targetContainer.id,
+                  componentId: updatedMenu.id,
+                  updates: updatedMenu,
+                });
+              }
             }
           }}
         />
@@ -476,6 +527,34 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
         onClose={() => setIsSaveModalOpen(false)}
         onSave={handleSaveTemplate}
       />
+
+      {isEmojiPickerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-surface-card border border-white/15 rounded-apple-2xl p-4 shadow-apple-elevated max-w-md w-full">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+              <span className="text-sm font-bold text-white">Select Discord Emoji</span>
+              <button
+                type="button"
+                onClick={() => setIsEmojiPickerOpen(false)}
+                className="text-xs text-zinc-400 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+            <DiscordBotEmojiPicker
+              onSelectEmojiToken={(token) => {
+                dispatch({
+                  type: 'SET_MESSAGE_CONTENT',
+                  content: state.message.content
+                    ? `${state.message.content} ${token}`
+                    : token,
+                });
+                setIsEmojiPickerOpen(false);
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
