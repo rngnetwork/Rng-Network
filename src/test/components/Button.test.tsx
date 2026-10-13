@@ -1,6 +1,7 @@
+import './testHelper';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { Button } from '../input/Button';
+import { Button } from '@/components/common/input/Button';
 
 describe('Button', () => {
   it('renders primary variant with crimson background', () => {

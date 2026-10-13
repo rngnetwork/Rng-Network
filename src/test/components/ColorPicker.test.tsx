@@ -1,6 +1,7 @@
+import './testHelper';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { ColorPicker, hexToInt, intToHex } from '../input/ColorPicker';
+import { ColorPicker, hexToInt, intToHex } from '@/components/common/input/ColorPicker';
 
 describe('ColorPicker', () => {
   it('converts hex to 24-bit bounded integer and back accurately', () => {

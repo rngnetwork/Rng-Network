@@ -9,6 +9,8 @@ import { fetchCurrentUser, logout, refreshToken } from '@/lib/api/auth/session';
 import { getDiscordAvatarUrl } from '@/lib/api/auth/discord';
 import type { UserProfileData } from '@/lib/model/user';
 import { Badge } from '@/components/common/feedback/Badge';
+import { Avatar } from '@/components/common/feedback/Avatar';
+import { Tooltip } from '@/components/common/feedback/Tooltip';
 
 export interface UserProfileMenuProps {
   initialUser?: UserProfileData | null;
@@ -84,7 +86,7 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ initialUser = 
 
   const activeProfile = initialUser ?? user;
   if (!activeProfile) {
-    return <div className="w-10 h-10 rounded-full bg-white/5 animate-pulse" />;
+    return <Avatar fallback="?" size="md" className="animate-pulse" />;
   }
 
   const avatarSrc = avatarError
@@ -98,15 +100,14 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ initialUser = 
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label="Open user profile menu"
         aria-expanded={isOpen}
-        className="relative flex items-center justify-center w-10 h-10 rounded-full border border-white/10 overflow-hidden hover:border-brand-red/60 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-red/50"
+        className="relative flex items-center justify-center rounded-full hover:ring-2 hover:ring-brand-red/60 transition-all focus:outline-none focus:ring-2 focus:ring-brand-red/50"
       >
-        <Image
+        <Avatar
           src={avatarSrc}
           alt={activeProfile.fullName || activeProfile.email}
-          fill
-          unoptimized
-          className="object-cover"
-          onError={() => setAvatarError(true)}
+          fallback={activeProfile.fullName || activeProfile.email}
+          size="md"
+          status="online"
         />
       </button>
 
@@ -121,16 +122,13 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ initialUser = 
           >
             <div className="p-4 border-b border-white/10 bg-white/[0.02]">
               <div className="flex items-center gap-3">
-                <div className="relative w-12 h-12 rounded-full overflow-hidden border border-white/10 shrink-0">
-                  <Image
-                    src={avatarSrc}
-                    alt={activeProfile.fullName || activeProfile.email}
-                    fill
-                    unoptimized
-                    className="object-cover"
-                    onError={() => setAvatarError(true)}
-                  />
-                </div>
+                <Avatar
+                  src={avatarSrc}
+                  alt={activeProfile.fullName || activeProfile.email}
+                  fallback={activeProfile.fullName || activeProfile.email}
+                  size="lg"
+                  status="online"
+                />
                 <div className="flex flex-col min-w-0">
                   <span className="text-white font-bold text-sm truncate">
                     {activeProfile.fullName || activeProfile.email.split('@')[0]}
@@ -156,7 +154,9 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ initialUser = 
                 )}
                 <div className="flex justify-between items-center">
                   <span className="text-zinc-400">Clearance</span>
-                  <Badge variant="crimson">{activeProfile.role}</Badge>
+                  <Tooltip content="Verified RNG Chain of Command Clearance">
+                    <Badge variant="crimson">{activeProfile.role}</Badge>
+                  </Tooltip>
                 </div>
               </div>
             </div>

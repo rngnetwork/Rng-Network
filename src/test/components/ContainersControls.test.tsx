@@ -1,9 +1,10 @@
+import './testHelper';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { Card } from '../containers/Card';
-import { Carousel } from '../containers/Carousel';
-import { Table, ColumnDef } from '../containers/Table';
-import { List, ListItemProps } from '../containers/List';
+import { Card } from '@/components/common/containers/Card';
+import { Carousel } from '@/components/common/containers/Carousel';
+import { Table, ColumnDef } from '@/components/common/containers/Table';
+import { List, ListItemProps } from '@/components/common/containers/List';
 
 describe('Common Containers Controls', () => {
   describe('Card', () => {

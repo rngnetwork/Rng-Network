@@ -1,6 +1,7 @@
+import './testHelper';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { EmojiPicker, EmojiCategory } from '../input/EmojiPicker';
+import { EmojiPicker, EmojiCategory } from '@/components/common/input/EmojiPicker';
 
 describe('EmojiPicker', () => {
   it('renders standard emoji categories and default tab', () => {
