@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { motion } from 'framer-motion';
 import { Shield, KeyRound, ChevronRight } from 'lucide-react';
 import { Card } from '@/components/common/containers/Card';
 
@@ -22,9 +23,12 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSelectLogin }) => 
       </p>
 
       <div className="flex flex-col gap-3.5">
-        <button
+        <motion.button
           type="button"
           onClick={onSelectLogin}
+          whileTap={{ scale: 0.98 }}
+          whileHover={{ scale: 1.01 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
           className="group relative flex items-center justify-between p-4 min-h-[44px] rounded-card border border-border-strong bg-surface-elevated hover:border-brand-red hover:shadow-glow transition-all duration-200 text-left cursor-pointer"
         >
           <div className="flex items-center gap-4">
@@ -42,7 +46,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSelectLogin }) => 
             size={18}
             className="text-content-muted group-hover:text-brand-red group-hover:translate-x-0.5 transition-all"
           />
-        </button>
+        </motion.button>
 
         <Card className="p-4 bg-surface-subtle/80 border-border-subtle">
           <div className="flex items-start gap-3">

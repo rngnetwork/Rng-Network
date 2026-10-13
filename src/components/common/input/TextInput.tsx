@@ -71,7 +71,7 @@ export const TextInput: React.FC<TextInputProps> = ({
           </button>
         ) : null}
         {!showClear && rightIcon ? (
-          <span className="pr-3 pl-1 text-text-tertiary flex items-center pointer-events-none">
+          <span className="pr-3 pl-1 text-text-tertiary flex items-center">
             {rightIcon}
           </span>
         ) : null}

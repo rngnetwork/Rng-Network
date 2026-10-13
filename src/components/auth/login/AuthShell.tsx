@@ -76,21 +76,43 @@ export const AuthShell: React.FC = () => {
       <div className="hidden md:block w-full max-w-[860px] mx-auto relative z-10">
         <motion.div
           layout
-          className="w-full min-h-[500px] bg-surface-card rounded-modal shadow-elevated border border-border-strong overflow-hidden grid grid-cols-2"
+          className="w-full min-h-[500px] bg-surface-card rounded-modal shadow-elevated border border-border-strong overflow-hidden flex flex-row relative"
         >
-          <div className="border-r border-border-subtle">
-            {mode === 'welcome' ? (
-              <RegisterForm onSelectLogin={() => setMode('login')} />
-            ) : (
-              <LoginForm
-                onBack={() => setMode('welcome')}
-                resetSuccessNotice={resetSuccessNotice}
-              />
-            )}
-          </div>
-          <div>
+          <motion.div
+            layout
+            key="auth-form-column"
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            className={`w-1/2 flex flex-col justify-center ${
+              mode === 'welcome'
+                ? 'order-1 border-r border-border-subtle'
+                : 'order-2 border-l border-border-subtle'
+            }`}
+          >
+            <motion.div
+              key={mode}
+              initial={{ opacity: 0, x: mode === 'welcome' ? -12 : 12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="w-full h-full"
+            >
+              {mode === 'welcome' ? (
+                <RegisterForm onSelectLogin={() => setMode('login')} />
+              ) : (
+                <LoginForm
+                  onBack={() => setMode('welcome')}
+                  resetSuccessNotice={resetSuccessNotice}
+                />
+              )}
+            </motion.div>
+          </motion.div>
+          <motion.div
+            layout
+            key="auth-branding-column"
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            className={`w-1/2 flex flex-col ${mode === 'welcome' ? 'order-2' : 'order-1'}`}
+          >
             <AuthBrandingPanel mode={mode} />
-          </div>
+          </motion.div>
         </motion.div>
       </div>
 
