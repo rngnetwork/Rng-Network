@@ -12,8 +12,18 @@ import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinne
 
 export const AuthShell: React.FC = () => {
   const router = useRouter();
-  const [mode, setMode] = useState<'welcome' | 'login'>('welcome');
-  const [loginStep, setLoginStep] = useState<LoginStep>('email');
+  const [mode, setMode] = useState<'welcome' | 'login'>(() => {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('pre2FaToken')) {
+      return 'login';
+    }
+    return 'welcome';
+  });
+  const [loginStep, setLoginStep] = useState<LoginStep>(() => {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('pre2FaToken')) {
+      return 'whitelist';
+    }
+    return 'email';
+  });
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [resetSuccessNotice] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {

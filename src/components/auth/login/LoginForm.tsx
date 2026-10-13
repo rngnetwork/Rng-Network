@@ -55,7 +55,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isWhitelisted, setIsWhitelisted] = useState<boolean | null>(null);
+  const [isWhitelisted, setIsWhitelisted] = useState<boolean | null>(() => {
+    if (typeof window !== 'undefined') {
+      return Boolean(sessionStorage.getItem('pre2FaToken'));
+    }
+    return null;
+  });
 
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
@@ -121,7 +126,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   };
 
   const handleBackNavigation = () => {
-    if (step === 'forgot-password' || step === 'whitelist') {
+    if (step === 'forgot-password') {
+      setStep('email');
+    } else if (step === 'whitelist') {
+      sessionStorage.removeItem('pre2FaToken');
+      setIsWhitelisted(null);
       setStep('email');
     } else if (step === 'discord') {
       setStep('whitelist');
@@ -267,7 +276,27 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           <h3 className="text-2xl font-extrabold text-content-primary tracking-tight">
             Clearance Check
           </h3>
-          {isWhitelisted ? (
+          {isWhitelisted === false ? (
+            <>
+              <Alert
+                variant="danger"
+                title="Access Revoked"
+                description="Your account is not on the RNG personnel whitelist."
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  sessionStorage.removeItem('pre2FaToken');
+                  setIsWhitelisted(null);
+                  setStep('email');
+                }}
+                className="w-full min-h-[44px]"
+              >
+                Back to Sign In
+              </Button>
+            </>
+          ) : (
             <>
               <Alert
                 variant="success"
@@ -283,12 +312,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                 Continue to Discord 2FA
               </Button>
             </>
-          ) : (
-            <Alert
-              variant="danger"
-              title="Access Revoked"
-              description="Your account is not on the RNG personnel whitelist."
-            />
           )}
         </div>
       )}
