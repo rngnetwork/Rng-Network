@@ -7,9 +7,13 @@ import { TextInput } from '@/components/common/input/TextInput';
 import { Alert } from '@/components/common/feedback/Alert';
 import { api } from '@/lib/api';
 
+export type LoginStep = 'email' | 'whitelist' | 'discord' | 'forgot-password';
+
 export interface LoginFormProps {
   onBack?: () => void;
   resetSuccessNotice?: boolean;
+  step?: LoginStep;
+  onStepChange?: (step: LoginStep) => void;
 }
 
 const GoogleIcon: React.FC = () => (
@@ -33,8 +37,19 @@ const GoogleIcon: React.FC = () => (
   </svg>
 );
 
-export const LoginForm: React.FC<LoginFormProps> = ({ onBack, resetSuccessNotice = false }) => {
-  const [step, setStep] = useState<'email' | 'whitelist' | 'discord' | 'forgot-password'>('email');
+export const LoginForm: React.FC<LoginFormProps> = ({
+  onBack,
+  resetSuccessNotice = false,
+  step: controlledStep,
+  onStepChange,
+}) => {
+  const [internalStep, setInternalStep] = useState<LoginStep>('email');
+  const step = controlledStep ?? internalStep;
+
+  const setStep = (nextStep: LoginStep) => {
+    setInternalStep(nextStep);
+    onStepChange?.(nextStep);
+  };
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);

@@ -7,9 +7,44 @@ import { Badge } from '@/components/common/feedback/Badge';
 
 export interface AuthBrandingPanelProps {
   mode: 'welcome' | 'login' | 'register';
+  step?: 'email' | 'whitelist' | 'discord' | 'forgot-password';
 }
 
-export const AuthBrandingPanel: React.FC<AuthBrandingPanelProps> = ({ mode }) => {
+export const AuthBrandingPanel: React.FC<AuthBrandingPanelProps> = ({ mode, step = 'email' }) => {
+  const getBrandingDetails = () => {
+    if (step === 'whitelist') {
+      return {
+        title: 'Clearance Verification',
+        desc: 'Validating personnel rank and asserting active ministry clearance.',
+        badge: 'Ministry Whitelist',
+      };
+    }
+    if (step === 'discord') {
+      return {
+        title: 'Discord 2FA Identity',
+        desc: 'Confirming Discord snowflake ownership to authorize command access.',
+        badge: 'Two-Factor Gateway',
+      };
+    }
+    if (step === 'forgot-password') {
+      return {
+        title: 'Identity Recovery',
+        desc: 'Cryptographic account recovery via whitelisted Discord verification.',
+        badge: 'Password Reset',
+      };
+    }
+    return {
+      title: mode === 'login' ? 'Network Login' : 'Clearance Onboarding',
+      desc:
+        mode === 'login'
+          ? 'Sign in with your whitelisted credentials to access the command center.'
+          : 'Verify your ministry assignment and link your Discord snowflake.',
+      badge: 'Secured Gateway',
+    };
+  };
+
+  const branding = getBrandingDetails();
+
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center p-8 text-center bg-[#0E0E12] opacity-100 overflow-hidden">
       <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-brand-red/15 blur-3xl pointer-events-none" />
@@ -76,17 +111,23 @@ export const AuthBrandingPanel: React.FC<AuthBrandingPanelProps> = ({ mode }) =>
               className="object-contain w-[200px] h-[200px]"
             />
           </motion.div>
-          <h2 className="text-2xl font-bold text-content-primary mb-2 tracking-tight">
-            {mode === 'login' ? 'Network Login' : 'Clearance Onboarding'}
-          </h2>
-          <p className="text-content-secondary text-sm max-w-[240px] mb-6">
-            {mode === 'login'
-              ? 'Sign in with your whitelisted credentials to access the command center.'
-              : 'Verify your ministry assignment and link your Discord snowflake.'}
-          </p>
-          <Badge variant="brand" dot>
-            Secured Gateway
-          </Badge>
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="flex flex-col items-center"
+          >
+            <h2 className="text-2xl font-bold text-content-primary mb-2 tracking-tight">
+              {branding.title}
+            </h2>
+            <p className="text-content-secondary text-sm max-w-[240px] mb-6">
+              {branding.desc}
+            </p>
+            <Badge variant="brand" dot>
+              {branding.badge}
+            </Badge>
+          </motion.div>
         </motion.div>
       )}
     </div>

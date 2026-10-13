@@ -6,13 +6,14 @@ import { motion } from 'framer-motion';
 import { api } from '@/lib/api';
 import { AuthBackgroundEffects } from './AuthBackgroundEffects';
 import { AuthBrandingPanel } from './AuthBrandingPanel';
-import { LoginForm } from './LoginForm';
+import { LoginForm, type LoginStep } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
 import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 
 export const AuthShell: React.FC = () => {
   const router = useRouter();
   const [mode, setMode] = useState<'welcome' | 'login'>('welcome');
+  const [loginStep, setLoginStep] = useState<LoginStep>('email');
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [resetSuccessNotice] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -69,6 +70,13 @@ export const AuthShell: React.FC = () => {
     return <RngLoadingSpinner fullScreen size="xl" label="Verifying Personnel Clearance..." />;
   }
 
+  // Alternating column choreography:
+  // 1. Initial Screen (mode = 'welcome'): Left = Gateway Form, Right = Branding Panel
+  // 2. On "Sign In to RAC" (step = 'email'): Left = Branding Panel, Right = Credential Form (SWAP 1)
+  // 3. On "Continue" Submit (step = 'whitelist'): Left = Clearance Check Form, Right = Branding Panel (SWAP 2)
+  // 4. On "Continue to Discord 2FA" (step = 'discord'): Left = Branding Panel, Right = Discord Connect Form (SWAP 3)
+  const isFormOnLeft = mode === 'welcome' ? true : loginStep === 'whitelist';
+
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-surface-canvas relative overflow-hidden p-4">
       <AuthBackgroundEffects />
@@ -83,23 +91,33 @@ export const AuthShell: React.FC = () => {
             key="auth-form-column"
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
             className={`w-1/2 flex flex-col justify-center ${
-              mode === 'welcome'
+              isFormOnLeft
                 ? 'order-1 border-r border-border-subtle'
-                : 'order-2 border-l border-border-subtle'
+                : 'order-2'
             }`}
           >
             <motion.div
-              key={mode}
-              initial={{ opacity: 0, x: mode === 'welcome' ? -12 : 12 }}
+              key={`${mode}-${loginStep}`}
+              initial={{ opacity: 0, x: isFormOnLeft ? -12 : 12 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
               className="w-full h-full"
             >
               {mode === 'welcome' ? (
-                <RegisterForm onSelectLogin={() => setMode('login')} />
+                <RegisterForm
+                  onSelectLogin={() => {
+                    setMode('login');
+                    setLoginStep('email');
+                  }}
+                />
               ) : (
                 <LoginForm
-                  onBack={() => setMode('welcome')}
+                  onBack={() => {
+                    setMode('welcome');
+                    setLoginStep('email');
+                  }}
+                  step={loginStep}
+                  onStepChange={setLoginStep}
                   resetSuccessNotice={resetSuccessNotice}
                 />
               )}
@@ -109,15 +127,23 @@ export const AuthShell: React.FC = () => {
             layout
             key="auth-branding-column"
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            className={`w-1/2 flex flex-col ${mode === 'welcome' ? 'order-2' : 'order-1'}`}
+            className={`w-1/2 flex flex-col ${
+              isFormOnLeft
+                ? 'order-2'
+                : 'order-1 border-r border-border-subtle'
+            }`}
           >
-            <AuthBrandingPanel mode={mode} />
+            <AuthBrandingPanel mode={mode} step={loginStep} />
           </motion.div>
         </motion.div>
       </div>
 
       <div className="flex md:hidden w-full max-w-md rounded-modal shadow-elevated border border-border-strong bg-surface-card overflow-hidden relative z-10">
-        <LoginForm resetSuccessNotice={resetSuccessNotice} />
+        <LoginForm
+          resetSuccessNotice={resetSuccessNotice}
+          step={loginStep}
+          onStepChange={setLoginStep}
+        />
       </div>
     </div>
   );
