@@ -1,14 +1,13 @@
-import './testHelper';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { Checkbox } from '@/components/common/input/Checkbox';
-import { RadioButton } from '@/components/common/input/RadioButton';
-import { TextInput } from '@/components/common/input/TextInput';
-import { Dropdown } from '@/components/common/input/Dropdown';
-import { Slider } from '@/components/common/input/Slider';
-import { ToggleSwitch } from '@/components/common/input/ToggleSwitch';
-import { DateTimePicker } from '@/components/common/input/DateTimePicker';
-import { Stepper } from '@/components/common/input/Stepper';
+import { Checkbox } from '../input/Checkbox';
+import { RadioButton } from '../input/RadioButton';
+import { TextInput } from '../input/TextInput';
+import { Dropdown } from '../input/Dropdown';
+import { Slider } from '../input/Slider';
+import { ToggleSwitch } from '../input/ToggleSwitch';
+import { DateTimePicker } from '../input/DateTimePicker';
+import { Stepper } from '../input/Stepper';
 
 describe('Common Input Controls', () => {
   describe('Checkbox', () => {

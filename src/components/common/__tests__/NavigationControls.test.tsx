@@ -1,12 +1,11 @@
-import './testHelper';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { Navbar } from '@/components/common/navigation/Navbar';
-import { HamburgerMenu } from '@/components/common/navigation/HamburgerMenu';
-import { Breadcrumbs } from '@/components/common/navigation/Breadcrumbs';
-import { Pagination } from '@/components/common/navigation/Pagination';
-import { Sidebar } from '@/components/common/navigation/Sidebar';
-import { Accordion } from '@/components/common/navigation/Accordion';
+import { Navbar } from '../navigation/Navbar';
+import { HamburgerMenu } from '../navigation/HamburgerMenu';
+import { Breadcrumbs } from '../navigation/Breadcrumbs';
+import { Pagination } from '../navigation/Pagination';
+import { Sidebar } from '../navigation/Sidebar';
+import { Accordion } from '../navigation/Accordion';
 
 describe('Common Navigation Controls', () => {
   describe('Navbar', () => {

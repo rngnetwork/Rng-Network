@@ -17,9 +17,6 @@ import { fetchUserManagedServers } from '@/lib/api/dashboard/servers';
 import { logout } from '@/lib/api/auth/session';
 import type { UserProfileData } from '@/lib/model/user';
 import { HamburgerMenu } from '@/components/common/navigation/HamburgerMenu';
-import { Sidebar } from '@/components/common/navigation/Sidebar';
-import { Avatar } from '@/components/common/feedback/Avatar';
-import { Tooltip } from '@/components/common/feedback/Tooltip';
 
 export interface DashboardSidebarNavProps {
   user: UserProfileData | null;
@@ -133,26 +130,15 @@ export const DashboardSidebarNav: React.FC<DashboardSidebarNavProps> = ({
         />
       </div>
 
-      <div className="hidden md:block fixed top-0 left-0 z-40 h-screen">
-        <Sidebar
-          items={navItems
-            .filter((item) => item.show)
-            .map((item) => {
-              const Icon = item.icon;
-              return {
-                id: item.href,
-                label: item.label,
-                href: item.href,
-                icon: <Icon size={18} />,
-                badge: item.badge,
-                active:
-                  pathname === item.href ||
-                  (item.href !== '/dashboard' && pathname?.startsWith(`${item.href}/`)),
-              };
-            })}
-          collapsed={isCollapsed}
-          header={
-            <div className="flex items-center gap-3">
+      <aside
+        aria-label="Primary Sidebar Navigation"
+        className={`hidden md:flex flex-col w-64 h-screen fixed top-0 left-0 bg-surface-canvas/90 backdrop-blur-2xl border-r border-white/[0.08] z-40 transition-transform duration-300 ease-in-out ${
+          isCollapsed ? '-translate-x-full' : 'translate-x-0'
+        }`}
+      >
+        <div className="flex flex-col h-full justify-between p-5">
+          <div>
+            <div className="flex items-center gap-3 pb-6 border-b border-white/[0.08]">
               <div className="relative w-10 h-10 rounded-apple-md bg-gradient-to-br from-brand-red/20 to-black p-1.5 border border-brand-red/30 shadow-crimson-glow">
                 <Image
                   src="/assets/LOGO_FOR_STAFFS.png"
@@ -162,55 +148,117 @@ export const DashboardSidebarNav: React.FC<DashboardSidebarNavProps> = ({
                   unoptimized
                 />
               </div>
-              {!isCollapsed && (
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold tracking-widest uppercase text-white font-mono flex items-center gap-1.5">
-                    RNG NETWORK
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-brand-red animate-pulse" />
-                  </span>
-                  <span className="text-[11px] text-zinc-400 font-medium">Control Center</span>
-                </div>
-              )}
+              <div className="flex flex-col">
+                <span className="text-sm font-bold tracking-widest uppercase text-white font-mono flex items-center gap-1.5">
+                  RNG NETWORK
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-brand-red animate-pulse" />
+                </span>
+                <span className="text-[11px] text-zinc-400 font-medium">Control Center</span>
+              </div>
             </div>
-          }
-          footer={
-            <div className="flex flex-col gap-2">
-              {user && (
-                <div className="px-3 py-2 rounded-apple-md bg-white/[0.02] border border-white/5 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <Avatar
-                      fallback={user.fullName || user.email}
-                      size="sm"
-                      status="online"
-                    />
-                    {!isCollapsed && (
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-semibold text-white truncate">
-                          {user.fullName || user.email.split('@')[0]}
-                        </span>
-                        <span className="text-[10px] text-brand-red font-mono truncate">
-                          {user.designations || user.role}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-                </div>
-              )}
 
-              <button
-                type="button"
-                onClick={() => void handleLogout()}
-                className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-apple-md text-xs font-medium text-zinc-400 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all duration-200 min-h-[44px]"
-              >
-                <LogOut size={15} />
-                {!isCollapsed && <span>Sign Out</span>}
-              </button>
-            </div>
-          }
-          className="h-full bg-surface-canvas/90 backdrop-blur-2xl border-r border-white/[0.08]"
-        />
-      </div>
+            <nav className="mt-6 flex flex-col gap-1.5" aria-label="Main Sections">
+              <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 font-mono">
+                Navigation
+              </div>
+              {navItems
+                .filter((item) => item.show)
+                .map((item) => {
+                  const Icon = item.icon;
+                  const isActive =
+                    pathname === item.href ||
+                    (item.href !== '/dashboard' && pathname?.startsWith(`${item.href}/`));
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      className={`group relative flex items-center justify-between pl-4 pr-3.5 py-2.5 rounded-apple-md text-sm font-medium transition-all duration-200 min-h-[44px] ${
+                        isActive
+                          ? 'bg-brand-red/10 text-white border border-brand-red/30 shadow-crimson-glow'
+                          : 'text-zinc-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon
+                          size={18}
+                          className={`transition-colors duration-200 ${
+                            isActive ? 'text-brand-red' : 'text-zinc-400 group-hover:text-zinc-200'
+                          }`}
+                        />
+                        <span>{item.label}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {item.badge && (
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-md font-mono flex items-center gap-1.5 ${
+                              isActive
+                                ? 'bg-brand-red/20 text-red-300 border border-brand-red/40'
+                                : 'bg-white/5 text-zinc-400 border border-white/10'
+                            }`}
+                          >
+                            {item.label === 'Servers' && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                            )}
+                            {item.badge}
+                          </span>
+                        )}
+                        <ChevronRight
+                          size={14}
+                          className={`transition-transform duration-200 ${
+                            isActive
+                              ? 'text-brand-red translate-x-0.5'
+                              : 'text-zinc-600 group-hover:translate-x-0.5'
+                          }`}
+                        />
+                      </div>
+
+                      {isActive && (
+                        <motion.div
+                          layoutId="sidebarActiveIndicator"
+                          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                          className="absolute left-1.5 top-2.5 bottom-2.5 w-1 bg-brand-red rounded-full"
+                        />
+                      )}
+                    </Link>
+                  );
+                })}
+            </nav>
+          </div>
+
+          <div className="pt-4 border-t border-white/[0.08] flex flex-col gap-2">
+            {user && (
+              <div className="px-3 py-2.5 rounded-apple-md bg-white/[0.02] border border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-white/10 flex items-center justify-center text-xs font-bold text-zinc-200 shrink-0">
+                    {(user.fullName || user.email).charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-xs font-semibold text-white truncate">
+                      {user.fullName || user.email.split('@')[0]}
+                    </span>
+                    <span className="text-[10px] text-brand-red font-mono truncate">
+                      {user.designations || user.role}
+                    </span>
+                  </div>
+                </div>
+                <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => void handleLogout()}
+              className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-apple-md text-xs font-medium text-zinc-400 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all duration-200 min-h-[44px]"
+            >
+              <LogOut size={15} />
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </div>
+      </aside>
 
       <AnimatePresence>
         {mobileOpen && (

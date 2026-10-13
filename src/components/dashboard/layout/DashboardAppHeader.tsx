@@ -5,7 +5,6 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { UserProfileData } from '@/lib/model/user';
 import { DashboardRouteBreadcrumbs } from './DashboardRouteBreadcrumbs';
 import { UserProfileMenu } from './UserProfileMenu';
-import { Navbar, NavItem } from '@/components/common/navigation/Navbar';
 
 export interface DashboardAppHeaderProps {
   user?: UserProfileData | null;
@@ -18,30 +17,23 @@ export const DashboardAppHeader: React.FC<DashboardAppHeaderProps> = ({
   isHeaderCollapsed = false,
   onToggleHeader,
 }) => {
-  const navItems: NavItem[] = [
-    { label: 'Servers', href: '/dashboard/servers' },
-    { label: 'Embed Builder', href: '/dashboard/embeds', badge: 'V2' },
-    { label: 'Whitelist', href: '/dashboard/whitelist' },
-  ];
-
   return (
-    <div
-      className={`sticky top-0 z-30 transition-all duration-300 ease-in-out shrink-0 relative ${
+    <header
+      className={`sticky top-0 z-30 h-16 px-6 md:px-8 border-b border-white/[0.08] bg-surface-canvas/90 backdrop-blur-xl flex items-center justify-between transition-all duration-300 ease-in-out shrink-0 relative ${
         isHeaderCollapsed ? '-translate-y-full -mb-16' : 'translate-y-0 mb-0'
       }`}
     >
-      <Navbar
-        brandName="RNG Administrative Centre"
-        items={navItems}
-        userMenu={
-          <div className="flex items-center gap-4">
-            <div className="hidden lg:block">
-              <DashboardRouteBreadcrumbs />
-            </div>
-            <UserProfileMenu initialUser={user} />
-          </div>
-        }
-      />
+      <div className="flex items-center gap-4">
+        <span className="text-xs font-mono font-bold text-white tracking-wider uppercase">
+          RNG Administrative Centre
+        </span>
+        <span className="hidden sm:inline text-zinc-700">|</span>
+        <DashboardRouteBreadcrumbs />
+      </div>
+
+      <div className="flex items-center gap-3 ml-auto">
+        <UserProfileMenu initialUser={user} />
+      </div>
 
       {onToggleHeader && (
         <button
@@ -58,6 +50,6 @@ export const DashboardAppHeader: React.FC<DashboardAppHeaderProps> = ({
           )}
         </button>
       )}
-    </div>
+    </header>
   );
 };

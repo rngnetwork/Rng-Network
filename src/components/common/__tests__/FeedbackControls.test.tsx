@@ -1,14 +1,13 @@
-import './testHelper';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { Modal } from '@/components/common/feedback/Modal';
-import { Toast } from '@/components/common/feedback/Toast';
-import { ToastProvider, useToast } from '@/components/common/feedback/ToastProvider';
-import { ProgressBar } from '@/components/common/feedback/ProgressBar';
-import { Tooltip } from '@/components/common/feedback/Tooltip';
-import { Badge } from '@/components/common/feedback/Badge';
-import { Avatar } from '@/components/common/feedback/Avatar';
-import { Alert } from '@/components/common/feedback/Alert';
+import { Modal } from '../feedback/Modal';
+import { Toast } from '../feedback/Toast';
+import { ToastProvider, useToast } from '../feedback/ToastProvider';
+import { ProgressBar } from '../feedback/ProgressBar';
+import { Tooltip } from '../feedback/Tooltip';
+import { Badge } from '../feedback/Badge';
+import { Avatar } from '../feedback/Avatar';
+import { Alert } from '../feedback/Alert';
 
 describe('Common Feedback Controls', () => {
   describe('Modal', () => {
