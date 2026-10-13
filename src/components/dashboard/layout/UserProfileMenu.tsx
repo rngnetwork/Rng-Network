@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut, User } from 'lucide-react';
@@ -9,6 +8,7 @@ import { fetchCurrentUser, logout, refreshToken } from '@/lib/api/auth/session';
 import { getDiscordAvatarUrl } from '@/lib/api/auth/discord';
 import type { UserProfileData } from '@/lib/model/user';
 import { Badge } from '@/components/common/feedback/Badge';
+import { Avatar } from '@/components/common/feedback/Avatar';
 
 export interface UserProfileMenuProps {
   initialUser?: UserProfileData | null;
@@ -91,6 +91,8 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ initialUser = 
     ? '/assets/staff.png'
     : getDiscordAvatarUrl(activeProfile.discordId, activeProfile.discordAvatar);
 
+  const fallbackName = activeProfile.fullName || activeProfile.email.split('@')[0];
+
   return (
     <div className="relative z-50" ref={dropdownRef}>
       <button
@@ -98,15 +100,13 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ initialUser = 
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label="Open user profile menu"
         aria-expanded={isOpen}
-        className="relative flex items-center justify-center w-10 h-10 rounded-full border border-white/10 overflow-hidden hover:border-brand-red/60 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-red/50"
+        className="relative flex items-center justify-center rounded-full hover:ring-2 hover:ring-brand-red/60 transition-all focus:outline-none focus:ring-2 focus:ring-brand-red/50"
       >
-        <Image
+        <Avatar
           src={avatarSrc}
-          alt={activeProfile.fullName || activeProfile.email}
-          fill
-          unoptimized
-          className="object-cover"
-          onError={() => setAvatarError(true)}
+          alt={fallbackName}
+          fallback={fallbackName}
+          size="lg"
         />
       </button>
 
@@ -121,19 +121,15 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ initialUser = 
           >
             <div className="p-4 border-b border-white/10 bg-white/[0.02]">
               <div className="flex items-center gap-3">
-                <div className="relative w-12 h-12 rounded-full overflow-hidden border border-white/10 shrink-0">
-                  <Image
-                    src={avatarSrc}
-                    alt={activeProfile.fullName || activeProfile.email}
-                    fill
-                    unoptimized
-                    className="object-cover"
-                    onError={() => setAvatarError(true)}
-                  />
-                </div>
+                <Avatar
+                  src={avatarSrc}
+                  alt={fallbackName}
+                  fallback={fallbackName}
+                  size="lg"
+                />
                 <div className="flex flex-col min-w-0">
                   <span className="text-white font-bold text-sm truncate">
-                    {activeProfile.fullName || activeProfile.email.split('@')[0]}
+                    {fallbackName}
                   </span>
                   <span className="text-zinc-400 text-xs font-mono truncate">
                     {activeProfile.email}

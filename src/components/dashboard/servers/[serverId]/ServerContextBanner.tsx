@@ -1,19 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
-import Image from 'next/image';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Flame, Hash, Bot } from 'lucide-react';
 import type { ServerDetail } from '@/lib/model/server';
 import { Badge } from '@/components/common/feedback/Badge';
+import { Avatar } from '@/components/common/feedback/Avatar';
 
 export interface ServerContextBannerProps {
   server: ServerDetail;
 }
 
 export const ServerContextBanner: React.FC<ServerContextBannerProps> = ({ server }) => {
-  const [iconError, setIconError] = useState(false);
-  const avatarSrc = !iconError ? server.iconUrl || server.icon : null;
+  const avatarSrc = server.iconUrl || server.icon || null;
+  const fallbackText = server.shortName || server.name;
 
   return (
     <motion.div
@@ -23,28 +23,13 @@ export const ServerContextBanner: React.FC<ServerContextBannerProps> = ({ server
     >
       <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-5 md:gap-7 min-w-0">
-          <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-apple-xl overflow-hidden border-2 border-brand-red/40 bg-black/60 shadow-crimson-glow shrink-0 flex items-center justify-center">
-            {avatarSrc ? (
-              <Image
-                src={avatarSrc}
-                alt={server.name}
-                fill
-                unoptimized
-                className="object-cover"
-                onError={() => setIconError(true)}
-              />
-            ) : (
-              <span className="text-xl md:text-2xl font-bold text-white font-mono tracking-wider">
-                {server.shortName ||
-                  server.name
-                    .split(/\s+/)
-                    .map((w) => w[0])
-                    .join('')
-                    .slice(0, 3)
-                    .toUpperCase()}
-              </span>
-            )}
-          </div>
+          <Avatar
+            src={avatarSrc}
+            alt={server.name}
+            fallback={fallbackText}
+            size="xl"
+            className="shrink-0"
+          />
 
           <div className="flex flex-col min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
