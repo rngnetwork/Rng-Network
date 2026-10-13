@@ -322,7 +322,7 @@ export const ServerEmbedBuilderCoordinator: React.FC<
   });
 
   return (
-    <div className="flex flex-col w-full max-w-7xl mx-auto pb-12">
+    <div className="flex-1 min-h-0 flex flex-col gap-3 w-full overflow-hidden">
       {/* 1. Top Most Navigation Bar (Separated from Builder) */}
       <EmbedBuilderTopNavBar
         activeTab={activeTopTab}
@@ -476,7 +476,7 @@ export const ServerEmbedBuilderCoordinator: React.FC<
 
       {/* 3. Templates Tab Mode */}
       {activeTopTab === 'templates' && (
-        <div className="flex flex-col gap-6">
+        <div className="flex-1 min-h-0 overflow-y-auto rounded-apple-2xl border border-white/10 bg-surface-card/60 p-4 md:p-5 shadow-apple-card flex flex-col gap-6 [scrollbar-width:thin]">
           <TemplateFilterBar
             searchQuery={templateSearch}
             selectedCategory={templateCategory}
@@ -511,15 +511,17 @@ export const ServerEmbedBuilderCoordinator: React.FC<
 
       {/* 4. Action Templates Tab Mode */}
       {activeTopTab === 'actions' && (
-        <ServerActionTemplatesTab
-          serverId={serverId}
-          actions={actions}
-          embedTemplates={embedTemplates}
-          loading={loadingActions}
-          onCreateAction={handleCreateAction}
-          onUpdateAction={handleUpdateAction}
-          onDeleteAction={handleDeleteAction}
-        />
+        <div className="flex-1 min-h-0 overflow-y-auto rounded-apple-2xl border border-white/10 bg-surface-card/60 p-4 md:p-5 shadow-apple-card [scrollbar-width:thin]">
+          <ServerActionTemplatesTab
+            serverId={serverId}
+            actions={actions}
+            embedTemplates={embedTemplates}
+            loading={loadingActions}
+            onCreateAction={handleCreateAction}
+            onUpdateAction={handleUpdateAction}
+            onDeleteAction={handleDeleteAction}
+          />
+        </div>
       )}
 
       {/* Floating Unsaved Changes Bar */}

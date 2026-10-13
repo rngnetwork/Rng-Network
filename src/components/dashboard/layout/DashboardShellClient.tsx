@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { ShieldAlert, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchCurrentUser, logout, refreshToken } from '@/lib/api/auth/session';
 import type { UserProfileData } from '@/lib/model/user';
@@ -16,6 +16,8 @@ export interface DashboardShellClientProps {
 
 export const DashboardShellClient: React.FC<DashboardShellClientProps> = ({ children }) => {
   const router = useRouter();
+  const pathname = usePathname();
+  const isEmbedRoute = pathname?.includes('/embeds') ?? false;
   const [user, setUser] = useState<UserProfileData | null>(null);
   const [authState, setAuthState] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -113,7 +115,13 @@ export const DashboardShellClient: React.FC<DashboardShellClientProps> = ({ chil
   }
 
   return (
-    <div className="min-h-screen w-full bg-surface-canvas text-white flex relative overflow-x-hidden">
+    <div
+      className={`w-full bg-surface-canvas text-white flex relative ${
+        isEmbedRoute
+          ? 'h-screen max-h-screen overflow-hidden'
+          : 'min-h-screen overflow-x-hidden'
+      }`}
+    >
       <button
         type="button"
         onClick={() => setSidebarCollapsed((prev) => !prev)}
@@ -132,9 +140,11 @@ export const DashboardShellClient: React.FC<DashboardShellClientProps> = ({ chil
       <DashboardSidebarNav user={user} isCollapsed={sidebarCollapsed} />
 
       <div
-        className={`flex-1 flex flex-col min-w-0 min-h-screen pt-16 md:pt-0 transition-all duration-300 ease-in-out ${
-          sidebarCollapsed ? 'md:pl-0' : 'md:pl-64'
-        }`}
+        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${
+          isEmbedRoute
+            ? 'h-screen max-h-screen overflow-hidden pt-16 md:pt-0'
+            : 'min-h-screen pt-16 md:pt-0'
+        } ${sidebarCollapsed ? 'md:pl-0' : 'md:pl-64'}`}
       >
         <DashboardAppHeader
           user={user}
@@ -142,7 +152,15 @@ export const DashboardShellClient: React.FC<DashboardShellClientProps> = ({ chil
           onToggleHeader={() => setHeaderCollapsed((prev) => !prev)}
         />
 
-        <main className="flex-1 p-4 md:p-6 w-full">{children}</main>
+        <main
+          className={
+            isEmbedRoute
+              ? 'flex-1 min-h-0 p-3 md:p-4 w-full flex flex-col overflow-hidden'
+              : 'flex-1 p-4 md:p-6 w-full'
+          }
+        >
+          {children}
+        </main>
       </div>
     </div>
   );

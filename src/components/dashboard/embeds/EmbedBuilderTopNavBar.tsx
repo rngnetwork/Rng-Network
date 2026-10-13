@@ -20,10 +20,10 @@ export const EmbedBuilderTopNavBar: React.FC<EmbedBuilderTopNavBarProps> = ({
   actionCount,
 }) => {
   return (
-    <header className="relative border-b border-white/10 flex items-center justify-between shrink-0 mb-4 pb-2">
+    <header className="relative w-full backdrop-blur-md bg-surface-card/90 border border-white/10 rounded-apple-xl px-4 py-2 flex items-center justify-between shrink-0 shadow-apple-card">
       <nav
         aria-label="Embed Builder Primary Navigation"
-        className="flex items-center gap-2 overflow-x-auto overflow-y-hidden pb-1 w-full [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        className="flex items-center gap-2 overflow-x-auto overflow-y-hidden w-full [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       >
         <button
           type="button"

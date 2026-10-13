@@ -41,7 +41,7 @@ export const BuilderBottomDockToolbar: React.FC<BuilderBottomDockToolbarProps> =
   return (
     <footer
       aria-label="Builder Actions Dock"
-      className="sticky bottom-0 z-30 shrink-0 w-full backdrop-blur-md bg-surface-card/95 border-t border-white/10 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2.5 shadow-apple-elevated"
+      className="shrink-0 w-full backdrop-blur-md bg-surface-card/95 border border-white/10 rounded-apple-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-2.5 shadow-apple-elevated"
     >
       <div className="flex flex-wrap items-center gap-2">
         <Button
