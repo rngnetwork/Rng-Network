@@ -42,7 +42,7 @@ export const MessageBuilderWorkspace: React.FC<MessageBuilderWorkspaceProps> = (
   children,
 }) => {
   return (
-    <div className="w-full flex-1 min-h-0 flex flex-col gap-3 relative overflow-hidden">
+    <div className="w-full h-full max-h-full flex-1 min-h-0 flex flex-col gap-2.5 md:gap-3 relative overflow-hidden">
       {/* Tier 3: Sub Sub Nav (Detached standalone card with rounded corners) */}
       <BuilderInternalSubNav
         activeSubTab={activeSubTab}
@@ -52,9 +52,9 @@ export const MessageBuilderWorkspace: React.FC<MessageBuilderWorkspaceProps> = (
       />
 
       {/* Tier 4: Builder Boxed Canvas (Standalone scrollable card with rounded corners: Scroll bar {yes}) */}
-      <main className="flex-1 min-h-0 overflow-y-auto p-4 md:p-5 rounded-apple-2xl border border-white/10 bg-surface-card/60 shadow-apple-card [scrollbar-width:thin] focus:outline-none">
+      <div className="w-full flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 md:p-5 rounded-apple-2xl border border-white/10 bg-surface-card/60 shadow-apple-card builder-canvas-scroll focus:outline-none">
         {children}
-      </main>
+      </div>
 
       {/* Tier 5: Bottom Dock (Detached standalone card with rounded corners) */}
       <BuilderBottomDockToolbar

@@ -20,15 +20,15 @@ export const EmbedBuilderTopNavBar: React.FC<EmbedBuilderTopNavBarProps> = ({
   actionCount,
 }) => {
   return (
-    <header className="relative w-full backdrop-blur-md bg-surface-card/90 border border-white/10 rounded-apple-xl px-4 py-2 flex items-center justify-between shrink-0 shadow-apple-card">
+    <header className="relative w-full backdrop-blur-md bg-surface-card/90 border border-white/10 rounded-apple-xl px-3 py-1.5 md:px-4 md:py-2 flex items-center justify-between shrink-0 shadow-apple-card">
       <nav
         aria-label="Embed Builder Primary Navigation"
-        className="flex items-center gap-2 overflow-x-auto overflow-y-hidden w-full [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        className="flex items-center gap-1.5 md:gap-2 overflow-x-auto overflow-y-hidden w-full [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       >
         <button
           type="button"
           onClick={() => onChangeTab('builder')}
-          className={`relative flex items-center gap-2.5 px-4 py-2 text-xs md:text-sm font-semibold rounded-apple-xl transition-all duration-200 cursor-pointer ${
+          className={`relative flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-semibold rounded-apple-xl transition-all duration-200 cursor-pointer shrink-0 ${
             activeTab === 'builder'
               ? 'text-white bg-brand-red/10 border border-brand-red/30 shadow-[0_0_15px_rgba(225,29,46,0.25)]'
               : 'text-zinc-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
@@ -51,7 +51,7 @@ export const EmbedBuilderTopNavBar: React.FC<EmbedBuilderTopNavBarProps> = ({
         <button
           type="button"
           onClick={() => onChangeTab('templates')}
-          className={`relative flex items-center gap-2.5 px-4 py-2 text-xs md:text-sm font-semibold rounded-apple-xl transition-all duration-200 cursor-pointer ${
+          className={`relative flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-semibold rounded-apple-xl transition-all duration-200 cursor-pointer shrink-0 ${
             activeTab === 'templates'
               ? 'text-white bg-brand-red/10 border border-brand-red/30 shadow-[0_0_15px_rgba(225,29,46,0.25)]'
               : 'text-zinc-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
@@ -79,7 +79,7 @@ export const EmbedBuilderTopNavBar: React.FC<EmbedBuilderTopNavBarProps> = ({
         <button
           type="button"
           onClick={() => onChangeTab('actions')}
-          className={`relative flex items-center gap-2.5 px-4 py-2 text-xs md:text-sm font-semibold rounded-apple-xl transition-all duration-200 cursor-pointer ${
+          className={`relative flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-semibold rounded-apple-xl transition-all duration-200 cursor-pointer shrink-0 ${
             activeTab === 'actions'
               ? 'text-white bg-brand-red/10 border border-brand-red/30 shadow-[0_0_15px_rgba(225,29,46,0.25)]'
               : 'text-zinc-400 hover:text-white hover:bg-white/[0.04] border border-transparent'

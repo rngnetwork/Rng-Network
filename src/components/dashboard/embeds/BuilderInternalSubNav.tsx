@@ -23,7 +23,7 @@ export const BuilderInternalSubNav: React.FC<BuilderInternalSubNavProps> = ({
   return (
     <nav
       aria-label="Builder Workspace Views"
-      className="shrink-0 w-full backdrop-blur-md bg-surface-card/90 border border-white/10 rounded-apple-xl px-4 py-2 flex items-center justify-between gap-3 shadow-apple-card"
+      className="shrink-0 w-full backdrop-blur-md bg-surface-card/90 border border-white/10 rounded-apple-xl px-3 py-1.5 md:px-4 md:py-2 flex items-center justify-between gap-3 shadow-apple-card"
     >
       <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <button

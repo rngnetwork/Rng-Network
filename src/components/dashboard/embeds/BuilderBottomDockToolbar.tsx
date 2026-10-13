@@ -41,9 +41,9 @@ export const BuilderBottomDockToolbar: React.FC<BuilderBottomDockToolbarProps> =
   return (
     <footer
       aria-label="Builder Actions Dock"
-      className="shrink-0 w-full backdrop-blur-md bg-surface-card/95 border border-white/10 rounded-apple-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-2.5 shadow-apple-elevated"
+      className="shrink-0 w-full backdrop-blur-md bg-surface-card/95 border border-white/10 rounded-apple-xl px-3 py-1.5 md:px-4 md:py-2 flex items-center justify-between gap-2 shadow-apple-elevated overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
         <Button
           type="button"
           variant="secondary"
@@ -100,7 +100,7 @@ export const BuilderBottomDockToolbar: React.FC<BuilderBottomDockToolbarProps> =
         </Button>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
         <div className="h-4 w-px bg-white/15 mx-1 hidden sm:block" />
 
         <button
