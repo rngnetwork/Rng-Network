@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Send, ShieldCheck } from 'lucide-react';
+import { Send, ShieldCheck, Server, Hash } from 'lucide-react';
 import type { ClientValidationReport } from '@/lib/model/embed';
 import type { ServerItem } from '@/lib/model/server';
 import type { ChannelItem } from '@/lib/model/channel';
@@ -20,6 +20,7 @@ import { DispatchServerSelector } from './DispatchServerSelector';
 import { DispatchChannelSelector } from './DispatchChannelSelector';
 import { DispatchScheduleSettings } from './DispatchScheduleSettings';
 import { PreflightLintStatusCard } from './PreflightLintStatusCard';
+import { DispatchLogsViewer, type DispatchLogEntry } from './DispatchLogsViewer';
 
 export interface GlobalDispatchCoordinatorProps {
   validationReport: ClientValidationReport;
@@ -48,6 +49,7 @@ export const GlobalDispatchCoordinator: React.FC<
   const [serverReport, setServerReport] =
     useState<DryRunValidationReportData | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [dispatchLogs, setDispatchLogs] = useState<DispatchLogEntry[]>([]);
 
   if (fixedServerId !== prevFixedServerId) {
     setPrevFixedServerId(fixedServerId);
@@ -179,6 +181,11 @@ export const GlobalDispatchCoordinator: React.FC<
           undefined
         : undefined;
 
+    const currentServerName =
+      servers.find((s) => s.id === selectedServerId)?.name || selectedServerId;
+    const currentChannelName =
+      channels.find((c) => c.id === selectedChannelId)?.name || selectedChannelId;
+
     try {
       const payloadBody = {
         serverId: selectedServerId,
@@ -199,9 +206,20 @@ export const GlobalDispatchCoordinator: React.FC<
 
       if (res.success) {
         const msg = isScheduled
-          ? 'Scheduled into two-phase Redis ZSET queue.'
-          : 'Components V2 payload delivered to Discord channel.';
+          ? `Scheduled into two-phase Redis ZSET queue for ${scheduledDate?.toUTCString() || 'future delivery'}.`
+          : 'Components V2 payload delivered to Discord channel via official bot REST API.';
         setStatusMessage(msg);
+
+        const newLog: DispatchLogEntry = {
+          id: `log_${Date.now()}`,
+          timestamp: new Date().toLocaleTimeString(),
+          server: currentServerName,
+          channel: currentChannelName,
+          status: isScheduled ? 'SCHEDULED' : 'SUCCESS',
+          message: msg,
+        };
+        setDispatchLogs((prev) => [newLog, ...prev]);
+
         toast({
           type: 'success',
           title: isScheduled ? 'Dispatch Scheduled' : 'Dispatch Delivered',
@@ -209,11 +227,21 @@ export const GlobalDispatchCoordinator: React.FC<
         });
       }
     } catch {
+      const errorMsg = 'Failed to dispatch payload. Check rate limits and bot channel permissions.';
+      const newLog: DispatchLogEntry = {
+        id: `log_${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString(),
+        server: currentServerName,
+        channel: currentChannelName,
+        status: 'FAILED',
+        message: errorMsg,
+      };
+      setDispatchLogs((prev) => [newLog, ...prev]);
+
       toast({
         type: 'error',
         title: 'Dispatch Failed',
-        description:
-          'Verify bot channel permissions and sliding-window rate limits.',
+        description: errorMsg,
       });
     } finally {
       setDispatching(false);
@@ -222,78 +250,96 @@ export const GlobalDispatchCoordinator: React.FC<
 
   return (
     <div className="flex flex-col gap-6">
-      <PreflightLintStatusCard
-        clientReport={validationReport}
-        serverReport={serverReport}
-      />
-
       {statusMessage && (
         <Alert
           variant="success"
-          title="Dispatch Complete"
+          title="Dispatch Execution Telemetry"
           description={statusMessage}
           onDismiss={() => setStatusMessage(null)}
         />
       )}
 
-      <div className="p-5 rounded-apple-xl bg-surface-card border border-white/[0.08] flex flex-col gap-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {!fixedServerId && (
-            <DispatchServerSelector
-              servers={servers}
-              selectedServerId={selectedServerId}
-              onSelectServer={setSelectedServerId}
-              loading={loadingServers}
-            />
-          )}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* Left Column: Destination & Dispatch Settings */}
+        <div className="flex flex-col gap-5">
+          <div className="p-5 rounded-apple-xl bg-surface-card border border-white/10 flex flex-col gap-4 shadow-apple-card">
+            <div className="flex items-center gap-2 pb-2 border-b border-white/[0.08]">
+              <Server size={16} className="text-brand-red" />
+              <h3 className="text-sm font-bold text-white">Target Discord Destination</h3>
+            </div>
 
-          <div className={fixedServerId ? 'md:col-span-2' : ''}>
-            <DispatchChannelSelector
-              channels={channels}
-              selectedChannelId={selectedChannelId}
-              onSelectChannel={setSelectedChannelId}
-              loading={loadingChannels}
-              disabled={!selectedServerId}
-            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {!fixedServerId && (
+                <DispatchServerSelector
+                  servers={servers}
+                  selectedServerId={selectedServerId}
+                  onSelectServer={setSelectedServerId}
+                  loading={loadingServers}
+                />
+              )}
+
+              <div className={fixedServerId ? 'sm:col-span-2' : ''}>
+                <DispatchChannelSelector
+                  channels={channels}
+                  selectedChannelId={selectedChannelId}
+                  onSelectChannel={setSelectedChannelId}
+                  loading={loadingChannels}
+                  disabled={!selectedServerId}
+                />
+              </div>
+            </div>
+          </div>
+
+          <DispatchScheduleSettings
+            isScheduled={isScheduled}
+            scheduledDate={scheduledDate}
+            onToggleScheduled={setIsScheduled}
+            onChangeScheduledDate={setScheduledDate}
+          />
+
+          <div className="p-4 rounded-apple-xl bg-surface-card border border-white/10 flex flex-wrap items-center justify-between gap-3 shadow-apple-card">
+            <Button
+              type="button"
+              variant="secondary"
+              size="md"
+              loading={testingDryRun}
+              disabled={!selectedServerId || !selectedChannelId}
+              leftIcon={<ShieldCheck size={16} />}
+              onClick={handleRunPreflight}
+            >
+              Run Pre-Flight Lint
+            </Button>
+
+            <Button
+              type="button"
+              variant="primary"
+              size="md"
+              loading={dispatching}
+              disabled={
+                !validationReport.valid ||
+                !selectedServerId ||
+                !selectedChannelId ||
+                (isScheduled && !scheduledDate)
+              }
+              leftIcon={<Send size={16} />}
+              onClick={handleDispatch}
+            >
+              {isScheduled ? 'Schedule Dispatch' : 'Dispatch Now'}
+            </Button>
           </div>
         </div>
 
-        <DispatchScheduleSettings
-          isScheduled={isScheduled}
-          scheduledDate={scheduledDate}
-          onToggleScheduled={setIsScheduled}
-          onChangeScheduledDate={setScheduledDate}
-        />
+        {/* Right Column: Preflight Lint & Live Logs */}
+        <div className="flex flex-col gap-5">
+          <PreflightLintStatusCard
+            clientReport={validationReport}
+            serverReport={serverReport}
+          />
 
-        <div className="flex flex-wrap items-center justify-end gap-3 pt-2 border-t border-white/[0.06]">
-          <Button
-            type="button"
-            variant="secondary"
-            size="md"
-            loading={testingDryRun}
-            disabled={!selectedServerId || !selectedChannelId}
-            leftIcon={<ShieldCheck size={16} />}
-            onClick={handleRunPreflight}
-          >
-            Run Pre-Flight Check
-          </Button>
-
-          <Button
-            type="button"
-            variant="primary"
-            size="md"
-            loading={dispatching}
-            disabled={
-              !validationReport.valid ||
-              !selectedServerId ||
-              !selectedChannelId ||
-              (isScheduled && !scheduledDate)
-            }
-            leftIcon={<Send size={16} />}
-            onClick={handleDispatch}
-          >
-            {isScheduled ? 'Schedule Dispatch' : 'Dispatch Now'}
-          </Button>
+          <DispatchLogsViewer
+            logs={dispatchLogs}
+            onClear={() => setDispatchLogs([])}
+          />
         </div>
       </div>
     </div>
