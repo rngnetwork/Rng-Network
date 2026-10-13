@@ -42,7 +42,7 @@ export const MessageBuilderWorkspace: React.FC<MessageBuilderWorkspaceProps> = (
   children,
 }) => {
   return (
-    <div className="w-full h-full max-h-full flex-1 min-h-0 flex flex-col gap-2.5 md:gap-3 relative overflow-hidden">
+    <div className="w-full flex-1 min-h-0 flex flex-col gap-2 md:gap-2.5 relative overflow-hidden">
       {/* Tier 3: Sub Sub Nav (Detached standalone card with rounded corners) */}
       <BuilderInternalSubNav
         activeSubTab={activeSubTab}

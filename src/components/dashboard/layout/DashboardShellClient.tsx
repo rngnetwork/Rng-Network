@@ -155,7 +155,7 @@ export const DashboardShellClient: React.FC<DashboardShellClientProps> = ({ chil
         <main
           className={
             isEmbedRoute
-              ? 'flex-1 min-h-0 h-[calc(100vh-8rem)] md:h-[calc(100vh-4rem)] p-2.5 sm:p-3 md:p-3.5 w-full flex flex-col overflow-hidden'
+              ? 'flex-1 min-h-0 p-2 sm:p-2.5 md:p-3 w-full flex flex-col overflow-hidden'
               : 'flex-1 p-4 md:p-6 w-full'
           }
         >
