@@ -3,6 +3,7 @@
 import React from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { Card } from '@/components/common/containers/Card';
+import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 
 export interface OAuthCallbackLoaderProps {
   status: 'loading' | 'success';
@@ -17,7 +18,7 @@ export const OAuthCallbackLoader: React.FC<OAuthCallbackLoaderProps> = ({
     <Card className="w-full max-w-md p-8 text-center">
       {status === 'loading' ? (
         <div className="flex flex-col items-center">
-          <div className="w-16 h-16 border-4 border-border-subtle border-t-brand-red rounded-full animate-spin mb-6" />
+          <RngLoadingSpinner size="lg" className="mb-6" />
           <h2 className="text-2xl font-bold text-content-primary tracking-tight mb-2">
             {isResetFlow ? 'Verifying Identity' : 'Verifying Discord 2FA'}
           </h2>

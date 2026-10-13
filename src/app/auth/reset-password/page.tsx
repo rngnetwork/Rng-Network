@@ -1,13 +1,10 @@
 import React, { Suspense } from 'react';
 import { ResetPasswordForm } from '@/components/auth/reset-password/ResetPasswordForm';
+import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="w-8 h-8 border-2 border-brand-red border-t-transparent rounded-full animate-spin" />
-      }
-    >
+    <Suspense fallback={<RngLoadingSpinner size="md" label="Loading Password Recovery..." />}>
       <ResetPasswordForm />
     </Suspense>
   );

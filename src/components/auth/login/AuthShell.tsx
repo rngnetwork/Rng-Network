@@ -8,6 +8,7 @@ import { AuthBackgroundEffects } from './AuthBackgroundEffects';
 import { AuthBrandingPanel } from './AuthBrandingPanel';
 import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
+import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 
 export const AuthShell: React.FC = () => {
   const router = useRouter();
@@ -65,11 +66,7 @@ export const AuthShell: React.FC = () => {
   }, [router]);
 
   if (isCheckingSession) {
-    return (
-      <div className="min-h-screen w-full bg-surface-canvas flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-border-subtle border-t-brand-red rounded-full animate-spin" />
-      </div>
-    );
+    return <RngLoadingSpinner fullScreen size="xl" label="Verifying Personnel Clearance..." />;
   }
 
   return (

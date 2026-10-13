@@ -11,6 +11,7 @@ import type { InteractionLogItem } from '@/lib/model/action';
 import { AnalyticsOverviewGrid } from './AnalyticsOverviewGrid';
 import { AnalyticsOverviewChart } from './AnalyticsOverviewChart';
 import { ServerAuditLogTable } from './ServerAuditLogTable';
+import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 
 const INITIAL_ANALYTICS: ServerAnalyticsData = {
   serverId: '',
@@ -78,7 +79,7 @@ export const ServerAnalyticsCoordinator: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-2 border-white/10 border-t-brand-red rounded-full animate-spin shadow-crimson-glow" />
+        <RngLoadingSpinner size="lg" label="Compiling Interaction Analytics..." />
       </div>
     );
   }

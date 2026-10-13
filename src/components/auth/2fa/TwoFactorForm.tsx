@@ -2,16 +2,11 @@
 
 import React, { Suspense } from 'react';
 import { TwoFactorChallengeCard } from './TwoFactorChallengeCard';
+import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 
 export const TwoFactorForm: React.FC = () => {
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center p-8">
-          <div className="w-12 h-12 border-4 border-border-subtle border-t-brand-red rounded-full animate-spin" />
-        </div>
-      }
-    >
+    <Suspense fallback={<RngLoadingSpinner size="md" label="Loading Two-Factor Verification..." className="p-8" />}>
       <TwoFactorChallengeCard />
     </Suspense>
   );

@@ -8,6 +8,7 @@ import { Tooltip } from '../feedback/Tooltip';
 import { Badge } from '../feedback/Badge';
 import { Avatar } from '../feedback/Avatar';
 import { Alert } from '../feedback/Alert';
+import { RngLoadingSpinner } from '../feedback/RngLoadingSpinner';
 
 describe('Common Feedback Controls', () => {
   describe('Modal', () => {
@@ -162,6 +163,27 @@ describe('Common Feedback Controls', () => {
       const dismissBtn = screen.getByLabelText('Dismiss alert');
       fireEvent.click(dismissBtn);
       expect(onDismiss).toHaveBeenCalled();
+    });
+  });
+
+  describe('RngLoadingSpinner', () => {
+    it('renders with central RNG logo and status label', () => {
+      render(<RngLoadingSpinner size="lg" label="Loading Control Center..." />);
+
+      expect(screen.getByRole('status')).toBeInTheDocument();
+      expect(screen.getByText('Loading Control Center...')).toBeInTheDocument();
+      const logo = screen.getByAltText('RNG Logo');
+      expect(logo).toBeInTheDocument();
+      expect(logo).toHaveAttribute('src', '/assets/RNG_MAIN_LOGO_TRANSPARENT.png');
+    });
+
+    it('renders in fullScreen mode with ambient backdrop elements', () => {
+      render(<RngLoadingSpinner fullScreen size="xl" label="Booting..." />);
+
+      expect(screen.getByRole('status')).toBeInTheDocument();
+      expect(screen.getByText('Booting...')).toBeInTheDocument();
+      const logo = screen.getByAltText('RNG Logo');
+      expect(logo).toBeInTheDocument();
     });
   });
 });

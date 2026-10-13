@@ -13,6 +13,7 @@ import type { ChannelItem } from '@/lib/model/channel';
 import type { ServerRole } from '@/lib/model/role';
 import type { DropdownOption } from '@/components/common/input/Dropdown';
 import { Alert } from '@/components/common/feedback/Alert';
+import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { GlobalUnsavedChangesBar } from '@/components/dashboard/layout/GlobalUnsavedChangesBar';
 import { NitroBoostTierStatus } from './NitroBoostTierStatus';
 import { ServerRoleHierarchyList } from './ServerRoleHierarchyList';
@@ -323,7 +324,7 @@ export const ServerSettingsCoordinator: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-2 border-white/10 border-t-brand-red rounded-full animate-spin shadow-crimson-glow" />
+        <RngLoadingSpinner size="lg" label="Loading Server Preferences..." />
       </div>
     );
   }

@@ -6,6 +6,7 @@ import { Lock, Eye, EyeOff, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/common/input/Button';
 import { TextInput } from '@/components/common/input/TextInput';
 import { Alert } from '@/components/common/feedback/Alert';
+import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { api } from '@/lib/api';
 import { PasswordResetSuccessCard } from './PasswordResetSuccessCard';
 
@@ -80,7 +81,7 @@ export const PasswordResetForm: React.FC = () => {
   if (!resetToken) {
     return (
       <div className="p-8 flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-border-subtle border-t-brand-red rounded-full animate-spin" />
+        <RngLoadingSpinner size="lg" label="Validating Reset Clearance..." />
       </div>
     );
   }

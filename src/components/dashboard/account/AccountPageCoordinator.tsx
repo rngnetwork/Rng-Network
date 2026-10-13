@@ -8,6 +8,7 @@ import { fetchPersonnelHierarchy } from '@/lib/api/dashboard/whitelist';
 import type { UserProfileData, ActiveSessionItem } from '@/lib/model/user';
 import type { PersonnelHierarchyMap } from '@/lib/model/whitelist';
 import { Badge } from '@/components/common/feedback/Badge';
+import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { AccountProfileDetails } from './AccountProfileDetails';
 import { PersonnelClearanceCard } from './PersonnelClearanceCard';
 import { ActiveSessionsList } from './ActiveSessionsList';
@@ -84,7 +85,7 @@ export const AccountPageCoordinator: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-white/10 border-t-brand-red rounded-full animate-spin shadow-crimson-glow" />
+        <RngLoadingSpinner size="lg" label="Loading Personnel Clearance..." />
       </div>
     );
   }

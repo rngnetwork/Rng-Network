@@ -7,6 +7,7 @@ import { fetchUserManagedServers } from '@/lib/api/dashboard/servers';
 import type { ServerItem } from '@/lib/model/server';
 import { Badge } from '@/components/common/feedback/Badge';
 import { Button } from '@/components/common/input/Button';
+import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { ServerSearchFilter } from './ServerSearchFilter';
 import { ServerDirectoryGrid } from './ServerDirectoryGrid';
 
@@ -72,7 +73,7 @@ export const ServersPageCoordinator: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-white/10 border-t-brand-red rounded-full animate-spin shadow-crimson-glow" />
+        <RngLoadingSpinner size="lg" label="Discovering Managed Guilds..." />
       </div>
     );
   }

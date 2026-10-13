@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 
 export const ServerOverviewCoordinator: React.FC = () => {
   const router = useRouter();
@@ -16,7 +17,7 @@ export const ServerOverviewCoordinator: React.FC = () => {
 
   return (
     <div className="flex items-center justify-center min-h-[30vh]">
-      <div className="w-8 h-8 border-2 border-white/10 border-t-brand-red rounded-full animate-spin shadow-crimson-glow" />
+      <RngLoadingSpinner size="md" label="Routing Server Settings..." />
     </div>
   );
 };

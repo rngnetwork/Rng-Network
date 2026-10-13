@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { fetchServerDetails } from '@/lib/api/dashboard/servers/[serverId]';
 import type { ServerDetail } from '@/lib/model/server';
+import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { ServerContextBanner } from './ServerContextBanner';
 import { ServerNavigationSubNav } from './ServerNavigationSubNav';
 
@@ -56,7 +57,7 @@ export const ServerDetailShellClient: React.FC<ServerDetailShellClientProps> = (
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-white/10 border-t-brand-red rounded-full animate-spin shadow-crimson-glow" />
+        <RngLoadingSpinner size="lg" label="Synchronizing Gateway State..." />
       </div>
     );
   }

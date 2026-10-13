@@ -25,6 +25,7 @@ export * from './feedback/Tooltip';
 export * from './feedback/Badge';
 export * from './feedback/Avatar';
 export * from './feedback/Alert';
+export * from './feedback/RngLoadingSpinner';
 
 export * from './containers/Card';
 export * from './containers/Carousel';

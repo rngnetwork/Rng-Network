@@ -8,6 +8,7 @@ import { fetchDispatchLogs } from '@/lib/api/dashboard/embeds';
 import type { DashboardStats } from '@/lib/model/analytics';
 import type { DispatchLogData } from '@/lib/model/dispatch';
 import { Button } from '@/components/common/input/Button';
+import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { DashboardMetricsOverview } from './DashboardMetricsOverview';
 import { DashboardRecentActivity } from './DashboardRecentActivity';
 
@@ -67,7 +68,7 @@ export const DashboardOverviewCoordinator: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-white/10 border-t-brand-red rounded-full animate-spin shadow-crimson-glow" />
+        <RngLoadingSpinner size="lg" label="Loading Command Overview..." />
       </div>
     );
   }

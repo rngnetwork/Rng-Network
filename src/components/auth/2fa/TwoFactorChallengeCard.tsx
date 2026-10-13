@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertCircle } from 'lucide-react';
 import { Card } from '@/components/common/containers/Card';
 import { Button } from '@/components/common/input/Button';
+import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { DiscordVerificationBadge } from './DiscordVerificationBadge';
 
 export const TwoFactorChallengeCard: React.FC = () => {
@@ -64,8 +65,7 @@ export const TwoFactorChallengeCard: React.FC = () => {
   if (!token) {
     return (
       <div className="flex flex-col items-center justify-center p-6">
-        <div className="w-12 h-12 border-4 border-border-subtle border-t-brand-red rounded-full animate-spin mb-4" />
-        <p className="text-sm text-content-secondary">Validating Step 1 Credentials...</p>
+        <RngLoadingSpinner size="lg" label="Validating Step 1 Credentials..." />
       </div>
     );
   }

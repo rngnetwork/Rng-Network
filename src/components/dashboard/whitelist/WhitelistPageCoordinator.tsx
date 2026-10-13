@@ -20,6 +20,7 @@ import type {
 import { Button } from '@/components/common/input/Button';
 import { Badge } from '@/components/common/feedback/Badge';
 import { Alert } from '@/components/common/feedback/Alert';
+import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { useToast } from '@/components/common/feedback/ToastProvider';
 import { WhitelistFilterToolbar } from './WhitelistFilterToolbar';
 import { WhitelistPersonnelTable } from './WhitelistPersonnelTable';
@@ -489,7 +490,7 @@ export const WhitelistPageCoordinator: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-white/10 border-t-brand-red rounded-full animate-spin shadow-crimson-glow" />
+        <RngLoadingSpinner size="lg" label="Loading Personnel Registry..." />
       </div>
     );
   }

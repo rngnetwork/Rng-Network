@@ -1,13 +1,10 @@
 import React, { Suspense } from 'react';
 import { DiscordCallbackHandler } from '@/components/auth/discord/callback/DiscordCallbackHandler';
+import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 
 export default function DiscordCallbackPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="w-8 h-8 border-2 border-brand-red border-t-transparent rounded-full animate-spin" />
-      }
-    >
+    <Suspense fallback={<RngLoadingSpinner size="lg" label="Processing Discord Authorization..." />}>
       <DiscordCallbackHandler />
     </Suspense>
   );

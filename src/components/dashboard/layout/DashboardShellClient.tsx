@@ -6,6 +6,7 @@ import { ShieldAlert, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react
 import { fetchCurrentUser, logout, refreshToken } from '@/lib/api/auth/session';
 import type { UserProfileData } from '@/lib/model/user';
 import { Button } from '@/components/common/input/Button';
+import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { DashboardSidebarNav } from './DashboardSidebarNav';
 import { DashboardAppHeader } from './DashboardAppHeader';
 
@@ -78,16 +79,7 @@ export const DashboardShellClient: React.FC<DashboardShellClientProps> = ({ chil
   };
 
   if (authState === 'loading') {
-    return (
-      <div className="min-h-screen w-full bg-surface-canvas flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-white/10 border-t-brand-red rounded-full animate-spin shadow-crimson-glow" />
-          <span className="text-xs font-mono text-zinc-400 tracking-wider uppercase">
-            Loading Control Center...
-          </span>
-        </div>
-      </div>
-    );
+    return <RngLoadingSpinner fullScreen size="xl" label="Loading Control Center..." />;
   }
 
   if (authState === 'unauthenticated') {

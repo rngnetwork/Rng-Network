@@ -9,6 +9,7 @@ import {
 } from '@/lib/api/dashboard/servers/[serverId]/botconfig';
 import type { BotConfigData, GatewayHealthData } from '@/lib/model/server';
 import { useToast } from '@/components/common/feedback/ToastProvider';
+import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { BotRuntimeControls } from './BotRuntimeControls';
 
 const DEFAULT_CONFIG: BotConfigData = {
@@ -90,7 +91,7 @@ export const ServerBotConfigCoordinator: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-2 border-white/10 border-t-brand-red rounded-full animate-spin shadow-crimson-glow" />
+        <RngLoadingSpinner size="lg" label="Loading Bot Module State..." />
       </div>
     );
   }
