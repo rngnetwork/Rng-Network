@@ -95,9 +95,9 @@ export const PasswordResetForm: React.FC = () => {
           sessionStorage.removeItem('resetPasswordEmail');
           router.push('/auth/login');
         }}
-        className="inline-flex items-center gap-1.5 text-xs font-semibold text-content-secondary hover:text-content-primary transition-colors w-fit mb-4 min-h-[36px]"
+        className="group inline-flex items-center gap-1.5 text-xs font-semibold text-content-secondary hover:text-white transition-all duration-200 w-fit mb-4 min-h-[36px] px-2 py-1 -ml-2 rounded-apple-sm hover:bg-white/[0.06] cursor-pointer"
       >
-        <ArrowLeft size={15} />
+        <ArrowLeft size={15} className="group-hover:-translate-x-1 transition-transform duration-200" />
         <span>Back to Sign In</span>
       </button>
 
