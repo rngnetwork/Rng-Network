@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { fetchServerDetails } from '@/lib/api/dashboard/servers/[serverId]';
 import type { ServerDetail } from '@/lib/model/server';
@@ -18,7 +18,9 @@ export const ServerDetailShellClient: React.FC<ServerDetailShellClientProps> = (
   children,
 }) => {
   const params = useParams();
+  const pathname = usePathname();
   const serverId = (params?.serverId as string) || '';
+  const isEmbedRoute = pathname?.includes('/embeds') ?? false;
 
   const [server, setServer] = useState<ServerDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -82,8 +84,14 @@ export const ServerDetailShellClient: React.FC<ServerDetailShellClientProps> = (
   }
 
   return (
-    <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto">
-      <div>
+    <div
+      className={`flex flex-col w-full max-w-7xl mx-auto ${
+        isEmbedRoute
+          ? 'h-full flex-1 min-h-0 overflow-hidden gap-2 md:gap-3'
+          : 'gap-6'
+      }`}
+    >
+      <div className="shrink-0">
         <Link
           href="/dashboard/servers"
           className="inline-flex items-center gap-2 text-xs font-mono text-zinc-400 hover:text-brand-red transition-colors group"
@@ -93,11 +101,29 @@ export const ServerDetailShellClient: React.FC<ServerDetailShellClientProps> = (
         </Link>
       </div>
 
-      <ServerContextBanner server={server} />
+      <div className="shrink-0">
+        <ServerContextBanner server={server} />
+      </div>
 
-      <div className="rounded-apple-xl bg-zinc-900/90 border border-white/10 p-6 md:p-8 backdrop-blur-xl shadow-apple-card flex flex-col gap-6">
-        <ServerNavigationTabStrip serverId={serverId} />
-        <div className="w-full">{children}</div>
+      <div
+        className={`rounded-apple-xl bg-zinc-900/90 border border-white/10 backdrop-blur-xl shadow-apple-card flex flex-col ${
+          isEmbedRoute
+            ? 'p-2.5 sm:p-3 md:p-4 flex-1 min-h-0 gap-2 md:gap-2.5 overflow-hidden'
+            : 'p-6 md:p-8 gap-6'
+        }`}
+      >
+        <div className="shrink-0">
+          <ServerNavigationTabStrip serverId={serverId} />
+        </div>
+        <div
+          className={
+            isEmbedRoute
+              ? 'w-full flex-1 min-h-0 flex flex-col overflow-hidden'
+              : 'w-full'
+          }
+        >
+          {children}
+        </div>
       </div>
     </div>
   );

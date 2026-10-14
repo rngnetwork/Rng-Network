@@ -322,7 +322,7 @@ export const ServerEmbedBuilderCoordinator: React.FC<
   });
 
   return (
-    <div className="w-full flex-1 min-h-0 flex flex-col gap-2 md:gap-2.5 overflow-hidden">
+    <div className="w-full h-full flex-1 min-h-0 flex flex-col gap-2 md:gap-2.5 overflow-hidden">
       {/* 1. Top Most Navigation Bar (Separated from Builder) */}
       <EmbedBuilderTopNavBar
         activeTab={activeTopTab}
