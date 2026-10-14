@@ -331,21 +331,18 @@ class DiscordGatewayEventListenerTest {
     }
 
     @Test
-    @DisplayName("onStringSelectInteraction executes action template when selected option is rng_act_")
+    @DisplayName("onStringSelectInteraction defers edit and stores action option in Redis session for mapped button click")
     void onStringSelectInteraction_actionOptionSelected() {
         when(stringSelectEvent.getComponentId()).thenReturn("menu_actions");
         when(stringSelectEvent.getValues()).thenReturn(List.of("rng_act_opt_1"));
 
-        EmbedAction action = EmbedAction.builder()
-                .actionId("rng_act_opt_1")
-                .actionType(ActionType.REPLY)
-                .build();
-        when(embedActionService.resolveAction("rng_act_opt_1")).thenReturn(Optional.of(action));
-
         listener.onStringSelectInteraction(stringSelectEvent);
 
-        verify(stringSelectEvent).deferReply(true);
-        verify(actionExecutionService).executeStringSelectAction(eq(stringSelectEvent), eq(action), anyMap());
+        verify(stringSelectEvent).deferEdit();
+        String sessionKey = "interaction:session:guild_1:user_1:msg_123";
+        verify(hashOperations).put(sessionKey, "selected_option", "rng_act_opt_1");
+        verify(hashOperations).put(sessionKey, "selected_option:menu_actions", "rng_act_opt_1");
+        verify(actionExecutionService, never()).executeStringSelectAction(any(), any(), any());
     }
 
     @Test
@@ -450,17 +447,6 @@ class DiscordGatewayEventListenerTest {
         when(user.getId()).thenReturn("usr_1");
         when(guild.getId()).thenReturn("gld_1");
         when(stringSelectEvent.getMessageId()).thenReturn("msg_123");
-
-        Message message = mock(Message.class);
-        net.dv8tion.jda.api.components.MessageTopLevelComponentUnion topComponent = mock(net.dv8tion.jda.api.components.MessageTopLevelComponentUnion.class);
-        net.dv8tion.jda.api.components.actionrow.ActionRow actionRow = mock(net.dv8tion.jda.api.components.actionrow.ActionRow.class);
-        net.dv8tion.jda.api.components.buttons.Button invokeBtn = mock(net.dv8tion.jda.api.components.buttons.Button.class);
-        when(invokeBtn.getCustomId()).thenReturn("rng_btn_invoke_sel_roles");
-        when(actionRow.getButtons()).thenReturn(List.of(invokeBtn));
-        when(topComponent.getType()).thenReturn(net.dv8tion.jda.api.components.Component.Type.ACTION_ROW);
-        when(topComponent.asActionRow()).thenReturn(actionRow);
-        when(message.getComponents()).thenReturn(List.of(topComponent));
-        when(stringSelectEvent.getMessage()).thenReturn(message);
         when(stringSelectEvent.deferEdit()).thenReturn(editCallbackAction);
         when(redisTemplate.opsForHash()).thenReturn(hashOperations);
 

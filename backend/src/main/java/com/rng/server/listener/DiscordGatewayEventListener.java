@@ -148,16 +148,10 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
         String componentId = event.getComponentId();
         boolean isDirectAction = componentId.startsWith("rng_act_");
         boolean isInvokeButton = componentId.startsWith("rng_btn_invoke_");
-        if (!isDirectAction && !isInvokeButton) {
-            return;
-        }
 
         String userId = event.getUser() != null ? event.getUser().getId() : "unknown";
         String userName = event.getUser() != null ? event.getUser().getName() : "unknown";
         String guildId = event.getGuild() != null ? event.getGuild().getId() : null;
-
-        log.info("Gateway ButtonInteraction received: componentId='{}', user='{}' ({}), guild='{}'",
-                componentId, userName, userId, guildId != null ? guildId : "none");
 
         if (event.getGuild() == null) {
             log.warn("ButtonInteraction '{}' rejected: interaction is outside of a guild.", componentId);
@@ -168,10 +162,26 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
         String messageId = event.getMessageId();
         Map<String, String> sessionData = getSessionData(guildId, userId, messageId);
 
+        // If not directly prefixed with rng_act_ or rng_btn_invoke_, check if session has a selected action
+        if (!isDirectAction && !isInvokeButton) {
+            String sessionSelected = sessionData.get("selected_option");
+            if (sessionSelected != null && sessionSelected.startsWith("rng_act_")) {
+                isInvokeButton = true;
+            } else {
+                return;
+            }
+        }
+
+        log.info("Gateway ButtonInteraction received: componentId='{}', user='{}' ({}), guild='{}'",
+                componentId, userName, userId, guildId != null ? guildId : "none");
+
         final String effectiveActionId;
         if (isInvokeButton) {
-            String selectId = componentId.substring("rng_btn_invoke_".length());
-            String selectedOption = sessionData.get("selected_option:" + selectId);
+            String selectedOption = null;
+            if (componentId.startsWith("rng_btn_invoke_")) {
+                String selectId = componentId.substring("rng_btn_invoke_".length());
+                selectedOption = sessionData.get("selected_option:" + selectId);
+            }
             if (selectedOption == null || selectedOption.isBlank()) {
                 selectedOption = sessionData.get("selected_option");
             }
@@ -180,6 +190,13 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
                 return;
             }
             effectiveActionId = selectedOption;
+        } else if (isDirectAction) {
+            String sessionSelected = sessionData.get("selected_option");
+            if (sessionSelected != null && sessionSelected.startsWith("rng_act_")) {
+                effectiveActionId = sessionSelected;
+            } else {
+                effectiveActionId = componentId;
+            }
         } else {
             effectiveActionId = componentId;
         }
@@ -321,103 +338,36 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
         List<String> values = event.getValues();
         String firstValue = values.isEmpty() ? null : values.get(0);
 
-        boolean isActionComponent = componentId.startsWith("rng_act_");
-        boolean isActionOption = firstValue != null && firstValue.startsWith("rng_act_");
-
         String userId = event.getUser() != null ? event.getUser().getId() : "unknown";
         String userName = event.getUser() != null ? event.getUser().getName() : "unknown";
         String guildId = event.getGuild() != null ? event.getGuild().getId() : null;
 
-        boolean hasInvokeButton = messageHasInvokeButton(event.getMessage());
+        log.info("Gateway StringSelectInteraction received: componentId='{}', values='{}', user='{}' ({}), guild='{}'",
+                componentId, values, userName, userId, guildId != null ? guildId : "none");
 
-        if (!hasInvokeButton && (isActionComponent || isActionOption)) {
-            log.info("Gateway StringSelectInteraction (Action) received: componentId='{}', value='{}', user='{}' ({}), guild='{}'",
-                    componentId, firstValue, userName, userId, guildId != null ? guildId : "none");
-
-            if (event.getGuild() == null) {
-                log.warn("StringSelectInteraction '{}' rejected: interaction is outside of a guild.", componentId);
-                event.reply("❌ Interactive actions are only supported inside a Discord server.").setEphemeral(true).queue();
-                return;
-            }
-
-            String actionId = isActionOption ? firstValue : componentId;
-            Optional<EmbedAction> actionOpt = embedActionService.flatMap(eas -> eas.resolveAction(actionId));
-            boolean isEphemeral = actionOpt.map(a -> {
-                if (a.getResponseType() == ResponseType.PUBLIC_EMBED || a.getResponseType() == ResponseType.PUBLIC_TEXT) {
-                    return false;
-                }
-                if (a.getResponseType() == ResponseType.EPHEMERAL_EMBED || a.getResponseType() == ResponseType.EPHEMERAL_TEXT) {
-                    return true;
-                }
-                return a.isEphemeral();
-            }).orElse(true);
-
-            // Immediate sub-50ms acknowledgment
-            event.deferReply(isEphemeral).queue();
-
-            String messageId = event.getMessageId();
-
-            String rateLimitKey = "ratelimit:member:" + guildId + ":" + userId;
-            boolean allowed = rateLimiterService
-                    .map(rl -> rl.tryAcquire(rateLimitKey, 3, 5000L))
-                    .orElse(true);
-
-            if (!allowed) {
-                event.getHook().editOriginal("⏳ Rate limit exceeded: Please wait a few seconds before interacting again.").queue();
-                return;
-            }
-
-            if (embedActionService.isEmpty() || actionExecutionService.isEmpty()) {
-                event.getHook().editOriginal("⚠️ Interactive action engine is temporarily unavailable.").queue();
-                return;
-            }
-
-            if (actionOpt.isEmpty()) {
-                event.getHook().editOriginal("❌ Action template not found or no longer active: " + actionId).queue();
-                return;
-            }
-
-            EmbedAction action = actionOpt.get();
-            Map<String, String> sessionData = getSessionData(guildId, userId, messageId);
-
-            if (action.isRequiredUser() && !sessionData.containsKey("target_user")) {
-                event.getHook().editOriginal("⚠️ Missing Required Selections: Please select a target user before submitting this selection.").queue();
-                return;
-            }
-            if (action.isRequiredRole() && !sessionData.containsKey("target_role")) {
-                event.getHook().editOriginal("⚠️ Missing Required Selections: Please select a target role before submitting this selection.").queue();
-                return;
-            }
-
-            actionExecutionService.get().executeStringSelectAction(event, action, sessionData);
-        } else if (hasInvokeButton || isHandledSelectComponent(componentId, event.getMessage(), event.getJDA())) {
-            log.info("Gateway StringSelectInteraction (Intermediate) received: componentId='{}', values='{}', user='{}' ({}), guild='{}'",
-                    componentId, values, userName, userId, guildId != null ? guildId : "none");
-
-            if (event.getGuild() == null) {
-                return;
-            }
-
-            // Intermediate select menu in multi-select chained workflow
-            event.deferEdit().queue();
-
-            String messageId = event.getMessageId();
-            String sessionKey = "interaction:session:" + guildId + ":" + userId + ":" + messageId;
-
-            redisTemplate.ifPresent(rt -> {
-                try {
-                    if (firstValue != null) {
-                        rt.opsForHash().put(sessionKey, "selected_option", firstValue);
-                        rt.opsForHash().put(sessionKey, "selected_option:" + componentId, firstValue);
-                        rt.opsForHash().put(sessionKey, "selected_options", String.join(",", values));
-                        rt.opsForHash().put(sessionKey, "last_updated", String.valueOf(System.currentTimeMillis()));
-                        rt.expire(sessionKey, Duration.ofMinutes(15));
-                    }
-                } catch (Exception e) {
-                    log.warn("Failed to update Redis session for string select: {}", e.getMessage());
-                }
-            });
+        if (event.getGuild() == null) {
+            return;
         }
+
+        // Defer edit to acknowledge the select menu on Discord without triggering an immediate action
+        event.deferEdit().queue();
+
+        String messageId = event.getMessageId();
+        String sessionKey = "interaction:session:" + guildId + ":" + userId + ":" + messageId;
+
+        redisTemplate.ifPresent(rt -> {
+            try {
+                if (firstValue != null) {
+                    rt.opsForHash().put(sessionKey, "selected_option", firstValue);
+                    rt.opsForHash().put(sessionKey, "selected_option:" + componentId, firstValue);
+                    rt.opsForHash().put(sessionKey, "selected_options", String.join(",", values));
+                    rt.opsForHash().put(sessionKey, "last_updated", String.valueOf(System.currentTimeMillis()));
+                    rt.expire(sessionKey, Duration.ofMinutes(15));
+                }
+            } catch (Exception e) {
+                log.warn("Failed to update Redis session for string select: {}", e.getMessage());
+            }
+        });
     }
 
     @Override
@@ -539,35 +489,5 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
                 return Collections.<String, String>emptyMap();
             }
         }).orElse(Collections.emptyMap());
-    }
-
-    public boolean messageHasInvokeButton(Message message) {
-        if (message == null || message.getComponents() == null) {
-            return false;
-        }
-        try {
-            for (var top : message.getComponents()) {
-                if (top.getType() == net.dv8tion.jda.api.components.Component.Type.ACTION_ROW) {
-                    for (var btn : top.asActionRow().getButtons()) {
-                        if (btn.getCustomId() != null && btn.getCustomId().startsWith("rng_btn_invoke_")) {
-                            return true;
-                        }
-                    }
-                } else if (top.getType() == net.dv8tion.jda.api.components.Component.Type.CONTAINER) {
-                    for (var child : top.asContainer().getComponents()) {
-                        if (child.getType() == net.dv8tion.jda.api.components.Component.Type.ACTION_ROW) {
-                            for (var btn : child.asActionRow().getButtons()) {
-                                if (btn.getCustomId() != null && btn.getCustomId().startsWith("rng_btn_invoke_")) {
-                                    return true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Error inspecting message components for invoke button: {}", e.getMessage());
-        }
-        return false;
     }
 }

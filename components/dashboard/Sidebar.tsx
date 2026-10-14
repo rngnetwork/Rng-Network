@@ -63,7 +63,7 @@ export function Sidebar({ user, isCollapsed = false }: SidebarProps) {
       label: 'Servers',
       href: '/dashboard/servers',
       icon: Server,
-      show: true,
+      show: false,
       badge: serverCount !== null ? `${serverCount} Live` : 'Live',
     },
     {

@@ -90,6 +90,21 @@ export function SelectMenuEditor({
           })}
         </div>
       )}
+
+      {/* Execution Indicator */}
+      {comp.type === 3 && (
+        <div
+          onClick={onOpenSettings}
+          className="flex items-center gap-1.5 px-2 py-1 rounded bg-black/40 border border-white/5 text-[10.5px] text-zinc-400 cursor-pointer hover:border-white/10 transition-colors"
+        >
+          <i className="fa-solid fa-hand-pointer text-[9px] text-amber-400" />
+          <span>
+            {(comp as any).invokerButtonId
+              ? 'Action invokes on mapped button click'
+              : 'Mapped button click required to invoke action'}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

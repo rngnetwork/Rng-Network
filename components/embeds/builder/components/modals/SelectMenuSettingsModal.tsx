@@ -76,8 +76,9 @@ export function SelectMenuSettingsModal({
     const list: ButtonItemRef[] = [];
     allContainers.forEach((c, cIdx) => {
       (c.components || []).forEach((inner) => {
-        if (inner.type === 1 && inner.items) {
-          inner.items.forEach((item, btnIdx) => {
+        const btnList = (inner as any).items || (inner as any).components;
+        if (inner.type === 1 && btnList) {
+          btnList.forEach((item: any, btnIdx: number) => {
             if (item.type === 2) {
               list.push({
                 cIdx,
@@ -100,8 +101,9 @@ export function SelectMenuSettingsModal({
       (b) =>
         b.button.custom_id === currentInvokerCustomId ||
         (comp as any).invokerButtonId === b.button.id ||
-        (comp as any).invokerButtonId === b.button.custom_id
-    ) || null;
+        (comp as any).invokerButtonId === b.button.custom_id ||
+        (b.button.custom_id && b.button.custom_id.startsWith(`rng_btn_invoke_${comp.custom_id}`))
+    ) || (allButtons.length === 1 ? allButtons[0] : null);
   }, [allButtons, currentInvokerCustomId, comp]);
 
   const [mappedButton, setMappedButton] = useState<ButtonItemRef | null>(initialMappedButton);
@@ -284,17 +286,20 @@ export function SelectMenuSettingsModal({
         ? `rng_sel_role_${selectedActionId}`
         : customId.trim() || comp.custom_id || `rng_sel_${Date.now()}`;
 
+    const targetBtnInvokeId = mappedButton ? `rng_btn_invoke_${finalCustomId}` : undefined;
+
     // If String Select (Type 3) and invoker button mapping changed, update containers
     if (comp.type === 3 && onUpdateContainers && allContainers.length > 0) {
-      const targetBtnInvokeId = `rng_btn_invoke_${finalCustomId}`;
+      const invokeId = targetBtnInvokeId || `rng_btn_invoke_${finalCustomId}`;
       const updatedContainers = JSON.parse(JSON.stringify(allContainers)) as Type17Container[];
 
       // First, remove any old rng_btn_invoke_ for this select from other buttons
       updatedContainers.forEach((c) => {
         (c.components || []).forEach((inner) => {
-          if (inner.type === 1 && inner.items) {
-            inner.items.forEach((item) => {
-              if (item.type === 2 && item.custom_id === targetBtnInvokeId) {
+          const btnList = (inner as any).items || (inner as any).components;
+          if (inner.type === 1 && btnList) {
+            btnList.forEach((item: any) => {
+              if (item.type === 2 && item.custom_id === invokeId) {
                 item.custom_id = `btn_${Date.now()}`;
               }
             });
@@ -302,20 +307,21 @@ export function SelectMenuSettingsModal({
         });
       });
 
-      // If mapped button is selected, apply the targetBtnInvokeId
+      // If mapped button is selected, apply the invokeId
       if (mappedButton) {
         let applied = false;
         updatedContainers.forEach((c, cIdx) => {
           if (cIdx === mappedButton.cIdx) {
             (c.components || []).forEach((inner) => {
-              if (inner.type === 1 && inner.items) {
-                inner.items.forEach((item, btnIdx) => {
+              const btnList = (inner as any).items || (inner as any).components;
+              if (inner.type === 1 && btnList) {
+                btnList.forEach((item: any, btnIdx: number) => {
                   if (
                     item.type === 2 &&
                     (item.id === mappedButton.button.id ||
                       (inner.id === mappedButton.rowId && btnIdx === mappedButton.btnIdx))
                   ) {
-                    item.custom_id = targetBtnInvokeId;
+                    item.custom_id = invokeId;
                     applied = true;
                   }
                 });
@@ -327,10 +333,11 @@ export function SelectMenuSettingsModal({
           // Fallback find by button id
           updatedContainers.forEach((c) => {
             (c.components || []).forEach((inner) => {
-              if (inner.type === 1 && inner.items) {
-                inner.items.forEach((item) => {
+              const btnList = (inner as any).items || (inner as any).components;
+              if (inner.type === 1 && btnList) {
+                btnList.forEach((item: any) => {
                   if (item.type === 2 && item.id === mappedButton.button.id) {
-                    item.custom_id = targetBtnInvokeId;
+                    item.custom_id = invokeId;
                   }
                 });
               }
@@ -347,7 +354,8 @@ export function SelectMenuSettingsModal({
       custom_id: finalCustomId,
       placeholder: placeholder.trim() || undefined,
       disabled,
-      options: comp.type === 3 ? options : undefined
+      options: comp.type === 3 ? options : undefined,
+      ...((mappedButton ? { invokerButtonId: targetBtnInvokeId } : { invokerButtonId: undefined }) as any)
     };
 
     if (comp.type === 5 || comp.type === 6) {
@@ -826,7 +834,7 @@ export function SelectMenuSettingsModal({
                 ) : (
                   <div className="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.06] text-[11px] text-zinc-400 flex items-center gap-2">
                     <i className="fa-solid fa-info-circle text-zinc-500" />
-                    <span>No invoker button mapped. Options will execute immediately upon selection (or save to session).</span>
+                    <span>No mapped button. Map a button above so users must click the button to invoke their chosen option in Discord.</span>
                   </div>
                 )}
               </div>

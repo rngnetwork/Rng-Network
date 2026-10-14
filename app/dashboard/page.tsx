@@ -13,7 +13,7 @@ export default function DashboardRedirectPage() {
       return;
     }
 
-    router.replace('/dashboard/servers');
+    router.replace('/dashboard/embeds');
   }, [router]);
 
   return (
