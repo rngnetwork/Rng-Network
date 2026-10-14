@@ -31,6 +31,7 @@ import { SelectMenuConfigModal } from '@/components/dashboard/embeds/modals/Sele
 import { SaveTemplateModal } from '@/components/dashboard/embeds/modals/SaveTemplateModal';
 import { LoadPresetModal } from '@/components/dashboard/embeds/modals/LoadPresetModal';
 import { ServerDiscordEmojiPicker } from './emoji/ServerDiscordEmojiPicker';
+import { Modal } from '@/components/common/feedback/Modal';
 import { useToast } from '@/components/common/feedback/ToastProvider';
 
 export interface ServerEmbedBuilderCoordinatorProps {
@@ -408,34 +409,25 @@ export const ServerEmbedBuilderCoordinator: React.FC<
         onSave={handleSaveTemplate}
       />
 
-      {isEmojiPickerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-surface-card border border-white/15 rounded-apple-2xl p-4 shadow-apple-elevated max-w-md w-full">
-            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
-              <span className="text-sm font-bold text-white">Select Server Emoji</span>
-              <button
-                type="button"
-                onClick={() => setIsEmojiPickerOpen(false)}
-                className="text-xs text-zinc-400 hover:text-white"
-              >
-                Close
-              </button>
-            </div>
-            <ServerDiscordEmojiPicker
-              serverId={serverId}
-              onSelectEmojiToken={(token) => {
-                dispatch({
-                  type: 'SET_MESSAGE_CONTENT',
-                  content: state.message.content
-                    ? `${state.message.content} ${token}`
-                    : token,
-                });
-                setIsEmojiPickerOpen(false);
-              }}
-            />
-          </div>
-        </div>
-      )}
+      <Modal
+        isOpen={isEmojiPickerOpen}
+        onClose={() => setIsEmojiPickerOpen(false)}
+        title="Select Server Emoji"
+        size="md"
+      >
+        <ServerDiscordEmojiPicker
+          serverId={serverId}
+          onSelectEmojiToken={(token) => {
+            dispatch({
+              type: 'SET_MESSAGE_CONTENT',
+              content: state.message.content
+                ? `${state.message.content} ${token}`
+                : token,
+            });
+            setIsEmojiPickerOpen(false);
+          }}
+        />
+      </Modal>
     </div>
   );
 };
