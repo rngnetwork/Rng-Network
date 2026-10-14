@@ -5,22 +5,18 @@ import { useParams } from 'next/navigation';
 import { fetchServerDetails } from '@/lib/api/dashboard/servers/[serverId]';
 import {
   fetchServerChannels,
-  fetchServerRoles,
   updateServerSettings,
 } from '@/lib/api/dashboard/servers/[serverId]/settings';
 import type { ServerDetail, UpdateServerSettingsPayload } from '@/lib/model/server';
 import type { ChannelItem } from '@/lib/model/channel';
-import type { ServerRole } from '@/lib/model/role';
 import type { DropdownOption } from '@/components/common/input/Dropdown';
 import { Alert } from '@/components/common/feedback/Alert';
 import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { GlobalUnsavedChangesBar } from '@/components/dashboard/layout/GlobalUnsavedChangesBar';
-import { NitroBoostTierStatus } from './NitroBoostTierStatus';
-import { ServerRoleHierarchyList } from './ServerRoleHierarchyList';
 import {
-  ServerGeneralSettingsForm,
+  ServerGeneralConfigForm,
   ServerSettingsFormState,
-} from './ServerGeneralSettingsForm';
+} from './ServerGeneralConfigForm';
 
 const AFK_TIMEOUT_OPTIONS: DropdownOption[] = [
   { value: '60', label: '1 minute' },
@@ -36,7 +32,6 @@ export const ServerSettingsCoordinator: React.FC = () => {
 
   const [server, setServer] = useState<ServerDetail | null>(null);
   const [channels, setChannels] = useState<ChannelItem[]>([]);
-  const [roles, setRoles] = useState<ServerRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -72,10 +67,9 @@ export const ServerSettingsCoordinator: React.FC = () => {
       }
 
       try {
-        const [serverRes, channelsRes, rolesRes] = await Promise.allSettled([
+        const [serverRes, channelsRes] = await Promise.allSettled([
           fetchServerDetails(token, serverId),
           fetchServerChannels(token, serverId),
-          fetchServerRoles(serverId, token),
         ]);
 
         if (isMounted) {
@@ -113,14 +107,6 @@ export const ServerSettingsCoordinator: React.FC = () => {
             channelsRes.value.data
           ) {
             setChannels(channelsRes.value.data);
-          }
-
-          if (
-            rolesRes.status === 'fulfilled' &&
-            rolesRes.value.success &&
-            Array.isArray(rolesRes.value.data)
-          ) {
-            setRoles(rolesRes.value.data);
           }
         }
       } finally {
@@ -330,7 +316,7 @@ export const ServerSettingsCoordinator: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       {saveSuccess && (
         <Alert
           variant="success"
@@ -346,12 +332,7 @@ export const ServerSettingsCoordinator: React.FC = () => {
         />
       )}
 
-      <NitroBoostTierStatus
-        boostLevel={server?.boostLevel ?? 0}
-        boostCount={server?.boostCount ?? 0}
-      />
-
-      <ServerGeneralSettingsForm
+      <ServerGeneralConfigForm
         server={server}
         formData={formData}
         onChangeFormData={setFormData}
@@ -366,8 +347,6 @@ export const ServerSettingsCoordinator: React.FC = () => {
         onIconUpload={handleIconUpload}
         onBannerUpload={handleBannerUpload}
       />
-
-      <ServerRoleHierarchyList roles={roles} />
 
       <GlobalUnsavedChangesBar
         isDirty={isDirty}

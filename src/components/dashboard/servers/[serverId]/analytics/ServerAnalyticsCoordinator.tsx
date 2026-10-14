@@ -9,7 +9,7 @@ import {
 import type { ServerAnalyticsData } from '@/lib/model/analytics';
 import type { InteractionLogItem } from '@/lib/model/action';
 import { AnalyticsOverviewGrid } from './AnalyticsOverviewGrid';
-import { AnalyticsOverviewChart } from './AnalyticsOverviewChart';
+import { InteractionActivityChart } from './InteractionActivityChart';
 import { ServerAuditLogTable } from './ServerAuditLogTable';
 import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 
@@ -87,7 +87,7 @@ export const ServerAnalyticsCoordinator: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 w-full">
       <AnalyticsOverviewGrid analytics={analytics} />
-      <AnalyticsOverviewChart series={analytics.series} />
+      <InteractionActivityChart series={analytics.series} />
       <ServerAuditLogTable
         logs={logs}
         currentPage={currentPage}

@@ -111,7 +111,10 @@ export const DashboardSidebarNav: React.FC<DashboardSidebarNavProps> = ({
   return (
     <>
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-surface-canvas/95 backdrop-blur-xl border-b border-white/[0.08] px-4 flex items-center justify-between z-40">
-        <div className="flex items-center gap-2.5">
+        <Link
+          href="/dashboard"
+          className="flex items-center gap-2.5 transition-opacity hover:opacity-90 cursor-pointer"
+        >
           <div className="relative w-8 h-8 rounded-lg bg-brand-red/20 p-1 border border-brand-red/30">
             <Image
               src="/assets/LOGO_FOR_STAFFS.png"
@@ -124,7 +127,7 @@ export const DashboardSidebarNav: React.FC<DashboardSidebarNavProps> = ({
           <span className="text-xs font-bold tracking-widest uppercase text-white font-mono">
             RNG CONTROL
           </span>
-        </div>
+        </Link>
 
         <HamburgerMenu
           isOpen={mobileOpen}
@@ -140,8 +143,11 @@ export const DashboardSidebarNav: React.FC<DashboardSidebarNavProps> = ({
       >
         <div className="flex flex-col h-full justify-between p-5">
           <div>
-            <div className="flex items-center gap-3 pb-6 border-b border-white/[0.08]">
-              <div className="relative w-10 h-10 rounded-apple-md bg-gradient-to-br from-brand-red/20 to-black p-1.5 border border-brand-red/30 shadow-crimson-glow">
+            <Link
+              href="/dashboard"
+              className="group flex items-center gap-3 pb-6 border-b border-white/[0.08] transition-opacity hover:opacity-90 cursor-pointer"
+            >
+              <div className="relative w-10 h-10 rounded-apple-md bg-gradient-to-br from-brand-red/20 to-black p-1.5 border border-brand-red/30 shadow-crimson-glow group-hover:border-brand-red/60 group-hover:scale-105 transition-all duration-200">
                 <Image
                   src="/assets/LOGO_FOR_STAFFS.png"
                   alt="RNG Network"
@@ -151,13 +157,13 @@ export const DashboardSidebarNav: React.FC<DashboardSidebarNavProps> = ({
                 />
               </div>
               <div className="flex flex-col">
-                <span className="text-sm font-bold tracking-widest uppercase text-white font-mono flex items-center gap-1.5">
+                <span className="text-sm font-bold tracking-widest uppercase text-white font-mono flex items-center gap-1.5 group-hover:text-brand-red transition-colors">
                   RNG NETWORK
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-brand-red animate-pulse" />
                 </span>
                 <span className="text-[11px] text-zinc-400 font-medium">Control Center</span>
               </div>
-            </div>
+            </Link>
 
             <nav className="mt-6 flex flex-col gap-1.5" aria-label="Main Sections">
               <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 font-mono">

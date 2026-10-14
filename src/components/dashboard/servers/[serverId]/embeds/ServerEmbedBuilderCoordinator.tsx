@@ -25,7 +25,7 @@ import {
 import { useEmbedHistory } from '@/components/dashboard/embeds/useEmbedHistory';
 import { EmbedBuilderTopNavBar, type EmbedBuilderTopTab } from '@/components/dashboard/embeds/EmbedBuilderTopNavBar';
 import { MessageBuilderWorkspace } from '@/components/dashboard/embeds/MessageBuilderWorkspace';
-import { ServerEditTabCoordinator } from './EditTab/ServerEditTabCoordinator';
+import { GlobalEditTabCoordinator } from '@/components/dashboard/embeds/EditTab/GlobalEditTabCoordinator';
 import { GlobalPreviewCoordinator } from '@/components/dashboard/embeds/PreviewTab/GlobalPreviewCoordinator';
 import { GlobalDispatchCoordinator } from '@/components/dashboard/embeds/DispatchTab/GlobalDispatchCoordinator';
 import { MonacoDiscordJsonEditor } from '@/components/dashboard/embeds/RawTab/MonacoDiscordJsonEditor';
@@ -353,8 +353,7 @@ export const ServerEmbedBuilderCoordinator: React.FC<
           onOpenEmojiPicker={() => setIsEmojiPickerOpen(true)}
         >
           {state.activeSubTab === 'edit' && (
-            <ServerEditTabCoordinator
-              serverId={serverId}
+            <GlobalEditTabCoordinator
               messageContent={state.message.content}
               containers={state.type17Containers}
               onChangeMessageContent={(content) =>

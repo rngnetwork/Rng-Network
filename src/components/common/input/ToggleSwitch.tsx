@@ -23,11 +23,19 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
 }) => {
   const isSm = size === 'sm';
 
+  const handleToggle = (e?: React.MouseEvent | React.KeyboardEvent) => {
+    if (disabled) return;
+    if (e) {
+      e.stopPropagation();
+    }
+    onChange(!checked);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (disabled) return;
     if (e.key === ' ' || e.key === 'Enter') {
       e.preventDefault();
-      onChange(!checked);
+      handleToggle(e);
     }
   };
 
@@ -36,7 +44,7 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
       className={`inline-flex items-center justify-between gap-3 select-none ${
         disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
       } ${className}`}
-      onClick={() => !disabled && onChange(!checked)}
+      onClick={(e) => handleToggle(e)}
     >
       {label ? (
         <div className="flex flex-col text-sm">
@@ -51,16 +59,17 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
         role="switch"
         aria-checked={checked}
         disabled={disabled}
+        onClick={(e) => handleToggle(e)}
         onKeyDown={handleKeyDown}
         className={`relative inline-flex flex-shrink-0 transition-colors duration-200 ease-in-out rounded-full border border-transparent outline-none focus-visible:ring-2 focus-visible:ring-brand-red focus-visible:ring-offset-2 focus-visible:ring-offset-surface-canvas ${
-          isSm ? 'w-8 h-4' : 'w-10 h-6'
+          isSm ? 'w-8 h-4' : 'w-11 h-6'
         } ${checked ? 'bg-brand-red shadow-sm shadow-brand-red/30' : 'bg-white/[0.12]'}`}
       >
         <span
-          className={`inline-block rounded-full bg-white shadow-sm transform transition duration-200 ease-in-out pointer-events-none ${
+          className={`absolute top-0.5 left-0.5 inline-block rounded-full bg-white shadow-md transform transition-transform duration-200 ease-in-out pointer-events-none ${
             isSm
-              ? `w-3 h-3 ${checked ? 'translate-x-4' : 'translate-x-0.5'} mt-0.5`
-              : `w-5 h-5 ${checked ? 'translate-x-4.5' : 'translate-x-0.5'} mt-0.5`
+              ? `w-3 h-3 ${checked ? 'translate-x-4' : 'translate-x-0'}`
+              : `w-5 h-5 ${checked ? 'translate-x-5' : 'translate-x-0'}`
           }`}
         />
       </button>

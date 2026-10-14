@@ -8,7 +8,7 @@ import { fetchServerDetails } from '@/lib/api/dashboard/servers/[serverId]';
 import type { ServerDetail } from '@/lib/model/server';
 import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { ServerContextBanner } from './ServerContextBanner';
-import { ServerNavigationSubNav } from './ServerNavigationSubNav';
+import { ServerNavigationTabStrip } from './ServerNavigationTabStrip';
 
 export interface ServerDetailShellClientProps {
   children: React.ReactNode;
@@ -96,7 +96,7 @@ export const ServerDetailShellClient: React.FC<ServerDetailShellClientProps> = (
       <ServerContextBanner server={server} />
 
       <div className="rounded-apple-xl bg-zinc-900/90 border border-white/10 p-6 md:p-8 backdrop-blur-xl shadow-apple-card flex flex-col gap-6">
-        <ServerNavigationSubNav serverId={serverId} />
+        <ServerNavigationTabStrip serverId={serverId} />
         <div className="w-full">{children}</div>
       </div>
     </div>

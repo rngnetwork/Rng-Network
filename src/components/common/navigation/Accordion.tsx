@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 
 export interface AccordionItem {
   id: string;
-  title: string;
+  title: React.ReactNode;
   content: React.ReactNode;
   icon?: React.ReactNode;
   disabled?: boolean;
@@ -13,17 +13,30 @@ export interface AccordionItem {
 export interface AccordionProps {
   items: AccordionItem[];
   defaultOpenId?: string;
+  defaultOpenIds?: string[];
   allowMultiple?: boolean;
   className?: string;
+  itemClassName?: string;
+  headerClassName?: string;
+  contentClassName?: string;
 }
 
 export const Accordion: React.FC<AccordionProps> = ({
   items,
   defaultOpenId,
+  defaultOpenIds,
   allowMultiple = false,
   className = '',
+  itemClassName = '',
+  headerClassName = '',
+  contentClassName = '',
 }) => {
-  const [openIds, setOpenIds] = useState<string[]>(defaultOpenId ? [defaultOpenId] : []);
+  const [openIds, setOpenIds] = useState<string[]>(() => {
+    if (defaultOpenIds && defaultOpenIds.length > 0) {
+      return defaultOpenIds;
+    }
+    return defaultOpenId ? [defaultOpenId] : [];
+  });
 
   const handleToggle = (id: string, disabled?: boolean) => {
     if (disabled) return;
@@ -35,31 +48,33 @@ export const Accordion: React.FC<AccordionProps> = ({
   };
 
   return (
-    <div className={`flex flex-col divide-y divide-surface-border rounded-apple-md border border-surface-border bg-surface-elevated overflow-hidden ${className}`}>
+    <div
+      className={`flex flex-col divide-y divide-surface-border rounded-apple-xl border border-surface-border bg-surface-elevated overflow-hidden ${className}`}
+    >
       {items.map((item) => {
         const isOpen = openIds.includes(item.id);
 
         return (
-          <div key={item.id} className="flex flex-col">
+          <div key={item.id} className={`flex flex-col ${itemClassName}`}>
             <button
               type="button"
               disabled={item.disabled}
               onClick={() => handleToggle(item.id, item.disabled)}
               aria-expanded={isOpen}
-              className={`flex items-center justify-between p-3.5 text-xs font-medium text-left transition-colors select-none ${
+              className={`flex items-center justify-between p-4 md:p-5 text-sm font-medium text-left transition-colors select-none ${
                 item.disabled
                   ? 'opacity-40 cursor-not-allowed text-text-tertiary'
                   : 'text-text-primary hover:bg-white/[0.04]'
-              }`}
+              } ${headerClassName}`}
             >
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-3 min-w-0 pr-4">
                 {item.icon ? (
-                  <span className="text-text-secondary flex items-center">{item.icon}</span>
+                  <span className="text-text-secondary flex items-center shrink-0">{item.icon}</span>
                 ) : null}
-                <span>{item.title}</span>
+                <div className="min-w-0">{item.title}</div>
               </div>
               <svg
-                className={`w-4 h-4 text-text-tertiary transition-transform duration-200 ${
+                className={`w-5 h-5 text-text-tertiary transition-transform duration-200 shrink-0 ${
                   isOpen ? 'rotate-180 text-brand-red' : ''
                 }`}
                 fill="none"
@@ -72,7 +87,9 @@ export const Accordion: React.FC<AccordionProps> = ({
               </svg>
             </button>
             {isOpen ? (
-              <div className="px-3.5 pb-3.5 pt-1 text-xs text-text-secondary border-t border-surface-border/40">
+              <div
+                className={`px-5 py-6 md:px-7 md:py-7 text-xs text-text-secondary border-t border-surface-border/40 ${contentClassName}`}
+              >
                 {item.content}
               </div>
             ) : null}

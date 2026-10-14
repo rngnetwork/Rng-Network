@@ -1,6 +1,6 @@
 import React from 'react';
-import { DashboardOverviewCoordinator } from '@/components/dashboard/DashboardOverviewCoordinator';
+import { CyberWebCoordinator } from '@/components/dashboard/CyberWebCoordinator';
 
 export default function DashboardPage() {
-  return <DashboardOverviewCoordinator />;
+  return <CyberWebCoordinator />;
 }

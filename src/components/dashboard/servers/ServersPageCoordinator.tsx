@@ -9,7 +9,7 @@ import { Badge } from '@/components/common/feedback/Badge';
 import { Button } from '@/components/common/input/Button';
 import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { ServerSearchFilter } from './ServerSearchFilter';
-import { ServerDirectoryGrid } from './ServerDirectoryGrid';
+import { ManagedServersGrid } from './ManagedServersGrid';
 
 export const ServersPageCoordinator: React.FC = () => {
   const router = useRouter();
@@ -118,7 +118,7 @@ export const ServersPageCoordinator: React.FC = () => {
         totalCount={servers.length}
       />
 
-      <ServerDirectoryGrid
+      <ManagedServersGrid
         servers={filteredServers}
         onManageServer={handleManageServer}
       />
