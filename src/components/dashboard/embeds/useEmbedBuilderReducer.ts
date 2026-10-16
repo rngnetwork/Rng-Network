@@ -80,6 +80,7 @@ export type EmbedBuilderAction =
     }
   | { type: 'RESTORE_DRAFT'; draft: EmbedBuilderReducerState }
   | { type: 'RESET_CANVAS' }
+  | { type: 'SET_CONTAINERS'; containers: Type17Container[] }
   | { type: 'MARK_SAVED'; templateId?: string | null; templateName?: string };
 
 let idCounter = 1;
@@ -587,6 +588,13 @@ export function embedBuilderReducer(
     case 'RESET_CANVAS':
       return createInitialEmbedBuilderState();
 
+    case 'SET_CONTAINERS':
+      return {
+        ...state,
+        type17Containers: action.containers,
+        isDirty: true,
+      };
+
     case 'MARK_SAVED':
       return {
         ...state,
@@ -778,6 +786,24 @@ export function validateEmbedStateClientSide(
 
   for (const container of state.type17Containers) {
     cumulativeCharacters += (container.title?.length ?? 0) + (container.description?.length ?? 0);
+    if (container.author?.name) cumulativeCharacters += container.author.name.length;
+    if (container.footer?.text) cumulativeCharacters += container.footer.text.length;
+
+    if (Array.isArray(container.fields)) {
+      if (container.fields.length > 25) {
+        violations.push({
+          code: 'CONTAINER_FIELDS_EXCEEDED',
+          message: `Container "${container.title || container.id}" contains ${container.fields.length} fields (maximum 25 allowed).`,
+          path: container.id,
+          severity: 'ERROR',
+        });
+      }
+      for (const f of container.fields) {
+        if (f.name) cumulativeCharacters += f.name.length;
+        if (f.value) cumulativeCharacters += f.value.length;
+      }
+    }
+
     if (container.components.length > 30) {
       violations.push({
         code: 'CONTAINER_DEPTH_EXCEEDED',
@@ -787,12 +813,24 @@ export function validateEmbedStateClientSide(
       });
     }
 
+    let containerActionRows = 0;
     for (const comp of container.components) {
       totalComponents += 1;
       if (comp.type === ComponentType.TEXT_DISPLAY) {
         cumulativeCharacters += comp.content.length;
       } else if (comp.type === ComponentType.ACTION_ROW) {
+        containerActionRows += 1;
         totalActionRows += 1;
+        const rowButtons = comp.components.filter((c) => c.type === ComponentType.BUTTON);
+        const rowSelects = comp.components.filter(
+          (c) =>
+            c.type === ComponentType.STRING_SELECT ||
+            c.type === ComponentType.USER_SELECT ||
+            c.type === ComponentType.ROLE_SELECT ||
+            c.type === ComponentType.MENTIONABLE_SELECT ||
+            c.type === ComponentType.CHANNEL_SELECT
+        );
+
         if (comp.components.length > 5) {
           violations.push({
             code: 'ACTION_ROW_OVERFLOW',
@@ -801,6 +839,23 @@ export function validateEmbedStateClientSide(
             severity: 'ERROR',
           });
         }
+        if (rowSelects.length > 1) {
+          violations.push({
+            code: 'ACTION_ROW_SELECT_OVERFLOW',
+            message: 'Action Row can contain at most 1 Select Menu.',
+            path: comp.id,
+            severity: 'ERROR',
+          });
+        }
+        if (rowSelects.length > 0 && rowButtons.length > 0) {
+          violations.push({
+            code: 'ROW_SELECT_AND_BUTTON_MIX',
+            message: 'Action Row cannot mix Buttons and Select Menus.',
+            path: comp.id,
+            severity: 'ERROR',
+          });
+        }
+
         for (const child of comp.components) {
           totalComponents += 1;
           if (child.type === ComponentType.BUTTON) {
@@ -814,23 +869,135 @@ export function validateEmbedStateClientSide(
                   severity: 'ERROR',
                 });
               }
-            } else if (!child.custom_id) {
+            } else if (!child.custom_id || child.custom_id.trim().length === 0) {
               violations.push({
                 code: 'MISSING_CUSTOM_ID',
                 message: `Interactive Button "${child.label || 'Untitled'}" requires an action custom_id.`,
                 path: child.id,
                 severity: 'ERROR',
               });
+            } else if (child.custom_id.length > 100) {
+              violations.push({
+                code: 'INVALID_BUTTON_CUSTOM_ID',
+                message: `Button custom_id cannot exceed 100 characters.`,
+                path: child.id,
+                severity: 'ERROR',
+              });
             }
           } else if (child.type === ComponentType.STRING_SELECT) {
             cumulativeCharacters += child.placeholder?.length ?? 0;
+            if (child.placeholder && child.placeholder.length > 150) {
+              violations.push({
+                code: 'SELECT_PLACEHOLDER_LENGTH_EXCEEDED',
+                message: 'Select menu placeholder cannot exceed 150 characters.',
+                path: child.id,
+                severity: 'ERROR',
+              });
+            }
+            if (child.options) {
+              if (child.options.length === 0) {
+                violations.push({
+                  code: 'SELECT_OPTIONS_EMPTY',
+                  message: 'String Select menu must have at least 1 option.',
+                  path: child.id,
+                  severity: 'ERROR',
+                });
+              } else if (child.options.length > 25) {
+                violations.push({
+                  code: 'SELECT_OPTIONS_LIMIT_EXCEEDED',
+                  message: `String Select menu has ${child.options.length} options (maximum 25 allowed).`,
+                  path: child.id,
+                  severity: 'ERROR',
+                });
+              }
+              for (const opt of child.options) {
+                if (opt.label) cumulativeCharacters += opt.label.length;
+                if (opt.description) cumulativeCharacters += opt.description.length;
+                if (!opt.label || opt.label.trim().length === 0) {
+                  violations.push({
+                    code: 'SELECT_OPTION_LABEL_EMPTY',
+                    message: 'Select option label cannot be empty.',
+                    path: child.id,
+                    severity: 'ERROR',
+                  });
+                } else if (opt.label.length > 100) {
+                  violations.push({
+                    code: 'SELECT_OPTION_LABEL_LENGTH',
+                    message: `Select option label exceeds 100 characters.`,
+                    path: child.id,
+                    severity: 'ERROR',
+                  });
+                }
+                if (!opt.value || opt.value.trim().length === 0) {
+                  violations.push({
+                    code: 'SELECT_OPTION_VALUE_EMPTY',
+                    message: `Select option "${opt.label || 'Untitled'}" must have a value.`,
+                    path: child.id,
+                    severity: 'ERROR',
+                  });
+                } else if (opt.value.length > 100) {
+                  violations.push({
+                    code: 'SELECT_OPTION_VALUE_LENGTH',
+                    message: 'Select option value exceeds 100 characters.',
+                    path: child.id,
+                    severity: 'ERROR',
+                  });
+                }
+              }
+            }
           }
         }
       } else if (comp.type === ComponentType.SECTION) {
         for (const secTxt of comp.components) {
           cumulativeCharacters += secTxt.content.length;
         }
+        if (comp.accessory && 'type' in comp.accessory && comp.accessory.type === ComponentType.BUTTON) {
+          const btnAcc = comp.accessory as DiscordButtonComponent;
+          if (btnAcc.label) cumulativeCharacters += btnAcc.label.length;
+          if (btnAcc.style === 5) {
+            if (!btnAcc.url || !DISCORD_SAFE_URL_REGEX.test(btnAcc.url)) {
+              violations.push({
+                code: 'UNSAFE_SECTION_ACCESSORY_URL',
+                message: 'Section accessory Link Button requires a valid https:// or discord:// URL.',
+                path: comp.id,
+                severity: 'ERROR',
+              });
+            }
+          } else if (!btnAcc.custom_id || btnAcc.custom_id.length > 100) {
+            violations.push({
+              code: 'INVALID_SECTION_ACCESSORY_CUSTOM_ID',
+              message: 'Section accessory interactive Button must have a custom_id (1-100 characters).',
+              path: comp.id,
+              severity: 'ERROR',
+            });
+          }
+        }
+      } else if (comp.type === ComponentType.MEDIA_GALLERY) {
+        if (comp.items.length === 0) {
+          violations.push({
+            code: 'MEDIA_GALLERY_EMPTY',
+            message: 'Media Gallery must contain at least 1 image.',
+            path: comp.id,
+            severity: 'ERROR',
+          });
+        } else if (comp.items.length > 4) {
+          violations.push({
+            code: 'MEDIA_GALLERY_LIMIT',
+            message: `Media Gallery has ${comp.items.length} images (maximum 4 allowed).`,
+            path: comp.id,
+            severity: 'ERROR',
+          });
+        }
       }
+    }
+
+    if (containerActionRows > 5) {
+      violations.push({
+        code: 'CONTAINER_ACTION_ROWS_EXCEEDED',
+        message: `Container "${container.title || container.id}" contains ${containerActionRows} Action Rows (maximum 5 allowed).`,
+        path: container.id,
+        severity: 'ERROR',
+      });
     }
   }
 

@@ -58,6 +58,7 @@ export interface DiscordStringSelectComponent {
   max_values?: number;
   disabled?: boolean;
   options: DiscordSelectOption[];
+  invokerButtonId?: string;
 }
 
 export interface DiscordEntitySelectComponent {

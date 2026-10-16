@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Calendar } from 'lucide-react';
 import {
   ComponentType,
   type Type17Container,
@@ -123,12 +123,22 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
       {/* 2. Optional Author Bar */}
       {!isAuthorCollapsed && (
         <div className="p-3 rounded-apple-lg bg-surface-canvas border border-white/[0.08] grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <TextInput
-            label="Author Name"
-            placeholder="RNG High Command"
-            value={container.author?.name || ''}
-            onChange={(e) => onUpdateAuthor(cIdx, 'name', e.target.value)}
-          />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-zinc-300">
+              Author Name
+            </label>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-apple-md bg-black/40 border border-white/10 focus-within:border-brand-red transition-colors">
+              <span className="text-zinc-500 text-xs font-mono">@</span>
+              <input
+                type="text"
+                value={container.author?.name || ''}
+                placeholder="Author Name (e.g. Server Announcements)"
+                onChange={(e) => onUpdateAuthor(cIdx, 'name', e.target.value)}
+                className="w-full bg-transparent text-xs sm:text-sm text-white placeholder-zinc-500 outline-none font-sans"
+              />
+            </div>
+          </div>
+
           <TextInput
             label="Author Icon URL"
             placeholder="https://..."
@@ -139,23 +149,29 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
       )}
 
       {/* 3. Title & Description */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="flex flex-col gap-3">
         <TextInput
           label="Container Title"
-          placeholder="Operational Briefing..."
+          placeholder="Container Title (e.g. Welcome & Rules)"
           value={container.title || ''}
           onChange={(e) =>
             onUpdateContainer(cIdx, { title: e.target.value })
           }
         />
-        <TextInput
-          label="Container Subtitle / Lead"
-          placeholder="Summary description..."
-          value={container.description || ''}
-          onChange={(e) =>
-            onUpdateContainer(cIdx, { description: e.target.value })
-          }
-        />
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-semibold text-zinc-300">
+            Container Description / Body (Markdown)
+          </label>
+          <textarea
+            value={container.description || ''}
+            rows={2}
+            placeholder="Container Description / Body Markdown text..."
+            onChange={(e) =>
+              onUpdateContainer(cIdx, { description: e.target.value })
+            }
+            className="w-full px-3.5 py-2.5 rounded-apple-md bg-black/50 border border-white/10 focus:border-brand-red text-xs sm:text-sm text-white font-sans outline-none transition-colors resize-y leading-relaxed"
+          />
+        </div>
       </div>
 
       {/* 4. Embed Fields */}
@@ -167,9 +183,9 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
         onRemoveField={onRemoveField}
       />
 
-      {/* 5. Optional Thumbnail & Image & Footer */}
+      {/* 5. Optional Thumbnail & Image Banner */}
       {!isAuthorCollapsed && (
-        <div className="p-3 rounded-apple-lg bg-surface-canvas border border-white/[0.08] grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="p-3 rounded-apple-lg bg-surface-canvas border border-white/[0.08] grid grid-cols-1 sm:grid-cols-2 gap-3">
           <TextInput
             label="Thumbnail URL"
             placeholder="Square icon URL..."
@@ -179,18 +195,12 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
             }
           />
           <TextInput
-            label="Large Image URL"
+            label="Large Image / Banner URL"
             placeholder="Banner image URL..."
             value={container.image || ''}
             onChange={(e) =>
               onUpdateContainer(cIdx, { image: e.target.value })
             }
-          />
-          <TextInput
-            label="Footer Text"
-            placeholder="Operational Transmission End"
-            value={container.footer?.text || ''}
-            onChange={(e) => onUpdateFooter(cIdx, 'text', e.target.value)}
           />
         </div>
       )}
@@ -241,6 +251,18 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
             ))}
           </div>
         )}
+      </div>
+
+      {/* 7. Footer Subtext (Strictly positioned at container bottom) */}
+      <div className="flex items-center gap-2.5 px-3 py-2 rounded-apple-md bg-white/[0.02] border border-dashed border-white/10 mt-1">
+        <Calendar size={14} className="text-zinc-500 shrink-0" />
+        <input
+          type="text"
+          value={container.footer?.text || ''}
+          placeholder="Footer Text"
+          onChange={(e) => onUpdateFooter(cIdx, 'text', e.target.value)}
+          className="w-full bg-transparent text-xs text-zinc-300 placeholder-zinc-500 outline-none font-sans"
+        />
       </div>
     </div>
   );

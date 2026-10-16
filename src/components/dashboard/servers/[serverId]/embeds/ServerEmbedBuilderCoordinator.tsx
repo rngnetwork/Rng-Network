@@ -385,6 +385,7 @@ export const ServerEmbedBuilderCoordinator: React.FC<
           isOpen={Boolean(editingSelectMenu)}
           selectMenu={editingSelectMenu.selectMenu}
           availableActions={actions}
+          allContainers={state.type17Containers}
           onClose={() => setEditingSelectMenu(null)}
           onSave={(updatedMenu) => {
             if (updatedMenu.id) {
@@ -398,6 +399,12 @@ export const ServerEmbedBuilderCoordinator: React.FC<
                 });
               }
             }
+          }}
+          onUpdateContainers={(updatedContainers) => {
+            dispatch({
+              type: 'SET_CONTAINERS',
+              containers: updatedContainers,
+            });
           }}
         />
       )}
