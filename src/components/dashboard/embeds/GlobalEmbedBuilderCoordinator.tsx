@@ -125,9 +125,11 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
       const nextVal =
         currentVal.slice(0, selectionStart) + token + currentVal.slice(selectionEnd);
 
-      const nativeSetter =
-        Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set ||
-        Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+      const proto =
+        element instanceof HTMLTextAreaElement
+          ? window.HTMLTextAreaElement.prototype
+          : window.HTMLInputElement.prototype;
+      const nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
       if (nativeSetter) {
         nativeSetter.call(element, nextVal);
       } else {
@@ -138,6 +140,11 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
       element.focus();
       const nextCursor = selectionStart + token.length;
       element.setSelectionRange(nextCursor, nextCursor);
+      lastFocusedInputRef.current = {
+        element,
+        selectionStart: nextCursor,
+        selectionEnd: nextCursor,
+      };
     } else {
       toast({
         type: 'info',

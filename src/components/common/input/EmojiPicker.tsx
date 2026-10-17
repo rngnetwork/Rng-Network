@@ -84,6 +84,7 @@ export const STANDARD_EMOJI_CATEGORIES: EmojiCategory[] = [
 ];
 
 export const UNICODE_EMOJI_NAMES: Record<string, string> = {
+  // Smileys & Emotion
   '😀': 'grinning', '😃': 'smiley', '😄': 'smile', '😁': 'grin', '😆': 'laughing',
   '😅': 'sweat_smile', '🤣': 'rofl', '😂': 'joy', '🙂': 'slightly_smiling_face', '🙃': 'upside_down_face',
   '😉': 'wink', '😊': 'blush', '😇': 'innocent', '🥰': 'smiling_face_with_3_hearts', '😍': 'heart_eyes',
@@ -102,26 +103,56 @@ export const UNICODE_EMOJI_NAMES: Record<string, string> = {
   '😱': 'scream', '😖': 'confounded', '😣': 'persevere', '😞': 'disappointed', '😓': 'sweat',
   '😩': 'weary', '😫': 'tired_face', '🥱': 'yawning_face', '😤': 'triumph', '😡': 'rage',
   '😠': 'angry', '🤬': 'cursing_face', '😈': 'smiling_imp', '👿': 'imp', '💀': 'skull',
-  '☠️': 'skull_crossbones', '💩': 'poop', '🤡': 'clown', '👹': 'japanese_ogre', '👺': 'japanese_goblin',
+  '☠️': 'skull_crossbones', '☠': 'skull_crossbones', '💩': 'poop', '🤡': 'clown', '👹': 'japanese_ogre', '👺': 'japanese_goblin',
   '👻': 'ghost', '👽': 'alien', '👾': 'space_invader', '🤖': 'robot',
-  '👋': 'wave', '🤚': 'raised_back_of_hand', '🖐️': 'raised_hand_with_fingers_splayed', '✋': 'hand', '🖖': 'vulcan',
-  '👌': 'ok_hand', '🤌': 'pinched_fingers', '🤏': 'pinching_hand', '✌️': 'v', '🤞': 'crossed_fingers',
-  '🤟': 'love_you_gesture', '🤘': 'metal', '🤙': 'call_me', '👈': 'point_left', '👉': 'point_right',
-  '👆': 'point_up_2', '🖕': 'middle_finger', '👇': 'point_down', '☝️': 'point_up', '👍': 'thumbsup',
-  '👎': 'thumbsdown', '✊': 'fist', '👊': 'punch', '🤛': 'left_facing_fist', '🤜': 'right_facing_fist',
-  '👏': 'clap', '🙌': 'raised_hands', '👐': 'open_hands', '🤲': 'palms_up_together', '🤝': 'handshake',
-  '🙏': 'pray', '✍️': 'writing_hand', '💅': 'nail_care', '🤳': 'selfie', '💪': 'muscle',
-  '❤️': 'heart', '🧡': 'orange_heart', '💛': 'yellow_heart', '💚': 'green_heart', '💙': 'blue_heart',
-  '💜': 'purple_heart', '🖤': 'black_heart', '🤍': 'white_heart', '🤎': 'brown_heart', '💔': 'broken_heart',
-  '🛡️': 'shield', '⚔️': 'crossed_swords', '⚡': 'zap', '🔥': 'fire', '✨': 'sparkles',
-  '⭐': 'star', '🌟': 'star2', '💥': 'boom', '💯': '100', '💢': 'anger',
-  '🚨': 'rotating_light', '⚠️': 'warning', '⛔': 'no_entry', '🚫': 'no_entry_sign',
-  '✅': 'white_check_mark', '❌': 'cross_mark', '❓': 'question', '❗': 'exclamation', '💤': 'zzz', '👑': 'crown',
+
+  // Gestures & People
+  '👋': 'wave', '🤚': 'raised_back_of_hand', '🖐️': 'raised_hand_with_fingers_splayed', '🖐': 'raised_hand_with_fingers_splayed',
+  '✋': 'hand', '🖖': 'vulcan', '👌': 'ok_hand', '🤌': 'pinched_fingers', '🤏': 'pinching_hand',
+  '✌️': 'v', '✌': 'v', '🤞': 'crossed_fingers', '🤟': 'love_you_gesture', '🤘': 'metal', '🤙': 'call_me',
+  '👈': 'point_left', '👉': 'point_right', '👆': 'point_up_2', '🖕': 'middle_finger', '👇': 'point_down',
+  '☝️': 'point_up', '☝': 'point_up', '👍': 'thumbsup', '👎': 'thumbsdown', '✊': 'fist', '👊': 'punch',
+  '🤛': 'left_facing_fist', '🤜': 'right_facing_fist', '👏': 'clap', '🙌': 'raised_hands', '👐': 'open_hands',
+  '🤲': 'palms_up_together', '🤝': 'handshake', '🙏': 'pray', '✍️': 'writing_hand', '✍': 'writing_hand',
+  '💅': 'nail_care', '🤳': 'selfie', '💪': 'muscle', '🦾': 'mechanical_arm', '🦿': 'mechanical_leg',
+  '🦵': 'leg', '🦶': 'foot', '👂': 'ear',
+
+  // Symbols
+  '❤️': 'heart', '❤': 'heart', '🧡': 'orange_heart', '💛': 'yellow_heart', '💚': 'green_heart',
+  '💙': 'blue_heart', '💜': 'purple_heart', '🖤': 'black_heart', '🤍': 'white_heart', '🤎': 'brown_heart',
+  '💔': 'broken_heart', '❣️': 'heavy_heart_exclamation', '💕': 'two_hearts', '💞': 'revolving_hearts',
+  '💓': 'heartbeat', '💗': 'heartpulse', '💖': 'sparkling_heart', '💘': 'cupid', '💝': 'gift_heart',
+  '💟': 'heart_decoration', '☮️': 'peace', '☮': 'peace', '✝️': 'cross', '✝': 'cross',
+  '☪️': 'star_and_crescent', '☪': 'star_and_crescent', '🕉️': 'om', '🕉': 'om',
+  '☸️': 'wheel_of_dharma', '☸': 'wheel_of_dharma', '✡️': 'star_of_david', '✡': 'star_of_david',
+  '🔯': 'six_pointed_star', '🕎': 'menorah', '☯️': 'yin_yang', '☯': 'yin_yang',
+  '☦️': 'orthodox_cross', '☦': 'orthodox_cross', '🛐': 'place_of_worship',
+  '🛡️': 'shield', '🛡': 'shield', '⚔️': 'crossed_swords', '⚔': 'crossed_swords',
+  '⚡': 'zap', '🔥': 'fire', '✨': 'sparkles', '⭐': 'star', '🌟': 'star2', '💥': 'boom',
+  '💯': '100', '💢': 'anger', '🚨': 'rotating_light', '⚠️': 'warning', '⚠': 'warning',
+  '⛔': 'no_entry', '🚫': 'no_entry_sign', '✅': 'white_check_mark', '❌': 'cross_mark',
+  '❓': 'question', '❗': 'exclamation', '💤': 'zzz', '👑': 'crown',
   '📜': 'scroll', '🎫': 'ticket', '🔔': 'bell', '🎉': 'tada',
+
+  // Objects
+  '📱': 'iphone', '💻': 'computer', '🖥️': 'desktop', '🖥': 'desktop',
+  '⌨️': 'keyboard', '⌨': 'keyboard', '🖱️': 'mouse', '🖱': 'mouse',
+  '🕹️': 'joystick', '🕹': 'joystick', '💽': 'minidisc', '💾': 'floppy_disk',
+  '💿': 'cd', '📀': 'dvd', '🔋': 'battery', '🔌': 'electric_plug',
+  '💡': 'bulb', '🔦': 'flashlight', '🕯️': 'candle', '🕯': 'candle',
+  '🧯': 'fire_extinguisher', '🗑️': 'wastebasket', '🗑': 'wastebasket',
+  '🗄️': 'file_cabinet', '🗄': 'file_cabinet', '🔒': 'lock', '🔓': 'unlock',
+  '🔑': 'key', '🗝️': 'old_key', '🗝': 'old_key', '🔨': 'hammer',
+  '⛏️': 'pick', '⛏': 'pick', '⚒️': 'hammer_pick', '⚒': 'hammer_pick',
+  '🛠️': 'tools', '🛠': 'tools', '🗡️': 'dagger', '🗡': 'dagger',
+  '🔫': 'gun', '💣': 'bomb', '🧨': 'firecracker',
 };
 
 export const getUnicodeEmojiShortcode = (emoji: string): string => {
-  return UNICODE_EMOJI_NAMES[emoji] || 'emoji';
+  if (UNICODE_EMOJI_NAMES[emoji]) return UNICODE_EMOJI_NAMES[emoji];
+  const stripped = emoji.replace(/\uFE0F/g, '');
+  if (UNICODE_EMOJI_NAMES[stripped]) return UNICODE_EMOJI_NAMES[stripped];
+  return 'emoji';
 };
 
 const getCategoryIcon = (catId: string) => {
@@ -252,6 +283,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
               type="button"
               aria-label={cat.name}
               title={cat.name}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => handleCategoryClick(cat.id)}
               className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
                 isActive
@@ -286,6 +318,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
               <button
                 type="button"
                 aria-label="Clear search"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setSearchTerm('')}
                 className="absolute right-2 text-zinc-400 hover:text-white text-xs p-0.5 cursor-pointer"
               >
@@ -327,6 +360,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
                           type="button"
                           aria-label={`:${item.name}:`}
                           title={`:${item.name}:`}
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => handleEmojiClick(item)}
                           onMouseEnter={() => setHoveredEmoji(item)}
                           onMouseLeave={() =>
@@ -351,6 +385,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
                         type="button"
                         aria-label={item}
                         title={`:${getUnicodeEmojiShortcode(item)}:`}
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={() => handleEmojiClick(item)}
                         onMouseEnter={() => setHoveredEmoji(item)}
                         onMouseLeave={() =>

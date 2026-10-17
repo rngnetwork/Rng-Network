@@ -131,6 +131,7 @@ export const BuilderBottomDockToolbar: React.FC<BuilderBottomDockToolbarProps> =
 
         <button
           type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={onOpenEmojiPicker}
           title="Open Discord Emoji Picker"
           aria-label="Open Discord Emoji Picker"

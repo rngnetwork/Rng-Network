@@ -1,6 +1,10 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { EmojiPicker, EmojiCategory } from '../input/EmojiPicker';
+import {
+  EmojiPicker,
+  EmojiCategory,
+  getUnicodeEmojiShortcode,
+} from '../input/EmojiPicker';
 
 describe('EmojiPicker', () => {
   it('renders standard emoji categories and default tab', () => {
@@ -76,5 +80,16 @@ describe('EmojiPicker', () => {
       },
       { timeout: 300 }
     );
+  });
+
+  it('resolves correct shortcodes for objects, symbols, and variation selectors', () => {
+    expect(getUnicodeEmojiShortcode('📱')).toBe('iphone');
+    expect(getUnicodeEmojiShortcode('💡')).toBe('bulb');
+    expect(getUnicodeEmojiShortcode('💻')).toBe('computer');
+    expect(getUnicodeEmojiShortcode('❤️')).toBe('heart');
+    expect(getUnicodeEmojiShortcode('🛡️')).toBe('shield');
+    expect(getUnicodeEmojiShortcode('🛡')).toBe('shield');
+    expect(getUnicodeEmojiShortcode('⚡')).toBe('zap');
+    expect(getUnicodeEmojiShortcode('🔥')).toBe('fire');
   });
 });

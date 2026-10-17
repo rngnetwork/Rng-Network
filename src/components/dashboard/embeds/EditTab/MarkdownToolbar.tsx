@@ -33,6 +33,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
       <button
         type="button"
         title="Bold (**text**)"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => onApplyMarkdown('**', '**')}
         className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
       >
@@ -42,6 +43,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
       <button
         type="button"
         title="Italic (*text*)"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => onApplyMarkdown('*', '*')}
         className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
       >
@@ -51,6 +53,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
       <button
         type="button"
         title="Underline (__text__)"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => onApplyMarkdown('__', '__')}
         className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
       >
@@ -60,6 +63,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
       <button
         type="button"
         title="Strikethrough (~~text~~)"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => onApplyMarkdown('~~', '~~')}
         className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
       >
@@ -71,6 +75,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
       <button
         type="button"
         title="Inline Code (`text`)"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => onApplyMarkdown('`', '`')}
         className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
       >
@@ -80,6 +85,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
       <button
         type="button"
         title="Blockquote (> text)"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => onApplyMarkdown('> ', '')}
         className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
       >
@@ -89,6 +95,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
       <button
         type="button"
         title="Spoiler (||text||)"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => onApplyMarkdown('||', '||')}
         className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
       >
@@ -98,6 +105,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
       <button
         type="button"
         title="Masked Link ([text](url))"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => onApplyMarkdown('[', '](https://)')}
         className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
       >
@@ -110,6 +118,7 @@ export const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
           <button
             type="button"
             title="Emoji Picker"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={onOpenEmojiPicker}
             className="p-1.5 rounded text-amber-400 hover:text-amber-300 hover:bg-white/[0.08] transition-colors cursor-pointer"
           >
