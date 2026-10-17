@@ -7,6 +7,7 @@ import {
   Trash2,
   Settings2,
   ChevronDown,
+  ChevronUp,
   MousePointerClick,
 } from 'lucide-react';
 import {
@@ -34,6 +35,8 @@ export interface ComponentItemRendererProps {
   cIdx: number;
   compIdx: number;
   comp: DiscordInnerComponent;
+  totalComponents?: number;
+  onMoveComponent?: (cIdx: number, compIdx: number, direction: 'up' | 'down') => void;
   onUpdateComponent: (
     cIdx: number,
     compIdx: number,
@@ -46,6 +49,8 @@ export interface ComponentItemRendererProps {
   onDragStart?: (e: React.DragEvent) => void;
   onDragOver?: (e: React.DragEvent) => void;
   onDrop?: (e: React.DragEvent) => void;
+  onDragEnd?: (e: React.DragEvent) => void;
+  onOpenEmojiPicker?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   isDragging?: boolean;
   isDragOver?: boolean;
 }
@@ -68,6 +73,8 @@ export const ComponentItemRenderer: React.FC<ComponentItemRendererProps> = ({
   cIdx,
   compIdx,
   comp,
+  totalComponents = 1,
+  onMoveComponent,
   onUpdateComponent,
   onRemoveComponent,
   onDuplicateComponent,
@@ -76,6 +83,8 @@ export const ComponentItemRenderer: React.FC<ComponentItemRendererProps> = ({
   onDragStart,
   onDragOver,
   onDrop,
+  onDragEnd,
+  onOpenEmojiPicker,
   isDragging = false,
   isDragOver = false,
 }) => {
@@ -131,11 +140,34 @@ export const ComponentItemRenderer: React.FC<ComponentItemRendererProps> = ({
             <div
               draggable
               onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
               title="Drag to reorder component"
               className="p-1 rounded text-zinc-500 hover:text-zinc-300 cursor-grab active:cursor-grabbing transition-colors"
             >
               <GripVertical size={14} />
             </div>
+            {onMoveComponent && (
+              <div className="flex items-center border border-white/10 rounded-apple-md overflow-hidden">
+                <button
+                  type="button"
+                  disabled={compIdx === 0}
+                  onClick={() => onMoveComponent(cIdx, compIdx, 'up')}
+                  title="Move component up"
+                  className="p-1 text-zinc-400 hover:text-white hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronUp size={13} />
+                </button>
+                <button
+                  type="button"
+                  disabled={compIdx === totalComponents - 1}
+                  onClick={() => onMoveComponent(cIdx, compIdx, 'down')}
+                  title="Move component down"
+                  className="p-1 text-zinc-400 hover:text-white hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-l border-white/10"
+                >
+                  <ChevronDown size={13} />
+                </button>
+              </div>
+            )}
             <span className="text-xs font-bold text-white">#{compIdx + 1}</span>
             <Badge variant={badgeDef.variant} size="sm">
               {badgeDef.name}
@@ -312,6 +344,7 @@ export const ComponentItemRenderer: React.FC<ComponentItemRendererProps> = ({
           section={comp as DiscordSectionComponent}
           onClose={() => setIsSectionModalOpen(false)}
           onSave={(updated) => onUpdateComponent(cIdx, compIdx, updated)}
+          onOpenEmojiPicker={onOpenEmojiPicker}
         />
       )}
 

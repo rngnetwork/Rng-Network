@@ -11,7 +11,6 @@ import {
   type DiscordActionRowChild,
 } from '@/lib/model/embed';
 import { ButtonComponentNode } from './ButtonComponentNode';
-import { Badge } from '@/components/common/feedback/Badge';
 
 export interface ActionRowGroupProps {
   row: DiscordActionRowComponent;
@@ -74,16 +73,11 @@ const ActionRowGroupInner: React.FC<ActionRowGroupProps> = ({
   return (
     <div className="p-3.5 rounded-apple-lg bg-zinc-900/70 border border-white/[0.08] flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Badge variant="neutral" size="sm">
-            Action Row (Type 1)
-          </Badge>
-          <span className="text-[11px] font-mono text-zinc-400">
-            {selectMenus.length > 0
-              ? '1 Select Menu'
-              : `${buttons.length}/5 Buttons`}
-          </span>
-        </div>
+        <span className="text-[11px] font-mono text-zinc-400">
+          {selectMenus.length > 0
+            ? '1 Select Menu'
+            : `${buttons.length}/5 Buttons`}
+        </span>
 
         <div className="flex items-center gap-2">
           {canAppendButton && (
@@ -94,16 +88,6 @@ const ActionRowGroupInner: React.FC<ActionRowGroupProps> = ({
             >
               <Plus size={12} />
               <span>Add Button</span>
-            </button>
-          )}
-          {row.id && (
-            <button
-              type="button"
-              onClick={() => onRemoveRow(row.id!)}
-              aria-label="Remove Action Row"
-              className="p-1.5 rounded text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-            >
-              <Trash2 size={14} />
             </button>
           )}
         </div>

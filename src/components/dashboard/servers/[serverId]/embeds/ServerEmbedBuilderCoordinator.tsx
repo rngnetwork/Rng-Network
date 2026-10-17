@@ -323,6 +323,9 @@ export const ServerEmbedBuilderCoordinator: React.FC<
               const toIdx = direction === 'up' ? fromIdx - 1 : fromIdx + 1;
               dispatch({ type: 'MOVE_CONTAINER', fromIndex: fromIdx, toIndex: toIdx });
             }}
+            onMoveComponent={(containerIndex, fromIndex, toIndex) =>
+              dispatch({ type: 'MOVE_COMPONENT', containerIndex, fromIndex, toIndex })
+            }
             onUpdateAuthor={(cIdx, key, val) => {
               const target = state.type17Containers[cIdx];
               if (target) {

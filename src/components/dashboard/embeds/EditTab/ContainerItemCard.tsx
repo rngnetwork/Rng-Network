@@ -63,6 +63,9 @@ export interface ContainerItemCardProps {
   onCompDragStart?: (e: React.DragEvent, cIdx: number, compIdx: number) => void;
   onCompDragOver?: (e: React.DragEvent, cIdx: number, compIdx: number) => void;
   onCompDrop?: (e: React.DragEvent, cIdx: number, compIdx: number) => void;
+  onCompDragEnd?: () => void;
+  onMoveComponent?: (cIdx: number, compIdx: number, direction: 'up' | 'down') => void;
+  onOpenEmojiPicker?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   draggedComp?: { cIdx: number; compIdx: number } | null;
   dragOverComp?: { cIdx: number; compIdx: number } | null;
 }
@@ -95,6 +98,9 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
   onCompDragStart,
   onCompDragOver,
   onCompDrop,
+  onCompDragEnd,
+  onMoveComponent,
+  onOpenEmojiPicker,
   draggedComp,
   dragOverComp,
 }) => {
@@ -182,6 +188,8 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
                 cIdx={cIdx}
                 compIdx={compIdx}
                 comp={comp}
+                totalComponents={container.components.length}
+                onMoveComponent={onMoveComponent}
                 onUpdateComponent={onUpdateComponent}
                 onRemoveComponent={onRemoveComponent}
                 onDuplicateComponent={onDuplicateComponent}
@@ -190,6 +198,8 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
                 onDragStart={(e) => onCompDragStart?.(e, cIdx, compIdx)}
                 onDragOver={(e) => onCompDragOver?.(e, cIdx, compIdx)}
                 onDrop={(e) => onCompDrop?.(e, cIdx, compIdx)}
+                onDragEnd={() => onCompDragEnd?.()}
+                onOpenEmojiPicker={onOpenEmojiPicker}
                 isDragging={
                   draggedComp?.cIdx === cIdx && draggedComp?.compIdx === compIdx
                 }

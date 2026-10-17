@@ -11,6 +11,10 @@ import {
   Bot,
   Sparkles,
   Search,
+  PawPrint,
+  Utensils,
+  Gamepad2,
+  Plane,
 } from 'lucide-react';
 
 export interface CustomEmoji {
@@ -62,14 +66,61 @@ export const STANDARD_EMOJI_CATEGORIES: EmojiCategory[] = [
     ],
   },
   {
-    id: 'symbols',
-    name: 'Symbols',
+    id: 'animals',
+    name: 'Animals & Nature',
     emojis: [
-      '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔',
-      '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️',
-      '✝️', '☪️', '🕉️', '☸️', '✡️', '🔯', '🕎', '☯️', '☦️', '🛐',
-      '🛡️', '⚔️', '⚡', '🔥', '✨', '⭐', '🌟', '💥', '💯', '💢',
-      '🚨', '⚠️', '⛔', '🚫', '✅', '❌', '❓', '❗', '💤', '👑'
+      '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯',
+      '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🐤', '🦆',
+      '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🦋',
+      '🐌', '🐞', '🐜', '🦟', '🐢', '🐍', '🦎', '🐙', '🦑', '🦐',
+      '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🦈', '🐊', '🐅',
+      '🐆', '🦓', '🦍', '🦧', '🐘', '🦛', '🦏', '🐪', '🐫', '🦒',
+      '🦘', '🌲', '🌳', '🌴', '🌱', '🌿', '☘️', '🍀', '🍁', '🍂',
+      '🍃', '🍄', '🌸', '🌹', '🌻', '🌼', '🌷', '🌾', '🌺', '💐'
+    ],
+  },
+  {
+    id: 'food',
+    name: 'Food & Drink',
+    emojis: [
+      '🍏', '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐',
+      '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🍆', '🥑',
+      '🥦', '🥬', '🥒', '🌶️', '🌽', '🥕', '🧄', '🧅', '🥔', '🍠',
+      '🥐', '🥯', '🍞', '🥖', '🥨', '🧀', '🥚', '🍳', '🧈', '🥞',
+      '🧇', '🥓', '🥩', '🍗', '🍖', '🦴', '🌭', '🍔', '🍟', '🍕',
+      '🥪', '🥙', '🧆', '🌮', '🌯', '🥗', '🥘', '🥫', '🍝', '🍜',
+      '🍲', '🍛', '🍣', '🍱', '🥟', '🍤', '🍙', '🍚', '🍘', '🍥',
+      '🍦', '🍧', '🍨', '🍩', '🍪', '🎂', '🍰', '🧁', '🥧', '🍫',
+      '🍬', '🍭', '🍮', '🍯', '🍼', '🥛', '☕', '🫖', '🍵', '🍶',
+      '🍾', '🍷', '🍸', '🍹', '🍺', '🍻', '🥂', '🥃', '🥤', '🧃'
+    ],
+  },
+  {
+    id: 'activities',
+    name: 'Activities',
+    emojis: [
+      '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱',
+      '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🪃', '🥅', '⛳',
+      '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽', '🛹', '🛼', '🛷',
+      '⛸️', '🥌', '🎿', '⛷️', '🏂', '🪂', '🏋️', '🤼', '🤸', '🤺',
+      '🏇', '🧘', '🏄', '🏊', '🤽', '🚣', '🧗', '🚵', '🚴', '🏆',
+      '🥇', '🥈', '🥉', '🏅', '🎖️', '🎟️', '🎫', '🎪', '🎭', '🎨',
+      '🎬', '🎤', '🎧', '🎼', '🎹', '🥁', '🎷', '🎺', '🎸', '🪕',
+      '🎻', '🎲', '♟️', '🎯', '🎳', '🎮', '🎰', '🧩', '🃏', '🪄'
+    ],
+  },
+  {
+    id: 'travel',
+    name: 'Travel & Places',
+    emojis: [
+      '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐',
+      '🛻', '🚚', '🚛', '🚜', '🛵', '🏍️', '🛺', '🚲', '🛴', '🚨',
+      '🚔', '🚍', '🚘', '🚖', '🚡', '🚠', '🚟', '🚃', '🚋', '🚞',
+      '🚝', '🚄', '🚅', '🚈', '🚂', '🚆', '🚇', '🚊', '🚉', '🛫',
+      '✈️', '🛩️', '🛬', '🚀', '🛸', '🚁', '🛶', '⛵', '🚤', '🛥️',
+      '🛳️', '⛴️', '🚢', '⚓', '⛽', '🚧', '🛑', '🚥', '🚦', '🗺️',
+      '🗿', '🗽', '🗼', '🏰', '🏯', '🏟️', '🎡', '🎢', '🎠', '🏖️',
+      '🏝️', '🏜️', '🌋', '⛰️', '🏔️', '🗻', '🏕️', '⛺', '🏠', '🏡'
     ],
   },
   {
@@ -79,6 +130,17 @@ export const STANDARD_EMOJI_CATEGORIES: EmojiCategory[] = [
       '📱', '💻', '🖥️', '⌨️', '🖱️', '🕹️', '💽', '💾', '💿', '📀',
       '🔋', '🔌', '💡', '🔦', '🕯️', '🧯', '🗑️', '🗄️', '🔒', '🔓',
       '🔑', '🗝️', '🔨', '⛏️', '⚒️', '🛠️', '🗡️', '🔫', '💣', '🧨'
+    ],
+  },
+  {
+    id: 'symbols',
+    name: 'Symbols',
+    emojis: [
+      '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔',
+      '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️',
+      '✝️', '☪️', '🕉️', '☸️', '✡️', '🔯', '🕎', '☯️', '☦️', '🛐',
+      '🛡️', '⚔️', '⚡', '🔥', '✨', '⭐', '🌟', '💥', '💯', '💢',
+      '🚨', '⚠️', '⛔', '🚫', '✅', '❌', '❓', '❗', '💤', '👑'
     ],
   },
 ];
@@ -117,6 +179,87 @@ export const UNICODE_EMOJI_NAMES: Record<string, string> = {
   '💅': 'nail_care', '🤳': 'selfie', '💪': 'muscle', '🦾': 'mechanical_arm', '🦿': 'mechanical_leg',
   '🦵': 'leg', '🦶': 'foot', '👂': 'ear',
 
+  // Animals & Nature
+  '🐶': 'dog', '🐱': 'cat', '🐭': 'mouse', '🐹': 'hamster', '🐰': 'rabbit',
+  '🦊': 'fox', '🐻': 'bear', '🐼': 'panda', '🐨': 'koala', '🐯': 'tiger',
+  '🦁': 'lion', '🐮': 'cow', '🐷': 'pig', '🐸': 'frog', '🐵': 'monkey',
+  '🐔': 'chicken', '🐧': 'penguin', '🐦': 'bird', '🐤': 'chick', '🦆': 'duck',
+  '🦅': 'eagle', '🦉': 'owl', '🦇': 'bat', '🐺': 'wolf', '🐗': 'boar',
+  '🐴': 'horse', '🦄': 'unicorn', '🐝': 'bee', '🐛': 'bug', '🦋': 'butterfly',
+  '🐌': 'snail', '🐞': 'beetle', '🐜': 'ant', '🦟': 'mosquito', '🐢': 'turtle',
+  '🐍': 'snake', '🦎': 'lizard', '🐙': 'octopus', '🦑': 'squid', '🦐': 'shrimp',
+  '🦞': 'lobster', '🦀': 'crab', '🐡': 'blowfish', '🐠': 'tropical_fish', '🐟': 'fish',
+  '🐬': 'dolphin', '🐳': 'whale', '🦈': 'shark', '🐊': 'crocodile', '🐅': 'tiger2',
+  '🐆': 'leopard', '🦓': 'zebra', '🦍': 'gorilla', '🦧': 'orangutan', '🐘': 'elephant',
+  '🦛': 'hippo', '🦏': 'rhino', '🐪': 'camel', '🐫': 'two_hump_camel', '🦒': 'giraffe',
+  '🦘': 'kangaroo', '🌲': 'evergreen_tree', '🌳': 'deciduous_tree', '🌴': 'palm_tree', '🌱': 'seedling',
+  '🌿': 'herb', '☘️': 'shamrock', '☘': 'shamrock', '🍀': 'four_leaf_clover', '🍁': 'maple_leaf', '🍂': 'fallen_leaf',
+  '🍃': 'leaves', '🍄': 'mushroom', '🌸': 'cherry_blossom', '🌹': 'rose', '🥀': 'wilted_rose', '🌻': 'sunflower',
+  '🌼': 'blossom', '🌷': 'tulip', '🌾': 'ear_of_rice', '🌺': 'hibiscus', '💐': 'bouquet',
+
+  // Food & Drink
+  '🍏': 'green_apple', '🍎': 'apple', '🍐': 'pear', '🍊': 'tangerine', '🍋': 'lemon',
+  '🍌': 'banana', '🍉': 'watermelon', '🍇': 'grapes', '🍓': 'strawberry', '🫐': 'blueberries',
+  '🍈': 'melon', '🍒': 'cherries', '🍑': 'peach', '🥭': 'mango', '🍍': 'pineapple',
+  '🥥': 'coconut', '🥝': 'kiwi', '🍅': 'tomato', '🍆': 'eggplant', '🥑': 'avocado',
+  '🥦': 'broccoli', '🥬': 'leafy_green', '🥒': 'cucumber', '🌶️': 'hot_pepper', '🌶': 'hot_pepper',
+  '🌽': 'corn', '🥕': 'carrot', '🧄': 'garlic', '🧅': 'onion', '🥔': 'potato',
+  '🍠': 'sweet_potato', '🥐': 'croissant', '🥯': 'bagel', '🍞': 'bread', '🥖': 'baguette_bread',
+  '🥨': 'pretzel', '🧀': 'cheese', '🥚': 'egg', '🍳': 'fried_egg', '🧈': 'butter',
+  '🥞': 'pancakes', '🧇': 'waffle', '🥓': 'bacon', '🥩': 'meat_on_bone', '🍗': 'poultry_leg',
+  '🍖': 'meat', '🦴': 'bone', '🌭': 'hotdog', '🍔': 'hamburger', '🍟': 'fries',
+  '🍕': 'pizza', '🥪': 'sandwich', '🥙': 'stuffed_flatbread', '🧆': 'falafel', '🌮': 'taco',
+  '🌯': 'burrito', '🥗': 'green_salad', '🥘': 'shallow_pan_of_food', '🥫': 'canned_food', '🍝': 'spaghetti',
+  '🍜': 'ramen', '🍲': 'stew', '🍛': 'curry', '🍣': 'sushi', '🍱': 'bento',
+  '🥟': 'dumpling', '🍤': 'fried_shrimp', '🍙': 'rice_ball', '🍚': 'rice', '🍘': 'rice_cracker',
+  '🍥': 'fish_cake', '🍦': 'icecream', '🍧': 'shaved_ice', '🍨': 'ice_cream', '🍩': 'doughnut',
+  '🍪': 'cookie', '🎂': 'birthday', '🍰': 'cake', '🧁': 'cupcake', '🥧': 'pie',
+  '🍫': 'chocolate_bar', '🍬': 'candy', '🍭': 'lollipop', '🍮': 'custard', '🍯': 'honey_pot',
+  '🍼': 'baby_bottle', '🥛': 'milk', '☕': 'coffee', '🫖': 'teapot', '🍵': 'tea',
+  '🍶': 'sake', '🍾': 'champagne', '🍷': 'wine_glass', '🍸': 'cocktail', '🍹': 'tropical_drink',
+  '🍺': 'beer', '🍻': 'beers', '🥂': 'clinking_glasses', '🥃': 'tumbler_glass', '🥤': 'cup_with_straw',
+  '🧃': 'beverage_box',
+
+  // Activities
+  '⚽': 'soccer', '🏀': 'basketball', '🏈': 'football', '⚾': 'baseball', '🥎': 'softball',
+  '🎾': 'tennis', '🏐': 'volleyball', '🏉': 'rugby_football', '🥏': 'flying_disc', '🎱': '8ball',
+  '🪀': 'yo_yo', '🏓': 'ping_pong', '🏸': 'badminton', '🏒': 'ice_hockey', '🏑': 'field_hockey',
+  '🥍': 'lacrosse', '🏏': 'cricket_bat_and_ball', '🪃': 'boomerang', '🥅': 'goal_net', '⛳': 'golf',
+  '🪁': 'kite', '🏹': 'bow_and_arrow', '🎣': 'fishing_pole_and_fish', '🤿': 'diving_mask', '🥊': 'boxing_glove',
+  '🥋': 'martial_arts_uniform', '🎽': 'running_shirt_with_sash', '🛹': 'skateboard', '🛼': 'roller_skate', '🛷': 'sled',
+  '⛸️': 'ice_skate', '⛸': 'ice_skate', '🥌': 'curling_stone', '🎿': 'ski', '⛷️': 'skier', '⛷': 'skier',
+  '🏂': 'snowboarder', '🪂': 'parachute', '🏋️': 'weight_lifter', '🏋': 'weight_lifter', '🤼': 'wrestlers',
+  '🤸': 'person_doing_cartwheel', '🤺': 'fencer', '🏇': 'horse_racing', '🧘': 'person_in_lotus_position', '🏄': 'surfer',
+  '🏊': 'swimmer', '🤽': 'water_polo', '🚣': 'rowboat', '🧗': 'person_climbing', '🚵': 'mountain_bicyclist',
+  '🚴': 'bicyclist', '🏆': 'trophy', '🥇': 'first_place', '🥈': 'second_place', '🥉': 'third_place',
+  '🏅': 'sports_medal', '🎖️': 'military_medal', '🎖': 'military_medal', '🎟️': 'admission_tickets', '🎟': 'admission_tickets',
+  '🎫': 'ticket', '🎪': 'circus_tent', '🎭': 'performing_arts', '🎨': 'art', '🎬': 'clapper',
+  '🎤': 'microphone', '🎧': 'headphones', '🎼': 'musical_score', '🎹': 'musical_keyboard', '🥁': 'drum',
+  '🎷': 'saxophone', '🎺': 'trumpet', '🎸': 'guitar', '🪕': 'banjo', '🎻': 'violin',
+  '🎲': 'game_die', '♟️': 'chess_pawn', '♟': 'chess_pawn', '🎯': 'dart', '🎳': 'bowling',
+  '🎮': 'video_game', '🎰': 'slot_machine', '🧩': 'puzzle_piece', '🃏': 'black_joker', '🪄': 'magic_wand',
+
+  // Travel & Places
+  '🚗': 'red_car', '🚕': 'taxi', '🚙': 'blue_car', '🚌': 'bus', '🚎': 'trolleybus',
+  '🏎️': 'race_car', '🏎': 'race_car', '🚓': 'police_car', '🚑': 'ambulance', '🚒': 'fire_engine',
+  '🚐': 'minibus', '🛻': 'pickup_truck', '🚚': 'truck', '🚛': 'articulated_lorry', '🚜': 'tractor',
+  '🛵': 'motor_scooter', '🏍️': 'motorcycle', '🏍': 'motorcycle', '🛺': 'auto_rickshaw', '🚲': 'bike',
+  '🛴': 'kick_scooter', '🚨': 'rotating_light', '🚔': 'oncoming_police_car', '🚍': 'oncoming_bus', '🚘': 'oncoming_automobile',
+  '🚖': 'oncoming_taxi', '🚡': 'aerial_tramway', '🚠': 'mountain_cableway', '🚟': 'suspension_railway', '🚃': 'railway_car',
+  '🚋': 'tram', '🚞': 'mountain_railway', '🚝': 'monorail', '🚄': 'bullettrain_side', '🚅': 'bullettrain_front',
+  '🚈': 'light_rail', '🚂': 'steam_locomotive', '🚆': 'train2', '🚇': 'metro', '🚊': 'tram2',
+  '🚉': 'station', '🛫': 'airplane_departure', '✈️': 'airplane', '✈': 'airplane', '🛩️': 'small_airplane',
+  '🛩': 'small_airplane', '🛬': 'airplane_arriving', '🚀': 'rocket', '🛸': 'flying_saucer', '🚁': 'helicopter',
+  '🛶': 'canoe', '⛵': 'sailboat', '🚤': 'speedboat', '🛥️': 'motor_boat', '🛥': 'motor_boat',
+  '🛳️': 'passenger_ship', '🛳': 'passenger_ship', '⛴️': 'ferry', '⛴': 'ferry', '🚢': 'ship',
+  '⚓': 'anchor', '⛽': 'fuelpump', '🚧': 'construction', '🛑': 'octagonal_sign', '🚥': 'horizontal_traffic_light',
+  '🚦': 'traffic_light', '🗺️': 'world_map', '🗺': 'world_map', '🗿': 'moyai', '🗽': 'statue_of_liberty',
+  '🗼': 'tokyo_tower', '🏰': 'european_castle', '🏯': 'japanese_castle', '🏟️': 'stadium', '🏟': 'stadium',
+  '🎡': 'ferris_wheel', '🎢': 'roller_coaster', '🎠': 'carousel_horse', '🏖️': 'beach_with_umbrella', '🏖': 'beach_with_umbrella',
+  '🏝️': 'desert_island', '🏝': 'desert_island', '🏜️': 'desert', '🏜': 'desert', '🌋': 'volcano',
+  '⛰️': 'mountain', '⛰': 'mountain', '🏔️': 'snow_capped_mountain', '🏔': 'snow_capped_mountain', '🗻': 'mount_fuji',
+  '🏕️': 'camping', '🏕': 'camping', '⛺': 'tent', '🏠': 'house', '🏡': 'house_with_garden',
+
   // Symbols
   '❤️': 'heart', '❤': 'heart', '🧡': 'orange_heart', '💛': 'yellow_heart', '💚': 'green_heart',
   '💙': 'blue_heart', '💜': 'purple_heart', '🖤': 'black_heart', '🤍': 'white_heart', '🤎': 'brown_heart',
@@ -129,10 +272,10 @@ export const UNICODE_EMOJI_NAMES: Record<string, string> = {
   '☦️': 'orthodox_cross', '☦': 'orthodox_cross', '🛐': 'place_of_worship',
   '🛡️': 'shield', '🛡': 'shield', '⚔️': 'crossed_swords', '⚔': 'crossed_swords',
   '⚡': 'zap', '🔥': 'fire', '✨': 'sparkles', '⭐': 'star', '🌟': 'star2', '💥': 'boom',
-  '💯': '100', '💢': 'anger', '🚨': 'rotating_light', '⚠️': 'warning', '⚠': 'warning',
+  '💯': '100', '💢': 'anger', '⚠️': 'warning', '⚠': 'warning',
   '⛔': 'no_entry', '🚫': 'no_entry_sign', '✅': 'white_check_mark', '❌': 'cross_mark',
   '❓': 'question', '❗': 'exclamation', '💤': 'zzz', '👑': 'crown',
-  '📜': 'scroll', '🎫': 'ticket', '🔔': 'bell', '🎉': 'tada',
+  '📜': 'scroll', '🔔': 'bell', '🎉': 'tada',
 
   // Objects
   '📱': 'iphone', '💻': 'computer', '🖥️': 'desktop', '🖥': 'desktop',
@@ -148,6 +291,40 @@ export const UNICODE_EMOJI_NAMES: Record<string, string> = {
   '🔫': 'gun', '💣': 'bomb', '🧨': 'firecracker',
 };
 
+export const SHORTCODE_TO_UNICODE: Record<string, string> = {
+  ...Object.entries(UNICODE_EMOJI_NAMES).reduce((acc, [emoji, name]) => {
+    if (!acc[name]) {
+      acc[name] = emoji;
+    }
+    return acc;
+  }, {} as Record<string, string>),
+  smile: '😄',
+  heart: '❤️',
+  thumbsup: '👍',
+  thumbsdown: '👎',
+  star: '⭐',
+  fire: '🔥',
+  zap: '⚡',
+  shield: '🛡️',
+  swords: '⚔️',
+  tada: '🎉',
+  rocket: '🚀',
+  warning: '⚠️',
+  check: '✅',
+  cross: '❌',
+  sparkles: '✨',
+  joy: '😂',
+  sob: '😭',
+  clap: '👏',
+  wave: '👋',
+  pray: '🙏',
+  muscle: '💪',
+  100: '💯',
+  pinched_fingers: '🤌',
+  wilted_rose: '🥀',
+  pleading_face: '🥺',
+};
+
 export const getUnicodeEmojiShortcode = (emoji: string): string => {
   if (UNICODE_EMOJI_NAMES[emoji]) return UNICODE_EMOJI_NAMES[emoji];
   const stripped = emoji.replace(/\uFE0F/g, '');
@@ -159,8 +336,12 @@ const getCategoryIcon = (catId: string) => {
   if (catId === 'recent') return <Clock size={18} />;
   if (catId === 'smileys') return <Smile size={18} />;
   if (catId === 'gestures') return <ThumbsUp size={18} />;
-  if (catId === 'symbols') return <Heart size={18} />;
+  if (catId === 'animals') return <PawPrint size={18} />;
+  if (catId === 'food') return <Utensils size={18} />;
+  if (catId === 'activities') return <Gamepad2 size={18} />;
+  if (catId === 'travel') return <Plane size={18} />;
   if (catId === 'objects') return <Lightbulb size={18} />;
+  if (catId === 'symbols') return <Heart size={18} />;
   if (catId.includes('server')) return <Sparkles size={18} />;
   if (catId.includes('bot')) return <Bot size={18} />;
   return <Smile size={18} />;

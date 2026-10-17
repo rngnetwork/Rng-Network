@@ -52,6 +52,7 @@ export interface GlobalEditTabCoordinatorProps {
   ) => void;
   onOpenPaletteModal: (cIdx: number) => void;
   onOpenEmojiPicker?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onMoveComponent?: (containerIndex: number, fromIndex: number, toIndex: number) => void;
 }
 
 export const GlobalEditTabCoordinator: React.FC<
@@ -64,6 +65,7 @@ export const GlobalEditTabCoordinator: React.FC<
   onUpdateContainer,
   onRemoveContainer,
   onMoveContainer,
+  onMoveComponent,
   onUpdateAuthor,
   onUpdateFooter,
   onAddField,
@@ -154,15 +156,32 @@ export const GlobalEditTabCoordinator: React.FC<
             onEditButton={onEditButton}
             onEditSelectMenu={onEditSelectMenu}
             onOpenPaletteModal={onOpenPaletteModal}
+            onOpenEmojiPicker={onOpenEmojiPicker}
+            onMoveComponent={(c, comp, dir) => {
+              const targetComp = dir === 'up' ? comp - 1 : comp + 1;
+              onMoveComponent?.(c, comp, targetComp);
+            }}
             onContainerDragStart={handleContainerDragStart}
             onContainerDragOver={handleContainerDragOver}
             onContainerDrop={handleContainerDrop}
-            onCompDragStart={(_e, c, comp) => setDraggedComp({ cIdx: c, compIdx: comp })}
-            onCompDragOver={(_e, c, comp) => setDragOverComp({ cIdx: c, compIdx: comp })}
-            onCompDrop={(_e, targetC, targetComp) => {
-              if (draggedComp && (draggedComp.cIdx !== targetC || draggedComp.compIdx !== targetComp)) {
-                // Handled in parent reducer
+            onCompDragStart={(e, c, comp) => {
+              setDraggedComp({ cIdx: c, compIdx: comp });
+              e.dataTransfer.effectAllowed = 'move';
+            }}
+            onCompDragOver={(e, c, comp) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              setDragOverComp({ cIdx: c, compIdx: comp });
+            }}
+            onCompDrop={(e, targetC, targetComp) => {
+              e.preventDefault();
+              if (draggedComp && draggedComp.cIdx === targetC && draggedComp.compIdx !== targetComp) {
+                onMoveComponent?.(targetC, draggedComp.compIdx, targetComp);
               }
+              setDraggedComp(null);
+              setDragOverComp(null);
+            }}
+            onCompDragEnd={() => {
               setDraggedComp(null);
               setDragOverComp(null);
             }}

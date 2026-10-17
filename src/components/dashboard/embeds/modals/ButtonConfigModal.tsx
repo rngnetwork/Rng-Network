@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ExternalLink, Smile, CheckCircle2 } from 'lucide-react';
+import { ExternalLink, Smile } from 'lucide-react';
 import {
   DISCORD_SAFE_URL_REGEX,
   type ButtonStyle,
   type DiscordButtonComponent,
 } from '@/lib/model/embed';
 import type { EmbedAction } from '@/lib/model/action';
+import { DiscordEmoji } from '@/components/dashboard/embeds/emoji/DiscordEmojiRenderer';
 import { Modal } from '@/components/common/feedback/Modal';
 import { TextInput } from '@/components/common/input/TextInput';
 import { Dropdown, type DropdownOption } from '@/components/common/input/Dropdown';
@@ -145,7 +146,7 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
             <button
               type="button"
               onClick={() => setStyle(1)}
-              className={`px-3 py-2 rounded-apple-md text-xs font-bold transition-all cursor-pointer border ${
+              className={`h-9 flex items-center justify-center px-3 rounded-apple-md text-xs font-bold transition-all cursor-pointer border ${
                 style === 1
                   ? 'bg-[#5865F2] text-white border-[#7983f5] shadow-[0_0_14px_rgba(88,101,242,0.4)]'
                   : 'bg-[#5865F2]/15 text-[#a5b4fc] border-[#5865F2]/30 hover:bg-[#5865F2]/25'
@@ -156,9 +157,9 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
             <button
               type="button"
               onClick={() => setStyle(2)}
-              className={`px-3 py-2 rounded-apple-md text-xs font-bold transition-all cursor-pointer border ${
+              className={`h-9 flex items-center justify-center px-3 rounded-apple-md text-xs font-bold transition-all cursor-pointer border ${
                 style === 2
-                  ? 'bg-[#4e5058] text-white border-[#6d6f78] shadow-[0_0_14px_rgba(78,80,88,0.4)]'
+                  ? 'bg-[#4e5058] text-white border-zinc-400 shadow-[0_0_14px_rgba(78,80,88,0.5)]'
                   : 'bg-white/[0.06] text-zinc-300 border-white/10 hover:bg-white/[0.1]'
               }`}
             >
@@ -167,7 +168,7 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
             <button
               type="button"
               onClick={() => setStyle(3)}
-              className={`px-3 py-2 rounded-apple-md text-xs font-bold transition-all cursor-pointer border ${
+              className={`h-9 flex items-center justify-center px-3 rounded-apple-md text-xs font-bold transition-all cursor-pointer border ${
                 style === 3
                   ? 'bg-[#23a55a] text-white border-[#2dc76d] shadow-[0_0_14px_rgba(35,165,90,0.4)]'
                   : 'bg-[#23a55a]/15 text-[#4ade80] border-[#23a55a]/30 hover:bg-[#23a55a]/25'
@@ -178,7 +179,7 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
             <button
               type="button"
               onClick={() => setStyle(4)}
-              className={`px-3 py-2 rounded-apple-md text-xs font-bold transition-all cursor-pointer border ${
+              className={`h-9 flex items-center justify-center px-3 rounded-apple-md text-xs font-bold transition-all cursor-pointer border ${
                 style === 4
                   ? 'bg-[#da373c] text-white border-[#f23f43] shadow-[0_0_14px_rgba(218,55,60,0.4)]'
                   : 'bg-[#da373c]/15 text-[#f87171] border-[#da373c]/30 hover:bg-[#da373c]/25'
@@ -189,9 +190,9 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
             <button
               type="button"
               onClick={() => setStyle(5)}
-              className={`col-span-2 sm:col-span-1 px-3 py-2 rounded-apple-md text-xs font-bold transition-all cursor-pointer border flex items-center justify-center gap-1.5 ${
+              className={`col-span-2 sm:col-span-1 h-9 flex items-center justify-center px-3 rounded-apple-md text-xs font-bold transition-all cursor-pointer border gap-1.5 ${
                 style === 5
-                  ? 'bg-[#4e5058] text-white border-[#6d6f78] shadow-[0_0_14px_rgba(78,80,88,0.4)]'
+                  ? 'bg-[#4e5058] text-white border-zinc-400 shadow-[0_0_14px_rgba(78,80,88,0.5)]'
                   : 'bg-white/[0.06] text-zinc-300 border-white/10 hover:bg-white/[0.1]'
               }`}
             >
@@ -219,8 +220,15 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
                 <TextInput
                   value={emojiText}
                   onChange={(e) => setEmojiText(e.target.value)}
-                  placeholder="🛡️ or <:emoji:id>"
+                  placeholder="e.g. :smile: or <:name:id>"
                   className="flex-1"
+                  leftIcon={
+                    emojiText ? (
+                      <span className="flex items-center justify-center w-4 h-4">
+                        <DiscordEmoji emoji={emojiText} />
+                      </span>
+                    ) : undefined
+                  }
                 />
                 <button
                   type="button"
@@ -229,7 +237,7 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
                       onOpenEmojiPicker((token) => setEmojiText(token));
                     }
                   }}
-                  className="h-[38px] px-3 rounded-apple-md border flex items-center justify-center transition-all cursor-pointer bg-[#0E0E12] border-surface-border hover:border-white/20 text-zinc-300 hover:text-brand-red"
+                  className="h-[38px] px-3 rounded-apple-md border flex items-center justify-center transition-all cursor-pointer bg-[#0E0E12] border-surface-border hover:border-white/20 text-zinc-300 hover:text-brand-red shrink-0"
                   title="Pick Discord Emoji"
                   aria-label="Pick Discord Emoji"
                 >
@@ -269,38 +277,27 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
                 label="Custom ID / Action Identifier"
                 value={customId}
                 maxLength={100}
-                disabled={Boolean(customId.startsWith('rng_act_'))}
+                disabled={Boolean(actionOptions.some((opt) => opt.value === customId && customId !== ''))}
                 onChange={(e) => setCustomId(e.target.value)}
-                placeholder="rng_act_0123456789abcdef"
+                placeholder="custom_button_id or rng_act_..."
                 helperText={
-                  customId.startsWith('rng_act_')
-                    ? '✓ Locked: Bound to Action Template (JDA Gateway Handled)'
+                  actionOptions.some((opt) => opt.value === customId && customId !== '')
+                    ? 'Bound to selected Action Template'
                     : 'Custom Discord component custom_id string (max 100 chars).'
                 }
               />
-              {customId.startsWith('rng_act_') && (
-                <div className="flex items-center justify-between text-[11px] text-zinc-400 px-1">
-                  <span>Bound to JDA Action Template</span>
-                  <button
-                    type="button"
-                    onClick={() => setCustomId('')}
-                    className="text-brand-red hover:underline cursor-pointer"
-                  >
-                    Unlock &amp; Clear
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         )}
 
         {/* 4. Disabled State */}
-        <ToggleSwitch
-          checked={disabled}
-          onChange={setDisabled}
-          label="Disable Button Interaction"
-          description="Render button in non-clickable disabled state in Discord"
-        />
+        <div className="flex items-center justify-between pt-1">
+          <span className="text-xs font-semibold text-zinc-300">Disable Button Interaction</span>
+          <ToggleSwitch
+            checked={disabled}
+            onChange={setDisabled}
+          />
+        </div>
       </div>
     </Modal>
   );

@@ -75,6 +75,12 @@ export type EmbedBuilderAction =
       toIndex: number;
     }
   | {
+      type: 'MOVE_COMPONENT';
+      containerIndex: number;
+      fromIndex: number;
+      toIndex: number;
+    }
+  | {
       type: 'LOAD_TEMPLATE';
       state: Pick<MessageBuilderState, 'message' | 'type17Containers'>;
       templateId?: string | null;
@@ -559,6 +565,29 @@ export function embedBuilderReducer(
             components: items,
           };
         }),
+        isDirty: true,
+      };
+    }
+
+    case 'MOVE_COMPONENT': {
+      const container = state.type17Containers[action.containerIndex];
+      if (!container) return state;
+      const comps = [...container.components];
+      if (
+        action.fromIndex < 0 ||
+        action.fromIndex >= comps.length ||
+        action.toIndex < 0 ||
+        action.toIndex >= comps.length
+      ) {
+        return state;
+      }
+      const [moved] = comps.splice(action.fromIndex, 1);
+      comps.splice(action.toIndex, 0, moved);
+      return {
+        ...state,
+        type17Containers: state.type17Containers.map((c, i) =>
+          i === action.containerIndex ? { ...c, components: comps } : c
+        ),
         isDirty: true,
       };
     }

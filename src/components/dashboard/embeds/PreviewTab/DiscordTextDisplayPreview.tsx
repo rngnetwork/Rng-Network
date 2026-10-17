@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { DISCORD_SAFE_URL_REGEX } from '@/lib/model/embed';
+import { SHORTCODE_TO_UNICODE } from '@/components/common/input/EmojiPicker';
 
 export interface DiscordTextDisplayPreviewProps {
   content: string;
@@ -16,12 +17,13 @@ type InlineToken =
   | { kind: 'code'; value: string }
   | { kind: 'spoiler'; value: string }
   | { kind: 'link'; label: string; href: string }
-  | { kind: 'discord_emoji'; name: string; id: string; animated: boolean };
+  | { kind: 'discord_emoji'; name: string; id: string; animated: boolean }
+  | { kind: 'unicode_emoji'; name: string; emoji: string };
 
 function tokenizeInlineMarkdown(line: string): InlineToken[] {
   const tokens: InlineToken[] = [];
   const pattern =
-    /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\|\|[^|]+\|\||\[[^\]]+\]\([^)]+\)|<a?:[a-zA-Z0-9_]+:[0-9]+>)/g;
+    /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\|\|[^|]+\|\||\[[^\]]+\]\([^)]+\)|<a?:[a-zA-Z0-9_]+:[0-9]+>|:[a-zA-Z0-9_+-]+:)/g;
 
   let lastIndex = 0;
   let match: RegExpExecArray | null = pattern.exec(line);
@@ -51,6 +53,18 @@ function tokenizeInlineMarkdown(line: string): InlineToken[] {
           animated: Boolean(emojiMatch[1]),
           name: emojiMatch[2],
           id: emojiMatch[3],
+        });
+      } else {
+        tokens.push({ kind: 'text', value: raw });
+      }
+    } else if (raw.startsWith(':') && raw.endsWith(':')) {
+      const shortcode = raw.slice(1, -1);
+      const unicodeEmoji = SHORTCODE_TO_UNICODE[shortcode];
+      if (unicodeEmoji) {
+        tokens.push({
+          kind: 'unicode_emoji',
+          name: shortcode,
+          emoji: unicodeEmoji,
         });
       } else {
         tokens.push({ kind: 'text', value: raw });
@@ -163,6 +177,17 @@ export const DiscordTextDisplayPreview: React.FC<
             unoptimized
             className="inline-block w-5 h-5 align-middle mx-0.5 object-contain"
           />
+        );
+      }
+      if (tok.kind === 'unicode_emoji') {
+        return (
+          <span
+            key={key}
+            title={`:${tok.name}:`}
+            className="inline-block align-middle mx-0.5"
+          >
+            {tok.emoji}
+          </span>
         );
       }
       return <React.Fragment key={key}>{tok.value}</React.Fragment>;

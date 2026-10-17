@@ -1,16 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Image from 'next/image';
-import { Columns, Sparkles, Smile, Image as ImageIcon } from 'lucide-react';
+import { Image as ImageIcon } from 'lucide-react';
 import type { DiscordSectionComponent, DiscordThumbnailComponent } from '@/lib/model/embed';
 import { Modal } from '@/components/common/feedback/Modal';
 import { TextInput } from '@/components/common/input/TextInput';
 import { Button } from '@/components/common/input/Button';
+import { MarkdownToolbar } from '../EditTab/MarkdownToolbar';
 
 export interface SectionConfigModalProps {
   isOpen: boolean;
   section: DiscordSectionComponent | null;
+  onOpenEmojiPicker?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onClose: () => void;
   onSave: (updated: DiscordSectionComponent) => void;
 }
@@ -18,6 +20,7 @@ export interface SectionConfigModalProps {
 export const SectionConfigModal: React.FC<SectionConfigModalProps> = ({
   isOpen,
   section,
+  onOpenEmojiPicker,
   onClose,
   onSave,
 }) => {
@@ -41,6 +44,7 @@ export const SectionConfigModal: React.FC<SectionConfigModalProps> = ({
   const [customId, setCustomId] = useState(section?.id || '');
   const [text, setText] = useState(initialText);
   const [thumbnailUrl, setThumbnailUrl] = useState(initialUrl);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   if (section !== prevSection) {
     setPrevSection(section);
@@ -48,6 +52,23 @@ export const SectionConfigModal: React.FC<SectionConfigModalProps> = ({
     setText(initialText);
     setThumbnailUrl(initialUrl);
   }
+
+  const handleApplyMarkdown = (prefix: string, suffix: string) => {
+    const el = textareaRef.current;
+    if (!el) {
+      setText((prev) => `${prev}${prefix}${suffix}`);
+      return;
+    }
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const selected = text.slice(start, end);
+    const newText = text.slice(0, start) + prefix + selected + suffix + text.slice(end);
+    setText(newText);
+    setTimeout(() => {
+      el.focus();
+      el.setSelectionRange(start + prefix.length, end + prefix.length);
+    }, 0);
+  };
 
   const handleSave = () => {
     if (!section) return;
@@ -76,14 +97,12 @@ export const SectionConfigModal: React.FC<SectionConfigModalProps> = ({
     onClose();
   };
 
-  const QUICK_EMOJIS = ['🚀', '⚡', '🔥', '🛡️', '✨', '📌', '⚠️', '✅'];
-
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Section Settings (Type 9 • Section)"
-      description="Configure section column markdown text paired with a right-aligned thumbnail accessory."
+      title="Section Settings"
+      description="Configure settings of Section in the embedded message."
       size="lg"
       footer={
         <div className="flex items-center justify-end gap-2.5">
@@ -110,31 +129,21 @@ export const SectionConfigModal: React.FC<SectionConfigModalProps> = ({
           onChange={(e) => setCustomId(e.target.value)}
         />
 
-        {/* Markdown Text Area with Quick Emoji Pills */}
+        {/* Markdown Text Area with MarkdownToolbar */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-semibold text-zinc-300">
               Markdown Text Content
             </label>
-            <div className="flex items-center gap-1">
-              <span className="text-[11px] text-zinc-400 mr-1 flex items-center gap-1">
-                <Smile size={12} className="text-amber-400" /> Quick:
-              </span>
-              {QUICK_EMOJIS.map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={() => setText((prev) => `${prev} ${emoji}`)}
-                  className="px-1.5 py-0.5 rounded text-xs bg-white/[0.04] hover:bg-white/[0.1] text-zinc-200 transition-colors"
-                  title={`Insert ${emoji}`}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
+            <MarkdownToolbar
+              onApplyMarkdown={handleApplyMarkdown}
+              onOpenEmojiPicker={onOpenEmojiPicker}
+              showEmojiPicker={Boolean(onOpenEmojiPicker)}
+            />
           </div>
 
           <textarea
+            ref={textareaRef}
             value={text}
             rows={4}
             onChange={(e) => setText(e.target.value)}
@@ -155,9 +164,6 @@ export const SectionConfigModal: React.FC<SectionConfigModalProps> = ({
                 placeholder="https://images.unsplash.com/... or image URL"
                 onChange={(e) => setThumbnailUrl(e.target.value)}
               />
-              <span className="text-[11px] text-zinc-400 mt-1 block">
-                Thumbnail image is displayed aligned to the right side of the section text.
-              </span>
             </div>
 
             <div className="relative w-16 h-16 rounded-apple-md bg-surface-canvas border border-white/15 flex items-center justify-center overflow-hidden shrink-0 shadow-apple-card">
