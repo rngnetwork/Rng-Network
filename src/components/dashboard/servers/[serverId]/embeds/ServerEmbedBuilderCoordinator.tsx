@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import {
   type DiscordButtonComponent,
@@ -59,7 +59,75 @@ export const ServerEmbedBuilderCoordinator: React.FC<
   const [isLoadPresetOpen, setIsLoadPresetOpen] = useState(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [activeEmojiCallback, setActiveEmojiCallback] = useState<((token: string) => void) | null>(null);
   const [targetPaletteContainerIdx, setTargetPaletteContainerIdx] = useState(0);
+
+  const lastFocusedInputRef = useRef<{
+    element: HTMLInputElement | HTMLTextAreaElement;
+    selectionStart: number;
+    selectionEnd: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const handleFocus = (e: FocusEvent) => {
+      const target = e.target;
+      if (
+        (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) &&
+        !target.dataset.emojiSearch
+      ) {
+        lastFocusedInputRef.current = {
+          element: target,
+          selectionStart: target.selectionStart ?? target.value.length,
+          selectionEnd: target.selectionEnd ?? target.value.length,
+        };
+      }
+    };
+    window.addEventListener('focusin', handleFocus);
+    return () => window.removeEventListener('focusin', handleFocus);
+  }, []);
+
+  const handleInsertEmoji = (token: string) => {
+    if (activeEmojiCallback) {
+      activeEmojiCallback(token);
+      setActiveEmojiCallback(null);
+      setIsEmojiPickerOpen(false);
+      return;
+    }
+
+    if (
+      lastFocusedInputRef.current &&
+      document.body.contains(lastFocusedInputRef.current.element)
+    ) {
+      const { element, selectionStart, selectionEnd } = lastFocusedInputRef.current;
+      const currentVal = element.value;
+      const nextVal =
+        currentVal.slice(0, selectionStart) + token + currentVal.slice(selectionEnd);
+
+      const nativeSetter =
+        Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set ||
+        Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+      if (nativeSetter) {
+        nativeSetter.call(element, nextVal);
+      } else {
+        element.value = nextVal;
+      }
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+      element.focus();
+      const nextCursor = selectionStart + token.length;
+      element.setSelectionRange(nextCursor, nextCursor);
+    } else {
+      toast({
+        type: 'info',
+        title: 'Emoji Selected',
+        description: `Selected ${token}. Click an input to type or paste.`,
+      });
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        void navigator.clipboard.writeText(token);
+      }
+    }
+    setIsEmojiPickerOpen(false);
+  };
 
   const [editingButton, setEditingButton] = useState<{
     cIdx: number;
@@ -199,7 +267,10 @@ export const ServerEmbedBuilderCoordinator: React.FC<
         onRedo={history.redo}
         canUndo={history.canUndo}
         canRedo={history.canRedo}
-        onOpenEmojiPicker={() => setIsEmojiPickerOpen(true)}
+        onOpenEmojiPicker={() => {
+          setActiveEmojiCallback(null);
+          setIsEmojiPickerOpen((prev) => !prev);
+        }}
       >
         {state.activeSubTab === 'edit' && (
           <GlobalEditTabCoordinator
@@ -375,6 +446,10 @@ export const ServerEmbedBuilderCoordinator: React.FC<
           isOpen={Boolean(editingButton)}
           button={editingButton.button}
           availableActions={actions}
+          onOpenEmojiPicker={(cb) => {
+            setActiveEmojiCallback(() => cb);
+            setIsEmojiPickerOpen(true);
+          }}
           onClose={() => setEditingButton(null)}
           onSave={(updatedBtn) => {
             if (updatedBtn.id) {
@@ -428,25 +503,26 @@ export const ServerEmbedBuilderCoordinator: React.FC<
         onSave={handleSaveTemplate}
       />
 
-      <Modal
-        isOpen={isEmojiPickerOpen}
-        onClose={() => setIsEmojiPickerOpen(false)}
-        title="Select Server Emoji"
-        size="md"
-      >
-        <ServerDiscordEmojiPicker
-          serverId={serverId}
-          onSelectEmojiToken={(token) => {
-            dispatch({
-              type: 'SET_MESSAGE_CONTENT',
-              content: state.message.content
-                ? `${state.message.content} ${token}`
-                : token,
-            });
-            setIsEmojiPickerOpen(false);
-          }}
-        />
-      </Modal>
+      {/* Bottom-Right Floating Discord Emoji Picker Popover */}
+      {isEmojiPickerOpen && (
+        <>
+          {/* Invisible click-outside dismisser - NO BLUR, NO BACKDROP */}
+          <div
+            className="fixed inset-0 z-[59] bg-transparent"
+            onClick={() => {
+              setIsEmojiPickerOpen(false);
+              setActiveEmojiCallback(null);
+            }}
+          />
+          {/* Floating Discord Emoji Picker Popover */}
+          <div className="fixed bottom-14 right-6 z-[60] w-80 max-w-[calc(100vw-2rem)] rounded-apple-xl bg-[#1e1f22] border border-white/10 shadow-2xl overflow-hidden flex flex-col animate-in fade-in duration-150">
+            <ServerDiscordEmojiPicker
+              serverId={serverId}
+              onSelectEmojiToken={handleInsertEmoji}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 };

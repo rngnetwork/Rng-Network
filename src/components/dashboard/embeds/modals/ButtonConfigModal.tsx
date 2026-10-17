@@ -13,12 +13,12 @@ import { TextInput } from '@/components/common/input/TextInput';
 import { Dropdown, type DropdownOption } from '@/components/common/input/Dropdown';
 import { ToggleSwitch } from '@/components/common/input/ToggleSwitch';
 import { Button } from '@/components/common/input/Button';
-import { DiscordBotEmojiPicker } from '@/components/dashboard/embeds/emoji/DiscordBotEmojiPicker';
 
 export interface ButtonConfigModalProps {
   isOpen: boolean;
   button: DiscordButtonComponent | null;
   availableActions?: EmbedAction[];
+  onOpenEmojiPicker?: (onSelect: (token: string) => void) => void;
   onClose: () => void;
   onSave: (updated: DiscordButtonComponent) => void;
 }
@@ -38,6 +38,7 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
   isOpen,
   button,
   availableActions = [],
+  onOpenEmojiPicker,
   onClose,
   onSave,
 }) => {
@@ -48,7 +49,6 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
   const [url, setUrl] = useState(button?.url ?? 'https://');
   const [emojiText, setEmojiText] = useState(getInitialEmojiText(button?.emoji));
   const [disabled, setDisabled] = useState(Boolean(button?.disabled));
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   if (button !== prevButton) {
     setPrevButton(button);
@@ -58,7 +58,6 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
     setUrl(button?.url ?? 'https://');
     setEmojiText(getInitialEmojiText(button?.emoji));
     setDisabled(Boolean(button?.disabled));
-    setShowEmojiPicker(false);
   }
 
   const isLinkStyle = style === 5;
@@ -213,7 +212,7 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
               placeholder="Execute Action"
             />
           </div>
-          <div className="relative">
+          <div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-zinc-300">Emoji</label>
               <div className="flex items-center gap-2">
@@ -225,12 +224,12 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
                 />
                 <button
                   type="button"
-                  onClick={() => setShowEmojiPicker((prev) => !prev)}
-                  className={`h-[38px] px-3 rounded-apple-md border flex items-center justify-center transition-all cursor-pointer ${
-                    showEmojiPicker
-                      ? 'bg-brand-red/20 border-brand-red text-white shadow-glow-red-sm'
-                      : 'bg-[#0E0E12] border-surface-border hover:border-white/20 text-zinc-300 hover:text-white'
-                  }`}
+                  onClick={() => {
+                    if (onOpenEmojiPicker) {
+                      onOpenEmojiPicker((token) => setEmojiText(token));
+                    }
+                  }}
+                  className="h-[38px] px-3 rounded-apple-md border flex items-center justify-center transition-all cursor-pointer bg-[#0E0E12] border-surface-border hover:border-white/20 text-zinc-300 hover:text-brand-red"
                   title="Pick Discord Emoji"
                   aria-label="Pick Discord Emoji"
                 >
@@ -238,24 +237,6 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
                 </button>
               </div>
             </div>
-
-            {/* Bottom-left anchored DiscordBotEmojiPicker popover */}
-            {showEmojiPicker && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setShowEmojiPicker(false)}
-                />
-                <div className="absolute right-0 sm:left-0 top-full mt-2 z-50 w-72 sm:w-80 p-2 rounded-apple-xl bg-[#121217] border border-white/10 shadow-2xl backdrop-blur-xl">
-                  <DiscordBotEmojiPicker
-                    onSelectEmojiToken={(token) => {
-                      setEmojiText(token);
-                      setShowEmojiPicker(false);
-                    }}
-                  />
-                </div>
-              </>
-            )}
           </div>
         </div>
 

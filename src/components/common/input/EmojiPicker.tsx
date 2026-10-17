@@ -73,6 +73,47 @@ export const STANDARD_EMOJI_CATEGORIES: EmojiCategory[] = [
   },
 ];
 
+export const UNICODE_EMOJI_NAMES: Record<string, string> = {
+  '😀': 'grinning', '😃': 'smiley', '😄': 'smile', '😁': 'grin', '😆': 'laughing',
+  '😅': 'sweat_smile', '🤣': 'rofl', '😂': 'joy', '🙂': 'slightly_smiling_face', '🙃': 'upside_down_face',
+  '😉': 'wink', '😊': 'blush', '😇': 'innocent', '🥰': 'smiling_face_with_3_hearts', '😍': 'heart_eyes',
+  '🤩': 'star_struck', '😘': 'kissing_heart', '😗': 'kissing', '😚': 'kissing_closed_eyes', '😙': 'kissing_smiling_eyes',
+  '😋': 'yum', '😛': 'stuck_out_tongue', '😜': 'stuck_out_tongue_winking_eye', '🤪': 'zany_face', '😝': 'stuck_out_tongue_closed_eyes',
+  '🤑': 'money_mouth', '🤗': 'hugs', '🤭': 'hand_over_mouth', '🤫': 'shushing_face', '🤔': 'thinking',
+  '🤐': 'zipper_mouth', '🤨': 'raised_eyebrow', '😐': 'neutral_face', '😑': 'expressionless', '😶': 'no_mouth',
+  '😏': 'smirk', '😒': 'unamused', '🙄': 'rolling_eyes', '😬': 'grimacing', '🤥': 'lying_face',
+  '😌': 'relieved', '😔': 'pensive', '😪': 'sleepy', '🤤': 'drooling_face', '😴': 'sleeping',
+  '😷': 'mask', '🤒': 'face_with_thermometer', '🤕': 'head_bandage', '🤢': 'nauseated_face', '🤮': 'vomiting',
+  '🤧': 'sneezing_face', '🥵': 'hot_face', '🥶': 'cold_face', '🥴': 'woozy_face', '😵': 'dizzy_face',
+  '🤯': 'exploding_head', '🤠': 'cowboy', '🥳': 'partying_face', '😎': 'sunglasses', '🤓': 'nerd',
+  '🧐': 'monocle', '😕': 'confused', '😟': 'worried', '🙁': 'slightly_frowning_face', '😮': 'open_mouth',
+  '😲': 'astonished', '😳': 'flushed', '🥺': 'pleading_face', '😦': 'frowning', '😧': 'anguished',
+  '😨': 'fearful', '😰': 'cold_sweat', '😥': 'disappointed_relieved', '😢': 'cry', '😭': 'sob',
+  '😱': 'scream', '😖': 'confounded', '😣': 'persevere', '😞': 'disappointed', '😓': 'sweat',
+  '😩': 'weary', '😫': 'tired_face', '🥱': 'yawning_face', '😤': 'triumph', '😡': 'rage',
+  '😠': 'angry', '🤬': 'cursing_face', '😈': 'smiling_imp', '👿': 'imp', '💀': 'skull',
+  '☠️': 'skull_crossbones', '💩': 'poop', '🤡': 'clown', '👹': 'japanese_ogre', '👺': 'japanese_goblin',
+  '👻': 'ghost', '👽': 'alien', '👾': 'space_invader', '🤖': 'robot',
+  '👋': 'wave', '🤚': 'raised_back_of_hand', '🖐️': 'raised_hand_with_fingers_splayed', '✋': 'hand', '🖖': 'vulcan',
+  '👌': 'ok_hand', '🤌': 'pinched_fingers', '🤏': 'pinching_hand', '✌️': 'v', '🤞': 'crossed_fingers',
+  '🤟': 'love_you_gesture', '🤘': 'metal', '🤙': 'call_me', '👈': 'point_left', '👉': 'point_right',
+  '👆': 'point_up_2', '🖕': 'middle_finger', '👇': 'point_down', '☝️': 'point_up', '👍': 'thumbsup',
+  '👎': 'thumbsdown', '✊': 'fist', '👊': 'punch', '🤛': 'left_facing_fist', '🤜': 'right_facing_fist',
+  '👏': 'clap', '🙌': 'raised_hands', '👐': 'open_hands', '🤲': 'palms_up_together', '🤝': 'handshake',
+  '🙏': 'pray', '✍️': 'writing_hand', '💅': 'nail_care', '🤳': 'selfie', '💪': 'muscle',
+  '❤️': 'heart', '🧡': 'orange_heart', '💛': 'yellow_heart', '💚': 'green_heart', '💙': 'blue_heart',
+  '💜': 'purple_heart', '🖤': 'black_heart', '🤍': 'white_heart', '🤎': 'brown_heart', '💔': 'broken_heart',
+  '🛡️': 'shield', '⚔️': 'crossed_swords', '⚡': 'zap', '🔥': 'fire', '✨': 'sparkles',
+  '⭐': 'star', '🌟': 'star2', '💥': 'boom', '💯': '100', '💢': 'anger',
+  '🚨': 'rotating_light', '⚠️': 'warning', '⛔': 'no_entry', '🚫': 'no_entry_sign',
+  '✅': 'white_check_mark', '❌': 'cross_mark', '❓': 'question', '❗': 'exclamation', '💤': 'zzz', '👑': 'crown',
+  '📜': 'scroll', '🎫': 'ticket', '🔔': 'bell', '🎉': 'tada',
+};
+
+export const getUnicodeEmojiShortcode = (emoji: string): string => {
+  return UNICODE_EMOJI_NAMES[emoji] || 'emoji';
+};
+
 export const EmojiPicker: React.FC<EmojiPickerProps> = ({
   onSelect,
   customCategories = [],
@@ -82,6 +123,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [hoveredEmoji, setHoveredEmoji] = useState<string | CustomEmoji | null>(null);
   const [recentEmojis, setRecentEmojis] = useState<string[]>(() => {
     if (typeof window === 'undefined') return [];
     try {
@@ -160,12 +202,13 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
 
   return (
     <div
-      className={`w-72 rounded-apple-md bg-surface-elevated border border-surface-border shadow-elevated backdrop-blur-md flex flex-col overflow-hidden ${className}`}
+      className={`w-80 max-w-full rounded-apple-xl bg-[#1e1f22] border border-surface-border shadow-elevated flex flex-col overflow-hidden ${className}`}
     >
       <div className="p-2 border-b border-surface-border/60">
         <div className="relative">
           <input
             type="text"
+            data-emoji-search="true"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={placeholder}
@@ -202,7 +245,10 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
         </div>
       ) : null}
 
-      <div className="p-2 max-h-56 overflow-y-auto flex flex-col gap-3">
+      <div
+        className="p-2 max-h-56 overflow-y-auto flex flex-col gap-3"
+        onMouseLeave={() => setHoveredEmoji(null)}
+      >
         {filteredCategories.length === 0 ? (
           <div className="text-center py-6 text-xs text-text-tertiary">No emojis found</div>
         ) : (
@@ -221,6 +267,10 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
                           key={`${item.id}-${idx}`}
                           type="button"
                           onClick={() => handleEmojiClick(item)}
+                          onMouseEnter={() => setHoveredEmoji(item)}
+                          onMouseLeave={() =>
+                            setHoveredEmoji((prev) => (prev === item ? null : prev))
+                          }
                           title={`:${item.name}:`}
                           className="w-8 h-8 rounded-apple-sm flex items-center justify-center hover:bg-white/10 transition-transform active:scale-90"
                         >
@@ -240,6 +290,10 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
                         key={`${item}-${idx}`}
                         type="button"
                         onClick={() => handleEmojiClick(item)}
+                        onMouseEnter={() => setHoveredEmoji(item)}
+                        onMouseLeave={() =>
+                          setHoveredEmoji((prev) => (prev === item ? null : prev))
+                        }
                         className="w-8 h-8 rounded-apple-sm flex items-center justify-center text-lg hover:bg-white/10 transition-transform active:scale-90"
                       >
                         {item}
@@ -249,6 +303,35 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
                 </div>
               </div>
             ))
+        )}
+      </div>
+
+      {/* Bottom Hover Preview Bar (Discord style) */}
+      <div className="px-3 py-2 border-t border-surface-border/60 bg-surface-canvas/90 flex items-center gap-2.5 min-h-[44px]">
+        {hoveredEmoji ? (
+          <>
+            {isCustomEmoji(hoveredEmoji) ? (
+              <Image
+                src={hoveredEmoji.url}
+                alt={hoveredEmoji.name}
+                width={24}
+                height={24}
+                unoptimized
+                className="w-6 h-6 object-contain shrink-0"
+              />
+            ) : (
+              <span className="text-xl leading-none shrink-0">{hoveredEmoji}</span>
+            )}
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-semibold text-white truncate">
+                {isCustomEmoji(hoveredEmoji)
+                  ? `:${hoveredEmoji.name}:`
+                  : `:${getUnicodeEmojiShortcode(hoveredEmoji)}:`}
+              </span>
+            </div>
+          </>
+        ) : (
+          <span className="text-xs text-text-tertiary select-none">Select an emoji</span>
         )}
       </div>
     </div>

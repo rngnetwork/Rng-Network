@@ -105,21 +105,19 @@ export const ServerDiscordEmojiPicker: React.FC<
   }, [serverEmojis, botEmojis]);
 
   return (
-    <div className={`flex flex-col gap-2 ${className}`}>
-      <div className="flex items-center justify-between text-[11px] text-zinc-400 px-3 py-1.5 rounded-apple-md bg-white/[0.03] border border-white/[0.06]">
-        <div className="flex items-center gap-1.5">
-          <Sparkles size={13} className="text-brand-red shrink-0" />
-          <span>
-            Guild #{serverId} custom emojis ({serverEmojis.length}) + Bot emojis ({botEmojis.length})
-          </span>
+    <div className={`flex flex-col w-full ${className}`}>
+      {customCategories.length > 0 && (
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-white/[0.02] text-[10px] text-zinc-400 border-b border-white/[0.04]">
+          <Sparkles size={12} className="text-brand-red shrink-0" />
+          <span>Server ({serverEmojis.length}) &amp; Bot ({botEmojis.length}) emojis active</span>
         </div>
-        <Smile size={13} className="text-zinc-500 shrink-0" />
-      </div>
+      )}
 
       <EmojiPicker
         customCategories={customCategories}
         recentStorageKey={`rng_recent_emojis_${serverId}`}
-        placeholder="Search server, bot, or Unicode emojis..."
+        placeholder="Search emojis..."
+        className="w-full border-none shadow-none rounded-none bg-transparent"
         onSelect={(selected) => {
           const { token, partial } = formatDiscordEmojiToken(selected);
           onSelectEmojiToken(token, partial);

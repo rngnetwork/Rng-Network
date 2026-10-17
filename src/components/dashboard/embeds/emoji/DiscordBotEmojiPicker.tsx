@@ -98,17 +98,18 @@ export const DiscordBotEmojiPicker: React.FC<DiscordBotEmojiPickerProps> = ({
   }, [botEmojis]);
 
   return (
-    <div className={`flex flex-col gap-2 ${className}`}>
-      {botEmojis.length === 0 && (
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-apple-md bg-white/[0.03] border border-white/[0.06] text-[11px] text-zinc-400">
-          <Smile size={13} className="text-brand-red shrink-0" />
-          <span>Standard Unicode emojis active (0 custom bot emojis registered)</span>
+    <div className={`flex flex-col w-full ${className}`}>
+      {botEmojis.length > 0 && (
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-white/[0.02] text-[10px] text-zinc-400 border-b border-white/[0.04]">
+          <Smile size={12} className="text-brand-red shrink-0" />
+          <span>{botEmojis.length} custom bot emojis loaded</span>
         </div>
       )}
       <EmojiPicker
         customCategories={customCategories}
         recentStorageKey="rng_recent_bot_emojis"
-        placeholder="Search bot or Unicode emojis..."
+        placeholder="Search emojis..."
+        className="w-full border-none shadow-none rounded-none bg-transparent"
         onSelect={(selected) => {
           const { token, partial } = formatDiscordEmojiToken(selected);
           onSelectEmojiToken(token, partial);
