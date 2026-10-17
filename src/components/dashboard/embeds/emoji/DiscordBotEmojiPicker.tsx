@@ -98,23 +98,25 @@ export const DiscordBotEmojiPicker: React.FC<DiscordBotEmojiPickerProps> = ({
   }, [botEmojis]);
 
   return (
-    <div className={`flex flex-col w-full ${className}`}>
+    <div className={`flex flex-col w-full h-full ${className}`}>
       {botEmojis.length > 0 && (
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-white/[0.02] text-[10px] text-zinc-400 border-b border-white/[0.04]">
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-white/[0.02] text-[10px] text-zinc-400 border-b border-white/[0.04] shrink-0">
           <Smile size={12} className="text-brand-red shrink-0" />
           <span>{botEmojis.length} custom bot emojis loaded</span>
         </div>
       )}
-      <EmojiPicker
-        customCategories={customCategories}
-        recentStorageKey="rng_recent_bot_emojis"
-        placeholder="Search emojis..."
-        className="w-full border-none shadow-none rounded-none bg-transparent"
-        onSelect={(selected) => {
-          const { token, partial } = formatDiscordEmojiToken(selected);
-          onSelectEmojiToken(token, partial);
-        }}
-      />
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        <EmojiPicker
+          customCategories={customCategories}
+          recentStorageKey="rng_recent_bot_emojis"
+          placeholder="Search emojis..."
+          className="w-full h-full border-none shadow-none rounded-none bg-transparent"
+          onSelect={(selected) => {
+            const { token, partial } = formatDiscordEmojiToken(selected);
+            onSelectEmojiToken(token, partial);
+          }}
+        />
+      </div>
     </div>
   );
 };

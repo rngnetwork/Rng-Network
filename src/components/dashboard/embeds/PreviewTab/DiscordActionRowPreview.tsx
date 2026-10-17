@@ -10,6 +10,7 @@ import {
   type DiscordSelectComponent,
   type DiscordStringSelectComponent,
 } from '@/lib/model/embed';
+import { DiscordEmoji } from '@/components/dashboard/embeds/emoji/DiscordEmojiRenderer';
 
 export interface DiscordActionRowPreviewProps {
   row: DiscordActionRowComponent;
@@ -48,10 +49,6 @@ export const DiscordActionRowPreview: React.FC<DiscordActionRowPreviewProps> = (
       {buttons.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
           {buttons.map((btn, idx) => {
-            const emojiStr =
-              typeof btn.emoji === 'string'
-                ? btn.emoji
-                : btn.emoji?.name ?? '';
             const isSafeLink =
               btn.style === 5 &&
               btn.url &&
@@ -68,7 +65,7 @@ export const DiscordActionRowPreview: React.FC<DiscordActionRowPreviewProps> = (
                     BUTTON_STYLE_MAP[5]
                   } ${btn.disabled ? 'opacity-50 pointer-events-none' : ''}`}
                 >
-                  {emojiStr && <span>{emojiStr}</span>}
+                  {btn.emoji && <DiscordEmoji emoji={btn.emoji} />}
                   <span>{btn.label || 'Link'}</span>
                   <ExternalLink size={14} className="opacity-80" />
                 </a>
@@ -84,7 +81,7 @@ export const DiscordActionRowPreview: React.FC<DiscordActionRowPreviewProps> = (
                   BUTTON_STYLE_MAP[btn.style]
                 } ${btn.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                {emojiStr && <span>{emojiStr}</span>}
+                {btn.emoji && <DiscordEmoji emoji={btn.emoji} />}
                 <span>{btn.label || 'Button'}</span>
                 {btn.style === 5 && (
                   <ExternalLink size={14} className="opacity-80" />
@@ -136,8 +133,9 @@ export const DiscordActionRowPreview: React.FC<DiscordActionRowPreviewProps> = (
                     }}
                     className="w-full px-3 py-2 text-left hover:bg-[#35373C] transition-colors flex flex-col"
                   >
-                    <span className="text-[14px] font-medium text-white">
-                      {opt.label}
+                    <span className="text-[14px] font-medium text-white flex items-center gap-1.5">
+                      {opt.emoji && <DiscordEmoji emoji={opt.emoji} />}
+                      <span>{opt.label}</span>
                     </span>
                     {opt.description && (
                       <span className="text-[12px] text-[#949BA4]">

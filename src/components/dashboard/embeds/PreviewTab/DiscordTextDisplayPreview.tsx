@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { DISCORD_SAFE_URL_REGEX } from '@/lib/model/embed';
 
 export interface DiscordTextDisplayPreviewProps {
@@ -14,12 +15,13 @@ type InlineToken =
   | { kind: 'italic'; value: string }
   | { kind: 'code'; value: string }
   | { kind: 'spoiler'; value: string }
-  | { kind: 'link'; label: string; href: string };
+  | { kind: 'link'; label: string; href: string }
+  | { kind: 'discord_emoji'; name: string; id: string; animated: boolean };
 
 function tokenizeInlineMarkdown(line: string): InlineToken[] {
   const tokens: InlineToken[] = [];
   const pattern =
-    /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\|\|[^|]+\|\||\[[^\]]+\]\([^)]+\))/g;
+    /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\|\|[^|]+\|\||\[[^\]]+\]\([^)]+\)|<a?:[a-zA-Z0-9_]+:[0-9]+>)/g;
 
   let lastIndex = 0;
   let match: RegExpExecArray | null = pattern.exec(line);
@@ -41,6 +43,18 @@ function tokenizeInlineMarkdown(line: string): InlineToken[] {
       tokens.push({ kind: 'code', value: raw.slice(1, -1) });
     } else if (raw.startsWith('||') && raw.endsWith('||')) {
       tokens.push({ kind: 'spoiler', value: raw.slice(2, -2) });
+    } else if (raw.startsWith('<') && raw.endsWith('>')) {
+      const emojiMatch = raw.match(/^<(a)?:([a-zA-Z0-9_]+):([0-9]+)>$/);
+      if (emojiMatch) {
+        tokens.push({
+          kind: 'discord_emoji',
+          animated: Boolean(emojiMatch[1]),
+          name: emojiMatch[2],
+          id: emojiMatch[3],
+        });
+      } else {
+        tokens.push({ kind: 'text', value: raw });
+      }
     } else if (raw.startsWith('[')) {
       const closeBracket = raw.indexOf('](');
       if (closeBracket !== -1 && raw.endsWith(')')) {
@@ -134,6 +148,21 @@ export const DiscordTextDisplayPreview: React.FC<
           >
             {tok.label}
           </a>
+        );
+      }
+      if (tok.kind === 'discord_emoji') {
+        const ext = tok.animated ? 'gif' : 'webp';
+        return (
+          <Image
+            key={key}
+            src={`https://cdn.discordapp.com/emojis/${tok.id}.${ext}?size=48&quality=lossless`}
+            alt={`:${tok.name}:`}
+            title={`:${tok.name}:`}
+            width={20}
+            height={20}
+            unoptimized
+            className="inline-block w-5 h-5 align-middle mx-0.5 object-contain"
+          />
         );
       }
       return <React.Fragment key={key}>{tok.value}</React.Fragment>;

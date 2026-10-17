@@ -42,7 +42,7 @@ export const DiscordContainerPreview: React.FC<
 
       {/* Author */}
       {container.author?.name?.trim() && (
-        <div className="flex items-center gap-2 text-xs font-bold underline text-white mb-0.5">
+        <div className="flex items-center gap-2 text-xs font-bold text-white mb-0.5">
           {container.author.icon_url && (
             <div className="relative w-5 h-5 rounded-full overflow-hidden shrink-0">
               <Image
@@ -54,7 +54,10 @@ export const DiscordContainerPreview: React.FC<
               />
             </div>
           )}
-          <span>{container.author.name.trim()}</span>
+          <DiscordTextDisplayPreview
+            content={container.author.name.trim()}
+            className="text-xs font-bold underline text-white inline-block"
+          />
         </div>
       )}
 
@@ -103,8 +106,14 @@ export const DiscordContainerPreview: React.FC<
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 my-1">
           {container.fields.map((field, fIdx) => (
             <div key={field.id || fIdx} className="flex flex-col gap-0.5">
-              <span className="text-xs font-bold text-white">{field.name}</span>
-              <span className="text-xs text-[#dbdee1]">{field.value}</span>
+              <DiscordTextDisplayPreview
+                content={field.name}
+                className="text-xs font-bold text-white"
+              />
+              <DiscordTextDisplayPreview
+                content={field.value}
+                className="text-xs text-[#dbdee1]"
+              />
             </div>
           ))}
         </div>
@@ -165,7 +174,10 @@ export const DiscordContainerPreview: React.FC<
               />
             </div>
           )}
-          <span>{container.footer.text.trim()}</span>
+          <DiscordTextDisplayPreview
+            content={container.footer.text.trim()}
+            className="text-[11px] text-[#949ba4] inline-block"
+          />
         </div>
       )}
     </div>

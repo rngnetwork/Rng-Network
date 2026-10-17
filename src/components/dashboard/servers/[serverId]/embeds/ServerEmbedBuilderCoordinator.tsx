@@ -69,8 +69,7 @@ export const ServerEmbedBuilderCoordinator: React.FC<
   } | null>(null);
 
   useEffect(() => {
-    const handleFocus = (e: FocusEvent) => {
-      const target = e.target;
+    const updateCursor = (target: EventTarget | null) => {
       if (
         (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) &&
         !target.dataset.emojiSearch
@@ -82,8 +81,29 @@ export const ServerEmbedBuilderCoordinator: React.FC<
         };
       }
     };
+
+    const handleFocus = (e: FocusEvent) => updateCursor(e.target);
+    const handleInput = (e: Event) => updateCursor(e.target);
+    const handleClick = (e: MouseEvent) => updateCursor(e.target);
+    const handleKeyUp = (e: KeyboardEvent) => updateCursor(e.target);
+    const handleSelectionChange = () => {
+      const active = document.activeElement;
+      updateCursor(active);
+    };
+
     window.addEventListener('focusin', handleFocus);
-    return () => window.removeEventListener('focusin', handleFocus);
+    window.addEventListener('input', handleInput, true);
+    window.addEventListener('click', handleClick, true);
+    window.addEventListener('keyup', handleKeyUp, true);
+    document.addEventListener('selectionchange', handleSelectionChange);
+
+    return () => {
+      window.removeEventListener('focusin', handleFocus);
+      window.removeEventListener('input', handleInput, true);
+      window.removeEventListener('click', handleClick, true);
+      window.removeEventListener('keyup', handleKeyUp, true);
+      document.removeEventListener('selectionchange', handleSelectionChange);
+    };
   }, []);
 
   const handleInsertEmoji = (token: string) => {
@@ -515,7 +535,7 @@ export const ServerEmbedBuilderCoordinator: React.FC<
             }}
           />
           {/* Floating Discord Emoji Picker Popover */}
-          <div className="fixed bottom-14 right-6 z-[60] w-80 max-w-[calc(100vw-2rem)] rounded-apple-xl bg-[#1e1f22] border border-white/10 shadow-2xl overflow-hidden flex flex-col animate-in fade-in duration-150">
+          <div className="fixed bottom-14 right-6 z-[60] w-[390px] h-[440px] max-w-[calc(100vw-2rem)] rounded-[8px] bg-[#2b2d31] border border-white/10 shadow-2xl overflow-hidden flex flex-col animate-in fade-in duration-150">
             <ServerDiscordEmojiPicker
               serverId={serverId}
               onSelectEmojiToken={handleInsertEmoji}

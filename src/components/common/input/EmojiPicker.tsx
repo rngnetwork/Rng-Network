@@ -2,6 +2,16 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Image from 'next/image';
+import {
+  Clock,
+  Smile,
+  ThumbsUp,
+  Heart,
+  Lightbulb,
+  Bot,
+  Sparkles,
+  Search,
+} from 'lucide-react';
 
 export interface CustomEmoji {
   id: string;
@@ -114,6 +124,17 @@ export const getUnicodeEmojiShortcode = (emoji: string): string => {
   return UNICODE_EMOJI_NAMES[emoji] || 'emoji';
 };
 
+const getCategoryIcon = (catId: string) => {
+  if (catId === 'recent') return <Clock size={18} />;
+  if (catId === 'smileys') return <Smile size={18} />;
+  if (catId === 'gestures') return <ThumbsUp size={18} />;
+  if (catId === 'symbols') return <Heart size={18} />;
+  if (catId === 'objects') return <Lightbulb size={18} />;
+  if (catId.includes('server')) return <Sparkles size={18} />;
+  if (catId.includes('bot')) return <Bot size={18} />;
+  return <Smile size={18} />;
+};
+
 export const EmojiPicker: React.FC<EmojiPickerProps> = ({
   onSelect,
   customCategories = [],
@@ -134,6 +155,8 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
     }
   });
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const categorySectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     if (searchTimeoutRef.current) {
@@ -162,8 +185,9 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
     return [...list, ...customCategories, ...STANDARD_EMOJI_CATEGORIES];
   }, [recentEmojis, customCategories]);
 
-  const [activeTab, setActiveTab] = useState<string>('all');
-  const currentTab = activeTab === 'all' && allCategories.length > 0 ? allCategories[0].id : activeTab;
+  const [activeCategory, setActiveCategory] = useState<string>(() => {
+    return allCategories.length > 0 ? allCategories[0].id : 'smileys';
+  });
 
   const filteredCategories = useMemo(() => {
     if (!debouncedSearch.trim()) {
@@ -174,14 +198,28 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
       .map((cat) => ({
         ...cat,
         emojis: cat.emojis.filter((item) => {
-          if (typeof item === 'string') {
+          if (cat.name.toLowerCase().includes(query)) {
             return true;
+          }
+          if (typeof item === 'string') {
+            const shortcode = UNICODE_EMOJI_NAMES[item] || '';
+            return shortcode.toLowerCase().includes(query);
           }
           return item.name.toLowerCase().includes(query);
         }),
       }))
       .filter((cat) => cat.emojis.length > 0);
   }, [allCategories, debouncedSearch]);
+
+  const handleCategoryClick = (catId: string) => {
+    setActiveCategory(catId);
+    const targetEl = categorySectionRefs.current[catId];
+    if (targetEl && scrollContainerRef.current) {
+      if (typeof targetEl.scrollIntoView === 'function') {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  };
 
   const handleEmojiClick = (emoji: string | CustomEmoji) => {
     onSelect(emoji);
@@ -202,63 +240,84 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
 
   return (
     <div
-      className={`w-80 max-w-full rounded-apple-xl bg-[#1e1f22] border border-surface-border shadow-elevated flex flex-col overflow-hidden ${className}`}
+      className={`w-[390px] h-[440px] max-w-full rounded-[8px] bg-[#2b2d31] border border-white/10 shadow-2xl flex overflow-hidden select-none ${className}`}
     >
-      <div className="p-2 border-b border-surface-border/60">
-        <div className="relative">
-          <input
-            type="text"
-            data-emoji-search="true"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={placeholder}
-            className="w-full px-2.5 py-1 text-xs rounded-apple-sm bg-surface-canvas border border-surface-border text-text-primary placeholder:text-text-tertiary outline-none focus:border-brand-red"
-          />
-          {searchTerm ? (
-            <button
-              type="button"
-              onClick={() => setSearchTerm('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary text-xs"
-            >
-              ✕
-            </button>
-          ) : null}
-        </div>
-      </div>
-
-      {!debouncedSearch ? (
-        <div className="flex items-center gap-1 px-2 py-1.5 border-b border-surface-border/40 overflow-x-auto no-scrollbar">
-          {allCategories.map((cat) => (
+      {/* Left Sidebar Category Rail */}
+      <div className="w-12 shrink-0 bg-[#1e1f22] border-r border-white/5 flex flex-col items-center py-2.5 gap-1.5 overflow-y-auto no-scrollbar">
+        {allCategories.map((cat) => {
+          const isActive = activeCategory === cat.id;
+          return (
             <button
               key={cat.id}
               type="button"
-              onClick={() => setActiveTab(cat.id)}
-              className={`px-2 py-0.5 text-[11px] font-medium rounded-apple-sm whitespace-nowrap transition-colors ${
-                currentTab === cat.id
-                  ? 'bg-brand-red text-white'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.06]'
+              aria-label={cat.name}
+              title={cat.name}
+              onClick={() => handleCategoryClick(cat.id)}
+              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                isActive
+                  ? 'bg-white/15 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-white hover:bg-white/10'
               }`}
             >
-              {cat.name}
+              {getCategoryIcon(cat.id)}
             </button>
-          ))}
-        </div>
-      ) : null}
+          );
+        })}
+      </div>
 
-      <div
-        className="p-2 max-h-56 overflow-y-auto flex flex-col gap-3"
-        onMouseLeave={() => setHoveredEmoji(null)}
-      >
-        {filteredCategories.length === 0 ? (
-          <div className="text-center py-6 text-xs text-text-tertiary">No emojis found</div>
-        ) : (
-          filteredCategories
-            .filter((cat) => (debouncedSearch ? true : cat.id === currentTab))
-            .map((cat) => (
-              <div key={cat.id} className="flex flex-col gap-1.5">
-                <span className="text-[10px] uppercase font-semibold text-text-tertiary tracking-wider">
+      {/* Right Column: Search + Scrollable Grid + Preview Footer */}
+      <div className="flex-1 flex flex-col min-w-0 h-full bg-[#2b2d31]">
+        {/* Top Search Bar */}
+        <div className="p-2.5 bg-[#2b2d31] border-b border-white/5 shrink-0">
+          <div className="relative flex items-center">
+            <Search
+              size={14}
+              className="absolute left-2.5 text-zinc-400 pointer-events-none"
+            />
+            <input
+              type="text"
+              data-emoji-search="true"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={placeholder}
+              className="w-full pl-8 pr-7 py-1.5 text-xs rounded bg-[#1e1f22] border border-white/5 text-white placeholder:text-zinc-500 outline-none focus:border-[#5865F2] transition-colors"
+            />
+            {searchTerm ? (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2 text-zinc-400 hover:text-white text-xs p-0.5 cursor-pointer"
+              >
+                ✕
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Scrollable Emoji Sections */}
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 p-2.5 overflow-y-auto space-y-3.5 scroll-smooth"
+          onMouseLeave={() => setHoveredEmoji(null)}
+        >
+          {filteredCategories.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-zinc-500 text-xs gap-1.5">
+              <Smile size={24} className="opacity-40" />
+              <span>No emojis found</span>
+            </div>
+          ) : (
+            filteredCategories.map((cat) => (
+              <div
+                key={cat.id}
+                ref={(el) => {
+                  categorySectionRefs.current[cat.id] = el;
+                }}
+                className="space-y-1.5"
+              >
+                <div className="text-[11px] font-bold text-[#949ba4] uppercase tracking-wider px-0.5">
                   {cat.name}
-                </span>
+                </div>
                 <div className="grid grid-cols-7 gap-1">
                   {cat.emojis.map((item, idx) => {
                     if (isCustomEmoji(item)) {
@@ -266,21 +325,22 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
                         <button
                           key={`${item.id}-${idx}`}
                           type="button"
+                          aria-label={`:${item.name}:`}
+                          title={`:${item.name}:`}
                           onClick={() => handleEmojiClick(item)}
                           onMouseEnter={() => setHoveredEmoji(item)}
                           onMouseLeave={() =>
                             setHoveredEmoji((prev) => (prev === item ? null : prev))
                           }
-                          title={`:${item.name}:`}
-                          className="w-8 h-8 rounded-apple-sm flex items-center justify-center hover:bg-white/10 transition-transform active:scale-90"
+                          className="w-9 h-9 rounded flex items-center justify-center hover:bg-white/10 active:scale-95 transition-transform cursor-pointer"
                         >
                           <Image
                             src={item.url}
                             alt={item.name}
-                            width={20}
-                            height={20}
+                            width={24}
+                            height={24}
                             unoptimized
-                            className="w-5 h-5 object-contain"
+                            className="w-6 h-6 object-contain"
                           />
                         </button>
                       );
@@ -289,12 +349,14 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
                       <button
                         key={`${item}-${idx}`}
                         type="button"
+                        aria-label={item}
+                        title={`:${getUnicodeEmojiShortcode(item)}:`}
                         onClick={() => handleEmojiClick(item)}
                         onMouseEnter={() => setHoveredEmoji(item)}
                         onMouseLeave={() =>
                           setHoveredEmoji((prev) => (prev === item ? null : prev))
                         }
-                        className="w-8 h-8 rounded-apple-sm flex items-center justify-center text-lg hover:bg-white/10 transition-transform active:scale-90"
+                        className="w-9 h-9 rounded flex items-center justify-center text-xl hover:bg-white/10 active:scale-95 transition-transform cursor-pointer"
                       >
                         {item}
                       </button>
@@ -303,36 +365,40 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
                 </div>
               </div>
             ))
-        )}
-      </div>
+          )}
+        </div>
 
-      {/* Bottom Hover Preview Bar (Discord style) */}
-      <div className="px-3 py-2 border-t border-surface-border/60 bg-surface-canvas/90 flex items-center gap-2.5 min-h-[44px]">
-        {hoveredEmoji ? (
-          <>
-            {isCustomEmoji(hoveredEmoji) ? (
-              <Image
-                src={hoveredEmoji.url}
-                alt={hoveredEmoji.name}
-                width={24}
-                height={24}
-                unoptimized
-                className="w-6 h-6 object-contain shrink-0"
-              />
-            ) : (
-              <span className="text-xl leading-none shrink-0">{hoveredEmoji}</span>
-            )}
-            <div className="flex flex-col min-w-0">
-              <span className="text-xs font-semibold text-white truncate">
+        {/* Bottom Hover Preview Footer Bar */}
+        <div className="h-11 shrink-0 px-3 bg-[#1e1f22] border-t border-white/5 flex items-center gap-2.5">
+          {hoveredEmoji ? (
+            <>
+              {isCustomEmoji(hoveredEmoji) ? (
+                <Image
+                  src={hoveredEmoji.url}
+                  alt={hoveredEmoji.name}
+                  width={24}
+                  height={24}
+                  unoptimized
+                  className="w-6 h-6 object-contain shrink-0"
+                />
+              ) : (
+                <span className="text-2xl leading-none shrink-0">
+                  {hoveredEmoji}
+                </span>
+              )}
+              <span className="text-xs font-semibold text-white truncate font-mono">
                 {isCustomEmoji(hoveredEmoji)
                   ? `:${hoveredEmoji.name}:`
                   : `:${getUnicodeEmojiShortcode(hoveredEmoji)}:`}
               </span>
+            </>
+          ) : (
+            <div className="flex items-center gap-2 text-zinc-500 text-xs">
+              <Smile size={16} />
+              <span>Select an emoji</span>
             </div>
-          </>
-        ) : (
-          <span className="text-xs text-text-tertiary select-none">Select an emoji</span>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

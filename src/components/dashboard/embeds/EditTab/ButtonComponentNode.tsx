@@ -3,6 +3,7 @@
 import React from 'react';
 import { Settings2, Trash2, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { DiscordButtonComponent } from '@/lib/model/embed';
+import { DiscordEmoji } from '@/components/dashboard/embeds/emoji/DiscordEmojiRenderer';
 
 export interface ButtonComponentNodeProps {
   button: DiscordButtonComponent;
@@ -33,11 +34,6 @@ const ButtonComponentNodeInner: React.FC<ButtonComponentNodeProps> = ({
   onShiftRight,
   onLabelChange,
 }) => {
-  const emojiDisplay =
-    typeof button.emoji === 'string'
-      ? button.emoji
-      : button.emoji?.name ?? '';
-
   return (
     <div className="inline-flex items-center gap-1.5 p-1 rounded-apple-md bg-black/40 border border-white/[0.08]">
       {/* Shift Left */}
@@ -71,7 +67,12 @@ const ButtonComponentNodeInner: React.FC<ButtonComponentNodeProps> = ({
           STYLE_CLASSES[button.style]
         } ${button.disabled ? 'opacity-50' : ''}`}
       >
-        {emojiDisplay && <span className="text-xs">{emojiDisplay}</span>}
+        {button.emoji && (
+          <DiscordEmoji
+            emoji={button.emoji}
+            className="w-3.5 h-3.5 object-contain inline-block align-middle shrink-0"
+          />
+        )}
         {bIdx !== undefined && onLabelChange ? (
           <input
             type="text"
