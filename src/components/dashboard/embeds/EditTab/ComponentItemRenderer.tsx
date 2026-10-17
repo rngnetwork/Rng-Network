@@ -116,8 +116,6 @@ export const ComponentItemRenderer: React.FC<ComponentItemRendererProps> = ({
   return (
     <>
       <div
-        draggable
-        onDragStart={onDragStart}
         onDragOver={onDragOver}
         onDrop={onDrop}
         className={`rounded-apple-lg bg-surface-canvas border transition-all p-3.5 flex flex-col gap-3 ${
@@ -131,6 +129,8 @@ export const ComponentItemRenderer: React.FC<ComponentItemRendererProps> = ({
         <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/[0.06]">
           <div className="flex items-center gap-2">
             <div
+              draggable
+              onDragStart={onDragStart}
               title="Drag to reorder component"
               className="p-1 rounded text-zinc-500 hover:text-zinc-300 cursor-grab active:cursor-grabbing transition-colors"
             >

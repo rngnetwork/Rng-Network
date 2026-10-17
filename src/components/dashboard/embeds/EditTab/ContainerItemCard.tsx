@@ -203,12 +203,14 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
       </div>
 
       {/* 7. Footer Subtext (Strictly positioned at container bottom) */}
-      <TextInput
-        placeholder="Footer Text"
-        value={container.footer?.text || ''}
-        onChange={(e) => onUpdateFooter(cIdx, 'text', e.target.value)}
-        leftIcon={<Calendar size={14} className="text-zinc-500 shrink-0" />}
-      />
+      {!isAuthorCollapsed && (
+        <TextInput
+          placeholder="Footer Text"
+          value={container.footer?.text || ''}
+          onChange={(e) => onUpdateFooter(cIdx, 'text', e.target.value)}
+          leftIcon={<Calendar size={14} className="text-zinc-500 shrink-0" />}
+        />
+      )}
     </div>
   );
 };

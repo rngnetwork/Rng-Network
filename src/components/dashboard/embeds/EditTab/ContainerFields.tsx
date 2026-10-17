@@ -60,15 +60,17 @@ export const ContainerFields: React.FC<ContainerFieldsProps> = ({
                 </button>
               </div>
 
-              <textarea
-                value={field.value}
-                placeholder="Field Value (Markdown)"
-                onChange={(e) =>
-                  onUpdateField(cIdx, fIdx, 'value', e.target.value)
-                }
-                rows={2}
-                className="w-full bg-transparent text-xs text-zinc-300 placeholder-zinc-500 focus:outline-none resize-none"
-              />
+              <div className="relative flex items-center w-full rounded-apple-md bg-[#0E0E12] border transition-all duration-150 border-surface-border hover:border-white/20 focus-within:border-brand-red focus-within:ring-2 focus-within:ring-brand-red/20">
+                <textarea
+                  value={field.value}
+                  placeholder="Field Value (Markdown)"
+                  onChange={(e) =>
+                    onUpdateField(cIdx, fIdx, 'value', e.target.value)
+                  }
+                  rows={2}
+                  className="w-full bg-transparent px-3 py-2 text-xs text-text-primary placeholder:text-text-tertiary outline-none resize-none font-sans"
+                />
+              </div>
             </div>
           ))}
         </div>

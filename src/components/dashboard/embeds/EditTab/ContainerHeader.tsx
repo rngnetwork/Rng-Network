@@ -2,7 +2,6 @@
 
 import React from 'react';
 import {
-  GripVertical,
   ChevronUp,
   ChevronDown,
   Trash2,
@@ -42,15 +41,6 @@ export const ContainerHeader: React.FC<ContainerHeaderProps> = ({
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/[0.08]">
       <div className="flex items-center gap-2">
-        <div
-          draggable
-          onDragStart={onDragStart}
-          title="Drag to reorder container"
-          className="p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.06] cursor-grab active:cursor-grabbing transition-colors"
-        >
-          <GripVertical size={16} />
-        </div>
-
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-white">
             Container #{cIdx + 1}
@@ -120,7 +110,7 @@ export const ContainerHeader: React.FC<ContainerHeaderProps> = ({
           type="button"
           onClick={() => onRemoveContainer(cIdx)}
           title="Remove container"
-          className="p-1.5 rounded-apple-md text-zinc-400 hover:text-red-400 hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 transition-colors cursor-pointer"
+          className="p-1.5 rounded-apple-md text-red-400 bg-red-500/15 border border-red-500/30 hover:bg-red-500/25 hover:border-red-500/50 hover:text-red-300 transition-colors cursor-pointer"
         >
           <Trash2 size={14} />
         </button>
