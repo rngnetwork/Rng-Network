@@ -220,7 +220,7 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
                 <TextInput
                   value={emojiText}
                   onChange={(e) => setEmojiText(e.target.value)}
-                  placeholder="e.g. :smile: or <:name:id>"
+                  placeholder=""
                   className="flex-1"
                   leftIcon={
                     emojiText ? (

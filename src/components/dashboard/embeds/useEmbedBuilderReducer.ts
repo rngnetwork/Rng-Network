@@ -181,11 +181,13 @@ export function createDefaultInnerComponent(componentType: ComponentType): Disco
           },
         ],
         accessory: {
-          type: ComponentType.BUTTON,
-          id: createComponentId('acc_btn'),
-          style: 2,
-          label: 'Acknowledge',
-          custom_id: 'rng_act_0000000000000002',
+          type: ComponentType.THUMBNAIL,
+          id: createComponentId('acc_thumb'),
+          media: {
+            url: 'https://cdn.discordapp.com/embed/avatars/0.png',
+          },
+          media_url: 'https://cdn.discordapp.com/embed/avatars/0.png',
+          description: 'Section Thumbnail',
         },
       };
       return sec;

@@ -188,10 +188,8 @@ export function useEmbedHistory({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeEl = document.activeElement;
-      const isInput =
-        activeEl?.tagName === 'INPUT' ||
-        activeEl?.tagName === 'TEXTAREA' ||
-        (activeEl as HTMLElement)?.isContentEditable;
+      const isInsideModal = Boolean(activeEl?.closest?.('[role="dialog"]'));
+      if (isInsideModal) return;
 
       const isMac = typeof navigator !== 'undefined' && navigator.platform?.toUpperCase().indexOf('MAC') >= 0;
       const cmdKey = isMac ? e.metaKey : e.ctrlKey;
@@ -200,18 +198,14 @@ export function useEmbedHistory({
 
       // Undo: Ctrl+Z / Cmd+Z (without Shift)
       if (e.key.toLowerCase() === 'z' && !e.shiftKey) {
-        if (!isInput) {
-          e.preventDefault();
-          undo();
-        }
+        e.preventDefault();
+        undo();
       }
 
       // Redo: Ctrl+Y / Cmd+Y OR Ctrl+Shift+Z / Cmd+Shift+Z
       if (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey)) {
-        if (!isInput) {
-          e.preventDefault();
-          redo();
-        }
+        e.preventDefault();
+        redo();
       }
     };
 
