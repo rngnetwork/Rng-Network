@@ -38,7 +38,7 @@ export const EmbedBuilderTopNavBar: React.FC<EmbedBuilderTopNavBarProps> = ({
             size={16}
             className={activeTab === 'builder' ? 'text-brand-red' : 'text-zinc-500'}
           />
-          <span>Components V2 Builder</span>
+          <span>Message Builder</span>
           {activeTab === 'builder' && (
             <motion.div
               layoutId="embedTopActiveTabIndicator"

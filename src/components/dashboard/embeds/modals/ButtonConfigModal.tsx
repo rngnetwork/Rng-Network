@@ -13,6 +13,7 @@ import { TextInput } from '@/components/common/input/TextInput';
 import { Dropdown, type DropdownOption } from '@/components/common/input/Dropdown';
 import { ToggleSwitch } from '@/components/common/input/ToggleSwitch';
 import { Button } from '@/components/common/input/Button';
+import { DiscordBotEmojiPicker } from '@/components/dashboard/embeds/emoji/DiscordBotEmojiPicker';
 
 export interface ButtonConfigModalProps {
   isOpen: boolean;
@@ -22,7 +23,16 @@ export interface ButtonConfigModalProps {
   onSave: (updated: DiscordButtonComponent) => void;
 }
 
-const QUICK_BUTTON_EMOJIS = ['🛡️', '⚔️', '✅', '❌', '📜', '⭐', '🎫', '🔔'];
+const getInitialEmojiText = (
+  emoji?: string | { name?: string; id?: string; animated?: boolean }
+): string => {
+  if (!emoji) return '';
+  if (typeof emoji === 'string') return emoji;
+  if (emoji.id) {
+    return `<${emoji.animated ? 'a' : ''}:${emoji.name}:${emoji.id}>`;
+  }
+  return emoji.name || '';
+};
 
 export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
   isOpen,
@@ -36,12 +46,9 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
   const [style, setStyle] = useState<ButtonStyle>(button?.style ?? 1);
   const [customId, setCustomId] = useState(button?.custom_id ?? '');
   const [url, setUrl] = useState(button?.url ?? 'https://');
-  const [emojiText, setEmojiText] = useState(
-    typeof button?.emoji === 'string'
-      ? button.emoji
-      : button?.emoji?.name ?? ''
-  );
+  const [emojiText, setEmojiText] = useState(getInitialEmojiText(button?.emoji));
   const [disabled, setDisabled] = useState(Boolean(button?.disabled));
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   if (button !== prevButton) {
     setPrevButton(button);
@@ -49,12 +56,9 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
     setStyle(button?.style ?? 1);
     setCustomId(button?.custom_id ?? '');
     setUrl(button?.url ?? 'https://');
-    setEmojiText(
-      typeof button?.emoji === 'string'
-        ? button.emoji
-        : button?.emoji?.name ?? ''
-    );
+    setEmojiText(getInitialEmojiText(button?.emoji));
     setDisabled(Boolean(button?.disabled));
+    setShowEmojiPicker(false);
   }
 
   const isLinkStyle = style === 5;
@@ -79,12 +83,27 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
 
   const handleSave = () => {
     if (!button || !canSave) return;
+    const cleanEmoji = emojiText.trim();
+    let emojiPayload: DiscordButtonComponent['emoji'] = undefined;
+    if (cleanEmoji) {
+      const match = cleanEmoji.match(/^<(a)?:([a-zA-Z0-9_]+):([0-9]+)>$/);
+      if (match) {
+        emojiPayload = {
+          animated: Boolean(match[1]),
+          name: match[2],
+          id: match[3],
+        };
+      } else {
+        emojiPayload = { name: cleanEmoji };
+      }
+    }
+
     const updated: DiscordButtonComponent = {
       ...button,
       label: label.trim(),
       style,
       disabled,
-      emoji: emojiText.trim() ? { name: emojiText.trim() } : undefined,
+      emoji: emojiPayload,
       ...(isLinkStyle
         ? { url: url.trim(), custom_id: undefined }
         : { custom_id: customId.trim(), url: undefined }),
@@ -97,8 +116,8 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Configure Interactive Button (Type 2)"
-      description="Bind button to a registered Action ID (rng_act_*) or safe external link."
+      title="Button Settings"
+      description="Configure settings of Button in the embedded message."
       size="md"
       footer={
         <div className="flex items-center justify-end gap-2.5">
@@ -194,30 +213,49 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
               placeholder="Execute Action"
             />
           </div>
-          <div>
+          <div className="relative">
             <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-zinc-300">Emoji</label>
-                <div className="flex items-center gap-1">
-                  {QUICK_BUTTON_EMOJIS.slice(0, 4).map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => setEmojiText(emoji)}
-                      className="text-xs hover:scale-125 transition-transform"
-                      title={`Select ${emoji}`}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
+              <label className="text-xs font-semibold text-zinc-300">Emoji</label>
+              <div className="flex items-center gap-2">
+                <TextInput
+                  value={emojiText}
+                  onChange={(e) => setEmojiText(e.target.value)}
+                  placeholder="🛡️ or <:emoji:id>"
+                  className="flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker((prev) => !prev)}
+                  className={`h-[38px] px-3 rounded-apple-md border flex items-center justify-center transition-all cursor-pointer ${
+                    showEmojiPicker
+                      ? 'bg-brand-red/20 border-brand-red text-white shadow-glow-red-sm'
+                      : 'bg-[#0E0E12] border-surface-border hover:border-white/20 text-zinc-300 hover:text-white'
+                  }`}
+                  title="Pick Discord Emoji"
+                  aria-label="Pick Discord Emoji"
+                >
+                  <Smile size={16} />
+                </button>
               </div>
-              <TextInput
-                value={emojiText}
-                onChange={(e) => setEmojiText(e.target.value)}
-                placeholder="🛡️"
-              />
             </div>
+
+            {/* Bottom-left anchored DiscordBotEmojiPicker popover */}
+            {showEmojiPicker && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowEmojiPicker(false)}
+                />
+                <div className="absolute right-0 sm:left-0 top-full mt-2 z-50 w-72 sm:w-80 p-2 rounded-apple-xl bg-[#121217] border border-white/10 shadow-2xl backdrop-blur-xl">
+                  <DiscordBotEmojiPicker
+                    onSelectEmojiToken={(token) => {
+                      setEmojiText(token);
+                      setShowEmojiPicker(false);
+                    }}
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -234,26 +272,44 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
           <div className="flex flex-col gap-3">
             {actionOptions.length > 0 && (
               <Dropdown
-                label="Bind to Registered Action Template"
-                options={actionOptions}
-                value={customId}
+                label="Action Template"
+                options={[
+                  { label: 'None (Manual Custom ID)', value: '' },
+                  ...actionOptions,
+                ]}
+                value={actionOptions.some((opt) => opt.value === customId) ? customId : ''}
                 onChange={(val) => setCustomId(val)}
                 placeholder="Select an rng_act_* template..."
                 searchable
               />
             )}
-            <TextInput
-              label="Custom ID / Action Identifier"
-              value={customId}
-              maxLength={100}
-              onChange={(e) => setCustomId(e.target.value)}
-              placeholder="rng_act_0123456789abcdef"
-              helperText={
-                customId.startsWith('rng_act_')
-                  ? '✓ JDA Gateway Handled Action Template'
-                  : 'Custom Discord component custom_id string.'
-              }
-            />
+            <div className="flex flex-col gap-1">
+              <TextInput
+                label="Custom ID / Action Identifier"
+                value={customId}
+                maxLength={100}
+                disabled={Boolean(customId.startsWith('rng_act_'))}
+                onChange={(e) => setCustomId(e.target.value)}
+                placeholder="rng_act_0123456789abcdef"
+                helperText={
+                  customId.startsWith('rng_act_')
+                    ? '✓ Locked: Bound to Action Template (JDA Gateway Handled)'
+                    : 'Custom Discord component custom_id string (max 100 chars).'
+                }
+              />
+              {customId.startsWith('rng_act_') && (
+                <div className="flex items-center justify-between text-[11px] text-zinc-400 px-1">
+                  <span>Bound to JDA Action Template</span>
+                  <button
+                    type="button"
+                    onClick={() => setCustomId('')}
+                    className="text-brand-red hover:underline cursor-pointer"
+                  >
+                    Unlock &amp; Clear
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

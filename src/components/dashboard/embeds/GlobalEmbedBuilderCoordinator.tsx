@@ -25,7 +25,6 @@ import { MonacoDiscordJsonEditor } from './RawTab/MonacoDiscordJsonEditor';
 import { TemplateFilterBar } from './templates/TemplateFilterBar';
 import { SavedTemplateCard } from './templates/SavedTemplateCard';
 import { ActionTemplatesTab } from './ActionTemplatesTab';
-import { UnsavedChangesBar } from './UnsavedChangesBar';
 import { PaletteModal } from './modals/PaletteModal';
 import { ButtonConfigModal } from './modals/ButtonConfigModal';
 import { SelectMenuConfigModal } from './modals/SelectMenuConfigModal';
@@ -444,13 +443,6 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
           />
         </div>
       )}
-
-      {/* Floating Unsaved Changes Bar */}
-      <UnsavedChangesBar
-        isDirty={state.isDirty}
-        onSave={() => setIsSaveModalOpen(true)}
-        onReset={() => dispatch({ type: 'RESET_CANVAS' })}
-      />
 
       {/* UPPER Z-INDEX MODALS LAYER (z-50) */}
       <PaletteModal

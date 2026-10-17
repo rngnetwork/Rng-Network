@@ -25,7 +25,6 @@ import { GlobalEditTabCoordinator } from '@/components/dashboard/embeds/EditTab/
 import { GlobalPreviewCoordinator } from '@/components/dashboard/embeds/PreviewTab/GlobalPreviewCoordinator';
 import { GlobalDispatchCoordinator } from '@/components/dashboard/embeds/DispatchTab/GlobalDispatchCoordinator';
 import { MonacoDiscordJsonEditor } from '@/components/dashboard/embeds/RawTab/MonacoDiscordJsonEditor';
-import { UnsavedChangesBar } from '@/components/dashboard/embeds/UnsavedChangesBar';
 import { PaletteModal } from '@/components/dashboard/embeds/modals/PaletteModal';
 import { ButtonConfigModal } from '@/components/dashboard/embeds/modals/ButtonConfigModal';
 import { SelectMenuConfigModal } from '@/components/dashboard/embeds/modals/SelectMenuConfigModal';
@@ -321,13 +320,6 @@ export const ServerEmbedBuilderCoordinator: React.FC<
           />
         )}
       </MessageBuilderWorkspace>
-
-      {/* Floating Unsaved Changes Bar */}
-      <UnsavedChangesBar
-        isDirty={state.isDirty}
-        onSave={() => setIsSaveModalOpen(true)}
-        onReset={() => dispatch({ type: 'RESET_CANVAS' })}
-      />
 
       {/* UPPER Z-INDEX MODALS LAYER (z-50) */}
       <PaletteModal
