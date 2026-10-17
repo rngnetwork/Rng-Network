@@ -12,6 +12,8 @@ import {
   type DiscordSectionComponent,
   type DiscordSeparatorComponent,
   type DiscordStringSelectComponent,
+  type DiscordEntitySelectComponent,
+  type DiscordSelectOption,
   type DiscordTextDisplayComponent,
   type DiscordTopLevelComponent,
   type DiscordV2ContainerPayload,
@@ -94,17 +96,9 @@ export function createDefaultContainer(overrides?: Partial<Type17Container>): Ty
     id: overrides?.id || createComponentId('cnt'),
     accentColor: overrides?.accentColor || '#E11D2E',
     isSpoiler: overrides?.isSpoiler ?? false,
-    title: overrides?.title ?? 'Operational Briefing',
-    description:
-      overrides?.description ??
-      'Configure your Discord Components V2 container layout and interactive controls below.',
-    components: overrides?.components ?? [
-      {
-        type: ComponentType.TEXT_DISPLAY,
-        id: createComponentId('txt'),
-        content: '### RNG Command Directive\nAll personnel must verify their clearance prior to dispatch.',
-      },
-    ],
+    title: overrides?.title ?? '',
+    description: overrides?.description ?? '',
+    components: overrides?.components ?? [],
   };
 }
 
@@ -115,7 +109,7 @@ export function createInitialEmbedBuilderState(): EmbedBuilderReducerState {
     message: {
       content: '',
     },
-    type17Containers: [createDefaultContainer({ id: 'cnt_initial_1' })],
+    type17Containers: [],
     isDirty: false,
     activeTemplateId: null,
     activeTemplateName: 'Untitled Components V2 Layout',
@@ -696,6 +690,36 @@ export function parseDiscordPayloadToState(
       const rawChildren = Array.isArray(compRecord.components) ? compRecord.components : [];
       const parsedInner: DiscordInnerComponent[] = [];
 
+      let containerTitle = typeof compRecord.title === 'string' ? compRecord.title : '';
+      let containerDesc = typeof compRecord.description === 'string' ? compRecord.description : '';
+      const authorObj =
+        compRecord.author && typeof compRecord.author === 'object'
+          ? (compRecord.author as Record<string, unknown>)
+          : undefined;
+      const footerObj =
+        compRecord.footer && typeof compRecord.footer === 'object'
+          ? (compRecord.footer as Record<string, unknown>)
+          : undefined;
+
+      let containerAuthor: { name: string; icon_url?: string } | undefined =
+        authorObj && typeof authorObj.name === 'string' && Boolean(authorObj.name.trim())
+          ? {
+              name: authorObj.name.trim(),
+              icon_url: typeof authorObj.icon_url === 'string' ? authorObj.icon_url : undefined,
+            }
+          : undefined;
+
+      let containerFooter: { text: string; icon_url?: string } | undefined =
+        footerObj && typeof footerObj.text === 'string' && Boolean(footerObj.text.trim())
+          ? {
+              text: footerObj.text.trim(),
+              icon_url: typeof footerObj.icon_url === 'string' ? footerObj.icon_url : undefined,
+            }
+          : undefined;
+      const containerFields = Array.isArray(compRecord.fields)
+        ? (compRecord.fields as { name: string; value: string; inline?: boolean }[])
+        : [];
+
       rawChildren.forEach((child, cIdx) => {
         if (!child || typeof child !== 'object') return;
         const childObj = child as Record<string, unknown>;
@@ -704,11 +728,28 @@ export function parseDiscordPayloadToState(
           typeof childObj.id === 'string' ? childObj.id : `parsed_${index}_${cIdx}`;
 
         if (cType === ComponentType.TEXT_DISPLAY) {
-          parsedInner.push({
-            type: ComponentType.TEXT_DISPLAY,
-            id: childId,
-            content: typeof childObj.content === 'string' ? childObj.content : '',
-          });
+          const rawContent = typeof childObj.content === 'string' ? childObj.content : '';
+          if (rawContent.startsWith('-# ') && !containerFooter?.text) {
+            containerFooter = { text: rawContent.replace('-# ', ''), icon_url: '' };
+          } else if (!containerTitle && !containerDesc && !rawContent.startsWith('-# ') && cIdx === 0) {
+            const lines = rawContent.split('\n');
+            let lineIdx = 0;
+            if (lines[lineIdx] && lines[lineIdx].startsWith('__**') && lines[lineIdx].endsWith('**__')) {
+              containerAuthor = { name: lines[lineIdx].slice(4, -4), icon_url: '' };
+              lineIdx++;
+            }
+            if (lines[lineIdx] && lines[lineIdx].startsWith('**') && lines[lineIdx].endsWith('**')) {
+              containerTitle = lines[lineIdx].slice(2, -2);
+              lineIdx++;
+            }
+            containerDesc = lines.slice(lineIdx).join('\n');
+          } else {
+            parsedInner.push({
+              type: ComponentType.TEXT_DISPLAY,
+              id: childId,
+              content: rawContent,
+            });
+          }
         } else if (cType === ComponentType.SEPARATOR) {
           parsedInner.push({
             type: ComponentType.SEPARATOR,
@@ -727,6 +768,59 @@ export function parseDiscordPayloadToState(
               ...rc,
               id: rc.id || `parsed_rc_${index}_${cIdx}_${rcIdx}`,
             })),
+          });
+        } else if (cType === ComponentType.STRING_SELECT) {
+          parsedInner.push({
+            type: ComponentType.STRING_SELECT,
+            id: childId,
+            custom_id:
+              typeof childObj.custom_id === 'string'
+                ? childObj.custom_id
+                : `rng_act_${childId}`,
+            placeholder:
+              typeof childObj.placeholder === 'string'
+                ? childObj.placeholder
+                : undefined,
+            disabled: Boolean(childObj.disabled),
+            options: Array.isArray(childObj.options)
+              ? (childObj.options as DiscordStringSelectComponent['options'])
+              : [],
+            invokerButtonId:
+              typeof childObj.invokerButtonId === 'string'
+                ? childObj.invokerButtonId
+                : undefined,
+          });
+        } else if (
+          cType === ComponentType.USER_SELECT ||
+          cType === ComponentType.ROLE_SELECT ||
+          cType === ComponentType.MENTIONABLE_SELECT ||
+          cType === ComponentType.CHANNEL_SELECT
+        ) {
+          parsedInner.push({
+            type: cType as
+              | ComponentType.USER_SELECT
+              | ComponentType.ROLE_SELECT
+              | ComponentType.MENTIONABLE_SELECT
+              | ComponentType.CHANNEL_SELECT,
+            id: childId,
+            custom_id:
+              typeof childObj.custom_id === 'string'
+                ? childObj.custom_id
+                : `rng_act_${childId}`,
+            placeholder:
+              typeof childObj.placeholder === 'string'
+                ? childObj.placeholder
+                : undefined,
+            disabled: Boolean(childObj.disabled),
+            options: Array.isArray(childObj.options)
+              ? (childObj.options as DiscordEntitySelectComponent['options'])
+              : undefined,
+            channel_types: Array.isArray(childObj.channel_types)
+              ? (childObj.channel_types as number[])
+              : undefined,
+            default_values: Array.isArray(childObj.default_values)
+              ? (childObj.default_values as DiscordEntitySelectComponent['default_values'])
+              : undefined,
           });
         } else if (cType === ComponentType.SECTION) {
           parsedInner.push({
@@ -749,8 +843,11 @@ export function parseDiscordPayloadToState(
         id: typeof compRecord.id === 'string' ? compRecord.id : `cnt_parsed_${index}`,
         accentColor: intToHex(accentInt),
         isSpoiler: Boolean(compRecord.spoiler),
-        title: '',
-        description: '',
+        author: containerAuthor,
+        title: containerTitle,
+        description: containerDesc,
+        fields: containerFields,
+        footer: containerFooter,
         components: parsedInner,
       });
     }

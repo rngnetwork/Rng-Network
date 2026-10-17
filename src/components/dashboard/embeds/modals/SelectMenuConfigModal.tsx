@@ -9,10 +9,15 @@ import {
   Unlink,
   AlertCircle,
   HelpCircle,
+  Smile,
+  ListCheck,
+  Users,
+  Shield,
+  Layers,
 } from 'lucide-react';
 import {
   ComponentType,
-  type DiscordStringSelectComponent,
+  type DiscordSelectComponent,
   type DiscordSelectOption,
   type DiscordButtonComponent,
   type DiscordActionRowComponent,
@@ -24,15 +29,16 @@ import { TextInput } from '@/components/common/input/TextInput';
 import { Dropdown, type DropdownOption } from '@/components/common/input/Dropdown';
 import { Button } from '@/components/common/input/Button';
 import { Badge } from '@/components/common/feedback/Badge';
+import { ToggleSwitch } from '@/components/common/input/ToggleSwitch';
 
 export interface SelectMenuConfigModalProps {
   isOpen: boolean;
-  selectMenu: DiscordStringSelectComponent | null;
+  selectMenu: DiscordSelectComponent | null;
   availableActions?: EmbedAction[];
   allContainers?: Type17Container[];
   onUpdateContainers?: (updated: Type17Container[]) => void;
   onClose: () => void;
-  onSave: (updated: DiscordStringSelectComponent) => void;
+  onSave: (updated: DiscordSelectComponent) => void;
 }
 
 interface ButtonItemRef {
@@ -41,6 +47,8 @@ interface ButtonItemRef {
   btnIdx: number;
   button: DiscordButtonComponent;
 }
+
+const QUICK_EMOJIS = ['⭐', '🔔', '🚀', '⚡', '🏆', '📌', '✅', '💬'];
 
 export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
   isOpen,
@@ -52,16 +60,28 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
   onSave,
 }) => {
   const [prevSelectMenu, setPrevSelectMenu] = useState(selectMenu);
-  const [customId, setCustomId] = useState(
-    selectMenu?.custom_id ?? 'rng_sel_default'
+  const [customId, setCustomId] = useState(selectMenu?.custom_id ?? 'rng_sel_default');
+  const [placeholder, setPlaceholder] = useState(selectMenu?.placeholder ?? 'Select an option...');
+  const [disabled, setDisabled] = useState<boolean>(Boolean(selectMenu?.disabled));
+
+  // Determine initial action binding for Type 5 / 6
+  const initialActionId = useMemo(() => {
+    if (!selectMenu) return '';
+    const cid = selectMenu.custom_id || '';
+    if (cid.startsWith('rng_sel_user_')) return cid.replace('rng_sel_user_', '');
+    if (cid.startsWith('rng_sel_role_')) return cid.replace('rng_sel_role_', '');
+    return '';
+  }, [selectMenu]);
+
+  const [actionSourceMode, setActionSourceMode] = useState<'template' | 'custom'>(
+    initialActionId ? 'template' : 'custom'
   );
-  const [placeholder, setPlaceholder] = useState(
-    selectMenu?.placeholder ?? 'Select an option...'
-  );
+  const [selectedActionId, setSelectedActionId] = useState<string>(initialActionId);
+
   const [options, setOptions] = useState<DiscordSelectOption[]>(
-    selectMenu?.options ?? [
-      { label: 'Option 1', value: 'opt_1', description: '' },
-    ]
+    selectMenu && 'options' in selectMenu && selectMenu.options && selectMenu.options.length > 0
+      ? selectMenu.options
+      : [{ label: 'Option 1', value: 'opt_1', description: '' }]
   );
 
   // Collect all buttons across all containers
@@ -87,18 +107,57 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
     return list;
   }, [allContainers]);
 
+  // Scan allContainers to check 1-of-each usage across User Select, Role Select, and Button
+  const actionUsages = useMemo(() => {
+    const usages = new Map<string, { userSelect?: string; roleSelect?: string; button?: string; buttonLabel?: string }>();
+    allContainers.forEach((c) => {
+      (c.components || []).forEach((inner) => {
+        const compRec = inner as unknown as Record<string, unknown>;
+        const t = Number(compRec.type);
+        const cid = String(compRec.custom_id || '');
+
+        if (t === ComponentType.USER_SELECT) {
+          const aId = cid.startsWith('rng_sel_user_') ? cid.replace('rng_sel_user_', '') : undefined;
+          if (aId) {
+            const entry = usages.get(aId) || {};
+            entry.userSelect = String(compRec.id || cid);
+            usages.set(aId, entry);
+          }
+        } else if (t === ComponentType.ROLE_SELECT) {
+          const aId = cid.startsWith('rng_sel_role_') ? cid.replace('rng_sel_role_', '') : undefined;
+          if (aId) {
+            const entry = usages.get(aId) || {};
+            entry.roleSelect = String(compRec.id || cid);
+            usages.set(aId, entry);
+          }
+        } else if (t === ComponentType.ACTION_ROW) {
+          const row = inner as DiscordActionRowComponent;
+          row.components.forEach((child) => {
+            if (child.type === ComponentType.BUTTON && child.custom_id?.startsWith('rng_act_')) {
+              const entry = usages.get(child.custom_id) || {};
+              entry.button = child.id || child.custom_id;
+              entry.buttonLabel = child.label || 'Action Button';
+              usages.set(child.custom_id, entry);
+            }
+          });
+        }
+      });
+    });
+    return usages;
+  }, [allContainers]);
+
   // Determine currently mapped invoker button
   const currentInvokerCustomId = `rng_btn_invoke_${selectMenu?.custom_id || selectMenu?.id}`;
   const initialMappedButton = useMemo(() => {
     if (!selectMenu) return null;
+    const invokerId = 'invokerButtonId' in selectMenu ? (selectMenu as { invokerButtonId?: string }).invokerButtonId : undefined;
     return (
       allButtons.find(
         (b) =>
           b.button.custom_id === currentInvokerCustomId ||
-          selectMenu.invokerButtonId === b.button.id ||
-          selectMenu.invokerButtonId === b.button.custom_id ||
-          (b.button.custom_id &&
-            b.button.custom_id.startsWith(`rng_btn_invoke_${selectMenu.custom_id}`))
+          invokerId === b.button.id ||
+          invokerId === b.button.custom_id ||
+          (b.button.custom_id && b.button.custom_id.startsWith(`rng_btn_invoke_${selectMenu.custom_id}`))
       ) || (allButtons.length === 1 ? allButtons[0] : null)
     );
   }, [allButtons, currentInvokerCustomId, selectMenu]);
@@ -110,30 +169,67 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
   if (selectMenu !== prevSelectMenu) {
     setPrevSelectMenu(selectMenu);
     setCustomId(selectMenu?.custom_id || 'rng_sel_default');
-    setPlaceholder(selectMenu?.placeholder ?? 'Select an option...');
+    setPlaceholder(
+      selectMenu?.placeholder ??
+        (selectMenu?.type === ComponentType.USER_SELECT
+          ? 'Select a user...'
+          : selectMenu?.type === ComponentType.ROLE_SELECT
+          ? 'Select a role...'
+          : 'Select an option...')
+    );
+    setDisabled(Boolean(selectMenu?.disabled));
     setOptions(
-      selectMenu && selectMenu.options.length > 0
+      selectMenu && 'options' in selectMenu && selectMenu.options && selectMenu.options.length > 0
         ? selectMenu.options
         : [{ label: 'Option 1', value: 'opt_1', description: '' }]
     );
+    const cid = selectMenu?.custom_id || '';
+    const aId = cid.startsWith('rng_sel_user_')
+      ? cid.replace('rng_sel_user_', '')
+      : cid.startsWith('rng_sel_role_')
+      ? cid.replace('rng_sel_role_', '')
+      : '';
+    setSelectedActionId(aId);
+    setActionSourceMode(aId ? 'template' : 'custom');
     setMappedButton(initialMappedButton);
     setTempSelectedButton(initialMappedButton);
   }
 
-  const actionOptions: DropdownOption<string>[] = availableActions.map(
-    (act) => ({
-      label: `${act.name} (${act.actionId})`,
-      value: act.actionId,
-    })
-  );
+  const actionOptions: DropdownOption<string>[] = useMemo(() => {
+    return [
+      {
+        value: '',
+        label: 'None (Unbound)',
+        description: 'Do not bind this select menu to an action template',
+      },
+      ...availableActions.map((act) => {
+        const usage = actionUsages.get(act.actionId);
+        const isAnotherUserSelect =
+          selectMenu?.type === ComponentType.USER_SELECT &&
+          usage?.userSelect &&
+          usage.userSelect !== selectMenu.id &&
+          usage.userSelect !== selectMenu.custom_id;
+        const isAnotherRoleSelect =
+          selectMenu?.type === ComponentType.ROLE_SELECT &&
+          usage?.roleSelect &&
+          usage.roleSelect !== selectMenu.id &&
+          usage.roleSelect !== selectMenu.custom_id;
+        const isBlocked = Boolean(isAnotherUserSelect || isAnotherRoleSelect);
 
-  const handleUpdateOption = (
-    idx: number,
-    updates: Partial<DiscordSelectOption>
-  ) => {
-    setOptions((prev) =>
-      prev.map((opt, i) => (i === idx ? { ...opt, ...updates } : opt))
-    );
+        return {
+          value: act.actionId,
+          label: act.name,
+          description: isBlocked
+            ? `⚠️ Already mapped to another ${selectMenu?.type === ComponentType.USER_SELECT ? 'User' : 'Role'} Select in this message`
+            : act.description || act.actionId,
+          disabled: isBlocked,
+        };
+      }),
+    ];
+  }, [availableActions, actionUsages, selectMenu]);
+
+  const handleUpdateOption = (idx: number, updates: Partial<DiscordSelectOption>) => {
+    setOptions((prev) => prev.map((opt, i) => (i === idx ? { ...opt, ...updates } : opt)));
   };
 
   const handleAddOption = () => {
@@ -142,7 +238,7 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
       ...prev,
       {
         label: `Option ${prev.length + 1}`,
-        value: `opt_${prev.length + 1}`,
+        value: `opt_${Date.now()}_${prev.length + 1}`,
         description: '',
       },
     ]);
@@ -154,17 +250,25 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
   };
 
   const handleSave = () => {
-    if (!selectMenu || !customId.trim() || options.length === 0) return;
-    const finalCustomId = customId.trim();
-    const targetBtnInvokeId = mappedButton
-      ? `rng_btn_invoke_${finalCustomId}`
-      : undefined;
+    if (!selectMenu) return;
 
-    if (onUpdateContainers && allContainers.length > 0) {
+    const isType3 = selectMenu.type === ComponentType.STRING_SELECT;
+    const isType5 = selectMenu.type === ComponentType.USER_SELECT;
+    const isType6 = selectMenu.type === ComponentType.ROLE_SELECT;
+
+    const finalCustomId =
+      isType5 && actionSourceMode === 'template' && selectedActionId
+        ? `rng_sel_user_${selectedActionId}`
+        : isType6 && actionSourceMode === 'template' && selectedActionId
+        ? `rng_sel_role_${selectedActionId}`
+        : customId.trim() || selectMenu.custom_id || `rng_sel_${Date.now()}`;
+
+    const targetBtnInvokeId = mappedButton ? `rng_btn_invoke_${finalCustomId}` : undefined;
+
+    // If String Select (Type 3) and invoker button mapping changed, update containers
+    if (isType3 && onUpdateContainers && allContainers.length > 0) {
       const invokeId = targetBtnInvokeId || `rng_btn_invoke_${finalCustomId}`;
-      const updatedContainers = JSON.parse(
-        JSON.stringify(allContainers)
-      ) as Type17Container[];
+      const updatedContainers = JSON.parse(JSON.stringify(allContainers)) as Type17Container[];
 
       // Reset old invokeId on any unmapped buttons
       updatedContainers.forEach((c) => {
@@ -195,8 +299,7 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
                   if (
                     item.type === ComponentType.BUTTON &&
                     (item.id === mappedButton.button.id ||
-                      (inner.id === mappedButton.rowId &&
-                        btnIdx === mappedButton.btnIdx))
+                      (inner.id === mappedButton.rowId && btnIdx === mappedButton.btnIdx))
                   ) {
                     (item as DiscordButtonComponent).custom_id = invokeId;
                     applied = true;
@@ -213,10 +316,7 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
               if (inner.type === ComponentType.ACTION_ROW) {
                 const row = inner as DiscordActionRowComponent;
                 row.components.forEach((item) => {
-                  if (
-                    item.type === ComponentType.BUTTON &&
-                    item.id === mappedButton.button.id
-                  ) {
+                  if (item.type === ComponentType.BUTTON && item.id === mappedButton.button.id) {
                     (item as DiscordButtonComponent).custom_id = invokeId;
                   }
                 });
@@ -229,13 +329,25 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
       onUpdateContainers(updatedContainers);
     }
 
-    onSave({
-      ...selectMenu,
-      custom_id: finalCustomId,
-      placeholder: placeholder.trim(),
-      options,
-      invokerButtonId: targetBtnInvokeId,
-    });
+    if (isType3) {
+      onSave({
+        ...selectMenu,
+        type: ComponentType.STRING_SELECT,
+        custom_id: finalCustomId,
+        placeholder: placeholder.trim() || undefined,
+        disabled,
+        options,
+        invokerButtonId: targetBtnInvokeId,
+      });
+    } else {
+      onSave({
+        ...selectMenu,
+        custom_id: finalCustomId,
+        placeholder: placeholder.trim() || undefined,
+        disabled,
+      });
+    }
+
     onClose();
   };
 
@@ -255,13 +367,34 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
     }
   };
 
+  const isType3 = selectMenu?.type === ComponentType.STRING_SELECT;
+  const isEntitySelect =
+    selectMenu?.type === ComponentType.USER_SELECT ||
+    selectMenu?.type === ComponentType.ROLE_SELECT ||
+    selectMenu?.type === ComponentType.MENTIONABLE_SELECT ||
+    selectMenu?.type === ComponentType.CHANNEL_SELECT;
+
+  const currentActionUsage = selectedActionId ? actionUsages.get(selectedActionId) : undefined;
+
+  const modalTitle = isType3
+    ? 'Configure String Select Menu (Type 3)'
+    : selectMenu?.type === ComponentType.USER_SELECT
+    ? 'Configure User Select Menu (Type 5)'
+    : selectMenu?.type === ComponentType.ROLE_SELECT
+    ? 'Configure Role Select Menu (Type 6)'
+    : 'Configure Select Menu Component';
+
   return (
     <>
       <Modal
         isOpen={isOpen}
         onClose={onClose}
-        title="Configure String Select Menu (Type 3)"
-        description="Configure dropdown placeholder, bind option values to Action Registry IDs, and link an Invoker Button."
+        title={modalTitle}
+        description={
+          isType3
+            ? 'Configure dropdown placeholder, bind option values to Action Registry IDs, and link an Invoker Button.'
+            : 'Bind entity selection dynamically to an Action Template for automated multi-stage execution.'
+        }
         size="lg"
         footer={
           <div className="flex items-center justify-end gap-2.5">
@@ -272,7 +405,7 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
               type="button"
               variant="primary"
               size="sm"
-              disabled={!customId.trim() || options.length === 0}
+              disabled={isType3 ? !customId.trim() || options.length === 0 : false}
               onClick={handleSave}
             >
               Save Select Menu
@@ -281,179 +414,392 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
         }
       >
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <TextInput
-              label="Menu Custom ID"
-              value={customId}
-              onChange={(e) => setCustomId(e.target.value)}
-              placeholder="rng_sel_ministry"
-            />
-            <TextInput
-              label="Placeholder Text"
-              value={placeholder}
-              onChange={(e) => setPlaceholder(e.target.value)}
-              placeholder="Choose a division..."
-            />
+          {/* Header Badges */}
+          <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
+            <div className="flex items-center gap-2">
+              {isType3 ? (
+                <ListCheck size={18} className="text-cyan-400" />
+              ) : selectMenu?.type === ComponentType.USER_SELECT ? (
+                <Users size={18} className="text-emerald-400" />
+              ) : (
+                <Shield size={18} className="text-amber-400" />
+              )}
+              <span className="text-xs font-bold text-white uppercase tracking-wider">
+                Type {selectMenu?.type} •{' '}
+                {isType3
+                  ? 'String Select'
+                  : selectMenu?.type === ComponentType.USER_SELECT
+                  ? 'User Select'
+                  : selectMenu?.type === ComponentType.ROLE_SELECT
+                  ? 'Role Select'
+                  : 'Entity Select'}
+              </span>
+            </div>
+            <Badge variant={isType3 ? 'info' : 'warning'} size="sm">
+              Discord V2 Component
+            </Badge>
           </div>
 
-          {/* Action Invoker Button Binding */}
-          <div className="p-3.5 rounded-apple-lg bg-zinc-900/80 border border-white/[0.08] flex flex-col gap-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <MousePointerClick size={15} className="text-amber-400" />
-                <span className="text-xs font-semibold text-white">
-                  Action Invoker Button Binding
+          {/* User Select (Type 5) or Role Select (Type 6) Binding */}
+          {isEntitySelect && (
+            <div className="p-3.5 rounded-apple-lg bg-surface-card border border-white/10 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-white flex items-center gap-2">
+                  <Layers size={14} className="text-emerald-400" />
+                  Action Registry Template Binding
                 </span>
-              </div>
-              {mappedButton && (
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => {
-                      setTempSelectedButton(mappedButton);
-                      setIsButtonPickerOpen(true);
-                    }}
-                    className="px-2.5 py-1 rounded-apple-sm text-[11px] font-medium bg-white/[0.08] hover:bg-white/[0.14] text-white transition-colors"
+                    onClick={() => setActionSourceMode('template')}
+                    className={`px-2.5 py-1 rounded-apple-sm text-xs font-semibold transition-colors cursor-pointer ${
+                      actionSourceMode === 'template'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
                   >
-                    Change Button
+                    Action Template
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMappedButton(null)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-apple-sm text-[11px] font-medium bg-red-500/15 hover:bg-red-500/25 text-red-300 transition-colors"
+                    onClick={() => setActionSourceMode('custom')}
+                    className={`px-2.5 py-1 rounded-apple-sm text-xs font-semibold transition-colors cursor-pointer ${
+                      actionSourceMode === 'custom'
+                        ? 'bg-white/15 text-white border border-white/20'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
                   >
-                    <Unlink size={11} />
-                    <span>Unlink</span>
+                    Custom ID
                   </button>
+                </div>
+              </div>
+
+              {actionSourceMode === 'template' ? (
+                <div className="flex flex-col gap-2.5">
+                  <Dropdown
+                    label="Select Action Template"
+                    options={actionOptions}
+                    value={selectedActionId}
+                    onChange={(val) => setSelectedActionId(val)}
+                    placeholder="Select action template..."
+                  />
+
+                  {/* 3-Way Action Binding Status Widget */}
+                  {selectedActionId && (
+                    <div className="p-3 rounded-apple-md bg-emerald-500/10 border border-emerald-500/25 flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+                          ✓ 3-Way Action Binding Status
+                        </span>
+                        <span className="text-[10px] text-zinc-400 font-mono">
+                          1 User • 1 Role • 1 Button
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 text-[11px] pt-1">
+                        <div className="p-2 rounded bg-black/40 border border-white/5 space-y-1">
+                          <div className="text-zinc-400 text-[10px]">User Select</div>
+                          <div
+                            className={
+                              selectMenu?.type === ComponentType.USER_SELECT ||
+                              currentActionUsage?.userSelect
+                                ? 'text-emerald-400 font-semibold'
+                                : 'text-zinc-500'
+                            }
+                          >
+                            {selectMenu?.type === ComponentType.USER_SELECT
+                              ? '✓ This Menu'
+                              : currentActionUsage?.userSelect
+                              ? '✓ Mapped'
+                              : '○ Not Mapped'}
+                          </div>
+                        </div>
+
+                        <div className="p-2 rounded bg-black/40 border border-white/5 space-y-1">
+                          <div className="text-zinc-400 text-[10px]">Role Select</div>
+                          <div
+                            className={
+                              selectMenu?.type === ComponentType.ROLE_SELECT ||
+                              currentActionUsage?.roleSelect
+                                ? 'text-emerald-400 font-semibold'
+                                : 'text-zinc-500'
+                            }
+                          >
+                            {selectMenu?.type === ComponentType.ROLE_SELECT
+                              ? '✓ This Menu'
+                              : currentActionUsage?.roleSelect
+                              ? '✓ Mapped'
+                              : '○ Not Mapped'}
+                          </div>
+                        </div>
+
+                        <div className="p-2 rounded bg-black/40 border border-white/5 space-y-1">
+                          <div className="text-zinc-400 text-[10px]">Action Button</div>
+                          <div
+                            className={
+                              currentActionUsage?.button
+                                ? 'text-emerald-400 font-semibold'
+                                : 'text-amber-400 font-semibold'
+                            }
+                          >
+                            {currentActionUsage?.button
+                              ? `✓ ${currentActionUsage.buttonLabel || 'Mapped'}`
+                              : '○ Not Mapped'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {!currentActionUsage?.button && (
+                        <p className="text-[10.5px] text-amber-300/90 leading-tight">
+                          💡 Tip: Make sure to also add/map a Button with this same Action Template to execute this operation.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <TextInput
+                  label="Custom ID"
+                  value={customId}
+                  onChange={(e) => setCustomId(e.target.value)}
+                  placeholder="e.g. rng_user_select"
+                />
+              )}
+
+              <TextInput
+                label="Placeholder Text"
+                value={placeholder}
+                onChange={(e) => setPlaceholder(e.target.value)}
+                placeholder={
+                  selectMenu?.type === ComponentType.USER_SELECT
+                    ? 'Select a user...'
+                    : 'Select a role...'
+                }
+              />
+            </div>
+          )}
+
+          {/* Type 3 String Select Custom ID & Placeholder */}
+          {isType3 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <TextInput
+                label="Menu Custom ID"
+                value={customId}
+                onChange={(e) => setCustomId(e.target.value)}
+                placeholder="rng_sel_ministry"
+              />
+              <TextInput
+                label="Placeholder Text"
+                value={placeholder}
+                onChange={(e) => setPlaceholder(e.target.value)}
+                placeholder="Choose an option..."
+              />
+            </div>
+          )}
+
+          {/* Disabled State Toggle */}
+          <div className="p-3 rounded-apple-md bg-white/[0.02] border border-white/[0.08] flex items-center justify-between">
+            <div>
+              <span className="text-xs font-semibold text-white">Disabled State</span>
+              <p className="text-[11px] text-zinc-400">
+                Prevent Discord users from selecting options in this menu
+              </p>
+            </div>
+            <ToggleSwitch checked={disabled} onChange={setDisabled} />
+          </div>
+
+          {/* Action Invoker Button Binding for String Select */}
+          {isType3 && (
+            <div className="p-3.5 rounded-apple-lg bg-surface-card border border-white/10 flex flex-col gap-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MousePointerClick size={15} className="text-amber-400" />
+                  <span className="text-xs font-semibold text-white">
+                    Action Invoker Button Binding
+                  </span>
+                </div>
+                {mappedButton && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTempSelectedButton(mappedButton);
+                        setIsButtonPickerOpen(true);
+                      }}
+                      className="px-2.5 py-1 rounded-apple-sm text-[11px] font-medium bg-white/[0.08] hover:bg-white/[0.14] text-white transition-colors cursor-pointer"
+                    >
+                      Change Button
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMappedButton(null)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-apple-sm text-[11px] font-medium bg-red-500/15 hover:bg-red-500/25 text-red-300 transition-colors cursor-pointer"
+                    >
+                      <Unlink size={11} />
+                      <span>Unlink</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-[11px] text-zinc-400 leading-relaxed">
+                When an option is selected in Discord, the interaction does not execute immediately. It is stored in session and triggers once this explicitly mapped button is clicked.
+              </p>
+
+              {mappedButton ? (
+                <div className="p-2.5 rounded-apple-md bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-7 h-7 rounded bg-black/60 border border-white/10 flex items-center justify-center text-sm shrink-0">
+                      🔘
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-white truncate">
+                          {mappedButton.button.label || 'Action Button'}
+                        </span>
+                        <Badge variant="warning" size="sm">
+                          Invoker Button
+                        </Badge>
+                      </div>
+                      <span className="text-[10px] font-mono text-zinc-400 truncate">
+                        Container {mappedButton.cIdx + 1} • Button #{mappedButton.btnIdx + 1} • ID: {mappedButton.button.custom_id || mappedButton.button.id}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 text-[11px] text-emerald-400 font-medium shrink-0 ml-2">
+                    <Check size={13} />
+                    <span>Active Mapping</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 rounded-apple-md bg-white/[0.02] border border-dashed border-white/10 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-zinc-400 text-xs">
+                    <HelpCircle size={14} className="text-zinc-500 shrink-0" />
+                    <span>No button currently mapped as invoker.</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    leftIcon={<MousePointerClick size={12} />}
+                    onClick={() => {
+                      setTempSelectedButton(null);
+                      setIsButtonPickerOpen(true);
+                    }}
+                  >
+                    Map Button
+                  </Button>
                 </div>
               )}
             </div>
+          )}
 
-            <p className="text-[11px] text-zinc-400 leading-relaxed">
-              When an option is selected in Discord, the interaction does not execute immediately. It is stored in session and triggers once this explicitly mapped button is clicked.
-            </p>
-
-            {mappedButton ? (
-              <div className="p-2.5 rounded-apple-md bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-7 h-7 rounded bg-black/60 border border-white/10 flex items-center justify-center text-sm shrink-0">
-                    🔘
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-white truncate">
-                        {mappedButton.button.label || 'Action Button'}
-                      </span>
-                      <Badge variant="warning" size="sm">
-                        Invoker Button
-                      </Badge>
-                    </div>
-                    <span className="text-[10px] font-mono text-zinc-400 truncate">
-                      Container {mappedButton.cIdx + 1} • Button #{mappedButton.btnIdx + 1} • ID: {mappedButton.button.custom_id || mappedButton.button.id}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1 text-[11px] text-emerald-400 font-medium shrink-0 ml-2">
-                  <Check size={13} />
-                  <span>Active Mapping</span>
-                </div>
-              </div>
-            ) : (
-              <div className="p-3 rounded-apple-md bg-white/[0.02] border border-dashed border-white/10 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-zinc-400 text-xs">
-                  <HelpCircle size={14} className="text-zinc-500 shrink-0" />
-                  <span>No button currently mapped as invoker.</span>
-                </div>
+          {/* Type 3 Select Options Management */}
+          {isType3 && (
+            <>
+              <div className="flex items-center justify-between pt-2 border-t border-white/[0.06]">
+                <span className="text-xs font-mono font-semibold uppercase text-zinc-300">
+                  Select Options ({options.length}/25)
+                </span>
                 <Button
                   type="button"
                   variant="secondary"
                   size="sm"
-                  leftIcon={<MousePointerClick size={12} />}
-                  onClick={() => {
-                    setTempSelectedButton(null);
-                    setIsButtonPickerOpen(true);
-                  }}
+                  disabled={options.length >= 25}
+                  leftIcon={<Plus size={13} />}
+                  onClick={handleAddOption}
                 >
-                  Map Button
+                  Add Option
                 </Button>
               </div>
-            )}
-          </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-white/[0.06]">
-            <span className="text-xs font-mono font-semibold uppercase text-zinc-300">
-              Select Options ({options.length}/25)
-            </span>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={options.length >= 25}
-              leftIcon={<Plus size={13} />}
-              onClick={handleAddOption}
-            >
-              Add Option
-            </Button>
-          </div>
+              <div className="flex flex-col gap-2.5 max-h-64 overflow-y-auto pr-1">
+                {options.map((opt, idx) => (
+                  <div
+                    key={`opt_${idx}`}
+                    className="p-3 rounded-apple-md bg-black/40 border border-white/[0.08] flex flex-col gap-2.5"
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <TextInput
+                        label={`Option #${idx + 1} Label`}
+                        value={opt.label}
+                        onChange={(e) => handleUpdateOption(idx, { label: e.target.value })}
+                      />
+                      <TextInput
+                        label="Value / Action ID (rng_act_*)"
+                        value={opt.value}
+                        onChange={(e) => handleUpdateOption(idx, { value: e.target.value })}
+                      />
+                    </div>
 
-          <div className="flex flex-col gap-2.5 max-h-64 overflow-y-auto pr-1">
-            {options.map((opt, idx) => (
-              <div
-                key={`opt_${idx}`}
-                className="p-3 rounded-apple-md bg-black/40 border border-white/[0.08] flex flex-col gap-2.5"
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <TextInput
-                    label={`Option #${idx + 1} Label`}
-                    value={opt.label}
-                    onChange={(e) =>
-                      handleUpdateOption(idx, { label: e.target.value })
-                    }
-                  />
-                  <TextInput
-                    label="Value / Action ID (rng_act_*)"
-                    value={opt.value}
-                    onChange={(e) =>
-                      handleUpdateOption(idx, { value: e.target.value })
-                    }
-                  />
-                </div>
+                    {actionOptions.filter((a) => a.value !== '').length > 0 && (
+                      <Dropdown
+                        label="Or Bind Option to Action Template"
+                        options={actionOptions}
+                        value={opt.value}
+                        onChange={(val) => handleUpdateOption(idx, { value: val })}
+                        placeholder="Select action template..."
+                      />
+                    )}
 
-                {actionOptions.length > 0 && (
-                  <Dropdown
-                    label="Or Bind Option to Action Template"
-                    options={actionOptions}
-                    value={opt.value}
-                    onChange={(val) => handleUpdateOption(idx, { value: val })}
-                    placeholder="Select action template..."
-                  />
-                )}
+                    {/* Quick Emoji Insertion Pills */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] text-zinc-400 flex items-center gap-1">
+                        <Smile size={11} className="text-amber-400" /> Emoji:
+                      </span>
+                      {QUICK_EMOJIS.map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => handleUpdateOption(idx, { emoji })}
+                          className={`px-1.5 py-0.5 rounded text-xs transition-colors cursor-pointer ${
+                            opt.emoji === emoji
+                              ? 'bg-amber-400/20 border border-amber-400/40 text-amber-200'
+                              : 'bg-white/[0.04] hover:bg-white/[0.1] text-zinc-200'
+                          }`}
+                          title={`Set emoji ${emoji}`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                      {opt.emoji && (
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateOption(idx, { emoji: undefined })}
+                          className="text-[10px] text-red-400 hover:underline ml-1 cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
 
-                <div className="flex items-end gap-2">
-                  <div className="flex-1">
-                    <TextInput
-                      label="Description (Optional)"
-                      value={opt.description ?? ''}
-                      onChange={(e) =>
-                        handleUpdateOption(idx, { description: e.target.value })
-                      }
-                    />
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1">
+                        <TextInput
+                          label="Description (Optional)"
+                          value={opt.description ?? ''}
+                          onChange={(e) =>
+                            handleUpdateOption(idx, { description: e.target.value })
+                          }
+                        />
+                      </div>
+                      {options.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveOption(idx)}
+                          aria-label={`Remove option ${idx + 1}`}
+                          className="p-2 mb-0.5 rounded text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  {options.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveOption(idx)}
-                      aria-label={`Remove option ${idx + 1}`}
-                      className="p-2 mb-0.5 rounded text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </div>
       </Modal>
 

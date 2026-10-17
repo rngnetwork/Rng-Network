@@ -3,6 +3,8 @@
 import React from 'react';
 import { Plus, X } from 'lucide-react';
 import type { EmbedField } from '@/lib/model/embed';
+import { TextInput } from '@/components/common/input/TextInput';
+import { Button } from '@/components/common/input/Button';
 
 export interface ContainerFieldsProps {
   cIdx: number;
@@ -40,22 +42,21 @@ export const ContainerFields: React.FC<ContainerFieldsProps> = ({
               className="p-3 rounded-apple-lg bg-surface-canvas border border-white/10 flex flex-col gap-2 shadow-apple-card"
             >
               <div className="flex items-center justify-between gap-2">
-                <input
-                  type="text"
+                <TextInput
                   value={field.name}
                   placeholder="Field Name"
                   onChange={(e) =>
                     onUpdateField(cIdx, fIdx, 'name', e.target.value)
                   }
-                  className="w-full bg-transparent text-xs font-bold text-white placeholder-zinc-500 focus:outline-none"
+                  className="flex-1"
                 />
                 <button
                   type="button"
                   onClick={() => onRemoveField(cIdx, fIdx)}
                   title="Remove Field"
-                  className="p-1 rounded text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                  className="p-1.5 rounded text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0 cursor-pointer"
                 >
-                  <X size={13} />
+                  <X size={14} />
                 </button>
               </div>
 
@@ -68,32 +69,22 @@ export const ContainerFields: React.FC<ContainerFieldsProps> = ({
                 rows={2}
                 className="w-full bg-transparent text-xs text-zinc-300 placeholder-zinc-500 focus:outline-none resize-none"
               />
-
-              <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-zinc-400 select-none">
-                <input
-                  type="checkbox"
-                  checked={Boolean(field.inline)}
-                  onChange={(e) =>
-                    onUpdateField(cIdx, fIdx, 'inline', e.target.checked)
-                  }
-                  className="rounded border-zinc-700 bg-zinc-900 text-brand-red focus:ring-0"
-                />
-                <span>Inline</span>
-              </label>
             </div>
           ))}
         </div>
       )}
 
       {fields.length < 25 && (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={() => onAddField(cIdx)}
-          className="w-full py-2 px-3 rounded-apple-md border border-dashed border-white/15 hover:border-brand-red/40 bg-white/[0.02] hover:bg-brand-red/5 text-xs font-medium text-zinc-400 hover:text-white transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+          leftIcon={<Plus size={13} className="text-brand-red" />}
+          className="w-full border-dashed border-white/15 hover:border-brand-red/40 bg-white/[0.02] hover:bg-brand-red/5 text-zinc-400 hover:text-white"
         >
-          <Plus size={13} className="text-brand-red" />
-          <span>Add Field</span>
-        </button>
+          Add Field
+        </Button>
       )}
     </div>
   );

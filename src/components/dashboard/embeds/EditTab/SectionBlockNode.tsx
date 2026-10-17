@@ -134,7 +134,7 @@ const SectionBlockNodeInner: React.FC<SectionBlockNodeProps> = ({
             rows={3}
             onChange={(e) => handleTextChange(e.target.value)}
             placeholder="Section column text..."
-            className="w-full px-3.5 py-2.5 rounded-apple-md bg-black/50 border border-white/10 focus:border-brand-red text-xs sm:text-sm text-white outline-none transition-colors resize-none"
+            className="w-full px-3.5 py-2.5 rounded-apple-md bg-[#0E0E12] border border-surface-border hover:border-white/20 focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 text-xs sm:text-sm text-white outline-none transition-all resize-none"
           />
         </div>
 

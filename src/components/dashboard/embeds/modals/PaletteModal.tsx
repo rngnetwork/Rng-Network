@@ -80,13 +80,6 @@ const INTERACTIVE_COMPONENTS: ComponentItemDef[] = [
     desc: 'Dynamic Discord role selector adhering to role hierarchy invariants.',
     icon: <Layers size={16} className="text-yellow-400" />,
   },
-  {
-    type: ComponentType.CHANNEL_SELECT,
-    name: 'Channel Select',
-    badge: 'Type 8',
-    desc: 'Channel picker menu filtered by text, voice, or announcement types.',
-    icon: <Layers size={16} className="text-indigo-400" />,
-  },
 ];
 
 const TEXT_COMPONENTS: ComponentItemDef[] = [
@@ -96,13 +89,6 @@ const TEXT_COMPONENTS: ComponentItemDef[] = [
     badge: 'Type 10',
     desc: 'Discord markdown block supporting headings, quotes, code, and mentions.',
     icon: <AlignLeft size={16} className="text-zinc-300" />,
-  },
-  {
-    type: ComponentType.THUMBNAIL,
-    name: 'Thumbnail Accessory',
-    badge: 'Type 11',
-    desc: 'Square image asset pinned to the top right of a section container.',
-    icon: <ImageIcon size={16} className="text-rose-400" />,
   },
 ];
 

@@ -1,13 +1,13 @@
 'use client';
 
 import React from 'react';
-import { Plus, Calendar } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import {
   ComponentType,
   type Type17Container,
   type DiscordInnerComponent,
   type DiscordButtonComponent,
-  type DiscordStringSelectComponent,
+  type DiscordSelectComponent,
 } from '@/lib/model/embed';
 import { TextInput } from '@/components/common/input/TextInput';
 import { ContainerHeader } from './ContainerHeader';
@@ -53,7 +53,7 @@ export interface ContainerItemCardProps {
   ) => void;
   onEditSelectMenu: (
     cIdx: number,
-    select: DiscordStringSelectComponent
+    select: DiscordSelectComponent
   ) => void;
   onOpenPaletteModal: (cIdx: number) => void;
   // Drag and drop handlers
@@ -102,8 +102,11 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
     <div
       onDragOver={(e) => onContainerDragOver?.(e, cIdx)}
       onDrop={(e) => onContainerDrop?.(e, cIdx)}
-      style={{ borderLeftColor: container.accentColor || '#E11D2E' }}
-      className="rounded-apple-xl bg-surface-card border border-white/10 border-l-4 p-5 flex flex-col gap-4 shadow-apple-card transition-all"
+      style={{
+        borderLeftColor: container.accentColor || '#E11D2E',
+        boxShadow: `0 8px 32px 0 rgba(0, 0, 0, 0.36), 0 0 16px ${container.accentColor || '#E11D2E'}15`,
+      }}
+      className="rounded-apple-xl bg-surface-card/90 backdrop-blur-xl border border-white/10 border-l-4 p-5 flex flex-col gap-4 shadow-apple-card transition-all"
     >
       {/* 1. Container Header */}
       <ContainerHeader
@@ -122,30 +125,12 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
 
       {/* 2. Optional Author Bar */}
       {!isAuthorCollapsed && (
-        <div className="p-3 rounded-apple-lg bg-surface-canvas border border-white/[0.08] grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-zinc-300">
-              Author Name
-            </label>
-            <div className="flex items-center gap-2 px-3 py-2 rounded-apple-md bg-black/40 border border-white/10 focus-within:border-brand-red transition-colors">
-              <span className="text-zinc-500 text-xs font-mono">@</span>
-              <input
-                type="text"
-                value={container.author?.name || ''}
-                placeholder="Author Name (e.g. Server Announcements)"
-                onChange={(e) => onUpdateAuthor(cIdx, 'name', e.target.value)}
-                className="w-full bg-transparent text-xs sm:text-sm text-white placeholder-zinc-500 outline-none font-sans"
-              />
-            </div>
-          </div>
-
-          <TextInput
-            label="Author Icon URL"
-            placeholder="https://..."
-            value={container.author?.icon_url || ''}
-            onChange={(e) => onUpdateAuthor(cIdx, 'icon_url', e.target.value)}
-          />
-        </div>
+        <TextInput
+          placeholder="Author Name (e.g. Server Announcements)"
+          value={container.author?.name || ''}
+          onChange={(e) => onUpdateAuthor(cIdx, 'name', e.target.value)}
+          leftIcon={<span className="text-zinc-500 text-xs font-mono">@</span>}
+        />
       )}
 
       {/* 3. Title & Description */}
@@ -169,7 +154,7 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
             onChange={(e) =>
               onUpdateContainer(cIdx, { description: e.target.value })
             }
-            className="w-full px-3.5 py-2.5 rounded-apple-md bg-black/50 border border-white/10 focus:border-brand-red text-xs sm:text-sm text-white font-sans outline-none transition-colors resize-y leading-relaxed"
+            className="w-full px-3.5 py-2.5 rounded-apple-md bg-[#0E0E12] border border-surface-border hover:border-white/20 focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 text-xs sm:text-sm text-white font-sans outline-none transition-all resize-y leading-relaxed"
           />
         </div>
       </div>
@@ -183,47 +168,11 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
         onRemoveField={onRemoveField}
       />
 
-      {/* 5. Optional Thumbnail & Image Banner */}
-      {!isAuthorCollapsed && (
-        <div className="p-3 rounded-apple-lg bg-surface-canvas border border-white/[0.08] grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <TextInput
-            label="Thumbnail URL"
-            placeholder="Square icon URL..."
-            value={container.thumbnail || ''}
-            onChange={(e) =>
-              onUpdateContainer(cIdx, { thumbnail: e.target.value })
-            }
-          />
-          <TextInput
-            label="Large Image / Banner URL"
-            placeholder="Banner image URL..."
-            value={container.image || ''}
-            onChange={(e) =>
-              onUpdateContainer(cIdx, { image: e.target.value })
-            }
-          />
-        </div>
-      )}
-
-      {/* 6. Nested Components List */}
-      <div className="flex flex-col gap-2.5 pt-2 border-t border-white/[0.08]">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-zinc-400">
-            Components ({container.components.length}/30)
-          </span>
-          <button
-            type="button"
-            onClick={() => onOpenPaletteModal(cIdx)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-apple-md bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-semibold transition-all cursor-pointer"
-          >
-            <Plus size={13} />
-            <span>Add Component</span>
-          </button>
-        </div>
-
+      {/* 5. Nested Components List */}
+      <div className="flex flex-col gap-2 pt-1 border-t border-white/[0.08]">
         {container.components.length === 0 ? (
-          <div className="py-6 rounded-apple-lg border border-dashed border-white/10 text-center text-xs text-zinc-500">
-            No inner components yet. Click "Add Component" above or use the bottom toolbar.
+          <div className="py-4 rounded-apple-lg border border-dashed border-white/10 text-center text-xs text-zinc-500">
+            No inner components yet. Click &quot;+ UI Components&quot; in the bottom toolbar to add buttons, sections, etc.
           </div>
         ) : (
           <div className="flex flex-col gap-2">
@@ -254,16 +203,12 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
       </div>
 
       {/* 7. Footer Subtext (Strictly positioned at container bottom) */}
-      <div className="flex items-center gap-2.5 px-3 py-2 rounded-apple-md bg-white/[0.02] border border-dashed border-white/10 mt-1">
-        <Calendar size={14} className="text-zinc-500 shrink-0" />
-        <input
-          type="text"
-          value={container.footer?.text || ''}
-          placeholder="Footer Text"
-          onChange={(e) => onUpdateFooter(cIdx, 'text', e.target.value)}
-          className="w-full bg-transparent text-xs text-zinc-300 placeholder-zinc-500 outline-none font-sans"
-        />
-      </div>
+      <TextInput
+        placeholder="Footer Text"
+        value={container.footer?.text || ''}
+        onChange={(e) => onUpdateFooter(cIdx, 'text', e.target.value)}
+        leftIcon={<Calendar size={14} className="text-zinc-500 shrink-0" />}
+      />
     </div>
   );
 };

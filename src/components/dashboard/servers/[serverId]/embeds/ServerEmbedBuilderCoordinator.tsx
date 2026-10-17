@@ -4,11 +4,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import {
   type DiscordButtonComponent,
-  type DiscordStringSelectComponent,
+  type DiscordSelectComponent,
   type TemplateData,
 } from '@/lib/model/embed';
 import {
   useEmbedBuilderReducer,
+  createDefaultContainer,
 } from '@/components/dashboard/embeds/useEmbedBuilderReducer';
 import type { EmbedAction } from '@/lib/model/action';
 import {
@@ -68,7 +69,7 @@ export const ServerEmbedBuilderCoordinator: React.FC<
 
   const [editingSelectMenu, setEditingSelectMenu] = useState<{
     cIdx: number;
-    selectMenu: DiscordStringSelectComponent;
+    selectMenu: DiscordSelectComponent;
   } | null>(null);
 
   // Undo / Redo History Stack Hook
@@ -354,6 +355,25 @@ export const ServerEmbedBuilderCoordinator: React.FC<
             type: 'success',
             title: 'Preset Loaded',
             description: `Loaded "${name || 'Preset'}" into editor.`,
+          });
+        }}
+        onInsertComponent={(comp) => {
+          let targetContainer = state.type17Containers[state.type17Containers.length - 1];
+          if (!targetContainer) {
+            const newCnt = createDefaultContainer();
+            dispatch({ type: 'ADD_CONTAINER', container: newCnt });
+            targetContainer = newCnt;
+          }
+          dispatch({
+            type: 'ADD_COMPONENT',
+            containerId: targetContainer.id,
+            componentType: comp.type,
+            initialComponent: comp,
+          });
+          toast({
+            type: 'success',
+            title: 'Component Inserted',
+            description: 'Inserted component into Container.',
           });
         }}
       />

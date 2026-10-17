@@ -96,7 +96,7 @@ const TextDisplayNodeInner: React.FC<TextDisplayNodeProps> = ({
         rows={3}
         onChange={(e) => onChangeContent(componentId, e.target.value)}
         placeholder="### Heading\n- List item\n**Bold text**\n> Blockquote text"
-        className="w-full px-3.5 py-2.5 rounded-apple-md bg-black/50 border border-white/10 focus:border-brand-red text-xs sm:text-sm text-white font-mono outline-none transition-colors resize-y leading-relaxed"
+        className="w-full px-3.5 py-2.5 rounded-apple-md bg-[#0E0E12] border border-surface-border hover:border-white/20 focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 text-xs sm:text-sm text-white font-mono outline-none transition-all resize-y leading-relaxed"
       />
     </div>
   );

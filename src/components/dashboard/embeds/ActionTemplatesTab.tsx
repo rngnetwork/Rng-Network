@@ -42,6 +42,7 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
+  const [scopeFilter, setScopeFilter] = useState<'ALL' | 'SERVER' | 'GLOBAL'>('ALL');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [editingAction, setEditingAction] = useState<EmbedAction | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -179,14 +180,17 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
     const q = search.toLowerCase();
     return actions.filter((act) => {
       const matchesType = typeFilter === 'ALL' || act.actionType === typeFilter;
+      const matchesScope =
+        scopeFilter === 'ALL' ||
+        (scopeFilter === 'GLOBAL' ? act.isGlobal : !act.isGlobal);
       const matchesSearch =
         !q ||
         act.name.toLowerCase().includes(q) ||
         act.actionId.toLowerCase().includes(q) ||
         (act.description?.toLowerCase().includes(q) ?? false);
-      return matchesType && matchesSearch;
+      return matchesType && matchesScope && matchesSearch;
     });
-  }, [actions, search, typeFilter]);
+  }, [actions, search, typeFilter, scopeFilter]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -224,7 +228,26 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Scope Filter */}
+          <div className="flex items-center gap-1 p-0.5 rounded-apple-md bg-black/40 border border-white/10 mr-2">
+            {(['ALL', 'GLOBAL', 'SERVER'] as const).map((scope) => (
+              <button
+                key={scope}
+                type="button"
+                onClick={() => setScopeFilter(scope)}
+                className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all cursor-pointer ${
+                  scopeFilter === scope
+                    ? 'bg-brand-red text-white'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                {scope === 'ALL' ? 'All Scopes' : scope === 'GLOBAL' ? 'Global' : 'Server'}
+              </button>
+            ))}
+          </div>
+
+          {/* Type Filter */}
           {(['ALL', 'ROLE', 'TICKET', 'REPLY', 'DM'] as const).map((type) => (
             <button
               key={type}
@@ -305,14 +328,34 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
                     {action.isGlobal ? 'Global' : 'Server Scoped'}
                   </Badge>
 
-                  <div className="flex items-center gap-2">
-                    <button
+                  <div className="flex items-center gap-1.5">
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const copyAction: EmbedAction = {
+                          ...action,
+                          id: undefined,
+                          actionId: `rng_act_${Math.random().toString(16).slice(2, 10).padEnd(16, '0').slice(0, 16)}`,
+                          name: `${action.name} (Copy)`,
+                        };
+                        setEditingAction(copyAction);
+                      }}
+                      className="min-h-[28px] px-2 py-0.5 text-xs text-zinc-300 hover:text-white"
+                      title="Duplicate Action Template"
+                    >
+                      Duplicate
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
                       onClick={() => setEditingAction(action)}
-                      className="px-2.5 py-1 rounded-apple-md text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                      className="min-h-[28px] px-2.5 py-0.5 text-xs"
                     >
                       Edit
-                    </button>
+                    </Button>
                     <button
                       type="button"
                       onClick={() => handleDeleteAction(action.actionId, action.name)}

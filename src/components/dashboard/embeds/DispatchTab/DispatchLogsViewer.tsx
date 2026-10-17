@@ -3,6 +3,7 @@
 import React from 'react';
 import { ListChecks, Trash2, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/common/feedback/Badge';
+import { Button } from '@/components/common/input/Button';
 
 export interface DispatchLogEntry {
   id: string;
@@ -38,14 +39,16 @@ export const DispatchLogsViewer: React.FC<DispatchLogsViewerProps> = ({
         </div>
 
         {logs.length > 0 && (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={onClear}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-apple-md text-xs text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+            leftIcon={<Trash2 size={13} />}
+            className="text-zinc-400 hover:text-red-400 hover:bg-red-500/10 min-h-[30px] px-2.5 py-1"
           >
-            <Trash2 size={13} />
-            <span>Clear Logs</span>
-          </button>
+            Clear Logs
+          </Button>
         )}
       </div>
 

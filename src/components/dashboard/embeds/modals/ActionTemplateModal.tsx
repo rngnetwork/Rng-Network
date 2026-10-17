@@ -70,6 +70,9 @@ export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
   const [actionType, setActionType] = useState<ActionType>(
     initialAction?.actionType ?? 'REPLY'
   );
+  const [isGlobal, setIsGlobal] = useState(
+    initialAction ? Boolean(initialAction.isGlobal) : !serverId
+  );
   const [roleSubtype, setRoleSubtype] = useState<RoleSubtype>(
     initialAction?.roleSubtype ?? 'TOGGLE'
   );
@@ -101,6 +104,7 @@ export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
     setPrevInitialAction(initialAction);
     setName(initialAction?.name ?? '');
     setDescription(initialAction?.description ?? '');
+    setIsGlobal(initialAction ? Boolean(initialAction.isGlobal) : !serverId);
     setActionType(initialAction?.actionType ?? 'REPLY');
     setRoleSubtype(initialAction?.roleSubtype ?? 'TOGGLE');
     setChannelPrefix(initialAction?.channelPrefix ?? 'ticket');
@@ -145,7 +149,9 @@ export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
       }
 
       const payload: CreateActionPayload = {
-        serverId,
+        serverId: isGlobal ? undefined : serverId,
+        serverIds: isGlobal ? [] : serverId ? [serverId] : [],
+        isGlobal,
         name: name.trim(),
         description: description.trim() || undefined,
         actionType,
@@ -230,6 +236,16 @@ export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
             value={actionType}
             onChange={setActionType}
           />
+        </div>
+
+        <div className="p-3.5 rounded-apple-lg bg-surface-card border border-white/10 flex items-center justify-between">
+          <div>
+            <span className="text-xs font-semibold text-white">Global Action Template</span>
+            <p className="text-[11px] text-zinc-400">
+              When enabled, this action template is accessible across all connected servers
+            </p>
+          </div>
+          <ToggleSwitch checked={isGlobal} onChange={setIsGlobal} />
         </div>
 
         <TextInput

@@ -103,37 +103,31 @@ export const BuilderBottomDockToolbar: React.FC<BuilderBottomDockToolbarProps> =
       <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
         <div className="h-4 w-px bg-white/15 mx-1 hidden sm:block" />
 
-        <button
+        <Button
           type="button"
+          variant="secondary"
+          size="sm"
           onClick={onUndo}
           disabled={!canUndo}
           title="Undo last edit action (Ctrl + Z)"
           aria-label="Undo action"
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-apple-md text-xs font-semibold transition-all duration-150 cursor-pointer ${
-            canUndo
-              ? 'bg-white/[0.08] hover:bg-white/[0.12] text-zinc-200 border border-white/20'
-              : 'bg-white/[0.02] text-zinc-600 border border-white/[0.05] cursor-not-allowed'
-          }`}
+          leftIcon={<Undo2 size={13} />}
         >
-          <Undo2 size={13} />
-          <span>Undo</span>
-        </button>
+          Undo
+        </Button>
 
-        <button
+        <Button
           type="button"
+          variant="secondary"
+          size="sm"
           onClick={onRedo}
           disabled={!canRedo}
           title="Redo edit action (Ctrl + Y)"
           aria-label="Redo action"
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-apple-md text-xs font-semibold transition-all duration-150 cursor-pointer ${
-            canRedo
-              ? 'bg-white/[0.08] hover:bg-white/[0.12] text-zinc-200 border border-white/20'
-              : 'bg-white/[0.02] text-zinc-600 border border-white/[0.05] cursor-not-allowed'
-          }`}
+          leftIcon={<Redo2 size={13} />}
         >
-          <Redo2 size={13} />
-          <span>Redo</span>
-        </button>
+          Redo
+        </Button>
 
         <button
           type="button"

@@ -25,10 +25,10 @@ export const UnsavedChangesBar: React.FC<UnsavedChangesBarProps> = ({
     <div
       role="alert"
       aria-live="polite"
-      className="fixed bottom-14 left-1/2 -translate-x-1/2 z-40 max-w-xl w-[92%] bg-zinc-900/95 border border-brand-red/40 backdrop-blur-md px-4 py-2.5 rounded-apple-xl flex flex-wrap items-center justify-between gap-3 shadow-apple-elevated animate-in fade-in slide-in-from-bottom-2 duration-200"
+      className="fixed bottom-14 left-1/2 -translate-x-1/2 z-40 max-w-xl w-[92%] bg-zinc-900/95 border border-brand-red/60 backdrop-blur-xl px-4 py-2.5 rounded-apple-xl flex flex-wrap items-center justify-between gap-3 shadow-[0_0_25px_rgba(225,29,46,0.3)] animate-in fade-in slide-in-from-bottom-2 duration-200"
     >
       <div className="flex items-center gap-2.5">
-        <AlertCircle size={16} className="text-brand-red shrink-0" />
+        <AlertCircle size={16} className="text-brand-red shrink-0 animate-pulse" />
         <span className="text-xs font-semibold text-white">
           {message}
         </span>

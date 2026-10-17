@@ -1,21 +1,21 @@
 'use client';
 
 import React, { useState } from 'react';
+import { Boxes, Plus } from 'lucide-react';
 import {
   ComponentType,
   type Type17Container,
   type DiscordInnerComponent,
   type DiscordButtonComponent,
-  type DiscordStringSelectComponent,
+  type DiscordSelectComponent,
 } from '@/lib/model/embed';
-import { TextInput } from '@/components/common/input/TextInput';
+import { Button } from '@/components/common/input/Button';
 import { ContainerItemCard } from './ContainerItemCard';
-import { MarkdownToolbar } from './MarkdownToolbar';
 
 export interface GlobalEditTabCoordinatorProps {
-  messageContent: string;
+  messageContent?: string;
   containers: Type17Container[];
-  onChangeMessageContent: (content: string) => void;
+  onChangeMessageContent?: (content: string) => void;
   onAddContainer: () => void;
   onUpdateContainer: (
     cIdx: number,
@@ -48,7 +48,7 @@ export interface GlobalEditTabCoordinatorProps {
   ) => void;
   onEditSelectMenu: (
     cIdx: number,
-    select: DiscordStringSelectComponent
+    select: DiscordSelectComponent
   ) => void;
   onOpenPaletteModal: (cIdx: number) => void;
   onOpenEmojiPicker?: (e: React.MouseEvent<HTMLButtonElement>) => void;
@@ -60,6 +60,7 @@ export const GlobalEditTabCoordinator: React.FC<
   messageContent,
   containers,
   onChangeMessageContent,
+  onAddContainer,
   onUpdateContainer,
   onRemoveContainer,
   onMoveContainer,
@@ -86,10 +87,6 @@ export const GlobalEditTabCoordinator: React.FC<
     setCollapsedAuthors((prev) => ({ ...prev, [cIdx]: !prev[cIdx] }));
   };
 
-  const handleApplyMarkdown = (prefix: string, suffix: string) => {
-    onChangeMessageContent(`${messageContent}${prefix}text${suffix}`);
-  };
-
   const handleContainerDragStart = (e: React.DragEvent, cIdx: number) => {
     setDraggedContainer(cIdx);
     e.dataTransfer.effectAllowed = 'move';
@@ -110,29 +107,29 @@ export const GlobalEditTabCoordinator: React.FC<
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Top-Level Text Display Input */}
-      <div className="p-4 rounded-apple-xl bg-surface-card border border-white/10 flex flex-col gap-3 shadow-apple-card">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <label className="text-xs font-bold text-white">
-            Top-Level Text Display (Auto-Wrapped Leading Content)
-          </label>
-          <MarkdownToolbar
-            onApplyMarkdown={handleApplyMarkdown}
-            onOpenEmojiPicker={onOpenEmojiPicker}
-          />
-        </div>
-
-        <TextInput
-          value={messageContent}
-          onChange={(e) => onChangeMessageContent(e.target.value)}
-          placeholder="Optional introductory text or role ping above all Type 17 containers..."
-          helperText="Discord Components V2 automatically wraps leading message content into a top-level Type 10 Text Display component."
-        />
-      </div>
-
       {/* Containers List */}
       <div className="flex flex-col gap-5">
-        {containers.map((container, cIdx) => (
+        {containers.length === 0 ? (
+          <div className="p-8 rounded-apple-xl bg-surface-card border border-white/10 flex flex-col items-center justify-center text-center gap-3 shadow-apple-card">
+            <div className="w-12 h-12 rounded-full bg-brand-red/10 border border-brand-red/20 flex items-center justify-center text-brand-red">
+              <Boxes size={24} />
+            </div>
+            <h3 className="text-sm font-semibold text-white">No Containers Added</h3>
+            <p className="text-xs text-zinc-400 max-w-sm">
+              Click below or &quot;+ Container&quot; in the bottom dock toolbar to start building your Discord Components V2 message layout.
+            </p>
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              leftIcon={<Plus size={14} />}
+              onClick={onAddContainer}
+            >
+              Add Container (Type 17)
+            </Button>
+          </div>
+        ) : (
+          containers.map((container, cIdx) => (
           <ContainerItemCard
             key={container.id || `cnt_${cIdx}`}
             cIdx={cIdx}
@@ -172,7 +169,7 @@ export const GlobalEditTabCoordinator: React.FC<
             draggedComp={draggedComp}
             dragOverComp={dragOverComp}
           />
-        ))}
+        )))}
       </div>
     </div>
   );

@@ -6,11 +6,14 @@ import {
   Copy,
   Trash2,
   Settings2,
+  ChevronDown,
+  MousePointerClick,
 } from 'lucide-react';
 import {
   ComponentType,
   type DiscordInnerComponent,
   type DiscordButtonComponent,
+  type DiscordSelectComponent,
   type DiscordStringSelectComponent,
   type DiscordActionRowComponent,
   type DiscordSectionComponent,
@@ -39,7 +42,7 @@ export interface ComponentItemRendererProps {
   onRemoveComponent: (cIdx: number, compIdx: number) => void;
   onDuplicateComponent: (cIdx: number, compIdx: number) => void;
   onEditButton: (button: DiscordButtonComponent) => void;
-  onEditSelectMenu: (select: DiscordStringSelectComponent) => void;
+  onEditSelectMenu: (select: DiscordSelectComponent) => void;
   onDragStart?: (e: React.DragEvent) => void;
   onDragOver?: (e: React.DragEvent) => void;
   onDrop?: (e: React.DragEvent) => void;
@@ -51,6 +54,10 @@ const TYPE_BADGES: Record<number, { name: string; variant: BadgeVariant }> = {
   1: { name: 'Action Row (Type 1)', variant: 'info' },
   2: { name: 'Button (Type 2)', variant: 'crimson' },
   3: { name: 'String Select (Type 3)', variant: 'info' },
+  5: { name: 'User Select (Type 5)', variant: 'info' },
+  6: { name: 'Role Select (Type 6)', variant: 'warning' },
+  7: { name: 'Mentionable Select (Type 7)', variant: 'info' },
+  8: { name: 'Channel Select (Type 8)', variant: 'info' },
   9: { name: 'Section (Type 9)', variant: 'warning' },
   10: { name: 'Text Display (Type 10)', variant: 'neutral' },
   12: { name: 'Media Gallery (Type 12)', variant: 'info' },
@@ -81,10 +88,18 @@ export const ComponentItemRenderer: React.FC<ComponentItemRendererProps> = ({
     variant: 'neutral' as const,
   };
 
+  const isSelectMenu =
+    comp.type === ComponentType.STRING_SELECT ||
+    comp.type === ComponentType.USER_SELECT ||
+    comp.type === ComponentType.ROLE_SELECT ||
+    comp.type === ComponentType.MENTIONABLE_SELECT ||
+    comp.type === ComponentType.CHANNEL_SELECT;
+
   const hasSettings =
     comp.type === ComponentType.SECTION ||
     comp.type === ComponentType.SEPARATOR ||
-    comp.type === ComponentType.MEDIA_GALLERY;
+    comp.type === ComponentType.MEDIA_GALLERY ||
+    isSelectMenu;
 
   const handleOpenSettings = () => {
     if (comp.type === ComponentType.SECTION) {
@@ -93,6 +108,8 @@ export const ComponentItemRenderer: React.FC<ComponentItemRendererProps> = ({
       setIsSeparatorModalOpen(true);
     } else if (comp.type === ComponentType.MEDIA_GALLERY) {
       setIsMediaGalleryModalOpen(true);
+    } else if (isSelectMenu) {
+      onEditSelectMenu(comp as DiscordSelectComponent);
     }
   };
 
@@ -195,7 +212,66 @@ export const ComponentItemRenderer: React.FC<ComponentItemRendererProps> = ({
                 });
               }}
               onRemoveRow={() => onRemoveComponent(cIdx, compIdx)}
+              onUpdateRowComponents={(updatedComponents) => {
+                const currentComp = comp as DiscordActionRowComponent;
+                onUpdateComponent(cIdx, compIdx, {
+                  ...currentComp,
+                  components: updatedComponents,
+                });
+              }}
             />
+          )}
+
+          {isSelectMenu && (
+            <div
+              onClick={() => onEditSelectMenu(comp as DiscordSelectComponent)}
+              className="group flex flex-col gap-2 cursor-pointer"
+            >
+              <div className="flex items-center justify-between p-2.5 rounded-apple-md bg-black/40 border border-white/10 group-hover:border-brand-red/40 transition-colors">
+                <span className="text-xs text-zinc-300 font-medium">
+                  {(comp as DiscordSelectComponent).placeholder || 'Select an option...'}
+                </span>
+                <div className="flex items-center gap-2 text-zinc-500">
+                  {'options' in comp && Array.isArray((comp as DiscordStringSelectComponent).options) && (
+                    <span className="text-[10px] text-zinc-400">
+                      ({(comp as DiscordStringSelectComponent).options.length} options)
+                    </span>
+                  )}
+                  <ChevronDown size={14} />
+                </div>
+              </div>
+
+              {'options' in comp &&
+                Array.isArray((comp as DiscordStringSelectComponent).options) &&
+                (comp as DiscordStringSelectComponent).options.length > 0 && (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {(comp as DiscordStringSelectComponent).options.map((opt, oIdx) => (
+                      <span
+                        key={oIdx}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-800/80 border border-white/10 text-[11px] text-zinc-300"
+                      >
+                        {opt.emoji && (
+                          <span className="text-xs">
+                            {typeof opt.emoji === 'string' ? opt.emoji : opt.emoji.name}
+                          </span>
+                        )}
+                        <span>{opt.label || `Option ${oIdx + 1}`}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+              {comp.type === ComponentType.STRING_SELECT && (
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-black/30 border border-white/5 text-[10.5px] text-zinc-400">
+                  <MousePointerClick size={11} className="text-amber-400" />
+                  <span>
+                    {(comp as DiscordStringSelectComponent).invokerButtonId
+                      ? 'Action invokes on mapped button click'
+                      : 'Mapped button click required to invoke action'}
+                  </span>
+                </div>
+              )}
+            </div>
           )}
 
           {comp.type === ComponentType.SECTION && (
@@ -259,4 +335,3 @@ export const ComponentItemRenderer: React.FC<ComponentItemRendererProps> = ({
     </>
   );
 };
-

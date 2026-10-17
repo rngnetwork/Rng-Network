@@ -6,7 +6,9 @@ import {
   ComponentType,
   type DiscordActionRowComponent,
   type DiscordButtonComponent,
+  type DiscordSelectComponent,
   type DiscordStringSelectComponent,
+  type DiscordActionRowChild,
 } from '@/lib/model/embed';
 import { ButtonComponentNode } from './ButtonComponentNode';
 import { Badge } from '@/components/common/feedback/Badge';
@@ -15,9 +17,10 @@ export interface ActionRowGroupProps {
   row: DiscordActionRowComponent;
   onAddButtonToRow: () => void;
   onEditButton: (button: DiscordButtonComponent) => void;
-  onEditSelectMenu: (select: DiscordStringSelectComponent) => void;
+  onEditSelectMenu: (select: DiscordSelectComponent) => void;
   onRemoveChild: (childId: string) => void;
   onRemoveRow: (rowId: string) => void;
+  onUpdateRowComponents?: (components: DiscordActionRowChild[]) => void;
 }
 
 const ActionRowGroupInner: React.FC<ActionRowGroupProps> = ({
@@ -27,14 +30,46 @@ const ActionRowGroupInner: React.FC<ActionRowGroupProps> = ({
   onEditSelectMenu,
   onRemoveChild,
   onRemoveRow,
+  onUpdateRowComponents,
 }) => {
   const buttons = row.components.filter(
     (c): c is DiscordButtonComponent => c.type === ComponentType.BUTTON
   );
   const selectMenus = row.components.filter(
-    (c): c is DiscordStringSelectComponent => c.type === ComponentType.STRING_SELECT
+    (c): c is DiscordSelectComponent =>
+      c.type === ComponentType.STRING_SELECT ||
+      c.type === ComponentType.USER_SELECT ||
+      c.type === ComponentType.ROLE_SELECT ||
+      c.type === ComponentType.MENTIONABLE_SELECT ||
+      c.type === ComponentType.CHANNEL_SELECT
   );
   const canAppendButton = selectMenus.length === 0 && buttons.length < 5;
+
+  const handleShiftLeft = (bIdx: number) => {
+    if (bIdx <= 0 || !onUpdateRowComponents) return;
+    const items = [...row.components];
+    const temp = items[bIdx - 1];
+    items[bIdx - 1] = items[bIdx];
+    items[bIdx] = temp;
+    onUpdateRowComponents(items);
+  };
+
+  const handleShiftRight = (bIdx: number) => {
+    if (!onUpdateRowComponents || bIdx >= buttons.length - 1) return;
+    const items = [...row.components];
+    const temp = items[bIdx + 1];
+    items[bIdx + 1] = items[bIdx];
+    items[bIdx] = temp;
+    onUpdateRowComponents(items);
+  };
+
+  const handleLabelChange = (bIdx: number, newLabel: string) => {
+    if (!onUpdateRowComponents) return;
+    const items = row.components.map((c, i) =>
+      i === bIdx && c.type === ComponentType.BUTTON ? { ...c, label: newLabel } : c
+    );
+    onUpdateRowComponents(items);
+  };
 
   return (
     <div className="p-3.5 rounded-apple-lg bg-zinc-900/70 border border-white/[0.08] flex flex-col gap-3">
@@ -80,8 +115,13 @@ const ActionRowGroupInner: React.FC<ActionRowGroupProps> = ({
             <ButtonComponentNode
               key={btn.id || `btn_${idx}`}
               button={btn}
+              bIdx={idx}
+              totalButtons={buttons.length}
               onEdit={onEditButton}
               onRemove={onRemoveChild}
+              onShiftLeft={handleShiftLeft}
+              onShiftRight={handleShiftRight}
+              onLabelChange={handleLabelChange}
             />
           ))}
         </div>
@@ -99,7 +139,10 @@ const ActionRowGroupInner: React.FC<ActionRowGroupProps> = ({
                 {sel.placeholder || 'Select an option...'}
               </span>
               <span className="text-[11px] font-mono text-zinc-400">
-                {sel.options.length} options · ID: {sel.custom_id}
+                {'options' in sel && Array.isArray((sel as DiscordStringSelectComponent).options)
+                  ? `${(sel as DiscordStringSelectComponent).options.length} options`
+                  : `Type ${sel.type} Select`}{' '}
+                · ID: {sel.custom_id}
               </span>
             </div>
           </div>

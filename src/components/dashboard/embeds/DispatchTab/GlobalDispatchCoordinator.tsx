@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Send, ShieldCheck, Server, Hash } from 'lucide-react';
 import type { ClientValidationReport } from '@/lib/model/embed';
 import type { ServerItem } from '@/lib/model/server';
@@ -13,6 +13,11 @@ import {
   scheduleEmbedDispatch,
   validatePreflight,
 } from '@/lib/api/dashboard/embeds';
+import {
+  getDefaultUserTimezone,
+  zonedTimeToUtcIso,
+  formatUtcPreview,
+} from '@/lib/timezones';
 import { Button } from '@/components/common/input/Button';
 import { Alert } from '@/components/common/feedback/Alert';
 import { useToast } from '@/components/common/feedback/ToastProvider';
@@ -39,9 +44,32 @@ export const GlobalDispatchCoordinator: React.FC<
   const [channels, setChannels] = useState<ChannelItem[]>([]);
   const [selectedChannelId, setSelectedChannelId] = useState<string>('');
   const [isScheduled, setIsScheduled] = useState(false);
-  const [scheduledDate, setScheduledDate] = useState<Date | undefined>(
-    undefined
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  });
+  const [selectedTime, setSelectedTime] = useState(() => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 5);
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  });
+  const [selectedTimezone, setSelectedTimezone] = useState<string>(() =>
+    getDefaultUserTimezone()
   );
+
+  const computedUtcIso = useMemo(() => {
+    if (!isScheduled || !selectedDate || !selectedTime) return '';
+    try {
+      return zonedTimeToUtcIso(selectedDate, selectedTime, selectedTimezone);
+    } catch {
+      return '';
+    }
+  }, [isScheduled, selectedDate, selectedTime, selectedTimezone]);
+
+  const utcPreview = useMemo(() => {
+    return formatUtcPreview(computedUtcIso);
+  }, [computedUtcIso]);
+
   const [loadingServers, setLoadingServers] = useState(!fixedServerId);
   const [loadingChannels, setLoadingChannels] = useState(false);
   const [dispatching, setDispatching] = useState(false);
@@ -172,6 +200,23 @@ export const GlobalDispatchCoordinator: React.FC<
     if (!selectedServerId || !selectedChannelId || !validationReport.valid) {
       return;
     }
+    if (isScheduled) {
+      if (
+        !computedUtcIso ||
+        utcPreview.formattedUtc === 'Invalid Date' ||
+        utcPreview.isPast
+      ) {
+        toast({
+          type: 'warning',
+          title: 'Invalid Schedule Time',
+          description: utcPreview.isPast
+            ? `Scheduled dispatch time must be in the future (Target UTC is ${utcPreview.relativeText}).`
+            : 'Invalid schedule date/time or timezone configuration.',
+        });
+        return;
+      }
+    }
+
     setDispatching(true);
     setStatusMessage(null);
     const token =
@@ -195,8 +240,8 @@ export const GlobalDispatchCoordinator: React.FC<
           : ('IMMEDIATE_BOT' as const),
         payload:
           validationReport.compiledPayload as unknown as Record<string, unknown>,
-        ...(isScheduled && scheduledDate
-          ? { scheduledFor: scheduledDate.toISOString() }
+        ...(isScheduled && computedUtcIso
+          ? { scheduledFor: computedUtcIso }
           : {}),
       };
 
@@ -206,7 +251,7 @@ export const GlobalDispatchCoordinator: React.FC<
 
       if (res.success) {
         const msg = isScheduled
-          ? `Scheduled into two-phase Redis ZSET queue for ${scheduledDate?.toUTCString() || 'future delivery'}.`
+          ? `Scheduled into two-phase Redis ZSET queue for ${selectedDate} at ${selectedTime} (${utcPreview.formattedUtc}).`
           : 'Components V2 payload delivered to Discord channel via official bot REST API.';
         setStatusMessage(msg);
 
@@ -292,9 +337,14 @@ export const GlobalDispatchCoordinator: React.FC<
 
           <DispatchScheduleSettings
             isScheduled={isScheduled}
-            scheduledDate={scheduledDate}
             onToggleScheduled={setIsScheduled}
-            onChangeScheduledDate={setScheduledDate}
+            selectedDate={selectedDate}
+            onChangeDate={setSelectedDate}
+            selectedTime={selectedTime}
+            onChangeTime={setSelectedTime}
+            selectedTimezone={selectedTimezone}
+            onChangeTimezone={setSelectedTimezone}
+            utcPreview={utcPreview}
           />
 
           <div className="p-4 rounded-apple-xl bg-surface-card border border-white/10 flex flex-wrap items-center justify-between gap-3 shadow-apple-card">
@@ -319,7 +369,7 @@ export const GlobalDispatchCoordinator: React.FC<
                 !validationReport.valid ||
                 !selectedServerId ||
                 !selectedChannelId ||
-                (isScheduled && !scheduledDate)
+                (isScheduled && (!computedUtcIso || utcPreview.isPast))
               }
               leftIcon={<Send size={16} />}
               onClick={handleDispatch}

@@ -107,14 +107,10 @@ export const BuilderInternalSubNav: React.FC<BuilderInternalSubNavProps> = ({
         </button>
       </div>
 
-      <div className="hidden lg:flex items-center gap-3 shrink-0">
-        <div className="flex items-center gap-2 px-3 py-1 rounded-apple-md bg-black/40 border border-white/10 text-[11px] text-zinc-400 font-mono">
-          <span className="text-zinc-200 font-semibold">{containerCount}</span> Container{containerCount === 1 ? '' : 's'}
-          <span className="text-zinc-600">•</span>
-          <span className="text-zinc-200 font-semibold">{totalComponents}</span> Component{totalComponents === 1 ? '' : 's'}
-          <span className="text-zinc-600">•</span>
-          <span className="text-brand-red font-medium">Flags: 32768</span>
-        </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <span className="bg-white/5 border border-white/10 rounded-full px-3 py-1 text-xs text-zinc-400 font-mono">
+          {containerCount} Container{containerCount !== 1 ? 's' : ''} • {totalComponents} Component{totalComponents !== 1 ? 's' : ''}
+        </span>
       </div>
     </nav>
   );

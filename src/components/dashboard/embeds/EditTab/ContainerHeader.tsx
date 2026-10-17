@@ -116,16 +116,14 @@ export const ContainerHeader: React.FC<ContainerHeaderProps> = ({
           </button>
         </div>
 
-        {totalContainers > 1 && (
-          <button
-            type="button"
-            onClick={() => onRemoveContainer(cIdx)}
-            title="Remove container"
-            className="p-1.5 rounded-apple-md text-zinc-400 hover:text-red-400 hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 transition-colors cursor-pointer"
-          >
-            <Trash2 size={14} />
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => onRemoveContainer(cIdx)}
+          title="Remove container"
+          className="p-1.5 rounded-apple-md text-zinc-400 hover:text-red-400 hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 transition-colors cursor-pointer"
+        >
+          <Trash2 size={14} />
+        </button>
       </div>
     </div>
   );

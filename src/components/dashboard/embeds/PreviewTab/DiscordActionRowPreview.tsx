@@ -7,6 +7,7 @@ import {
   DISCORD_SAFE_URL_REGEX,
   type DiscordActionRowComponent,
   type DiscordButtonComponent,
+  type DiscordSelectComponent,
   type DiscordStringSelectComponent,
 } from '@/lib/model/embed';
 
@@ -34,8 +35,12 @@ export const DiscordActionRowPreview: React.FC<DiscordActionRowPreviewProps> = (
     (c): c is DiscordButtonComponent => c.type === ComponentType.BUTTON
   );
   const selects = row.components.filter(
-    (c): c is DiscordStringSelectComponent =>
-      c.type === ComponentType.STRING_SELECT
+    (c): c is DiscordSelectComponent =>
+      c.type === ComponentType.STRING_SELECT ||
+      c.type === ComponentType.USER_SELECT ||
+      c.type === ComponentType.ROLE_SELECT ||
+      c.type === ComponentType.MENTIONABLE_SELECT ||
+      c.type === ComponentType.CHANNEL_SELECT
   );
 
   return (
@@ -116,9 +121,9 @@ export const DiscordActionRowPreview: React.FC<DiscordActionRowPreviewProps> = (
               />
             </button>
 
-            {isOpen && sel.options.length > 0 && (
+            {isOpen && 'options' in sel && Array.isArray((sel as DiscordStringSelectComponent).options) && (sel as DiscordStringSelectComponent).options.length > 0 && (
               <div className="mt-1 rounded-[4px] bg-[#2B2D31] border border-[#1E1F22] shadow-xl overflow-hidden z-20">
-                {sel.options.map((opt, oIdx) => (
+                {(sel as DiscordStringSelectComponent).options.map((opt, oIdx) => (
                   <button
                     key={`${opt.value}_${oIdx}`}
                     type="button"

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   type DiscordButtonComponent,
+  type DiscordSelectComponent,
   type DiscordStringSelectComponent,
   type TemplateData,
   type Type17Container,
@@ -12,6 +13,7 @@ import type { EmbedAction } from '@/lib/model/action';
 import {
   useEmbedBuilderReducer,
   parseDiscordPayloadToState,
+  createDefaultContainer,
 } from './useEmbedBuilderReducer';
 import { useEmbedHistory } from './useEmbedHistory';
 import { EmbedBuilderTopNavBar, type EmbedBuilderTopTab } from './EmbedBuilderTopNavBar';
@@ -69,7 +71,7 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
 
   const [editingSelectMenu, setEditingSelectMenu] = useState<{
     cIdx: number;
-    selectMenu: DiscordStringSelectComponent;
+    selectMenu: DiscordSelectComponent;
   } | null>(null);
 
   // Undo / Redo History Stack Hook
@@ -476,6 +478,25 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
             type: 'success',
             title: 'Preset Loaded',
             description: `Loaded "${name || 'Preset'}" into editor.`,
+          });
+        }}
+        onInsertComponent={(comp) => {
+          let targetContainer = state.type17Containers[state.type17Containers.length - 1];
+          if (!targetContainer) {
+            const newCnt = createDefaultContainer();
+            dispatch({ type: 'ADD_CONTAINER', container: newCnt });
+            targetContainer = newCnt;
+          }
+          dispatch({
+            type: 'ADD_COMPONENT',
+            containerId: targetContainer.id,
+            componentType: comp.type,
+            initialComponent: comp,
+          });
+          toast({
+            type: 'success',
+            title: 'Component Inserted',
+            description: 'Inserted component into Container.',
           });
         }}
       />
