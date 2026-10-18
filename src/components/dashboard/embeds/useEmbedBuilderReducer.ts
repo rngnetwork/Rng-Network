@@ -8,6 +8,7 @@ import {
   type DiscordActionRowChild,
   type DiscordButtonComponent,
   type DiscordContainerChildComponent,
+  type DiscordFileComponent,
   type DiscordInnerComponent,
   type DiscordMediaGalleryComponent,
   type DiscordSectionComponent,
@@ -679,6 +680,7 @@ export function compileToDiscordV2Payload(
   for (const container of state.type17Containers) {
     const childComponents: DiscordContainerChildComponent[] = [];
 
+    // 1. Author, Title, Description Header
     const hasHeaderContent = Boolean(
       container.author?.name?.trim() ||
       container.title?.trim() ||
@@ -702,18 +704,75 @@ export function compileToDiscordV2Payload(
       });
     }
 
+    // 2. Process Inner Components with Strict Discord V2 Rules & ID Sanitization
+    let pendingButtons: DiscordButtonComponent[] = [];
+
+    const flushPendingButtons = () => {
+      if (pendingButtons.length === 0) return;
+      childComponents.push({
+        type: ComponentType.ACTION_ROW,
+        components: pendingButtons.map(sanitizeButton),
+      });
+      pendingButtons = [];
+    };
+
+    function sanitizeButton(btn: DiscordButtonComponent): DiscordButtonComponent {
+      const isLink = btn.style === 5;
+      return {
+        type: ComponentType.BUTTON,
+        style: btn.style || 1,
+        ...(btn.label?.trim() ? { label: btn.label.trim() } : {}),
+        ...(btn.emoji ? { emoji: btn.emoji } : {}),
+        ...(isLink
+          ? { url: btn.url?.trim() || 'https://rng.gg' }
+          : { custom_id: btn.custom_id?.trim() || `btn_${Date.now()}` }),
+        ...(btn.disabled ? { disabled: true } : {}),
+      };
+    }
+
+    function sanitizeSelectMenu(menu: DiscordInnerComponent): DiscordActionRowChild {
+      const t = menu.type;
+      const base = {
+        type: t,
+        custom_id: (menu as any).custom_id?.trim() || `sel_${Date.now()}`,
+        ...((menu as any).placeholder?.trim() ? { placeholder: (menu as any).placeholder.trim() } : {}),
+        ...((menu as any).min_values !== undefined ? { min_values: (menu as any).min_values } : {}),
+        ...((menu as any).max_values !== undefined ? { max_values: (menu as any).max_values } : {}),
+        ...((menu as any).disabled ? { disabled: true } : {}),
+      };
+
+      if (t === ComponentType.STRING_SELECT) {
+        const rawOpts = Array.isArray((menu as any).options) ? (menu as any).options : [];
+        const sanitizedOpts = rawOpts.map((opt: any, idx: number) => ({
+          label: String(opt.label || `Option ${idx + 1}`).trim(),
+          value: String(opt.value || `opt_${idx + 1}`).trim(),
+          ...(opt.description?.trim() ? { description: opt.description.trim() } : {}),
+          ...(opt.emoji ? { emoji: opt.emoji } : {}),
+          ...(opt.default ? { default: true } : {}),
+        }));
+        return {
+          ...base,
+          type: ComponentType.STRING_SELECT,
+          options: sanitizedOpts.length > 0 ? sanitizedOpts : [{ label: 'Option 1', value: 'opt_1' }],
+        };
+      }
+
+      return base as DiscordActionRowChild;
+    }
+
     for (const inner of container.components) {
+      if (inner.type === ComponentType.BUTTON) {
+        pendingButtons.push(inner as DiscordButtonComponent);
+        if (pendingButtons.length === 5) {
+          flushPendingButtons();
+        }
+        continue;
+      }
+
+      // Any non-button flushes pending buttons
+      flushPendingButtons();
+
       if (
-        inner.type === ComponentType.TEXT_DISPLAY ||
-        inner.type === ComponentType.ACTION_ROW ||
-        inner.type === ComponentType.SECTION ||
-        inner.type === ComponentType.MEDIA_GALLERY ||
-        inner.type === ComponentType.SEPARATOR ||
-        inner.type === ComponentType.FILE
-      ) {
-        childComponents.push(inner);
-      } else if (
-        inner.type === ComponentType.BUTTON ||
         inner.type === ComponentType.STRING_SELECT ||
         inner.type === ComponentType.USER_SELECT ||
         inner.type === ComponentType.ROLE_SELECT ||
@@ -722,11 +781,113 @@ export function compileToDiscordV2Payload(
       ) {
         childComponents.push({
           type: ComponentType.ACTION_ROW,
-          components: [inner as DiscordActionRowChild],
+          components: [sanitizeSelectMenu(inner)],
+        });
+      } else if (inner.type === ComponentType.ACTION_ROW) {
+        const rawChildren = Array.isArray((inner as DiscordActionRowComponent).components)
+          ? (inner as DiscordActionRowComponent).components
+          : [];
+        const buttons = rawChildren.filter((c) => c.type === ComponentType.BUTTON) as DiscordButtonComponent[];
+        const selects = rawChildren.filter((c) => c.type !== ComponentType.BUTTON);
+
+        if (selects.length > 0) {
+          selects.forEach((sel) => {
+            childComponents.push({
+              type: ComponentType.ACTION_ROW,
+              components: [sanitizeSelectMenu(sel)],
+            });
+          });
+        }
+        if (buttons.length > 0) {
+          for (let i = 0; i < buttons.length; i += 5) {
+            childComponents.push({
+              type: ComponentType.ACTION_ROW,
+              components: buttons.slice(i, i + 5).map(sanitizeButton),
+            });
+          }
+        }
+      } else if (inner.type === ComponentType.SECTION) {
+        const sec = inner as DiscordSectionComponent;
+        const textComponents: DiscordTextDisplayComponent[] = [];
+        if (Array.isArray(sec.components) && sec.components.length > 0) {
+          const firstTxt = sec.components[0];
+          textComponents.push({
+            type: ComponentType.TEXT_DISPLAY,
+            content: firstTxt?.content || '**Section Header**',
+          });
+        } else {
+          textComponents.push({
+            type: ComponentType.TEXT_DISPLAY,
+            content: sec.text || '**Section Header**',
+          });
+        }
+
+        let sanitizedAccessory: any = undefined;
+        if (sec.accessory) {
+          const acc = sec.accessory as any;
+          if (acc.type === ComponentType.THUMBNAIL || acc.type === 'thumbnail' || acc.media || acc.media_url || acc.url) {
+            const rawUrl = acc.media?.url || acc.media_url || acc.url || 'https://cdn.discordapp.com/embed/avatars/0.png';
+            sanitizedAccessory = {
+              type: ComponentType.THUMBNAIL,
+              media: { url: rawUrl },
+              ...(acc.description?.trim() ? { description: acc.description.trim() } : {}),
+              ...(acc.spoiler ? { spoiler: true } : {}),
+            };
+          } else if (acc.type === ComponentType.BUTTON || acc.type === 'button') {
+            sanitizedAccessory = sanitizeButton(acc);
+          }
+        }
+
+        childComponents.push({
+          type: ComponentType.SECTION,
+          components: textComponents,
+          ...(sanitizedAccessory ? { accessory: sanitizedAccessory } : {}),
+        });
+      } else if (inner.type === ComponentType.MEDIA_GALLERY) {
+        const gal = inner as DiscordMediaGalleryComponent;
+        const rawItems = Array.isArray(gal.items) ? gal.items : [];
+        const sanitizedItems = rawItems.slice(0, 4).map((item: any) => {
+          const url = typeof item === 'string' ? item : item.media?.url || item.url || '';
+          return {
+            media: { url },
+            ...(item.description?.trim() ? { description: item.description.trim() } : {}),
+            ...(item.spoiler ? { spoiler: true } : {}),
+          };
+        }).filter((it) => Boolean(it.media.url));
+
+        if (sanitizedItems.length > 0) {
+          childComponents.push({
+            type: ComponentType.MEDIA_GALLERY,
+            items: sanitizedItems,
+          });
+        }
+      } else if (inner.type === ComponentType.SEPARATOR) {
+        const sep = inner as DiscordSeparatorComponent;
+        childComponents.push({
+          type: ComponentType.SEPARATOR,
+          divider: sep.divider !== false,
+          spacing: sep.spacing === 2 ? 2 : 1,
+        });
+      } else if (inner.type === ComponentType.TEXT_DISPLAY) {
+        const txt = inner as DiscordTextDisplayComponent;
+        childComponents.push({
+          type: ComponentType.TEXT_DISPLAY,
+          content: txt.content || '',
+        });
+      } else if (inner.type === ComponentType.FILE) {
+        const f = inner as DiscordFileComponent;
+        const fileUrl = f.file?.url || f.url || '';
+        childComponents.push({
+          type: ComponentType.FILE,
+          file: { url: fileUrl },
         });
       }
     }
 
+    // Flush any trailing buttons
+    flushPendingButtons();
+
+    // 3. Trailing Footer
     if (container.footer?.text?.trim()) {
       childComponents.push({
         type: ComponentType.TEXT_DISPLAY,
