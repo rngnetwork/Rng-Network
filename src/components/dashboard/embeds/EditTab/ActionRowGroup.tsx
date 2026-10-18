@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, ChevronDown, Check } from 'lucide-react';
+import { Plus, ChevronDown, Check, User, Shield, Hash, AtSign } from 'lucide-react';
 import {
   ComponentType,
   type DiscordActionRowComponent,
@@ -119,6 +119,11 @@ const ActionRowGroupInner: React.FC<ActionRowGroupProps> = ({
         const isExpanded = expandedMenuId === menuKey;
         const selectedValue = selectedOptionByMenuId[menuKey];
         const isType3 = sel.type === ComponentType.STRING_SELECT;
+        const isUserSelect = sel.type === ComponentType.USER_SELECT;
+        const isRoleSelect = sel.type === ComponentType.ROLE_SELECT;
+        const isChannelSelect = sel.type === ComponentType.CHANNEL_SELECT;
+        const isMentionableSelect = sel.type === ComponentType.MENTIONABLE_SELECT;
+
         const stringOptions = isType3
           ? (sel as DiscordStringSelectComponent).options || []
           : [];
@@ -129,6 +134,24 @@ const ActionRowGroupInner: React.FC<ActionRowGroupProps> = ({
             )
           : undefined;
 
+        const simulatedUsers = [
+          { value: '@ServerOwner', label: '@ServerOwner', desc: 'Chief High Command' },
+          { value: '@Moderator', label: '@Moderator', desc: 'Staff Officer' },
+          { value: '@TacticalUnit', label: '@TacticalUnit', desc: 'Active Personnel' },
+        ];
+
+        const simulatedRoles = [
+          { value: '@High Command', label: '@High Command', color: 'bg-red-500', desc: 'Supreme Clearance' },
+          { value: '@Minister', label: '@Minister', color: 'bg-purple-500', desc: 'Ministry Executive' },
+          { value: '@Personnel', label: '@Personnel', color: 'bg-blue-500', desc: 'Standard Clearance' },
+        ];
+
+        const simulatedChannels = [
+          { value: '#general', label: '#general', desc: 'Text Channel' },
+          { value: '#announcements', label: '#announcements', desc: 'Announcement Channel' },
+          { value: '#operations', label: '#operations', desc: 'Private Text Channel' },
+        ];
+
         return (
           <div key={menuKey} className="flex flex-col">
             <div
@@ -138,15 +161,36 @@ const ActionRowGroupInner: React.FC<ActionRowGroupProps> = ({
               }`}
             >
               <div className="flex items-center gap-2 min-w-0">
-                {selectedOpt?.emoji && (
+                {isType3 && selectedOpt?.emoji && (
                   <DiscordEmoji emoji={selectedOpt.emoji} className="w-4 h-4 object-contain shrink-0" />
+                )}
+                {isUserSelect && (
+                  <User size={14} className="text-emerald-400 shrink-0" />
+                )}
+                {isRoleSelect && (
+                  <Shield size={14} className="text-amber-400 shrink-0" />
+                )}
+                {isChannelSelect && (
+                  <Hash size={14} className="text-blue-400 shrink-0" />
+                )}
+                {isMentionableSelect && (
+                  <AtSign size={14} className="text-purple-400 shrink-0" />
                 )}
                 <span
                   className={`text-xs font-medium truncate ${
-                    selectedOpt ? 'text-white' : 'text-zinc-400'
+                    selectedOpt || selectedValue ? 'text-white' : 'text-zinc-400'
                   }`}
                 >
-                  {selectedOpt?.label || sel.placeholder || 'Select an option...'}
+                  {selectedOpt?.label ||
+                    selectedValue ||
+                    sel.placeholder ||
+                    (isUserSelect
+                      ? 'Select a user...'
+                      : isRoleSelect
+                      ? 'Select a role...'
+                      : isChannelSelect
+                      ? 'Select a channel...'
+                      : 'Select an option...')}
                 </span>
               </div>
               <ChevronDown
@@ -211,6 +255,86 @@ const ActionRowGroupInner: React.FC<ActionRowGroupProps> = ({
                       No options configured. Click the settings gear in header to add options.
                     </div>
                   )
+                ) : isUserSelect ? (
+                  simulatedUsers.map((u) => {
+                    const isSelected = selectedValue === u.value;
+                    return (
+                      <div
+                        key={u.value}
+                        onClick={() => {
+                          setSelectedOptionByMenuId((prev) => ({
+                            ...prev,
+                            [menuKey]: u.value,
+                          }));
+                          setExpandedMenuId(null);
+                        }}
+                        className={`flex items-center justify-between gap-2.5 px-3 py-2 rounded-apple-sm transition-colors cursor-pointer ${
+                          isSelected ? 'bg-white/10 text-white' : 'hover:bg-white/[0.06] text-zinc-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                            <User size={11} className="text-emerald-400" />
+                          </div>
+                          <span className="text-xs font-medium text-white truncate">{u.label}</span>
+                          <span className="text-[11px] text-zinc-500">({u.desc})</span>
+                        </div>
+                        {isSelected && <Check size={14} className="text-brand-red shrink-0" />}
+                      </div>
+                    );
+                  })
+                ) : isRoleSelect ? (
+                  simulatedRoles.map((r) => {
+                    const isSelected = selectedValue === r.value;
+                    return (
+                      <div
+                        key={r.value}
+                        onClick={() => {
+                          setSelectedOptionByMenuId((prev) => ({
+                            ...prev,
+                            [menuKey]: r.value,
+                          }));
+                          setExpandedMenuId(null);
+                        }}
+                        className={`flex items-center justify-between gap-2.5 px-3 py-2 rounded-apple-sm transition-colors cursor-pointer ${
+                          isSelected ? 'bg-white/10 text-white' : 'hover:bg-white/[0.06] text-zinc-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={`w-2.5 h-2.5 rounded-full ${r.color} shrink-0`} />
+                          <span className="text-xs font-medium text-white truncate">{r.label}</span>
+                          <span className="text-[11px] text-zinc-500">({r.desc})</span>
+                        </div>
+                        {isSelected && <Check size={14} className="text-brand-red shrink-0" />}
+                      </div>
+                    );
+                  })
+                ) : isChannelSelect ? (
+                  simulatedChannels.map((ch) => {
+                    const isSelected = selectedValue === ch.value;
+                    return (
+                      <div
+                        key={ch.value}
+                        onClick={() => {
+                          setSelectedOptionByMenuId((prev) => ({
+                            ...prev,
+                            [menuKey]: ch.value,
+                          }));
+                          setExpandedMenuId(null);
+                        }}
+                        className={`flex items-center justify-between gap-2.5 px-3 py-2 rounded-apple-sm transition-colors cursor-pointer ${
+                          isSelected ? 'bg-white/10 text-white' : 'hover:bg-white/[0.06] text-zinc-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Hash size={13} className="text-blue-400 shrink-0" />
+                          <span className="text-xs font-medium text-white truncate">{ch.label}</span>
+                          <span className="text-[11px] text-zinc-500">({ch.desc})</span>
+                        </div>
+                        {isSelected && <Check size={14} className="text-brand-red shrink-0" />}
+                      </div>
+                    );
+                  })
                 ) : (
                   <div className="px-3 py-2.5 text-center text-xs text-zinc-400">
                     Discord resolves live server selections at interaction time.

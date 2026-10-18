@@ -153,6 +153,28 @@ export function createDefaultInnerComponent(componentType: ComponentType): Disco
       };
       return select;
     }
+    case ComponentType.USER_SELECT: {
+      const select: DiscordEntitySelectComponent = {
+        type: ComponentType.USER_SELECT,
+        id: createComponentId('sel_user'),
+        custom_id: `rng_sel_user_${Math.random().toString(16).slice(2, 10)}`,
+        placeholder: 'Select a user...',
+        min_values: 1,
+        max_values: 1,
+      };
+      return select;
+    }
+    case ComponentType.ROLE_SELECT: {
+      const select: DiscordEntitySelectComponent = {
+        type: ComponentType.ROLE_SELECT,
+        id: createComponentId('sel_role'),
+        custom_id: `rng_sel_role_${Math.random().toString(16).slice(2, 10)}`,
+        placeholder: 'Select a role...',
+        min_values: 1,
+        max_values: 1,
+      };
+      return select;
+    }
     case ComponentType.ACTION_ROW: {
       const row: DiscordActionRowComponent = {
         type: ComponentType.ACTION_ROW,
@@ -268,7 +290,13 @@ function insertComponentIntoContainer(
     };
   }
 
-  if (newComp.type === ComponentType.STRING_SELECT) {
+  if (
+    newComp.type === ComponentType.STRING_SELECT ||
+    newComp.type === ComponentType.USER_SELECT ||
+    newComp.type === ComponentType.ROLE_SELECT ||
+    newComp.type === ComponentType.MENTIONABLE_SELECT ||
+    newComp.type === ComponentType.CHANNEL_SELECT
+  ) {
     const wrappedSelectRow: DiscordActionRowComponent = {
       type: ComponentType.ACTION_ROW,
       id: createComponentId('row'),

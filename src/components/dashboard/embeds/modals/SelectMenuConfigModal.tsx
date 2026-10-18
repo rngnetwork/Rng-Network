@@ -529,12 +529,6 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
                           </div>
                         </div>
                       </div>
-
-                      {!currentActionUsage?.button && (
-                        <p className="text-[10.5px] text-amber-300/90 leading-tight">
-                          💡 Tip: Make sure to also add/map a Button with this same Action Template to execute this operation.
-                        </p>
-                      )}
                     </div>
                   )}
                 </div>
