@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ExternalLink, Smile } from 'lucide-react';
+import { ExternalLink, Smile, X } from 'lucide-react';
 import {
   DISCORD_SAFE_URL_REGEX,
   type ButtonStyle,
@@ -217,19 +217,44 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-zinc-300">Emoji</label>
               <div className="flex items-center gap-2">
-                <TextInput
-                  value={emojiText}
-                  onChange={(e) => setEmojiText(e.target.value)}
-                  placeholder=""
-                  className="flex-1"
-                  leftIcon={
-                    emojiText ? (
-                      <span className="flex items-center justify-center w-4 h-4">
-                        <DiscordEmoji emoji={emojiText} />
-                      </span>
-                    ) : undefined
-                  }
-                />
+                {emojiText ? (
+                  <div className="flex-1 h-[38px] px-3 rounded-apple-md bg-[#0E0E12] border border-surface-border hover:border-white/20 transition-all flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onOpenEmojiPicker) {
+                          onOpenEmojiPicker((token) => setEmojiText(token));
+                        }
+                      }}
+                      className="flex items-center gap-2 flex-1 h-full cursor-pointer text-left overflow-hidden"
+                      title="Change Emoji"
+                      aria-label="Change Emoji"
+                    >
+                      <DiscordEmoji emoji={emojiText} className="w-5 h-5 object-contain shrink-0" />
+                      {emojiText.startsWith('<') && (
+                        <span className="text-[11px] text-zinc-400 font-mono truncate">
+                          {emojiText}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEmojiText('')}
+                      className="text-zinc-500 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors shrink-0"
+                      title="Clear Emoji"
+                      aria-label="Clear Emoji"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <TextInput
+                    value={emojiText}
+                    onChange={(e) => setEmojiText(e.target.value)}
+                    placeholder=""
+                    className="flex-1"
+                  />
+                )}
                 <button
                   type="button"
                   onClick={() => {
