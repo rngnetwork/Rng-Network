@@ -1,9 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ListChecks, Trash2, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
-import { Badge } from '@/components/common/feedback/Badge';
-import { Button } from '@/components/common/input/Button';
+import { Terminal, Trash2 } from 'lucide-react';
 
 export interface DispatchLogEntry {
   id: string;
@@ -12,6 +10,8 @@ export interface DispatchLogEntry {
   channel: string;
   status: 'SUCCESS' | 'SCHEDULED' | 'PENDING' | 'FAILED';
   message: string;
+  statusCode?: string | number;
+  rawDetails?: string;
 }
 
 export interface DispatchLogsViewerProps {
@@ -24,38 +24,50 @@ export const DispatchLogsViewer: React.FC<DispatchLogsViewerProps> = ({
   onClear,
 }) => {
   return (
-    <div className="p-5 rounded-apple-xl bg-surface-card border border-white/10 flex flex-col gap-4 shadow-apple-card">
-      <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/[0.08]">
-        <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-apple-md bg-blue-500/10 border border-blue-500/20 text-blue-400">
-            <ListChecks size={16} />
+    <div className="rounded-apple-xl bg-[#0c0d10] border border-white/10 flex flex-col shadow-2xl overflow-hidden font-mono">
+      {/* macOS Terminal Titlebar */}
+      <div className="h-9 px-3.5 bg-[#16181d] border-b border-white/[0.08] flex items-center justify-between select-none">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-full bg-[#FF5F56] border border-[#E0443E]/50 inline-block" />
+            <span className="w-3 h-3 rounded-full bg-[#FFBD2E] border border-[#DEA123]/50 inline-block" />
+            <span className="w-3 h-3 rounded-full bg-[#27C93F] border border-[#1AAB29]/50 inline-block" />
           </div>
-          <div>
-            <h4 className="text-sm font-bold text-white">Live Dispatch Logs</h4>
-            <span className="text-[11px] font-mono text-zinc-400">
-              {logs.length} event{logs.length === 1 ? '' : 's'} recorded
-            </span>
-          </div>
+          <span className="text-[11px] text-zinc-400 font-medium ml-2 flex items-center gap-1.5">
+            <Terminal size={12} className="text-zinc-500" />
+            telemetry.log — zsh
+          </span>
         </div>
 
-        {logs.length > 0 && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onClear}
-            leftIcon={<Trash2 size={13} />}
-            className="text-zinc-400 hover:text-red-400 hover:bg-red-500/10 min-h-[30px] px-2.5 py-1"
-          >
-            Clear Logs
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] text-zinc-500">
+            {logs.length} event{logs.length === 1 ? '' : 's'}
+          </span>
+          {logs.length > 0 && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="text-[11px] text-zinc-500 hover:text-red-400 flex items-center gap-1 transition-colors cursor-pointer"
+              title="Clear terminal logs"
+            >
+              <Trash2 size={11} />
+              clear
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="flex flex-col gap-2.5 max-h-[320px] overflow-y-auto pr-1">
+      {/* Terminal Content Body */}
+      <div className="p-4 max-h-[420px] min-h-[300px] overflow-y-auto text-[11px] leading-relaxed flex flex-col gap-3 text-zinc-300 [scrollbar-width:thin]">
         {logs.length === 0 ? (
-          <div className="py-8 text-center text-xs text-zinc-500">
-            No dispatches recorded in this session. Deliver an embed above to inspect live gateway telemetry.
+          <div className="py-12 flex flex-col items-center justify-center gap-2 text-zinc-600 select-none">
+            <div className="flex items-center gap-2 text-zinc-500">
+              <span className="text-emerald-500">➜</span>
+              <span>dispatch-agent --telemetry</span>
+            </div>
+            <p className="text-[10px] text-zinc-600">
+              Awaiting gateway events. Dispatch or schedule an embed to view real-time API logs.
+            </p>
           </div>
         ) : (
           logs.map((log) => {
@@ -66,46 +78,40 @@ export const DispatchLogsViewer: React.FC<DispatchLogsViewerProps> = ({
             return (
               <div
                 key={log.id}
-                className="p-3 rounded-apple-lg bg-surface-canvas border border-white/[0.06] flex items-start justify-between gap-3 text-xs"
+                className="flex flex-col gap-1 p-2.5 rounded-apple-sm bg-white/[0.02] border border-white/[0.04]"
               >
-                <div className="flex flex-col gap-1 min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-[10px] text-zinc-500">
-                      [{log.timestamp}]
-                    </span>
-                    <span className="font-semibold text-white truncate">
-                      {log.server}
-                    </span>
-                    <span className="text-cyan-400 font-mono text-[11px]">
-                      #{log.channel}
-                    </span>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-zinc-500">[{log.timestamp}]</span>
+                    {isSuccess && (
+                      <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        SUCCESS 200
+                      </span>
+                    )}
+                    {isScheduled && (
+                      <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                        SCHEDULED
+                      </span>
+                    )}
+                    {isFailed && (
+                      <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-red-500/20 text-red-400 border border-red-500/30">
+                        ERROR {log.statusCode || 'FAILED'}
+                      </span>
+                    )}
                   </div>
-                  <p className="text-zinc-300 line-clamp-2 text-[11.5px] leading-relaxed">
-                    {log.message}
-                  </p>
+                  <span className="text-zinc-500 text-[10px]">
+                    {log.server} • #{log.channel}
+                  </span>
                 </div>
 
-                <div className="shrink-0 flex items-center gap-1.5">
-                  {isSuccess && (
-                    <Badge variant="success" size="sm">
-                      <span className="flex items-center gap-1">
-                        <CheckCircle2 size={11} /> SUCCESS
-                      </span>
-                    </Badge>
-                  )}
-                  {isScheduled && (
-                    <Badge variant="warning" size="sm">
-                      <span className="flex items-center gap-1">
-                        <Clock size={11} /> SCHEDULED
-                      </span>
-                    </Badge>
-                  )}
-                  {isFailed && (
-                    <Badge variant="crimson" size="sm">
-                      <span className="flex items-center gap-1">
-                        <AlertCircle size={11} /> FAILED
-                      </span>
-                    </Badge>
+                <div className="text-zinc-300 whitespace-pre-wrap pl-2 border-l border-zinc-700/50 mt-0.5">
+                  <span className={isFailed ? 'text-red-300' : 'text-zinc-300'}>
+                    {log.message}
+                  </span>
+                  {log.rawDetails && (
+                    <pre className="mt-1.5 p-2 rounded bg-black/50 text-[10px] text-zinc-400 overflow-x-auto border border-white/[0.05]">
+                      {log.rawDetails}
+                    </pre>
                   )}
                 </div>
               </div>

@@ -1,17 +1,15 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { Send, ShieldCheck, Server, Hash } from 'lucide-react';
+import { Send, Server } from 'lucide-react';
 import type { ClientValidationReport } from '@/lib/model/embed';
 import type { ServerItem } from '@/lib/model/server';
 import type { ChannelItem } from '@/lib/model/channel';
-import type { DryRunValidationReportData } from '@/lib/model/dispatch';
 import { fetchRegisteredServers } from '@/lib/api/dashboard/servers';
 import {
   fetchDispatchChannels,
   dispatchEmbed,
   scheduleEmbedDispatch,
-  validatePreflight,
 } from '@/lib/api/dashboard/embeds';
 import {
   getDefaultUserTimezone,
@@ -24,7 +22,6 @@ import { useToast } from '@/components/common/feedback/ToastProvider';
 import { DispatchServerSelector } from './DispatchServerSelector';
 import { DispatchChannelSelector } from './DispatchChannelSelector';
 import { DispatchScheduleSettings } from './DispatchScheduleSettings';
-import { PreflightLintStatusCard } from './PreflightLintStatusCard';
 import { DispatchLogsViewer, type DispatchLogEntry } from './DispatchLogsViewer';
 
 export interface GlobalDispatchCoordinatorProps {
@@ -73,9 +70,6 @@ export const GlobalDispatchCoordinator: React.FC<
   const [loadingServers, setLoadingServers] = useState(!fixedServerId);
   const [loadingChannels, setLoadingChannels] = useState(false);
   const [dispatching, setDispatching] = useState(false);
-  const [testingDryRun, setTestingDryRun] = useState(false);
-  const [serverReport, setServerReport] =
-    useState<DryRunValidationReportData | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [dispatchLogs, setDispatchLogs] = useState<DispatchLogEntry[]>([]);
 
@@ -100,16 +94,24 @@ export const GlobalDispatchCoordinator: React.FC<
             localStorage.getItem('accessToken') ||
             undefined
           : undefined;
+
       try {
+        setLoadingServers(true);
         const res = await fetchRegisteredServers(token);
-        if (isMounted && res.success && Array.isArray(res.data)) {
+        if (isMounted && res.success && res.data) {
           setServers(res.data);
           if (res.data.length > 0 && !selectedServerId) {
             setSelectedServerId(res.data[0].id);
           }
         }
       } catch {
-        // Handled by empty dropdown state
+        if (isMounted) {
+          toast({
+            type: 'error',
+            title: 'Server Discovery Failed',
+            description: 'Could not fetch mutual registered Discord servers.',
+          });
+        }
       } finally {
         if (isMounted) setLoadingServers(false);
       }
@@ -119,30 +121,45 @@ export const GlobalDispatchCoordinator: React.FC<
     return () => {
       isMounted = false;
     };
-  }, [fixedServerId, selectedServerId]);
+  }, [fixedServerId, selectedServerId, toast]);
 
   useEffect(() => {
-    if (!selectedServerId) return undefined;
-    let isMounted = true;
+    if (!selectedServerId) {
+      setChannels([]);
+      setSelectedChannelId('');
+      return undefined;
+    }
 
+    let isMounted = true;
     const loadChannels = async () => {
-      setLoadingChannels(true);
       const token =
         typeof window !== 'undefined'
           ? localStorage.getItem('rng_access_token') ||
             localStorage.getItem('accessToken') ||
             undefined
           : undefined;
+
       try {
+        setLoadingChannels(true);
         const res = await fetchDispatchChannels(selectedServerId, token);
-        if (isMounted && res.success && Array.isArray(res.data)) {
+        if (isMounted && res.success && res.data) {
           setChannels(res.data);
           if (res.data.length > 0) {
-            setSelectedChannelId(res.data[0].id);
+            setSelectedChannelId((prev) =>
+              res.data.some((c) => c.id === prev) ? prev : res.data[0].id
+            );
+          } else {
+            setSelectedChannelId('');
           }
         }
       } catch {
-        if (isMounted) setChannels([]);
+        if (isMounted) {
+          toast({
+            type: 'error',
+            title: 'Channel Discovery Failed',
+            description: `Could not load channels for server ${selectedServerId}.`,
+          });
+        }
       } finally {
         if (isMounted) setLoadingChannels(false);
       }
@@ -152,49 +169,7 @@ export const GlobalDispatchCoordinator: React.FC<
     return () => {
       isMounted = false;
     };
-  }, [selectedServerId]);
-
-  const handleRunPreflight = async () => {
-    if (!selectedServerId || !selectedChannelId) return;
-    setTestingDryRun(true);
-    const token =
-      typeof window !== 'undefined'
-        ? localStorage.getItem('rng_access_token') ||
-          localStorage.getItem('accessToken') ||
-          undefined
-        : undefined;
-    try {
-      const res = await validatePreflight(
-        {
-          serverId: selectedServerId,
-          channelId: selectedChannelId,
-          payload:
-            validationReport.compiledPayload as unknown as Record<string, unknown>,
-        },
-        token
-      );
-      if (res.success && res.data) {
-        setServerReport(res.data);
-        toast({
-          type: res.data.valid ? 'success' : 'warning',
-          title: res.data.valid
-            ? 'Pre-Flight Verification Passed'
-            : 'Pre-Flight Warnings Detected',
-          description: res.data.valid
-            ? 'Bot permissions and Components V2 structure verified.'
-            : 'Inspect reported violations before dispatching.',
-        });
-      }
-    } catch {
-      toast({
-        type: 'error',
-        title: 'Pre-Flight Check Failed',
-        description: 'Could not reach pre-flight validation endpoint.',
-      });
-    } finally {
-      setTestingDryRun(false);
-    }
-  };
+  }, [selectedServerId, toast]);
 
   const handleDispatch = async () => {
     if (!selectedServerId || !selectedChannelId || !validationReport.valid) {
@@ -251,7 +226,7 @@ export const GlobalDispatchCoordinator: React.FC<
 
       if (res.success) {
         const msg = isScheduled
-          ? `Scheduled into two-phase Redis ZSET queue for ${selectedDate} at ${selectedTime} (${utcPreview.formattedUtc}).`
+          ? `Scheduled into Redis queue for ${selectedDate} at ${selectedTime} (${utcPreview.formattedUtc}).`
           : 'Components V2 payload delivered to Discord channel via official bot REST API.';
         setStatusMessage(msg);
 
@@ -262,6 +237,7 @@ export const GlobalDispatchCoordinator: React.FC<
           channel: currentChannelName,
           status: isScheduled ? 'SCHEDULED' : 'SUCCESS',
           message: msg,
+          statusCode: '200',
         };
         setDispatchLogs((prev) => [newLog, ...prev]);
 
@@ -271,22 +247,66 @@ export const GlobalDispatchCoordinator: React.FC<
           description: msg,
         });
       }
-    } catch {
-      const errorMsg = 'Failed to dispatch payload. Check rate limits and bot channel permissions.';
+    } catch (err: unknown) {
+      let statusCode: number | string = 'ERR';
+      let errorTitle = 'Dispatch Failed';
+      let errorDetail = '';
+      let rawBackendPayload: unknown = null;
+
+      if (err && typeof err === 'object') {
+        const anyErr = err as Record<string, unknown>;
+        if (typeof anyErr.status === 'number') {
+          statusCode = anyErr.status;
+        } else if (anyErr.response && typeof (anyErr.response as Record<string, unknown>).status === 'number') {
+          statusCode = (anyErr.response as Record<string, unknown>).status as number;
+        }
+
+        const payload = (anyErr.payload || (anyErr.response as Record<string, unknown>)?.data || anyErr.problemDetails) as Record<string, unknown> | undefined;
+        rawBackendPayload = payload;
+
+        if (payload) {
+          if (typeof payload.code === 'number') {
+            errorTitle = `Discord Error ${payload.code}`;
+          } else if (typeof payload.title === 'string') {
+            errorTitle = payload.title;
+          }
+
+          if (typeof payload.detail === 'string') {
+            errorDetail = payload.detail;
+          } else if (typeof payload.message === 'string') {
+            errorDetail = payload.message;
+          } else if (payload.errors && typeof payload.errors === 'object') {
+            errorDetail = JSON.stringify(payload.errors, null, 2);
+          }
+        }
+
+        if (!errorDetail && typeof anyErr.message === 'string') {
+          errorDetail = anyErr.message;
+        }
+      }
+
+      if (!errorDetail) {
+        errorDetail = 'Failed to dispatch payload. Check rate limits and bot channel permissions.';
+      }
+
+      const logMessage = `HTTP ${statusCode}: ${errorTitle}\n↳ ${errorDetail}`;
+
       const newLog: DispatchLogEntry = {
         id: `log_${Date.now()}`,
         timestamp: new Date().toLocaleTimeString(),
         server: currentServerName,
         channel: currentChannelName,
         status: 'FAILED',
-        message: errorMsg,
+        message: logMessage,
+        statusCode: String(statusCode),
+        rawDetails: rawBackendPayload ? JSON.stringify(rawBackendPayload, null, 2) : undefined,
       };
       setDispatchLogs((prev) => [newLog, ...prev]);
 
       toast({
         type: 'error',
-        title: 'Dispatch Failed',
-        description: errorMsg,
+        title: `Dispatch Failed (${statusCode})`,
+        description: errorDetail.length > 100 ? `${errorDetail.slice(0, 100)}...` : errorDetail,
       });
     } finally {
       setDispatching(false);
@@ -298,16 +318,16 @@ export const GlobalDispatchCoordinator: React.FC<
       {statusMessage && (
         <Alert
           variant="success"
-          title="Dispatch Execution Telemetry"
+          title="Dispatch Telemetry"
           description={statusMessage}
           onDismiss={() => setStatusMessage(null)}
         />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        {/* Left Column: Destination & Dispatch Settings */}
-        <div className="flex flex-col gap-5">
-          <div className="p-5 rounded-apple-xl bg-surface-card border border-white/10 flex flex-col gap-4 shadow-apple-card">
+        {/* Left Container: Target Destination + Scheduler + Dispatch Button */}
+        <div className="p-5 rounded-apple-xl bg-surface-card border border-white/10 flex flex-col gap-5 shadow-apple-card">
+          <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2 pb-2 border-b border-white/[0.08]">
               <Server size={16} className="text-brand-red" />
               <h3 className="text-sm font-bold text-white">Target Discord Destination</h3>
@@ -335,31 +355,21 @@ export const GlobalDispatchCoordinator: React.FC<
             </div>
           </div>
 
-          <DispatchScheduleSettings
-            isScheduled={isScheduled}
-            onToggleScheduled={setIsScheduled}
-            selectedDate={selectedDate}
-            onChangeDate={setSelectedDate}
-            selectedTime={selectedTime}
-            onChangeTime={setSelectedTime}
-            selectedTimezone={selectedTimezone}
-            onChangeTimezone={setSelectedTimezone}
-            utcPreview={utcPreview}
-          />
+          <div className="pt-2 border-t border-white/[0.06]">
+            <DispatchScheduleSettings
+              isScheduled={isScheduled}
+              onToggleScheduled={setIsScheduled}
+              selectedDate={selectedDate}
+              onChangeDate={setSelectedDate}
+              selectedTime={selectedTime}
+              onChangeTime={setSelectedTime}
+              selectedTimezone={selectedTimezone}
+              onChangeTimezone={setSelectedTimezone}
+              utcPreview={utcPreview}
+            />
+          </div>
 
-          <div className="p-4 rounded-apple-xl bg-surface-card border border-white/10 flex flex-wrap items-center justify-between gap-3 shadow-apple-card">
-            <Button
-              type="button"
-              variant="secondary"
-              size="md"
-              loading={testingDryRun}
-              disabled={!selectedServerId || !selectedChannelId}
-              leftIcon={<ShieldCheck size={16} />}
-              onClick={handleRunPreflight}
-            >
-              Run Pre-Flight Lint
-            </Button>
-
+          <div className="pt-2 border-t border-white/[0.06] flex justify-end">
             <Button
               type="button"
               variant="primary"
@@ -373,19 +383,15 @@ export const GlobalDispatchCoordinator: React.FC<
               }
               leftIcon={<Send size={16} />}
               onClick={handleDispatch}
+              className="w-full sm:w-auto"
             >
               {isScheduled ? 'Schedule Dispatch' : 'Dispatch Now'}
             </Button>
           </div>
         </div>
 
-        {/* Right Column: Preflight Lint & Live Logs */}
-        <div className="flex flex-col gap-5">
-          <PreflightLintStatusCard
-            clientReport={validationReport}
-            serverReport={serverReport}
-          />
-
+        {/* Right Container: macOS Terminal Logs */}
+        <div className="flex flex-col">
           <DispatchLogsViewer
             logs={dispatchLogs}
             onClear={() => setDispatchLogs([])}

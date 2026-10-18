@@ -6,7 +6,6 @@ import { Check, Copy, RefreshCw, AlertCircle } from 'lucide-react';
 import type { DiscordV2MessagePayload, MessageBuilderState } from '@/lib/model/embed';
 import { parseDiscordPayloadToState } from '../useEmbedBuilderReducer';
 import { Button } from '@/components/common/input/Button';
-import { Badge } from '@/components/common/feedback/Badge';
 
 export interface MonacoPayloadEditorProps {
   compiledPayload: DiscordV2MessagePayload;
@@ -63,15 +62,7 @@ export const MonacoPayloadEditor: React.FC<MonacoPayloadEditorProps> = ({
 
   return (
     <div className="rounded-apple-xl bg-surface-card border border-white/[0.08] overflow-hidden flex flex-col">
-      <div className="px-4 py-3 border-b border-white/[0.08] flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <Badge variant="crimson" size="sm">
-            Discord API v10 Schema
-          </Badge>
-          <span className="text-xs font-mono text-zinc-400">
-            flags: 32768 (IS_COMPONENTS_V2)
-          </span>
-        </div>
+      <div className="px-4 py-2.5 border-b border-white/[0.08] flex items-center justify-end gap-2">
 
         <div className="flex items-center gap-2">
           <Button

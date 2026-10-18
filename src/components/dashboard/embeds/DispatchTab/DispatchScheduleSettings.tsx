@@ -44,7 +44,7 @@ export const DispatchScheduleSettings: React.FC<
   }, []);
 
   return (
-    <div className="p-4 rounded-apple-xl bg-surface-card border border-white/10 flex flex-col gap-4 shadow-apple-card">
+    <div className="p-4 rounded-apple-lg bg-black/20 border border-white/[0.06] flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2.5">
           <div className="p-2 rounded-apple-md bg-amber-500/10 border border-amber-500/20 text-amber-400">
@@ -52,7 +52,7 @@ export const DispatchScheduleSettings: React.FC<
           </div>
           <div>
             <span className="text-xs font-semibold text-white">
-              Two-Phase Queue Scheduled Delivery
+              Scheduled Delivery
             </span>
             <p className="text-[11px] text-zinc-400">
               {isScheduled
