@@ -35,7 +35,7 @@ export const DispatchLogsViewer: React.FC<DispatchLogsViewerProps> = ({
           </div>
           <span className="text-[11px] text-zinc-400 font-medium ml-2 flex items-center gap-1.5">
             <Terminal size={12} className="text-zinc-500" />
-            telemetry.log — zsh
+            dispatch.log
           </span>
         </div>
 
@@ -60,14 +60,11 @@ export const DispatchLogsViewer: React.FC<DispatchLogsViewerProps> = ({
       {/* Terminal Content Body */}
       <div className="p-4 flex-1 min-h-[300px] overflow-y-auto text-[11px] leading-relaxed flex flex-col gap-3 text-zinc-300 [scrollbar-width:thin]">
         {logs.length === 0 ? (
-          <div className="py-12 flex flex-col items-center justify-center gap-2 text-zinc-600 select-none">
-            <div className="flex items-center gap-2 text-zinc-500">
-              <span className="text-emerald-500">➜</span>
-              <span>dispatch-agent --telemetry</span>
+          <div className="py-24 flex-1 flex flex-col items-center justify-center select-none">
+            <div className="flex items-center font-mono text-2xl tracking-tight text-zinc-500">
+              <span className="text-zinc-400 font-bold">&gt;</span>
+              <span className="animate-pulse font-bold text-zinc-300">_</span>
             </div>
-            <p className="text-[10px] text-zinc-600">
-              Awaiting gateway events. Dispatch or schedule an embed to view real-time API logs.
-            </p>
           </div>
         ) : (
           logs.map((log) => {
