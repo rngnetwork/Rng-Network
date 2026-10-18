@@ -5,6 +5,7 @@ import {
   ComponentType,
   DISCORD_SAFE_URL_REGEX,
   type DiscordActionRowComponent,
+  type DiscordActionRowChild,
   type DiscordButtonComponent,
   type DiscordContainerChildComponent,
   type DiscordInnerComponent,
@@ -678,8 +679,17 @@ export function compileToDiscordV2Payload(
   for (const container of state.type17Containers) {
     const childComponents: DiscordContainerChildComponent[] = [];
 
-    if (container.title?.trim() || container.description?.trim()) {
+    const hasHeaderContent = Boolean(
+      container.author?.name?.trim() ||
+      container.title?.trim() ||
+      container.description?.trim()
+    );
+
+    if (hasHeaderContent) {
       const headerLines: string[] = [];
+      if (container.author?.name?.trim()) {
+        headerLines.push(`__**${container.author.name.trim()}**__`);
+      }
       if (container.title?.trim()) {
         headerLines.push(`## ${container.title.trim()}`);
       }
@@ -702,12 +712,26 @@ export function compileToDiscordV2Payload(
         inner.type === ComponentType.FILE
       ) {
         childComponents.push(inner);
-      } else if (inner.type === ComponentType.BUTTON || inner.type === ComponentType.STRING_SELECT) {
+      } else if (
+        inner.type === ComponentType.BUTTON ||
+        inner.type === ComponentType.STRING_SELECT ||
+        inner.type === ComponentType.USER_SELECT ||
+        inner.type === ComponentType.ROLE_SELECT ||
+        inner.type === ComponentType.MENTIONABLE_SELECT ||
+        inner.type === ComponentType.CHANNEL_SELECT
+      ) {
         childComponents.push({
           type: ComponentType.ACTION_ROW,
-          components: [inner],
+          components: [inner as DiscordActionRowChild],
         });
       }
+    }
+
+    if (container.footer?.text?.trim()) {
+      childComponents.push({
+        type: ComponentType.TEXT_DISPLAY,
+        content: `-# ${container.footer.text.trim()}`,
+      });
     }
 
     const containerPayload: DiscordV2ContainerPayload = {
@@ -789,16 +813,19 @@ export function parseDiscordPayloadToState(
         if (cType === ComponentType.TEXT_DISPLAY) {
           const rawContent = typeof childObj.content === 'string' ? childObj.content : '';
           if (rawContent.startsWith('-# ') && !containerFooter?.text) {
-            containerFooter = { text: rawContent.replace('-# ', ''), icon_url: '' };
+            containerFooter = { text: rawContent.replace(/^-#\s*/, '').trim(), icon_url: '' };
           } else if (!containerTitle && !containerDesc && !rawContent.startsWith('-# ') && cIdx === 0) {
             const lines = rawContent.split('\n');
             let lineIdx = 0;
             if (lines[lineIdx] && lines[lineIdx].startsWith('__**') && lines[lineIdx].endsWith('**__')) {
-              containerAuthor = { name: lines[lineIdx].slice(4, -4), icon_url: '' };
+              containerAuthor = { name: lines[lineIdx].slice(4, -4).trim(), icon_url: '' };
               lineIdx++;
             }
-            if (lines[lineIdx] && lines[lineIdx].startsWith('**') && lines[lineIdx].endsWith('**')) {
-              containerTitle = lines[lineIdx].slice(2, -2);
+            if (lines[lineIdx] && lines[lineIdx].startsWith('## ')) {
+              containerTitle = lines[lineIdx].slice(3).trim();
+              lineIdx++;
+            } else if (lines[lineIdx] && lines[lineIdx].startsWith('**') && lines[lineIdx].endsWith('**')) {
+              containerTitle = lines[lineIdx].slice(2, -2).trim();
               lineIdx++;
             }
             containerDesc = lines.slice(lineIdx).join('\n');
