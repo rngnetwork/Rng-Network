@@ -1,13 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Plus, Trash2, Settings2, ListChecks } from 'lucide-react';
+import { Plus, Settings2, ChevronDown } from 'lucide-react';
 import {
   ComponentType,
   type DiscordActionRowComponent,
   type DiscordButtonComponent,
   type DiscordSelectComponent,
-  type DiscordStringSelectComponent,
   type DiscordActionRowChild,
 } from '@/lib/model/embed';
 import { ButtonComponentNode } from './ButtonComponentNode';
@@ -73,11 +72,12 @@ const ActionRowGroupInner: React.FC<ActionRowGroupProps> = ({
   return (
     <div className="p-3.5 rounded-apple-lg bg-zinc-900/70 border border-white/[0.08] flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-mono text-zinc-400">
-          {selectMenus.length > 0
-            ? '1 Select Menu'
-            : `${buttons.length}/5 Buttons`}
-        </span>
+        {buttons.length > 0 && (
+          <span className="text-[11px] font-mono text-zinc-400">
+            {buttons.length}/5 Buttons
+          </span>
+        )}
+        {buttons.length === 0 && <div />}
 
         <div className="flex items-center gap-2">
           {canAppendButton && (
@@ -114,42 +114,26 @@ const ActionRowGroupInner: React.FC<ActionRowGroupProps> = ({
       {selectMenus.map((sel, idx) => (
         <div
           key={sel.id || `sel_${idx}`}
-          className="flex items-center justify-between gap-3 p-3 rounded-apple-md bg-[#1E1F22] border border-white/10"
+          onClick={() => onEditSelectMenu(sel)}
+          className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-apple-md bg-[#111214] border border-white/[0.08] hover:border-white/20 transition-all cursor-pointer group select-none"
         >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <ListChecks size={16} className="text-brand-red shrink-0" />
-            <div className="flex flex-col min-w-0">
-              <span className="text-xs font-semibold text-white truncate">
-                {sel.placeholder || 'Select an option...'}
-              </span>
-              <span className="text-[11px] font-mono text-zinc-400">
-                {'options' in sel && Array.isArray((sel as DiscordStringSelectComponent).options)
-                  ? `${(sel as DiscordStringSelectComponent).options.length} options`
-                  : `Type ${sel.type} Select`}{' '}
-                · ID: {sel.custom_id}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-xs text-zinc-400 font-medium truncate">
+            {sel.placeholder || 'Select an option...'}
+          </span>
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => onEditSelectMenu(sel)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditSelectMenu(sel);
+              }}
+              title="Configure Select Menu"
               aria-label="Configure Select Menu"
-              className="p-1.5 rounded text-zinc-300 hover:text-white hover:bg-white/10 transition-colors"
+              className="p-1 rounded text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             >
-              <Settings2 size={14} />
+              <Settings2 size={13} />
             </button>
-            {sel.id && (
-              <button
-                type="button"
-                onClick={() => onRemoveChild(sel.id!)}
-                aria-label="Remove Select Menu"
-                className="p-1.5 rounded text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-              >
-                <Trash2 size={14} />
-              </button>
-            )}
+            <ChevronDown size={14} className="text-zinc-500 group-hover:text-zinc-300 transition-colors" />
           </div>
         </div>
       ))}

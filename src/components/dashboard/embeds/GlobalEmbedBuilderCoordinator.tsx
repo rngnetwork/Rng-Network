@@ -626,6 +626,10 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
           selectMenu={editingSelectMenu.selectMenu}
           availableActions={availableActions}
           allContainers={state.type17Containers}
+          onOpenEmojiPicker={(cb) => {
+            setActiveEmojiCallback(() => cb);
+            setIsEmojiPickerOpen(true);
+          }}
           onClose={() => setEditingSelectMenu(null)}
           onSave={(updatedMenu) => {
             if (updatedMenu.id) {

@@ -10,9 +10,7 @@ import {
   AlertCircle,
   HelpCircle,
   Smile,
-  ListCheck,
-  Users,
-  Shield,
+  X,
   Layers,
 } from 'lucide-react';
 import {
@@ -24,11 +22,11 @@ import {
   type Type17Container,
 } from '@/lib/model/embed';
 import type { EmbedAction } from '@/lib/model/action';
+import { DiscordEmoji } from '@/components/dashboard/embeds/emoji/DiscordEmojiRenderer';
 import { Modal } from '@/components/common/feedback/Modal';
 import { TextInput } from '@/components/common/input/TextInput';
 import { Dropdown, type DropdownOption } from '@/components/common/input/Dropdown';
 import { Button } from '@/components/common/input/Button';
-import { Badge } from '@/components/common/feedback/Badge';
 import { ToggleSwitch } from '@/components/common/input/ToggleSwitch';
 
 export interface SelectMenuConfigModalProps {
@@ -37,6 +35,7 @@ export interface SelectMenuConfigModalProps {
   availableActions?: EmbedAction[];
   allContainers?: Type17Container[];
   onUpdateContainers?: (updated: Type17Container[]) => void;
+  onOpenEmojiPicker?: (onSelect: (token: string) => void) => void;
   onClose: () => void;
   onSave: (updated: DiscordSelectComponent) => void;
 }
@@ -48,14 +47,13 @@ interface ButtonItemRef {
   button: DiscordButtonComponent;
 }
 
-const QUICK_EMOJIS = ['⭐', '🔔', '🚀', '⚡', '🏆', '📌', '✅', '💬'];
-
 export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
   isOpen,
   selectMenu,
   availableActions = [],
   allContainers = [],
   onUpdateContainers,
+  onOpenEmojiPicker,
   onClose,
   onSave,
 }) => {
@@ -377,12 +375,20 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
   const currentActionUsage = selectedActionId ? actionUsages.get(selectedActionId) : undefined;
 
   const modalTitle = isType3
-    ? 'Configure String Select Menu (Type 3)'
+    ? 'String Select Settings'
     : selectMenu?.type === ComponentType.USER_SELECT
-    ? 'Configure User Select Menu (Type 5)'
+    ? 'User Select Settings'
     : selectMenu?.type === ComponentType.ROLE_SELECT
-    ? 'Configure Role Select Menu (Type 6)'
-    : 'Configure Select Menu Component';
+    ? 'Role Select Settings'
+    : 'Select Menu Settings';
+
+  const modalDescription = isType3
+    ? 'Configure settings of String Select in the embedded message'
+    : selectMenu?.type === ComponentType.USER_SELECT
+    ? 'Configure settings of User Select in the embedded message'
+    : selectMenu?.type === ComponentType.ROLE_SELECT
+    ? 'Configure settings of Role Select in the embedded message'
+    : 'Configure settings of Select Menu in the embedded message';
 
   return (
     <>
@@ -390,11 +396,7 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
         isOpen={isOpen}
         onClose={onClose}
         title={modalTitle}
-        description={
-          isType3
-            ? 'Configure dropdown placeholder, bind option values to Action Registry IDs, and link an Invoker Button.'
-            : 'Bind entity selection dynamically to an Action Template for automated multi-stage execution.'
-        }
+        description={modalDescription}
         size="lg"
         footer={
           <div className="flex items-center justify-end gap-2.5">
@@ -414,32 +416,6 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
         }
       >
         <div className="flex flex-col gap-4">
-          {/* Header Badges */}
-          <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
-            <div className="flex items-center gap-2">
-              {isType3 ? (
-                <ListCheck size={18} className="text-cyan-400" />
-              ) : selectMenu?.type === ComponentType.USER_SELECT ? (
-                <Users size={18} className="text-emerald-400" />
-              ) : (
-                <Shield size={18} className="text-amber-400" />
-              )}
-              <span className="text-xs font-bold text-white uppercase tracking-wider">
-                Type {selectMenu?.type} •{' '}
-                {isType3
-                  ? 'String Select'
-                  : selectMenu?.type === ComponentType.USER_SELECT
-                  ? 'User Select'
-                  : selectMenu?.type === ComponentType.ROLE_SELECT
-                  ? 'Role Select'
-                  : 'Entity Select'}
-              </span>
-            </div>
-            <Badge variant={isType3 ? 'info' : 'warning'} size="sm">
-              Discord V2 Component
-            </Badge>
-          </div>
-
           {/* User Select (Type 5) or Role Select (Type 6) Binding */}
           {isEntitySelect && (
             <div className="p-3.5 rounded-apple-lg bg-surface-card border border-white/10 flex flex-col gap-3">
@@ -597,14 +573,9 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
             </div>
           )}
 
-          {/* Disabled State Toggle */}
-          <div className="p-3 rounded-apple-md bg-white/[0.02] border border-white/[0.08] flex items-center justify-between">
-            <div>
-              <span className="text-xs font-semibold text-white">Disabled State</span>
-              <p className="text-[11px] text-zinc-400">
-                Prevent Discord users from selecting options in this menu
-              </p>
-            </div>
+          {/* Disabled State */}
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-xs font-semibold text-zinc-300">Disabled State</span>
             <ToggleSwitch checked={disabled} onChange={setDisabled} />
           </div>
 
@@ -642,10 +613,6 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
                 )}
               </div>
 
-              <p className="text-[11px] text-zinc-400 leading-relaxed">
-                When an option is selected in Discord, the interaction does not execute immediately. It is stored in session and triggers once this explicitly mapped button is clicked.
-              </p>
-
               {mappedButton ? (
                 <div className="p-2.5 rounded-apple-md bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -657,9 +624,9 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
                         <span className="text-xs font-bold text-white truncate">
                           {mappedButton.button.label || 'Action Button'}
                         </span>
-                        <Badge variant="warning" size="sm">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-400/20 text-amber-300 border border-amber-400/30">
                           Invoker Button
-                        </Badge>
+                        </span>
                       </div>
                       <span className="text-[10px] font-mono text-zinc-400 truncate">
                         Container {mappedButton.cIdx + 1} • Button #{mappedButton.btnIdx + 1} • ID: {mappedButton.button.custom_id || mappedButton.button.id}
@@ -674,10 +641,7 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
                 </div>
               ) : (
                 <div className="p-3 rounded-apple-md bg-white/[0.02] border border-dashed border-white/10 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-zinc-400 text-xs">
-                    <HelpCircle size={14} className="text-zinc-500 shrink-0" />
-                    <span>No button currently mapped as invoker.</span>
-                  </div>
+                  <span className="text-xs text-zinc-400">No button currently mapped as invoker.</span>
                   <Button
                     type="button"
                     variant="secondary"
@@ -699,82 +663,96 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
           {isType3 && (
             <>
               <div className="flex items-center justify-between pt-2 border-t border-white/[0.06]">
-                <span className="text-xs font-mono font-semibold uppercase text-zinc-300">
+                <label className="text-xs font-semibold text-zinc-300">
                   Select Options ({options.length}/25)
-                </span>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={options.length >= 25}
-                  leftIcon={<Plus size={13} />}
-                  onClick={handleAddOption}
-                >
-                  Add Option
-                </Button>
+                </label>
+                {options.length < 25 && (
+                  <button
+                    type="button"
+                    onClick={handleAddOption}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-apple-sm bg-white/[0.05] hover:bg-white/[0.1] text-[11px] font-medium text-zinc-200 transition-colors cursor-pointer"
+                  >
+                    <Plus size={12} />
+                    <span>Add Option</span>
+                  </button>
+                )}
               </div>
 
-              <div className="flex flex-col gap-2.5 max-h-64 overflow-y-auto pr-1">
+              <div className="flex flex-col gap-2.5 max-h-72 overflow-y-auto pr-1">
                 {options.map((opt, idx) => (
                   <div
                     key={`opt_${idx}`}
                     className="p-3 rounded-apple-md bg-black/40 border border-white/[0.08] flex flex-col gap-2.5"
                   >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                       <TextInput
                         label={`Option #${idx + 1} Label`}
                         value={opt.label}
                         onChange={(e) => handleUpdateOption(idx, { label: e.target.value })}
+                        placeholder="Option Label"
                       />
                       <TextInput
-                        label="Value / Action ID (rng_act_*)"
+                        label="Value / Action ID"
                         value={opt.value}
                         onChange={(e) => handleUpdateOption(idx, { value: e.target.value })}
+                        placeholder="opt_value or rng_act_..."
                       />
+                      <div>
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-xs font-semibold text-zinc-300">Emoji</label>
+                          <div className="flex items-center gap-2">
+                            {opt.emoji ? (
+                              <div className="flex-1 h-[38px] px-3 rounded-apple-md bg-[#0E0E12] border border-surface-border hover:border-white/20 transition-all flex items-center justify-between">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (onOpenEmojiPicker) {
+                                      onOpenEmojiPicker((token) => handleUpdateOption(idx, { emoji: token }));
+                                    }
+                                  }}
+                                  className="flex items-center flex-1 h-full cursor-pointer text-left overflow-hidden"
+                                  title="Change Emoji"
+                                  aria-label="Change Emoji"
+                                >
+                                  <DiscordEmoji emoji={opt.emoji} className="w-5 h-5 object-contain shrink-0" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateOption(idx, { emoji: undefined })}
+                                  className="text-zinc-500 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors shrink-0"
+                                  title="Clear Emoji"
+                                  aria-label="Clear Emoji"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            ) : (
+                              <TextInput
+                                value=""
+                                onChange={(e) => handleUpdateOption(idx, { emoji: e.target.value })}
+                                placeholder=""
+                                className="flex-1"
+                              />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (onOpenEmojiPicker) {
+                                  onOpenEmojiPicker((token) => handleUpdateOption(idx, { emoji: token }));
+                                }
+                              }}
+                              className="h-[38px] px-3 rounded-apple-md border flex items-center justify-center transition-all cursor-pointer bg-[#0E0E12] border-surface-border hover:border-white/20 text-zinc-300 hover:text-brand-red shrink-0"
+                              title="Pick Discord Emoji"
+                              aria-label="Pick Discord Emoji"
+                            >
+                              <Smile size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
-                    {actionOptions.filter((a) => a.value !== '').length > 0 && (
-                      <Dropdown
-                        label="Or Bind Option to Action Template"
-                        options={actionOptions}
-                        value={opt.value}
-                        onChange={(val) => handleUpdateOption(idx, { value: val })}
-                        placeholder="Select action template..."
-                      />
-                    )}
-
-                    {/* Quick Emoji Insertion Pills */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[10px] text-zinc-400 flex items-center gap-1">
-                        <Smile size={11} className="text-amber-400" /> Emoji:
-                      </span>
-                      {QUICK_EMOJIS.map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => handleUpdateOption(idx, { emoji })}
-                          className={`px-1.5 py-0.5 rounded text-xs transition-colors cursor-pointer ${
-                            opt.emoji === emoji
-                              ? 'bg-amber-400/20 border border-amber-400/40 text-amber-200'
-                              : 'bg-white/[0.04] hover:bg-white/[0.1] text-zinc-200'
-                          }`}
-                          title={`Set emoji ${emoji}`}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                      {opt.emoji && (
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateOption(idx, { emoji: undefined })}
-                          className="text-[10px] text-red-400 hover:underline ml-1 cursor-pointer"
-                        >
-                          Clear
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex items-end gap-2">
+                    <div className="flex items-center gap-2">
                       <div className="flex-1">
                         <TextInput
                           label="Description (Optional)"
@@ -782,6 +760,7 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
                           onChange={(e) =>
                             handleUpdateOption(idx, { description: e.target.value })
                           }
+                          placeholder="Brief option description..."
                         />
                       </div>
                       {options.length > 1 && (
@@ -789,12 +768,23 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
                           type="button"
                           onClick={() => handleRemoveOption(idx)}
                           aria-label={`Remove option ${idx + 1}`}
-                          className="p-2 mb-0.5 rounded text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                          className="p-2 mt-5 rounded text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer shrink-0"
+                          title="Delete Option"
                         >
                           <Trash2 size={14} />
                         </button>
                       )}
                     </div>
+
+                    {actionOptions.filter((a) => a.value !== '').length > 0 && (
+                      <Dropdown
+                        label="Or Bind Option to Action Template"
+                        options={actionOptions}
+                        value={actionOptions.some((optAction) => optAction.value === opt.value) ? opt.value : ''}
+                        onChange={(val) => handleUpdateOption(idx, { value: val })}
+                        placeholder="Select action template..."
+                      />
+                    )}
                   </div>
                 ))}
               </div>
@@ -808,8 +798,8 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
         <Modal
           isOpen={isButtonPickerOpen}
           onClose={() => setIsButtonPickerOpen(false)}
-          title="Select Button to Map as Invoker"
-          description="Click 1 button component from your message canvas below to bind it as the invoker for this String Select menu:"
+          title="Select Invoker Button"
+          description="Choose a button from your message canvas to trigger this menu."
           size="md"
           footer={
             <div className="flex items-center justify-end gap-2.5">

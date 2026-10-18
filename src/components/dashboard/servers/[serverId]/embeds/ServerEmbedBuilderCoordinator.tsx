@@ -503,6 +503,10 @@ export const ServerEmbedBuilderCoordinator: React.FC<
           selectMenu={editingSelectMenu.selectMenu}
           availableActions={actions}
           allContainers={state.type17Containers}
+          onOpenEmojiPicker={(cb) => {
+            setActiveEmojiCallback(() => cb);
+            setIsEmojiPickerOpen(true);
+          }}
           onClose={() => setEditingSelectMenu(null)}
           onSave={(updatedMenu) => {
             if (updatedMenu.id) {
