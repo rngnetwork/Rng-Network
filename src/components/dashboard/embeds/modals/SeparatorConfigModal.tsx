@@ -52,8 +52,8 @@ export const SeparatorConfigModal: React.FC<SeparatorConfigModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Separator Settings (Type 14 • Separator)"
-      description="Configure horizontal divider line rule or spacing gap between Discord message components."
+      title="Separator Settings"
+      description="Configure settings of Separator in the embedded message"
       size="md"
       footer={
         <div className="flex items-center justify-end gap-2.5">
@@ -89,42 +89,36 @@ export const SeparatorConfigModal: React.FC<SeparatorConfigModalProps> = ({
             <button
               type="button"
               onClick={() => setIsDivider(true)}
-              className={`p-3.5 rounded-apple-lg border text-left transition-all cursor-pointer ${
+              className={`p-3 rounded-apple-lg border text-left transition-all cursor-pointer ${
                 isDivider
                   ? 'bg-purple-500/15 border-purple-500/40 text-white shadow-apple-card'
                   : 'bg-white/[0.03] border-white/10 hover:border-white/20 text-zinc-400'
               }`}
             >
-              <div className="flex items-center gap-2 mb-1 font-semibold text-xs text-white">
+              <div className="flex items-center gap-2 font-semibold text-xs text-white">
                 <Minus size={14} className={isDivider ? 'text-purple-400' : 'text-zinc-500'} />
                 <span>Line Divider</span>
               </div>
-              <p className="text-[11px] text-zinc-400">
-                Renders a visible 1px horizontal rule
-              </p>
             </button>
 
             <button
               type="button"
               onClick={() => setIsDivider(false)}
-              className={`p-3.5 rounded-apple-lg border text-left transition-all cursor-pointer ${
+              className={`p-3 rounded-apple-lg border text-left transition-all cursor-pointer ${
                 !isDivider
                   ? 'bg-purple-500/15 border-purple-500/40 text-white shadow-apple-card'
                   : 'bg-white/[0.03] border-white/10 hover:border-white/20 text-zinc-400'
               }`}
             >
-              <div className="flex items-center gap-2 mb-1 font-semibold text-xs text-white">
+              <div className="flex items-center gap-2 font-semibold text-xs text-white">
                 <BoxSelect size={14} className={!isDivider ? 'text-purple-400' : 'text-zinc-500'} />
                 <span>Empty Space</span>
               </div>
-              <p className="text-[11px] text-zinc-400">
-                Invisible spacing gap between components
-              </p>
             </button>
           </div>
         </div>
 
-        {/* Spacing Interval: Small (1, 4px) vs Large (2, 20px) */}
+        {/* Spacing Interval: Small Spacing vs Large Spacing */}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-semibold text-zinc-300">
             Spacing Interval
@@ -133,37 +127,31 @@ export const SeparatorConfigModal: React.FC<SeparatorConfigModalProps> = ({
             <button
               type="button"
               onClick={() => setSpacing(1)}
-              className={`p-3.5 rounded-apple-lg border text-left transition-all cursor-pointer ${
+              className={`p-3 rounded-apple-lg border text-left transition-all cursor-pointer ${
                 spacing === 1
                   ? 'bg-brand-red/15 border-brand-red/40 text-white shadow-apple-card'
                   : 'bg-white/[0.03] border-white/10 hover:border-white/20 text-zinc-400'
               }`}
             >
-              <div className="flex items-center gap-2 mb-1 font-semibold text-xs text-white">
+              <div className="flex items-center gap-2 font-semibold text-xs text-white">
                 <Minimize2 size={14} className={spacing === 1 ? 'text-brand-red' : 'text-zinc-500'} />
                 <span>Small Spacing</span>
               </div>
-              <p className="text-[11px] text-zinc-400">
-                Spacing 1 (4px padding)
-              </p>
             </button>
 
             <button
               type="button"
               onClick={() => setSpacing(2)}
-              className={`p-3.5 rounded-apple-lg border text-left transition-all cursor-pointer ${
+              className={`p-3 rounded-apple-lg border text-left transition-all cursor-pointer ${
                 spacing === 2
                   ? 'bg-brand-red/15 border-brand-red/40 text-white shadow-apple-card'
                   : 'bg-white/[0.03] border-white/10 hover:border-white/20 text-zinc-400'
               }`}
             >
-              <div className="flex items-center gap-2 mb-1 font-semibold text-xs text-white">
+              <div className="flex items-center gap-2 font-semibold text-xs text-white">
                 <Maximize2 size={14} className={spacing === 2 ? 'text-brand-red' : 'text-zinc-500'} />
                 <span>Large Spacing</span>
               </div>
-              <p className="text-[11px] text-zinc-400">
-                Spacing 2 (20px padding)
-              </p>
             </button>
           </div>
         </div>
@@ -178,18 +166,16 @@ export const SeparatorConfigModal: React.FC<SeparatorConfigModalProps> = ({
               Content block above separator
             </div>
             {isDivider ? (
-              <div className={`w-full ${spacing === 2 ? 'py-4' : 'py-1.5'}`}>
-                <div className="h-px bg-white/20 w-full" />
+              <div className={`w-full flex items-center justify-center ${spacing === 2 ? 'py-4' : 'py-2'}`}>
+                <div className="w-full h-[1px] bg-white/20 rounded-full" />
               </div>
             ) : (
               <div
-                className={`w-full rounded border border-dashed border-white/20 bg-white/[0.02] flex items-center justify-center ${
-                  spacing === 2 ? 'h-7' : 'h-4'
-                }`}
+                className={`w-full rounded border border-dashed border-white/15 flex items-center justify-center text-[10px] text-zinc-400 font-mono select-none ${
+                  spacing === 2 ? 'h-10' : 'h-6'
+                } bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,rgba(255,255,255,0.04)_6px,rgba(255,255,255,0.04)_12px)]`}
               >
-                <span className="text-[10px] font-medium text-zinc-500 select-none">
-                  Empty Space ({spacing === 2 ? 'Large — 20px' : 'Small — 4px'})
-                </span>
+                {spacing === 2 ? 'Empty Space (Large — 20px)' : 'Empty Space (Small — 4px)'}
               </div>
             )}
             <div className="text-[11px] text-zinc-500 select-none">
