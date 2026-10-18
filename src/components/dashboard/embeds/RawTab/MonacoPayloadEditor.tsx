@@ -61,8 +61,8 @@ export const MonacoPayloadEditor: React.FC<MonacoPayloadEditorProps> = ({
   };
 
   return (
-    <div className="rounded-apple-xl bg-surface-card border border-white/[0.08] overflow-hidden flex flex-col">
-      <div className="px-4 py-2.5 border-b border-white/[0.08] flex items-center justify-end gap-2">
+    <div className="rounded-apple-xl bg-surface-card border border-white/[0.08] overflow-hidden flex flex-col h-full flex-1 min-h-0">
+      <div className="px-4 py-2.5 border-b border-white/[0.08] flex items-center justify-end gap-2 shrink-0">
 
         <div className="flex items-center gap-2">
           <Button
@@ -87,15 +87,15 @@ export const MonacoPayloadEditor: React.FC<MonacoPayloadEditorProps> = ({
       </div>
 
       {parseError && (
-        <div className="px-4 py-2.5 bg-red-500/10 border-b border-red-500/20 text-xs text-red-300 flex items-center gap-2">
+        <div className="px-4 py-2.5 bg-red-500/10 border-b border-red-500/20 text-xs text-red-300 flex items-center gap-2 shrink-0">
           <AlertCircle size={14} className="shrink-0" />
           <span>{parseError}</span>
         </div>
       )}
 
-      <div className="h-[500px] w-full bg-[#1E1E1E]">
+      <div className="flex-1 w-full bg-[#1E1E1E] min-h-[450px]">
         <Editor
-          height="500px"
+          height="100%"
           defaultLanguage="json"
           theme="vs-dark"
           value={jsonText}

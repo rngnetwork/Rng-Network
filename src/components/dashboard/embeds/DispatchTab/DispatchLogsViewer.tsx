@@ -24,7 +24,7 @@ export const DispatchLogsViewer: React.FC<DispatchLogsViewerProps> = ({
   onClear,
 }) => {
   return (
-    <div className="rounded-apple-xl bg-[#0c0d10] border border-white/10 flex flex-col shadow-2xl overflow-hidden font-mono">
+    <div className="rounded-apple-xl bg-[#0c0d10] border border-white/10 flex flex-col shadow-2xl overflow-hidden font-mono h-full flex-1 min-h-0">
       {/* macOS Terminal Titlebar */}
       <div className="h-9 px-3.5 bg-[#16181d] border-b border-white/[0.08] flex items-center justify-between select-none">
         <div className="flex items-center gap-2">
@@ -58,7 +58,7 @@ export const DispatchLogsViewer: React.FC<DispatchLogsViewerProps> = ({
       </div>
 
       {/* Terminal Content Body */}
-      <div className="p-4 max-h-[420px] min-h-[300px] overflow-y-auto text-[11px] leading-relaxed flex flex-col gap-3 text-zinc-300 [scrollbar-width:thin]">
+      <div className="p-4 flex-1 min-h-[300px] overflow-y-auto text-[11px] leading-relaxed flex flex-col gap-3 text-zinc-300 [scrollbar-width:thin]">
         {logs.length === 0 ? (
           <div className="py-12 flex flex-col items-center justify-center gap-2 text-zinc-600 select-none">
             <div className="flex items-center gap-2 text-zinc-500">

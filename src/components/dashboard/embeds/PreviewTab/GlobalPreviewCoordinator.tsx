@@ -15,11 +15,13 @@ export const GlobalPreviewCoordinator: React.FC<
   GlobalPreviewCoordinatorProps
 > = ({ messageContent, containers, channelName }) => {
   return (
-    <DiscordClientShellPreview channelName={channelName}>
-      <DiscordMessageCardPreview
-        messageContent={messageContent}
-        containers={containers}
-      />
-    </DiscordClientShellPreview>
+    <div className="w-full h-full flex-1 min-h-0 flex flex-col">
+      <DiscordClientShellPreview channelName={channelName}>
+        <DiscordMessageCardPreview
+          messageContent={messageContent}
+          containers={containers}
+        />
+      </DiscordClientShellPreview>
+    </div>
   );
 };

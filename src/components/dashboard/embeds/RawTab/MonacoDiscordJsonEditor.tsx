@@ -9,7 +9,7 @@ export const MonacoDiscordJsonEditor = dynamic<MonacoPayloadEditorProps>(
   {
     ssr: false,
     loading: () => (
-      <div className="h-[500px] w-full bg-zinc-900/80 animate-pulse rounded-apple-xl border border-white/[0.08]" />
+      <div className="h-full min-h-[500px] w-full bg-zinc-900/80 animate-pulse rounded-apple-xl border border-white/[0.08]" />
     ),
   }
 );

@@ -52,7 +52,7 @@ export const MessageBuilderWorkspace: React.FC<MessageBuilderWorkspaceProps> = (
       />
 
       {/* Tier 4: Builder Boxed Canvas (Standalone scrollable card with rounded corners: Scroll bar {yes}) */}
-      <div className="w-full flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 md:p-5 rounded-apple-2xl border border-white/10 bg-surface-card/60 shadow-apple-card builder-canvas-scroll focus:outline-none">
+      <div className="w-full flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 md:p-5 rounded-apple-2xl border border-white/10 bg-surface-card/60 shadow-apple-card builder-canvas-scroll focus:outline-none flex flex-col">
         {children}
       </div>
 

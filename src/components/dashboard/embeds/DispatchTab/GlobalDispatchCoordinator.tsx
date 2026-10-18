@@ -314,7 +314,7 @@ export const GlobalDispatchCoordinator: React.FC<
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex-1 min-h-0 flex flex-col gap-4">
       {statusMessage && (
         <Alert
           variant="success"
@@ -324,52 +324,54 @@ export const GlobalDispatchCoordinator: React.FC<
         />
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 flex-1 min-h-0 items-stretch">
         {/* Left Container: Target Destination + Scheduler + Dispatch Button */}
-        <div className="p-5 rounded-apple-xl bg-surface-card border border-white/10 flex flex-col gap-5 shadow-apple-card">
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2 pb-2 border-b border-white/[0.08]">
-              <Server size={16} className="text-brand-red" />
-              <h3 className="text-sm font-bold text-white">Target Discord Destination</h3>
-            </div>
+        <div className="p-5 rounded-apple-xl bg-surface-card border border-white/10 flex flex-col justify-between gap-5 shadow-apple-card h-full flex-1">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2 pb-2 border-b border-white/[0.08]">
+                <Server size={16} className="text-brand-red" />
+                <h3 className="text-sm font-bold text-white">Target Discord Destination</h3>
+              </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {!fixedServerId && (
-                <DispatchServerSelector
-                  servers={servers}
-                  selectedServerId={selectedServerId}
-                  onSelectServer={setSelectedServerId}
-                  loading={loadingServers}
-                />
-              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {!fixedServerId && (
+                  <DispatchServerSelector
+                    servers={servers}
+                    selectedServerId={selectedServerId}
+                    onSelectServer={setSelectedServerId}
+                    loading={loadingServers}
+                  />
+                )}
 
-              <div className={fixedServerId ? 'sm:col-span-2' : ''}>
-                <DispatchChannelSelector
-                  channels={channels}
-                  selectedChannelId={selectedChannelId}
-                  onSelectChannel={setSelectedChannelId}
-                  loading={loadingChannels}
-                  disabled={!selectedServerId}
-                />
+                <div className={fixedServerId ? 'sm:col-span-2' : ''}>
+                  <DispatchChannelSelector
+                    channels={channels}
+                    selectedChannelId={selectedChannelId}
+                    onSelectChannel={setSelectedChannelId}
+                    loading={loadingChannels}
+                    disabled={!selectedServerId}
+                  />
+                </div>
               </div>
             </div>
+
+            <div className="pt-2 border-t border-white/[0.06]">
+              <DispatchScheduleSettings
+                isScheduled={isScheduled}
+                onToggleScheduled={setIsScheduled}
+                selectedDate={selectedDate}
+                onChangeDate={setSelectedDate}
+                selectedTime={selectedTime}
+                onChangeTime={setSelectedTime}
+                selectedTimezone={selectedTimezone}
+                onChangeTimezone={setSelectedTimezone}
+                utcPreview={utcPreview}
+              />
+            </div>
           </div>
 
-          <div className="pt-2 border-t border-white/[0.06]">
-            <DispatchScheduleSettings
-              isScheduled={isScheduled}
-              onToggleScheduled={setIsScheduled}
-              selectedDate={selectedDate}
-              onChangeDate={setSelectedDate}
-              selectedTime={selectedTime}
-              onChangeTime={setSelectedTime}
-              selectedTimezone={selectedTimezone}
-              onChangeTimezone={setSelectedTimezone}
-              utcPreview={utcPreview}
-            />
-          </div>
-
-          <div className="pt-2 border-t border-white/[0.06] flex justify-end">
+          <div className="pt-3 border-t border-white/[0.06] flex justify-end">
             <Button
               type="button"
               variant="primary"
@@ -391,7 +393,7 @@ export const GlobalDispatchCoordinator: React.FC<
         </div>
 
         {/* Right Container: macOS Terminal Logs */}
-        <div className="flex flex-col">
+        <div className="flex flex-col h-full flex-1 min-h-0">
           <DispatchLogsViewer
             logs={dispatchLogs}
             onClear={() => setDispatchLogs([])}
