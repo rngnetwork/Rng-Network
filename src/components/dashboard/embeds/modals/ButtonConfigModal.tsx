@@ -231,11 +231,6 @@ export const ButtonConfigModal: React.FC<ButtonConfigModalProps> = ({
                       aria-label="Change Emoji"
                     >
                       <DiscordEmoji emoji={emojiText} className="w-5 h-5 object-contain shrink-0" />
-                      {emojiText.startsWith('<') && (
-                        <span className="text-[11px] text-zinc-400 font-mono truncate">
-                          {emojiText}
-                        </span>
-                      )}
                     </button>
                     <button
                       type="button"
