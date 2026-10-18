@@ -46,27 +46,101 @@ export const SectionConfigModal: React.FC<SectionConfigModalProps> = ({
   const [thumbnailUrl, setThumbnailUrl] = useState(initialUrl);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const historyRef = useRef<string[]>([initialText]);
+  const historyIndexRef = useRef<number>(0);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   if (section !== prevSection) {
     setPrevSection(section);
     setCustomId(section?.id || '');
     setText(initialText);
     setThumbnailUrl(initialUrl);
+    historyRef.current = [initialText];
+    historyIndexRef.current = 0;
   }
+
+  const pushHistory = (newVal: string) => {
+    const nextHistory = historyRef.current.slice(0, historyIndexRef.current + 1);
+    nextHistory.push(newVal);
+    if (nextHistory.length > 50) nextHistory.shift();
+    historyRef.current = nextHistory;
+    historyIndexRef.current = nextHistory.length - 1;
+  };
+
+  const updateTextWithHistory = (newVal: string) => {
+    if (newVal === text) return;
+    pushHistory(newVal);
+    setText(newVal);
+  };
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newVal = e.target.value;
+    setText(newVal);
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    typingTimeoutRef.current = setTimeout(() => {
+      pushHistory(newVal);
+    }, 350);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const isMac = typeof navigator !== 'undefined' && navigator.platform?.toUpperCase().indexOf('MAC') >= 0;
+    const cmdKey = isMac ? e.metaKey : e.ctrlKey;
+
+    if (cmdKey && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (historyIndexRef.current > 0) {
+        historyIndexRef.current -= 1;
+        const target = historyRef.current[historyIndexRef.current];
+        setText(target);
+      }
+    } else if (cmdKey && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (historyIndexRef.current < historyRef.current.length - 1) {
+        historyIndexRef.current += 1;
+        const target = historyRef.current[historyIndexRef.current];
+        setText(target);
+      }
+    }
+  };
 
   const handleApplyMarkdown = (prefix: string, suffix: string) => {
     const el = textareaRef.current;
     if (!el) {
-      setText((prev) => `${prev}${prefix}${suffix}`);
+      updateTextWithHistory(`${text}${prefix}${suffix}`);
       return;
     }
     const start = el.selectionStart;
     const end = el.selectionEnd;
     const selected = text.slice(start, end);
-    const newText = text.slice(0, start) + prefix + selected + suffix + text.slice(end);
-    setText(newText);
+
+    let replacement = '';
+    if (prefix === '> ') {
+      if (selected.length === 0) {
+        replacement = '> ';
+      } else {
+        const lines = selected.split(/\r?\n/);
+        replacement = lines
+          .map((line) => (line.startsWith('> ') ? line : `> ${line}`))
+          .join('\n');
+      }
+    } else {
+      replacement = prefix + selected + suffix;
+    }
+
+    const newText = text.slice(0, start) + replacement + text.slice(end);
+    updateTextWithHistory(newText);
     setTimeout(() => {
       el.focus();
-      el.setSelectionRange(start + prefix.length, end + prefix.length);
+      if (start === end) {
+        el.setSelectionRange(start + replacement.length, start + replacement.length);
+      } else {
+        el.setSelectionRange(start, start + replacement.length);
+      }
     }, 0);
   };
 
@@ -146,7 +220,8 @@ export const SectionConfigModal: React.FC<SectionConfigModalProps> = ({
             ref={textareaRef}
             value={text}
             rows={4}
-            onChange={(e) => setText(e.target.value)}
+            onChange={handleTextChange}
+            onKeyDown={handleKeyDown}
             placeholder="Enter markdown content for this section..."
             className="w-full px-3.5 py-2.5 rounded-apple-md bg-[#0E0E12] border border-surface-border hover:border-white/20 focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 text-xs sm:text-sm text-white font-sans outline-none transition-all resize-y leading-relaxed"
           />

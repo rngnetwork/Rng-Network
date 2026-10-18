@@ -188,8 +188,11 @@ export function useEmbedHistory({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeEl = document.activeElement;
-      const isInsideModal = Boolean(activeEl?.closest?.('[role="dialog"]'));
-      if (isInsideModal) return;
+      const isModalOpen = Boolean(
+        activeEl?.closest?.('[role="dialog"]') ||
+        document.querySelector('[role="dialog"]')
+      );
+      if (isModalOpen) return;
 
       const isMac = typeof navigator !== 'undefined' && navigator.platform?.toUpperCase().indexOf('MAC') >= 0;
       const cmdKey = isMac ? e.metaKey : e.ctrlKey;
