@@ -226,6 +226,11 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
     ];
   }, [availableActions, actionUsages, selectMenu]);
 
+  const hasActionTemplates = useMemo(
+    () => actionOptions.some((a) => a.value !== ''),
+    [actionOptions]
+  );
+
   const handleUpdateOption = (idx: number, updates: Partial<DiscordSelectOption>) => {
     setOptions((prev) => prev.map((opt, i) => (i === idx ? { ...opt, ...updates } : opt)));
   };
@@ -582,15 +587,23 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
           {/* Action Invoker Button Binding for String Select */}
           {isType3 && (
             <div className="p-3.5 rounded-apple-lg bg-surface-card border border-white/10 flex flex-col gap-2.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <MousePointerClick size={15} className="text-amber-400" />
-                  <span className="text-xs font-semibold text-white">
-                    Action Invoker Button Binding
-                  </span>
-                </div>
-                {mappedButton && (
-                  <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
+                <MousePointerClick size={14} className="text-amber-400" />
+                <span className="text-xs font-semibold text-white">
+                  Action Invoker Button Binding
+                </span>
+              </div>
+
+              {mappedButton ? (
+                <div className="p-2.5 rounded-apple-md bg-white/[0.03] border border-white/10 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="text-sm shrink-0">🔘</span>
+                    <span className="text-xs font-medium text-white truncate">
+                      {mappedButton.button.label || 'Action Button'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       type="button"
                       onClick={() => {
@@ -599,7 +612,7 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
                       }}
                       className="px-2.5 py-1 rounded-apple-sm text-[11px] font-medium bg-white/[0.08] hover:bg-white/[0.14] text-white transition-colors cursor-pointer"
                     >
-                      Change Button
+                      Change
                     </button>
                     <button
                       type="button"
@@ -610,37 +623,9 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
                       <span>Unlink</span>
                     </button>
                   </div>
-                )}
-              </div>
-
-              {mappedButton ? (
-                <div className="p-2.5 rounded-apple-md bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-7 h-7 rounded bg-black/60 border border-white/10 flex items-center justify-center text-sm shrink-0">
-                      🔘
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-white truncate">
-                          {mappedButton.button.label || 'Action Button'}
-                        </span>
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                          Invoker Button
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-mono text-zinc-400 truncate">
-                        Container {mappedButton.cIdx + 1} • Button #{mappedButton.btnIdx + 1} • ID: {mappedButton.button.custom_id || mappedButton.button.id}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1 text-[11px] text-emerald-400 font-medium shrink-0 ml-2">
-                    <Check size={13} />
-                    <span>Active Mapping</span>
-                  </div>
                 </div>
               ) : (
-                <div className="p-3 rounded-apple-md bg-white/[0.02] border border-dashed border-white/10 flex items-center justify-between gap-3">
+                <div className="p-2.5 rounded-apple-md bg-white/[0.02] border border-dashed border-white/10 flex items-center justify-between gap-3">
                   <span className="text-xs text-zinc-400">No button currently mapped as invoker.</span>
                   <Button
                     type="button"
@@ -776,15 +761,18 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
                       )}
                     </div>
 
-                    {actionOptions.filter((a) => a.value !== '').length > 0 && (
-                      <Dropdown
-                        label="Or Bind Option to Action Template"
-                        options={actionOptions}
-                        value={actionOptions.some((optAction) => optAction.value === opt.value) ? opt.value : ''}
-                        onChange={(val) => handleUpdateOption(idx, { value: val })}
-                        placeholder="Select action template..."
-                      />
-                    )}
+                    <Dropdown
+                      label="Bind Option to Action Template"
+                      options={hasActionTemplates ? actionOptions : []}
+                      value={hasActionTemplates && actionOptions.some((optAction) => optAction.value === opt.value) ? opt.value : ''}
+                      onChange={(val) => handleUpdateOption(idx, { value: val })}
+                      placeholder={
+                        hasActionTemplates
+                          ? 'Select action template...'
+                          : 'No action templates found (create in Action Templates tab)'
+                      }
+                      disabled={!hasActionTemplates}
+                    />
                   </div>
                 ))}
               </div>

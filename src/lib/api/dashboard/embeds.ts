@@ -345,13 +345,29 @@ export async function getActionTemplate(
 
 export async function createActionTemplate(
   payload: CreateActionPayload,
-  serverIdOrSlug?: string,
+  tokenOrServerId?: string,
   token?: string
 ): Promise<ApiResponse<EmbedAction>> {
-  const endpoint = serverIdOrSlug
-    ? `/servers/${encodeURIComponent(serverIdOrSlug)}/actions`
+  let actualServerId: string | undefined = undefined;
+  let actualToken = token;
+  if (token === undefined) {
+    actualToken = tokenOrServerId;
+  } else {
+    actualServerId = tokenOrServerId;
+  }
+
+  if (
+    actualServerId &&
+    (actualServerId.startsWith('eyJ') || actualServerId.split('.').length === 3)
+  ) {
+    actualToken = actualServerId;
+    actualServerId = undefined;
+  }
+
+  const endpoint = actualServerId
+    ? `/servers/${encodeURIComponent(actualServerId)}/actions`
     : '/embeds/actions';
-  return httpClient.post<EmbedAction>(endpoint, payload, withTokenConfig(token));
+  return httpClient.post<EmbedAction>(endpoint, payload, withTokenConfig(actualToken));
 }
 
 export async function createAction(

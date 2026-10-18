@@ -96,7 +96,7 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
         : undefined;
 
     try {
-      const res = await createActionTemplate(payload, token);
+      const res = await createActionTemplate(payload, serverId, token);
       if (res.success) {
         toast({
           type: 'success',

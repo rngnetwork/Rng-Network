@@ -1,14 +1,16 @@
 'use client';
 
-import React from 'react';
-import { Plus, Settings2, ChevronDown } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, ChevronDown, Check } from 'lucide-react';
 import {
   ComponentType,
   type DiscordActionRowComponent,
   type DiscordButtonComponent,
   type DiscordSelectComponent,
+  type DiscordStringSelectComponent,
   type DiscordActionRowChild,
 } from '@/lib/model/embed';
+import { DiscordEmoji } from '../emoji/DiscordEmojiRenderer';
 import { ButtonComponentNode } from './ButtonComponentNode';
 
 export interface ActionRowGroupProps {
@@ -25,11 +27,12 @@ const ActionRowGroupInner: React.FC<ActionRowGroupProps> = ({
   row,
   onAddButtonToRow,
   onEditButton,
-  onEditSelectMenu,
   onRemoveChild,
-  onRemoveRow,
   onUpdateRowComponents,
 }) => {
+  const [expandedMenuId, setExpandedMenuId] = useState<string | null>(null);
+  const [selectedOptionByMenuId, setSelectedOptionByMenuId] = useState<Record<string, string>>({});
+
   const buttons = row.components.filter(
     (c): c is DiscordButtonComponent => c.type === ComponentType.BUTTON
   );
@@ -111,32 +114,113 @@ const ActionRowGroupInner: React.FC<ActionRowGroupProps> = ({
         </div>
       )}
 
-      {selectMenus.map((sel, idx) => (
-        <div
-          key={sel.id || `sel_${idx}`}
-          onClick={() => onEditSelectMenu(sel)}
-          className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-apple-md bg-[#111214] border border-white/[0.08] hover:border-white/20 transition-all cursor-pointer group select-none"
-        >
-          <span className="text-xs text-zinc-400 font-medium truncate">
-            {sel.placeholder || 'Select an option...'}
-          </span>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEditSelectMenu(sel);
-              }}
-              title="Configure Select Menu"
-              aria-label="Configure Select Menu"
-              className="p-1 rounded text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+      {selectMenus.map((sel, idx) => {
+        const menuKey = sel.id || `sel_${idx}`;
+        const isExpanded = expandedMenuId === menuKey;
+        const selectedValue = selectedOptionByMenuId[menuKey];
+        const isType3 = sel.type === ComponentType.STRING_SELECT;
+        const stringOptions = isType3
+          ? (sel as DiscordStringSelectComponent).options || []
+          : [];
+
+        const selectedOpt = isType3
+          ? stringOptions.find(
+              (o) => o.value === selectedValue || (!selectedValue && o.default)
+            )
+          : undefined;
+
+        return (
+          <div key={menuKey} className="flex flex-col">
+            <div
+              onClick={() => setExpandedMenuId((prev) => (prev === menuKey ? null : menuKey))}
+              className={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-apple-md bg-[#111214] border transition-all cursor-pointer group select-none ${
+                isExpanded ? 'border-white/30 ring-1 ring-white/10' : 'border-white/[0.08] hover:border-white/20'
+              }`}
             >
-              <Settings2 size={13} />
-            </button>
-            <ChevronDown size={14} className="text-zinc-500 group-hover:text-zinc-300 transition-colors" />
+              <div className="flex items-center gap-2 min-w-0">
+                {selectedOpt?.emoji && (
+                  <DiscordEmoji emoji={selectedOpt.emoji} className="w-4 h-4 object-contain shrink-0" />
+                )}
+                <span
+                  className={`text-xs font-medium truncate ${
+                    selectedOpt ? 'text-white' : 'text-zinc-400'
+                  }`}
+                >
+                  {selectedOpt?.label || sel.placeholder || 'Select an option...'}
+                </span>
+              </div>
+              <ChevronDown
+                size={14}
+                className={`text-zinc-500 group-hover:text-zinc-300 transition-transform duration-200 shrink-0 ${
+                  isExpanded ? 'rotate-180 text-white' : ''
+                }`}
+              />
+            </div>
+
+            {isExpanded && (
+              <div className="mt-1.5 p-1 rounded-apple-md bg-[#111214] border border-white/10 shadow-xl flex flex-col gap-0.5 z-10 animate-in fade-in-50 zoom-in-95 duration-100">
+                {isType3 ? (
+                  stringOptions.length > 0 ? (
+                    stringOptions.map((opt, optIdx) => {
+                      const isSelected =
+                        selectedValue === opt.value || (!selectedValue && Boolean(opt.default));
+                      return (
+                        <div
+                          key={opt.value || optIdx}
+                          onClick={() => {
+                            setSelectedOptionByMenuId((prev) => ({
+                              ...prev,
+                              [menuKey]: opt.value,
+                            }));
+                            setExpandedMenuId(null);
+                          }}
+                          className={`flex items-start justify-between gap-2.5 px-3 py-2 rounded-apple-sm transition-colors cursor-pointer ${
+                            isSelected
+                              ? 'bg-white/10 text-white'
+                              : 'hover:bg-white/[0.06] text-zinc-300'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2.5 min-w-0">
+                            {opt.emoji && (
+                              <div className="pt-0.5 shrink-0">
+                                <DiscordEmoji
+                                  emoji={opt.emoji}
+                                  className="w-4 h-4 object-contain"
+                                />
+                              </div>
+                            )}
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-xs font-medium text-white truncate">
+                                {opt.label || opt.value}
+                              </span>
+                              {opt.description && (
+                                <span className="text-[11px] text-zinc-400 line-clamp-1">
+                                  {opt.description}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <Check size={14} className="text-brand-red shrink-0 mt-0.5" />
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="px-3 py-2.5 text-center text-xs text-zinc-500">
+                      No options configured. Click the settings gear in header to add options.
+                    </div>
+                  )
+                ) : (
+                  <div className="px-3 py-2.5 text-center text-xs text-zinc-400">
+                    Discord resolves live server selections at interaction time.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };

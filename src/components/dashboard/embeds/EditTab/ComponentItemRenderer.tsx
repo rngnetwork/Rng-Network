@@ -104,11 +104,24 @@ export const ComponentItemRenderer: React.FC<ComponentItemRendererProps> = ({
     comp.type === ComponentType.MENTIONABLE_SELECT ||
     comp.type === ComponentType.CHANNEL_SELECT;
 
+  const childSelectMenu =
+    comp.type === ComponentType.ACTION_ROW && 'components' in comp
+      ? (comp as DiscordActionRowComponent).components?.find(
+          (c) =>
+            c.type === ComponentType.STRING_SELECT ||
+            c.type === ComponentType.USER_SELECT ||
+            c.type === ComponentType.ROLE_SELECT ||
+            c.type === ComponentType.MENTIONABLE_SELECT ||
+            c.type === ComponentType.CHANNEL_SELECT
+        ) as DiscordSelectComponent | undefined
+      : undefined;
+
   const hasSettings =
     comp.type === ComponentType.SECTION ||
     comp.type === ComponentType.SEPARATOR ||
     comp.type === ComponentType.MEDIA_GALLERY ||
-    isSelectMenu;
+    isSelectMenu ||
+    Boolean(childSelectMenu);
 
   const handleOpenSettings = () => {
     if (comp.type === ComponentType.SECTION) {
@@ -119,6 +132,8 @@ export const ComponentItemRenderer: React.FC<ComponentItemRendererProps> = ({
       setIsMediaGalleryModalOpen(true);
     } else if (isSelectMenu) {
       onEditSelectMenu(comp as DiscordSelectComponent);
+    } else if (childSelectMenu) {
+      onEditSelectMenu(childSelectMenu);
     }
   };
 
