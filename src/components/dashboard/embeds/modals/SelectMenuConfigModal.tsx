@@ -110,35 +110,41 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
     const usages = new Map<string, { userSelect?: string; roleSelect?: string; button?: string; buttonLabel?: string }>();
     allContainers.forEach((c) => {
       (c.components || []).forEach((inner) => {
-        const compRec = inner as unknown as Record<string, unknown>;
-        const t = Number(compRec.type);
-        const cid = String(compRec.custom_id || '');
-
-        if (t === ComponentType.USER_SELECT) {
-          const aId = cid.startsWith('rng_sel_user_') ? cid.replace('rng_sel_user_', '') : undefined;
-          if (aId) {
-            const entry = usages.get(aId) || {};
-            entry.userSelect = String(compRec.id || cid);
-            usages.set(aId, entry);
-          }
-        } else if (t === ComponentType.ROLE_SELECT) {
-          const aId = cid.startsWith('rng_sel_role_') ? cid.replace('rng_sel_role_', '') : undefined;
-          if (aId) {
-            const entry = usages.get(aId) || {};
-            entry.roleSelect = String(compRec.id || cid);
-            usages.set(aId, entry);
-          }
-        } else if (t === ComponentType.ACTION_ROW) {
-          const row = inner as DiscordActionRowComponent;
-          row.components.forEach((child) => {
-            if (child.type === ComponentType.BUTTON && child.custom_id?.startsWith('rng_act_')) {
-              const entry = usages.get(child.custom_id) || {};
-              entry.button = child.id || child.custom_id;
-              entry.buttonLabel = child.label || 'Action Button';
-              usages.set(child.custom_id, entry);
-            }
-          });
+        const items: Array<unknown> = [inner];
+        if (
+          inner.type === ComponentType.ACTION_ROW &&
+          'components' in inner &&
+          Array.isArray((inner as DiscordActionRowComponent).components)
+        ) {
+          items.push(...(inner as DiscordActionRowComponent).components);
         }
+
+        items.forEach((item) => {
+          const compRec = item as unknown as Record<string, unknown>;
+          const t = Number(compRec.type);
+          const cid = String(compRec.custom_id || '');
+
+          if (t === ComponentType.USER_SELECT) {
+            const aId = cid.startsWith('rng_sel_user_') ? cid.replace('rng_sel_user_', '') : undefined;
+            if (aId) {
+              const entry = usages.get(aId) || {};
+              entry.userSelect = String(compRec.id || cid);
+              usages.set(aId, entry);
+            }
+          } else if (t === ComponentType.ROLE_SELECT) {
+            const aId = cid.startsWith('rng_sel_role_') ? cid.replace('rng_sel_role_', '') : undefined;
+            if (aId) {
+              const entry = usages.get(aId) || {};
+              entry.roleSelect = String(compRec.id || cid);
+              usages.set(aId, entry);
+            }
+          } else if (t === ComponentType.BUTTON && cid.startsWith('rng_act_')) {
+            const entry = usages.get(cid) || {};
+            entry.button = String(compRec.id || cid);
+            entry.buttonLabel = String(compRec.label || 'Action Button');
+            usages.set(cid, entry);
+          }
+        });
       });
     });
     return usages;
@@ -425,17 +431,17 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
           {isEntitySelect && (
             <div className="p-3.5 rounded-apple-lg bg-surface-card border border-white/10 flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white flex items-center gap-2">
-                  <Layers size={14} className="text-emerald-400" />
+                <span className="text-xs font-semibold text-white flex items-center gap-2">
+                  <Layers size={14} className="text-zinc-400" />
                   Action Registry Template Binding
                 </span>
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => setActionSourceMode('template')}
-                    className={`px-2.5 py-1 rounded-apple-sm text-xs font-semibold transition-colors cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-apple-sm text-xs font-medium transition-colors cursor-pointer ${
                       actionSourceMode === 'template'
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        ? 'bg-white/15 text-white border border-white/20'
                         : 'text-zinc-400 hover:text-white'
                     }`}
                   >
@@ -444,7 +450,7 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setActionSourceMode('custom')}
-                    className={`px-2.5 py-1 rounded-apple-sm text-xs font-semibold transition-colors cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-apple-sm text-xs font-medium transition-colors cursor-pointer ${
                       actionSourceMode === 'custom'
                         ? 'bg-white/15 text-white border border-white/20'
                         : 'text-zinc-400 hover:text-white'
@@ -467,25 +473,25 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
 
                   {/* 3-Way Action Binding Status Widget */}
                   {selectedActionId && (
-                    <div className="p-3 rounded-apple-md bg-emerald-500/10 border border-emerald-500/25 flex flex-col gap-2">
+                    <div className="p-3 rounded-apple-md bg-white/[0.02] border border-white/[0.08] flex flex-col gap-2.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
-                          ✓ 3-Way Action Binding Status
+                        <span className="text-xs font-semibold text-zinc-300">
+                          Action Binding Status
                         </span>
-                        <span className="text-[10px] text-zinc-400 font-mono">
+                        <span className="text-[10px] text-zinc-500 font-mono">
                           1 User • 1 Role • 1 Button
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-2 text-[11px] pt-1">
-                        <div className="p-2 rounded bg-black/40 border border-white/5 space-y-1">
-                          <div className="text-zinc-400 text-[10px]">User Select</div>
+                      <div className="grid grid-cols-3 gap-2 text-[11px]">
+                        <div className="p-2.5 rounded-apple-sm bg-black/30 border border-white/[0.06] flex flex-col gap-1">
+                          <div className="text-zinc-500 text-[10px] uppercase tracking-wider font-semibold">User Select</div>
                           <div
                             className={
                               selectMenu?.type === ComponentType.USER_SELECT ||
                               currentActionUsage?.userSelect
-                                ? 'text-emerald-400 font-semibold'
-                                : 'text-zinc-500'
+                                ? 'text-xs font-medium text-white'
+                                : 'text-xs text-zinc-600'
                             }
                           >
                             {selectMenu?.type === ComponentType.USER_SELECT
@@ -496,14 +502,14 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
                           </div>
                         </div>
 
-                        <div className="p-2 rounded bg-black/40 border border-white/5 space-y-1">
-                          <div className="text-zinc-400 text-[10px]">Role Select</div>
+                        <div className="p-2.5 rounded-apple-sm bg-black/30 border border-white/[0.06] flex flex-col gap-1">
+                          <div className="text-zinc-500 text-[10px] uppercase tracking-wider font-semibold">Role Select</div>
                           <div
                             className={
                               selectMenu?.type === ComponentType.ROLE_SELECT ||
                               currentActionUsage?.roleSelect
-                                ? 'text-emerald-400 font-semibold'
-                                : 'text-zinc-500'
+                                ? 'text-xs font-medium text-white'
+                                : 'text-xs text-zinc-600'
                             }
                           >
                             {selectMenu?.type === ComponentType.ROLE_SELECT
@@ -514,13 +520,13 @@ export const SelectMenuConfigModal: React.FC<SelectMenuConfigModalProps> = ({
                           </div>
                         </div>
 
-                        <div className="p-2 rounded bg-black/40 border border-white/5 space-y-1">
-                          <div className="text-zinc-400 text-[10px]">Action Button</div>
+                        <div className="p-2.5 rounded-apple-sm bg-black/30 border border-white/[0.06] flex flex-col gap-1">
+                          <div className="text-zinc-500 text-[10px] uppercase tracking-wider font-semibold">Action Button</div>
                           <div
                             className={
                               currentActionUsage?.button
-                                ? 'text-emerald-400 font-semibold'
-                                : 'text-amber-400 font-semibold'
+                                ? 'text-xs font-medium text-white truncate'
+                                : 'text-xs text-zinc-600'
                             }
                           >
                             {currentActionUsage?.button
