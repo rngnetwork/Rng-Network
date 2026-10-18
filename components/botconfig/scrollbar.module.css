@@ -1,0 +1,33 @@
+/* Scoped Red Scrollbar Module for Bot Modules */
+.redScrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #E11D2E rgba(255, 255, 255, 0.04);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.redScrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.redScrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 9999px;
+}
+
+.redScrollbar::-webkit-scrollbar-thumb {
+  background: #E11D2E;
+  border-radius: 9999px;
+  box-shadow: 0 0 10px rgba(225, 29, 46, 0.7);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.redScrollbar::-webkit-scrollbar-thumb:hover {
+  background: #FF3B4D;
+  box-shadow: 0 0 16px rgba(255, 59, 77, 0.95);
+}
+
+.redScrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}

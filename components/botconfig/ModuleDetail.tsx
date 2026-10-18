@@ -22,6 +22,7 @@ import {
 import { BotModule, DiscordChannelOption, DiscordRoleOption } from './types';
 import { SubmoduleAccordion } from './SubmoduleAccordion';
 import { Toggle } from '@/components/ui/Toggle';
+import { CustomScrollbar } from './CustomScrollbar';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   ShieldAlert,
@@ -89,18 +90,18 @@ export function ModuleDetail({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 10 }}
-      transition={{ duration: 0.2 }}
-      className="flex flex-col gap-6 md:gap-8 w-full"
+      exit={{ opacity: 0, y: 6 }}
+      transition={{ duration: 0.18 }}
+      className="flex flex-col gap-6 md:gap-7 w-full transform-gpu"
     >
-      {/* Back button and quick actions */}
+      {/* Top sticky-friendly action bar: Back button and expand/collapse */}
       <div className="flex items-center justify-between gap-4">
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs md:text-sm font-semibold text-zinc-300 hover:text-white transition-all group"
+          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs md:text-sm font-semibold text-zinc-300 hover:text-white transition-colors group cursor-pointer"
         >
           <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform text-red-400" />
           <span>Back to Modules</span>
@@ -110,7 +111,7 @@ export function ModuleDetail({
           <button
             type="button"
             onClick={handleExpandAll}
-            className="px-3 py-1.5 rounded-xl bg-black/40 hover:bg-white/5 border border-white/10 text-[11px] font-mono text-zinc-400 hover:text-white transition-all flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-xl bg-[#0d0e12] hover:bg-white/5 border border-white/10 text-[11px] font-mono text-zinc-400 hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
           >
             <ChevronsUpDown size={13} />
             <span>Expand All</span>
@@ -118,20 +119,17 @@ export function ModuleDetail({
           <button
             type="button"
             onClick={handleCollapseAll}
-            className="px-3 py-1.5 rounded-xl bg-black/40 hover:bg-white/5 border border-white/10 text-[11px] font-mono text-zinc-400 hover:text-white transition-all"
+            className="px-3 py-1.5 rounded-xl bg-[#0d0e12] hover:bg-white/5 border border-white/10 text-[11px] font-mono text-zinc-400 hover:text-white transition-colors cursor-pointer"
           >
             Collapse All
           </button>
         </div>
       </div>
 
-      {/* Module Workspace Header Banner */}
-      <div className="p-6 md:p-8 rounded-3xl bg-black/40 border border-white/10 relative overflow-hidden backdrop-blur-xl flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-[0_10px_35px_rgba(0,0,0,0.5)]">
-        {/* Glow Accent in corner */}
-        <div className="absolute top-0 right-0 w-80 h-80 bg-red-600/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
-
+      {/* Module Workspace Header Banner with Optimized Background */}
+      <div className="p-6 md:p-8 rounded-3xl bg-gradient-to-br from-[#121318] via-[#0d0e12] to-[#0a0a0d] border border-white/10 relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl">
         <div className="flex items-start md:items-center gap-4 md:gap-5 min-w-0 relative z-10">
-          <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-red-500/15 border border-red-500/35 flex items-center justify-center text-red-400 shrink-0 shadow-[0_0_25px_rgba(225,29,46,0.35)]">
+          <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-red-500/15 border border-red-500/35 flex items-center justify-center text-red-400 shrink-0 shadow-[0_0_18px_rgba(225,29,46,0.3)]">
             <IconComp size={30} />
           </div>
 
@@ -171,15 +169,15 @@ export function ModuleDetail({
         </div>
       </div>
 
-      {/* Accordion Stack of Submodules */}
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
+      {/* Accordion Stack of Submodules wrapped in CustomScrollbar */}
+      <div className="flex flex-col gap-3.5">
+        <div className="flex items-center justify-between pb-1">
           <h3 className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-400">
             Submodules & Config Drawers ({module.submodules.length})
           </h3>
         </div>
 
-        <div className="flex flex-col gap-3.5">
+        <CustomScrollbar className="flex flex-col gap-3.5 pr-1 md:pr-2 pb-10">
           {module.submodules.map((submodule) => (
             <SubmoduleAccordion
               key={submodule.id}
@@ -193,7 +191,7 @@ export function ModuleDetail({
               disabled={!module.enabled}
             />
           ))}
-        </div>
+        </CustomScrollbar>
       </div>
     </motion.div>
   );

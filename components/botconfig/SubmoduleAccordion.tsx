@@ -36,10 +36,10 @@ export function SubmoduleAccordion({
 
   return (
     <div
-      className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+      className={`rounded-2xl border transition-[border-color,box-shadow,background-color] duration-150 transform-gpu ${
         isOpen
-          ? 'bg-black/50 border-red-500/40 shadow-[0_0_25px_rgba(225,29,46,0.18)]'
-          : 'bg-black/30 border-white/10 hover:border-white/20'
+          ? 'bg-[#0e0f13] border-red-500/40 shadow-[0_0_18px_rgba(225,29,46,0.14)]'
+          : 'bg-[#0a0a0d] border-white/10 hover:border-white/20'
       }`}
     >
       {/* Header Bar */}
@@ -49,9 +49,9 @@ export function SubmoduleAccordion({
       >
         <div className="flex items-center gap-3.5 min-w-0">
           <div
-            className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-all ${
+            className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-transform duration-150 ${
               submodule.enabled
-                ? 'bg-red-500/15 border-red-500/30 text-red-400 shadow-[0_0_12px_rgba(225,29,46,0.25)]'
+                ? 'bg-red-500/15 border-red-500/30 text-red-400 shadow-[0_0_10px_rgba(225,29,46,0.2)]'
                 : 'bg-zinc-900 border-white/5 text-zinc-500'
             }`}
           >
@@ -98,7 +98,7 @@ export function SubmoduleAccordion({
           <button
             type="button"
             onClick={onToggleOpen}
-            className={`p-1.5 rounded-xl hover:bg-white/10 text-zinc-400 hover:text-white transition-all ${
+            className={`p-1.5 rounded-xl hover:bg-white/10 text-zinc-400 hover:text-white transition-transform duration-200 cursor-pointer ${
               isOpen ? 'rotate-180 text-red-400' : ''
             }`}
             aria-label={isOpen ? 'Collapse section' : 'Expand section'}
@@ -108,7 +108,7 @@ export function SubmoduleAccordion({
         </div>
       </div>
 
-      {/* Accordion Content Drawer */}
+      {/* Accordion Content Drawer with smooth touch scrolling */}
       <AnimatePresence initial={false}>
         {isOpen && (
           <motion.div
@@ -116,10 +116,10 @@ export function SubmoduleAccordion({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.22, ease: 'easeInOut' }}
-            className="overflow-hidden"
+            transition={{ duration: 0.18, ease: 'easeInOut' }}
+            className="overflow-hidden touch-pan-y"
           >
-            <div className="p-5 md:p-6 border-t border-white/10 bg-black/30 flex flex-col gap-5">
+            <div className="p-5 md:p-6 border-t border-white/10 bg-[#07080a] flex flex-col gap-5 touch-pan-y">
               {!submodule.enabled && (
                 <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs flex items-center gap-2">
                   <span>This submodule is currently inactive. Toggle it on to activate its rules on your server.</span>
@@ -127,7 +127,7 @@ export function SubmoduleAccordion({
               )}
 
               <div
-                className={`flex flex-col gap-5 transition-opacity ${
+                className={`flex flex-col gap-5 transition-opacity duration-150 touch-pan-y ${
                   submodule.enabled ? 'opacity-100' : 'opacity-50 pointer-events-none'
                 }`}
               >
