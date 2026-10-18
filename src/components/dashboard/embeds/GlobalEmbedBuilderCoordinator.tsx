@@ -29,12 +29,14 @@ import { PaletteModal } from './modals/PaletteModal';
 import { ButtonConfigModal } from './modals/ButtonConfigModal';
 import { SelectMenuConfigModal } from './modals/SelectMenuConfigModal';
 import { SaveTemplateModal } from './modals/SaveTemplateModal';
+import { EditTemplateModal } from './modals/EditTemplateModal';
 import { LoadPresetModal } from './modals/LoadPresetModal';
 import { DiscordBotEmojiPicker } from './emoji/DiscordBotEmojiPicker';
 import { Modal } from '@/components/common/feedback/Modal';
 import {
   fetchGlobalTemplates,
   createTemplate,
+  updateTemplate,
   deleteTemplate,
   fetchActionTemplates,
 } from '@/lib/api/dashboard/embeds';
@@ -60,6 +62,7 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isLoadPresetOpen, setIsLoadPresetOpen] = useState(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<TemplateData | null>(null);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [activeEmojiCallback, setActiveEmojiCallback] = useState<((token: string) => void) | null>(null);
   const [targetPaletteContainerIdx, setTargetPaletteContainerIdx] = useState(0);
@@ -307,6 +310,144 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
     }
   };
 
+  const handleUpdateTemplate = async (
+    templateId: string,
+    updates: {
+      name: string;
+      description: string;
+      category: string;
+      tags: string[];
+      isPublic: boolean;
+      overwriteWithCanvas: boolean;
+    }
+  ) => {
+    const token =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('rng_access_token') ||
+          localStorage.getItem('accessToken') ||
+          undefined
+        : undefined;
+
+    try {
+      const existing = templates.find((t) => t.id === templateId);
+      const targetPayload = updates.overwriteWithCanvas
+        ? (validationReport.compiledPayload as unknown as Record<string, unknown>)
+        : (existing?.payload || existing?.payloadJson || {});
+
+      const res = await updateTemplate(
+        templateId,
+        {
+          name: updates.name,
+          description: updates.description,
+          category: updates.category,
+          tags: updates.tags,
+          isPublic: updates.isPublic,
+          payload: targetPayload,
+        },
+        token
+      );
+
+      if (res.success && res.data) {
+        toast({
+          type: 'success',
+          title: 'Template Updated',
+          description: `"${res.data.name}" has been updated.`,
+        });
+        setEditingTemplate(null);
+        void loadTemplatesList();
+      }
+    } catch {
+      toast({
+        type: 'error',
+        title: 'Update Failed',
+        description: 'Failed to update template.',
+      });
+    }
+  };
+
+  const handleExportTemplate = (tpl: TemplateData) => {
+    try {
+      const exportData = {
+        id: tpl.id,
+        name: tpl.name,
+        description: tpl.description,
+        category: tpl.category,
+        tags: tpl.tags,
+        isPublic: tpl.public || tpl.isPublic,
+        version: tpl.version,
+        payload: tpl.payload || tpl.payloadJson || {},
+      };
+      const dataStr =
+        'data:text/json;charset=utf-8,' +
+        encodeURIComponent(JSON.stringify(exportData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute('href', dataStr);
+      downloadAnchor.setAttribute(
+        'download',
+        `${tpl.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}_template.json`
+      );
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      toast({
+        type: 'success',
+        title: 'Template Exported',
+        description: `Exported "${tpl.name}" as JSON file.`,
+      });
+    } catch {
+      toast({
+        type: 'error',
+        title: 'Export Failed',
+        description: 'Could not export template JSON.',
+      });
+    }
+  };
+
+  const handleImportJson = async (data: Record<string, unknown>) => {
+    const token =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('rng_access_token') ||
+          localStorage.getItem('accessToken') ||
+          undefined
+        : undefined;
+
+    const templateName = String(data.name || 'Imported Template').trim();
+    const templateDesc = String(data.description || 'Imported from JSON').trim();
+    const templateCat = String(data.category || data.badge || 'GENERAL').trim().toUpperCase();
+    const templateTags = Array.isArray(data.tags) ? data.tags.map(String) : [];
+    const isPub = Boolean(data.isPublic || data.public);
+    const targetPayload = (data.payload || data.payloadJson || data.state || {}) as Record<string, unknown>;
+
+    try {
+      const res = await createTemplate(
+        {
+          name: templateName,
+          description: templateDesc,
+          category: templateCat,
+          tags: templateTags,
+          isPublic: isPub,
+          payload: targetPayload,
+        },
+        token
+      );
+
+      if (res.success && res.data) {
+        toast({
+          type: 'success',
+          title: 'Template Imported',
+          description: `Imported "${res.data.name}" successfully.`,
+        });
+        void loadTemplatesList();
+      }
+    } catch {
+      toast({
+        type: 'error',
+        title: 'Import Failed',
+        description: 'Failed to persist imported template.',
+      });
+    }
+  };
+
   const handleLoadTemplateIntoCanvas = (tpl: TemplateData) => {
     const rawPayload = (tpl.payload || tpl.payloadJson || {}) as Record<string, unknown>;
     try {
@@ -509,6 +650,7 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
             onChangeSearch={setTemplateSearch}
             onChangeCategory={setTemplateCategory}
             onOpenSaveModal={() => setIsSaveModalOpen(true)}
+            onImportJson={handleImportJson}
           />
 
           {loadingTemplates ? (
@@ -527,6 +669,8 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
                   key={tpl.id}
                   template={tpl}
                   onLoadTemplate={handleLoadTemplateIntoCanvas}
+                  onEditTemplate={(t) => setEditingTemplate(t)}
+                  onExportTemplate={handleExportTemplate}
                   onDeleteTemplate={handleDeleteTemplate}
                 />
               ))}
@@ -658,6 +802,14 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
         initialName={state.activeTemplateName}
         onClose={() => setIsSaveModalOpen(false)}
         onSave={handleSaveTemplate}
+      />
+
+      <EditTemplateModal
+        isOpen={Boolean(editingTemplate)}
+        template={editingTemplate}
+        currentCanvasContainerCount={state.type17Containers.length}
+        onClose={() => setEditingTemplate(null)}
+        onSave={handleUpdateTemplate}
       />
 
       {/* Bottom-Right Floating Discord Emoji Picker Popover */}

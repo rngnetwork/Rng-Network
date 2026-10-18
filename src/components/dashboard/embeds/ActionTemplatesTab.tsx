@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Copy,
+  Check,
   Plus,
   Trash2,
   FileCode,
@@ -198,11 +199,11 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
       <div className="p-5 rounded-apple-xl bg-surface-card border border-white/10 flex flex-wrap items-center justify-between gap-4 shadow-apple-card">
         <div>
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <Zap size={16} className="text-cyan-400" />
+            <Zap size={16} className="text-brand-red" />
             Action Templates Registry
           </h3>
           <p className="text-xs text-zinc-400 mt-1">
-            Encode compact 24-char identifiers (`rng_act_&lt;16_hex&gt;`) into button `custom_id` and select option `value` attributes.
+            Interactive actions for buttons and select menus.
           </p>
         </div>
 
@@ -255,7 +256,7 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
               onClick={() => setTypeFilter(type)}
               className={`px-3 py-1.5 rounded-apple-md text-xs font-semibold transition-all cursor-pointer ${
                 typeFilter === type
-                  ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
+                  ? 'bg-white/10 text-white border border-white/20'
                   : 'text-zinc-400 hover:text-white border border-transparent'
               }`}
             >
@@ -272,12 +273,12 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
         </div>
       ) : filteredActions.length === 0 ? (
         <div className="p-10 rounded-apple-xl bg-surface-card border border-dashed border-white/10 flex flex-col items-center justify-center text-center gap-3">
-          <div className="p-3 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+          <div className="p-3 rounded-full bg-white/[0.04] border border-white/10 text-zinc-300">
             <FileCode size={22} />
           </div>
           <h4 className="text-sm font-bold text-white">No Action Templates Found</h4>
           <p className="text-xs text-zinc-400 max-w-md">
-            Register interactive templates for roles, tickets, replies, or DMs to bind to buttons without hardcoded message payloads.
+            Register interactive templates for roles, tickets, replies, or DMs to bind to buttons.
           </p>
           <Button
             type="button"
@@ -292,40 +293,73 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredActions.map((action) => {
             const isCopied = copiedId === action.actionId;
+            const scopeLabel = action.isGlobal
+              ? 'Global'
+              : action.serverIds && action.serverIds.length > 0
+              ? `${action.serverIds.length} Server${action.serverIds.length !== 1 ? 's' : ''}`
+              : 'Server Scoped';
+
             return (
               <div
                 key={action.id || action.actionId}
                 className="p-4 rounded-apple-xl bg-surface-card border border-white/10 hover:border-white/20 transition-all flex flex-col justify-between gap-3 shadow-apple-card"
               >
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-1">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-start justify-between gap-2">
                     <span className="text-sm font-bold text-white truncate">
                       {action.name}
                     </span>
-                    <Badge variant="info" size="sm">
-                      {action.actionType}
-                    </Badge>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {action.actionType === 'ROLE' && (
+                        <Badge variant="neutral" size="sm">
+                          ROLE · {action.roleSubtype || 'TOGGLE'}
+                        </Badge>
+                      )}
+                      {action.actionType === 'TICKET' && (
+                        <Badge variant="neutral" size="sm">
+                          TICKET
+                        </Badge>
+                      )}
+                      {action.actionType === 'REPLY' && (
+                        <Badge variant="neutral" size="sm">
+                          REPLY
+                        </Badge>
+                      )}
+                      {action.actionType === 'DM' && (
+                        <Badge variant="crimson" size="sm">
+                          DM
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs text-zinc-400 line-clamp-2 mb-2">
+
+                  <p className="text-xs text-zinc-400 line-clamp-2">
                     {action.description || 'No description provided.'}
                   </p>
 
+                  {/* 1-Click Copyable Action ID Chip */}
                   <button
                     type="button"
                     onClick={() => handleCopyId(action.actionId)}
-                    title="Click to copy compact action identifier"
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-apple-md bg-black/40 border border-white/10 text-xs font-mono text-zinc-300 hover:border-cyan-500/40 transition-all cursor-pointer"
+                    title="Click to copy action identifier"
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-apple-md bg-black/40 border border-white/10 text-xs font-mono text-zinc-300 hover:border-white/20 transition-all cursor-pointer"
                   >
-                    <span className="text-[11px] truncate text-cyan-300">
+                    <span className="text-[11px] truncate text-zinc-300 font-mono">
                       {action.actionId}
                     </span>
-                    <Copy size={12} className={isCopied ? 'text-green-400' : 'text-zinc-500'} />
+                    <div className="flex items-center gap-1 shrink-0 text-zinc-400">
+                      {isCopied ? (
+                        <Check size={12} className="text-emerald-400" />
+                      ) : (
+                        <Copy size={12} />
+                      )}
+                    </div>
                   </button>
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t border-white/[0.06]">
-                  <Badge variant={action.isGlobal ? 'neutral' : 'info'} size="sm">
-                    {action.isGlobal ? 'Global' : 'Server Scoped'}
+                  <Badge variant="neutral" size="sm">
+                    {scopeLabel}
                   </Badge>
 
                   <div className="flex items-center gap-1.5">
@@ -359,7 +393,9 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
                     <button
                       type="button"
                       onClick={() => handleDeleteAction(action.actionId, action.name)}
-                      className="p-1 rounded text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                      aria-label={`Delete action ${action.name}`}
+                      title="Delete Action Template"
+                      className="p-1.5 rounded text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
                     >
                       <Trash2 size={13} />
                     </button>
