@@ -26,15 +26,11 @@ export const MediaGalleryConfigModal: React.FC<MediaGalleryConfigModalProps> = (
   const [items, setItems] = useState<(DiscordMediaItem | string)[]>(
     gallery?.items || []
   );
-  const [newUrl, setNewUrl] = useState('');
-  const [urlError, setUrlError] = useState('');
 
   if (gallery !== prevGallery) {
     setPrevGallery(gallery);
     setCustomId(gallery?.id || '');
     setItems(gallery?.items || []);
-    setNewUrl('');
-    setUrlError('');
   }
 
   const getMediaUrl = (item: DiscordMediaItem | string): string => {
@@ -44,7 +40,7 @@ export const MediaGalleryConfigModal: React.FC<MediaGalleryConfigModalProps> = (
 
   const handleUpdateUrl = (idx: number, url: string) => {
     const updated = [...items];
-    updated[idx] = { media: { url } };
+    updated[idx] = { media: { url }, url };
     setItems(updated);
   };
 
@@ -53,23 +49,14 @@ export const MediaGalleryConfigModal: React.FC<MediaGalleryConfigModalProps> = (
   };
 
   const handleAddItem = () => {
-    const trimmed = newUrl.trim();
-    if (!trimmed) {
-      setUrlError('Please enter a valid image URL');
-      return;
-    }
-    if (!/^https?:\/\/.+/i.test(trimmed)) {
-      setUrlError('Image URL must start with http:// or https://');
-      return;
-    }
-    if (items.length >= 4) {
-      setUrlError('A Discord Media Gallery can hold a maximum of 4 images');
-      return;
-    }
-
-    setItems([...items, { media: { url: trimmed } }]);
-    setNewUrl('');
-    setUrlError('');
+    if (items.length >= 4) return;
+    setItems([
+      ...items,
+      {
+        media: { url: 'https://cdn.discordapp.com/embed/avatars/0.png' },
+        url: 'https://cdn.discordapp.com/embed/avatars/0.png',
+      },
+    ]);
   };
 
   const handleSave = () => {
@@ -89,8 +76,8 @@ export const MediaGalleryConfigModal: React.FC<MediaGalleryConfigModalProps> = (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Media Gallery Settings (Type 12 • Max 4 Items)"
-      description="Configure up to 4 image attachments rendered in Discord's native media gallery grid."
+      title="Media Gallery Settings"
+      description="Configure settings of Media Gallery in the embedded message"
       size="lg"
       footer={
         <div className="flex items-center justify-end gap-2.5">
@@ -123,9 +110,16 @@ export const MediaGalleryConfigModal: React.FC<MediaGalleryConfigModalProps> = (
             <label className="text-xs font-semibold text-zinc-300">
               Gallery Images ({items.length}/4)
             </label>
-            <span className="text-[11px] text-zinc-400">
-              Max 4 images per Discord gallery
-            </span>
+            {items.length < 4 && (
+              <button
+                type="button"
+                onClick={handleAddItem}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-apple-sm bg-white/[0.05] hover:bg-white/[0.1] text-[11px] font-medium text-zinc-200 transition-colors cursor-pointer"
+              >
+                <Plus size={12} />
+                <span>Add Media</span>
+              </button>
+            )}
           </div>
 
           <div className="flex flex-col gap-2.5">
@@ -163,63 +157,27 @@ export const MediaGalleryConfigModal: React.FC<MediaGalleryConfigModalProps> = (
                   </div>
 
                   {/* Delete button */}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveItem(idx)}
-                    title="Remove image"
-                    className="p-1.5 rounded text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  {items.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveItem(idx)}
+                      title="Remove image"
+                      className="p-1.5 rounded text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
               );
             })}
 
             {items.length === 0 && (
               <div className="py-6 text-center text-xs text-zinc-500 rounded-apple-md border border-dashed border-white/10">
-                No images in gallery yet. Add up to 4 images below.
+                No images in gallery yet. Click &quot;Add Media&quot; above to add images.
               </div>
             )}
           </div>
         </div>
-
-        {/* Add New Image Input (if < 4) */}
-        {items.length < 4 && (
-          <div className="p-3.5 rounded-apple-lg bg-surface-canvas border border-dashed border-white/15 flex flex-col gap-2">
-            <label className="text-xs font-semibold text-zinc-300">
-              Add New Image
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={newUrl}
-                placeholder="Paste image URL (PNG, JPG, WebP, GIF)..."
-                onChange={(e) => {
-                  setNewUrl(e.target.value);
-                  if (urlError) setUrlError('');
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddItem();
-                  }
-                }}
-                className="flex-1 px-3 py-2 rounded-apple-md bg-black/40 border border-white/10 focus:border-brand-red text-xs text-white outline-none"
-              />
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                onClick={handleAddItem}
-              >
-                <Plus size={13} className="mr-1" /> Add
-              </Button>
-            </div>
-            {urlError && (
-              <span className="text-[11px] text-red-400">{urlError}</span>
-            )}
-          </div>
-        )}
 
         {/* Live Gallery Preview Grid */}
         {items.length > 0 && (
@@ -228,12 +186,12 @@ export const MediaGalleryConfigModal: React.FC<MediaGalleryConfigModalProps> = (
               Live Gallery Preview
             </label>
             <div
-              className={`grid gap-2 p-3 rounded-apple-lg bg-[#1E1F22] border border-white/10 max-h-48 overflow-hidden ${
+              className={`grid gap-2 p-3 rounded-apple-lg bg-[#1E1F22] border border-white/10 overflow-hidden ${
                 items.length === 1
                   ? 'grid-cols-1'
                   : items.length === 2
                   ? 'grid-cols-2'
-                  : 'grid-cols-2 sm:grid-cols-4'
+                  : 'grid-cols-2'
               }`}
             >
               {items.map((item, idx) => {
@@ -241,7 +199,13 @@ export const MediaGalleryConfigModal: React.FC<MediaGalleryConfigModalProps> = (
                 return (
                   <div
                     key={idx}
-                    className="relative h-24 rounded bg-black/50 border border-white/10 overflow-hidden flex items-center justify-center"
+                    className={`relative rounded bg-black/50 border border-white/10 overflow-hidden flex items-center justify-center ${
+                      items.length === 1
+                        ? 'h-48 w-full'
+                        : items.length === 3 && idx === 0
+                        ? 'row-span-2 h-full min-h-[140px]'
+                        : 'h-24 w-full'
+                    }`}
                   >
                     {url ? (
                       <Image
@@ -264,4 +228,3 @@ export const MediaGalleryConfigModal: React.FC<MediaGalleryConfigModalProps> = (
     </Modal>
   );
 };
-

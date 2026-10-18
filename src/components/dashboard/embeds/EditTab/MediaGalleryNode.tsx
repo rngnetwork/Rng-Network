@@ -1,13 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Image as ImageIcon, Plus, Trash2 } from 'lucide-react';
+import Image from 'next/image';
+import { Image as ImageIcon } from 'lucide-react';
 import type {
   DiscordMediaGalleryComponent,
   DiscordMediaItem,
 } from '@/lib/model/embed';
-import { Badge } from '@/components/common/feedback/Badge';
-import { TextInput } from '@/components/common/input/TextInput';
 
 export interface MediaGalleryNodeProps {
   gallery: DiscordMediaGalleryComponent;
@@ -15,7 +14,7 @@ export interface MediaGalleryNodeProps {
     componentId: string,
     updates: Partial<DiscordMediaGalleryComponent>
   ) => void;
-  onRemove: (componentId: string) => void;
+  onRemove?: (componentId: string) => void;
 }
 
 function normalizeMediaItem(item: string | DiscordMediaItem): DiscordMediaItem {
@@ -31,96 +30,55 @@ function normalizeMediaItem(item: string | DiscordMediaItem): DiscordMediaItem {
 
 const MediaGalleryNodeInner: React.FC<MediaGalleryNodeProps> = ({
   gallery,
-  onUpdateGallery,
-  onRemove,
 }) => {
-  const componentId = gallery.id || '';
-  const normalizedItems = gallery.items.map(normalizeMediaItem);
+  const normalizedItems = (gallery.items || []).map(normalizeMediaItem);
 
-  const handleUpdateItemUrl = (idx: number, url: string) => {
-    const next = [...normalizedItems];
-    next[idx] = { ...next[idx], url };
-    onUpdateGallery(componentId, { items: next });
-  };
-
-  const handleAddItem = () => {
-    if (normalizedItems.length >= 4) return;
-    onUpdateGallery(componentId, {
-      items: [
-        ...normalizedItems,
-        { url: 'https://cdn.discordapp.com/embed/avatars/0.png', description: '' },
-      ],
-    });
-  };
-
-  const handleRemoveItem = (idx: number) => {
-    const next = normalizedItems.filter((_, i) => i !== idx);
-    onUpdateGallery(componentId, { items: next });
-  };
+  if (normalizedItems.length === 0) {
+    return (
+      <div className="p-4 rounded-apple-lg bg-zinc-900/70 border border-white/[0.08] text-center text-xs text-zinc-500">
+        Empty Media Gallery. Click settings gear to add images.
+      </div>
+    );
+  }
 
   return (
-    <div className="p-3.5 rounded-apple-lg bg-zinc-900/70 border border-white/[0.08] flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <ImageIcon size={14} className="text-brand-red" />
-          <Badge variant="neutral" size="sm">
-            Media Gallery (Type 12)
-          </Badge>
-          <span className="text-[11px] font-mono text-zinc-400">
-            {normalizedItems.length}/4 items
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {normalizedItems.length < 4 && (
-            <button
-              type="button"
-              onClick={handleAddItem}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-apple-sm bg-white/[0.05] hover:bg-white/[0.1] text-[11px] font-medium text-zinc-200 transition-colors"
+    <div className="p-3 rounded-apple-lg bg-zinc-900/70 border border-white/[0.08]">
+      <div
+        className={`grid gap-2 overflow-hidden rounded-apple-md ${
+          normalizedItems.length === 1
+            ? 'grid-cols-1'
+            : normalizedItems.length === 2
+            ? 'grid-cols-2'
+            : 'grid-cols-2'
+        }`}
+      >
+        {normalizedItems.map((item, idx) => {
+          const url = item.url;
+          return (
+            <div
+              key={idx}
+              className={`relative bg-black/40 border border-white/[0.08] rounded-apple-md overflow-hidden flex items-center justify-center ${
+                normalizedItems.length === 1
+                  ? 'h-64 sm:h-72 w-full'
+                  : normalizedItems.length === 3 && idx === 0
+                  ? 'row-span-2 h-full min-h-[160px]'
+                  : 'h-36 sm:h-40 w-full'
+              }`}
             >
-              <Plus size={12} />
-              <span>Add Media</span>
-            </button>
-          )}
-          {componentId && (
-            <button
-              type="button"
-              onClick={() => onRemove(componentId)}
-              aria-label="Remove Media Gallery"
-              className="p-1.5 rounded text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-            >
-              <Trash2 size={14} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        {normalizedItems.map((item, idx) => (
-          <div
-            key={`media_${idx}`}
-            className="flex items-center gap-2 p-2.5 rounded-apple-md bg-black/40 border border-white/[0.06]"
-          >
-            <div className="flex-1 min-w-0">
-              <TextInput
-                label={`Media URL #${idx + 1}`}
-                value={item.url || ''}
-                onChange={(e) => handleUpdateItemUrl(idx, e.target.value)}
-                placeholder="https://..."
-              />
+              {url ? (
+                <Image
+                  src={url}
+                  alt={`Media item ${idx + 1}`}
+                  fill
+                  unoptimized
+                  className="object-cover"
+                />
+              ) : (
+                <ImageIcon size={24} className="text-zinc-600" />
+              )}
             </div>
-            {normalizedItems.length > 1 && (
-              <button
-                type="button"
-                onClick={() => handleRemoveItem(idx)}
-                aria-label={`Remove media item ${idx + 1}`}
-                className="p-1.5 mt-5 rounded text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-              >
-                <Trash2 size={13} />
-              </button>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
