@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
@@ -45,7 +46,12 @@ public class DiscordClientImpl implements DiscordClient {
             body.add("redirect_uri", redirectUri);
 
             HttpEntity<MultiValueMap<String, String>> tokenRequest = new HttpEntity<>(body, tokenHeaders);
-            ResponseEntity<Map> tokenResponse = restTemplate.postForEntity("https://discord.com/api/oauth2/token", tokenRequest, Map.class);
+            ResponseEntity<Map<String, Object>> tokenResponse = restTemplate.exchange(
+                    "https://discord.com/api/oauth2/token",
+                    HttpMethod.POST,
+                    tokenRequest,
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
 
             if (!tokenResponse.getStatusCode().is2xxSuccessful() || tokenResponse.getBody() == null) {
                 throw new UnauthorizedException("Failed to obtain Discord OAuth2 token");
@@ -58,7 +64,12 @@ public class DiscordClientImpl implements DiscordClient {
             userHeaders.setBearerAuth(discordAccessToken);
             HttpEntity<Void> userRequest = new HttpEntity<>(userHeaders);
 
-            ResponseEntity<Map> userResponse = restTemplate.exchange("https://discord.com/api/users/@me", HttpMethod.GET, userRequest, Map.class);
+            ResponseEntity<Map<String, Object>> userResponse = restTemplate.exchange(
+                    "https://discord.com/api/users/@me",
+                    HttpMethod.GET,
+                    userRequest,
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
             if (!userResponse.getStatusCode().is2xxSuccessful() || userResponse.getBody() == null) {
                 throw new UnauthorizedException("Failed to fetch Discord user details");
             }
