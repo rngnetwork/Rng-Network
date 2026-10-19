@@ -229,16 +229,19 @@ public class EmbedTemplateService {
         return exportMap;
     }
 
-    @SuppressWarnings("unchecked")
     public TemplateResponse importTemplate(Long operatorUserId, Map<String, Object> templateJson) {
         String name = (String) templateJson.getOrDefault("name", "Imported Template");
         String description = (String) templateJson.get("description");
         String category = ((String) templateJson.getOrDefault("category", "general")).toLowerCase();
-        List<String> tags = (List<String>) templateJson.getOrDefault("tags", List.of());
-        Map<String, Object> payload = (Map<String, Object>) templateJson.get("payload");
-        if (payload == null) {
+        List<String> tags = templateJson.get("tags") instanceof List<?> list
+                ? list.stream().map(Object::toString).toList()
+                : List.of();
+        Object rawPayload = templateJson.get("payload");
+        if (!(rawPayload instanceof Map<?, ?> rawMap)) {
             throw new BadRequestException("Imported JSON must contain a valid 'payload' object.");
         }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        rawMap.forEach((k, v) -> payload.put(String.valueOf(k), v));
 
         CreateTemplateRequest createRequest = new CreateTemplateRequest(
                 name,
