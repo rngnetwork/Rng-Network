@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useMemo, useDeferredValue } from 'react';
-import { motion } from 'framer-motion';
 import {
   Search,
   X,
@@ -116,9 +115,9 @@ export function ModuleGrid({
   }, [filteredModules, safeCurrentPage]);
 
   return (
-    <div className="flex flex-col gap-6 md:gap-8 w-full">
+    <div className="flex flex-col gap-5 md:gap-7 w-full">
       {/* TOP BAR: Search & Category Pills */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3.5">
         {/* Pixel-perfect Search Bar with Fixed Center Icon */}
         <div className="relative w-full">
           {/* Centered Left Search Icon */}
@@ -131,7 +130,7 @@ export function ModuleGrid({
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Search bot modules by name, description, or feature tag..."
-            className="w-full py-3.5 pl-11 pr-24 rounded-2xl bg-[#0d0e12] border border-white/10 hover:border-white/20 focus:border-red-500 focus:shadow-[0_0_20px_rgba(225,29,46,0.25)] text-white text-sm outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-zinc-500 font-medium"
+            className="w-full py-3.5 pl-11 pr-24 rounded-2xl bg-[#0d0e12] border border-white/10 hover:border-white/20 focus:border-red-500 focus:shadow-[0_0_18px_rgba(225,29,46,0.25)] text-white text-sm outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-zinc-500 font-medium"
           />
 
           {/* Right Side Tools: Clear button and matching module count */}
@@ -140,7 +139,7 @@ export function ModuleGrid({
               <button
                 type="button"
                 onClick={() => handleSearchChange('')}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                 aria-label="Clear search"
               >
                 <X size={15} />
@@ -153,7 +152,7 @@ export function ModuleGrid({
           </div>
         </div>
 
-        {/* Category Filter Pills */}
+        {/* Category Filter Pills with smooth horizontal scrolling */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
           {CATEGORIES.map((cat) => {
             const isSelected = selectedCategory === cat.id;
@@ -162,7 +161,7 @@ export function ModuleGrid({
                 key={cat.id}
                 type="button"
                 onClick={() => handleCategoryChange(cat.id)}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors duration-150 border ${
+                className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors duration-150 border cursor-pointer ${
                   isSelected
                     ? 'bg-gradient-to-r from-[#E11D2E] to-[#991B1B] text-white border-red-500/50 shadow-[0_0_12px_rgba(225,29,46,0.35)]'
                     : 'bg-[#0d0e12] text-zinc-400 border-white/5 hover:text-white hover:border-white/10 hover:bg-white/[0.04]'
@@ -177,7 +176,7 @@ export function ModuleGrid({
 
       {/* MODULE GRID: 4 columns on desktop, 1 column on phone */}
       {paginatedModules.length === 0 ? (
-        <div className="py-20 px-4 rounded-3xl bg-[#0d0e12] border border-white/5 flex flex-col items-center justify-center text-center">
+        <div className="py-16 sm:py-20 px-4 rounded-3xl bg-[#0d0e12] border border-white/5 flex flex-col items-center justify-center text-center">
           <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 mb-4 shadow-[0_0_15px_rgba(225,29,46,0.15)]">
             <Sliders size={26} />
           </div>
@@ -191,41 +190,38 @@ export function ModuleGrid({
               setSearchQuery('');
               setSelectedCategory('all');
             }}
-            className="mt-5 px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white transition-all"
+            className="mt-5 px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white transition-all cursor-pointer"
           >
             Reset Filters
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
           {paginatedModules.map((mod) => {
             const IconComp = ICON_MAP[mod.icon] || Sparkles;
             const isUpdating = isUpdatingModuleId === mod.id;
 
             return (
-              <motion.div
+              <div
                 key={mod.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.18 }}
-                className={`group relative rounded-2xl md:rounded-3xl border transition-[border-color,box-shadow,opacity] duration-200 flex flex-col justify-between p-5 md:p-5.5 transform-gpu ${
+                className={`group relative rounded-2xl md:rounded-3xl border transition-[border-color,box-shadow,background-color] duration-150 flex flex-col justify-between p-4.5 sm:p-5 md:p-5.5 ${
                   mod.enabled
                     ? 'bg-[#0e0f13] border-white/10 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(225,29,46,0.18)]'
-                    : 'bg-[#0a0a0d] border-white/5 opacity-75 hover:opacity-100 hover:border-white/15'
+                    : 'bg-[#090a0d] border-white/5 opacity-80 hover:opacity-100 hover:border-white/15'
                 }`}
               >
                 {/* TOP: Icon, Badges, and Master Toggle */}
-                <div className="flex flex-col gap-4 relative z-10">
+                <div className="flex flex-col gap-3.5 relative z-10">
                   <div className="flex items-start justify-between gap-3">
                     {/* Icon */}
                     <div
-                      className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border transition-transform duration-200 ${
+                      className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shrink-0 border transition-transform duration-150 ${
                         mod.enabled
                           ? 'bg-red-500/15 border-red-500/35 text-red-400 shadow-[0_0_12px_rgba(225,29,46,0.25)] group-hover:scale-105'
                           : 'bg-zinc-900 border-white/5 text-zinc-500'
                       }`}
                     >
-                      <IconComp size={24} />
+                      <IconComp size={22} />
                     </div>
 
                     {/* Master Quick Toggle */}
@@ -250,6 +246,16 @@ export function ModuleGrid({
                           {mod.badge}
                         </span>
                       )}
+
+                      <span
+                        className={`text-[9px] font-mono px-1.5 py-0.5 rounded-md border ${
+                          mod.enabled
+                            ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25'
+                            : 'bg-zinc-800/80 text-zinc-400 border-zinc-700/60'
+                        }`}
+                      >
+                        {mod.enabled ? 'Active' : 'Disabled'}
+                      </span>
                     </div>
 
                     <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">
@@ -259,7 +265,7 @@ export function ModuleGrid({
                 </div>
 
                 {/* BOTTOM: Submodule Count & Configure CTA */}
-                <div className="pt-5 mt-4 border-t border-white/5 flex items-center justify-between gap-2 relative z-10">
+                <div className="pt-4 mt-4 border-t border-white/5 flex items-center justify-between gap-2 relative z-10">
                   <div className="flex items-center gap-1.5 text-xs text-zinc-400 font-mono">
                     <Layers size={13} className="text-red-400/80" />
                     <span>{mod.submoduleCount} submodules</span>
@@ -277,7 +283,7 @@ export function ModuleGrid({
                     />
                   </button>
                 </div>
-              </motion.div>
+              </div>
             );
           })}
         </div>
@@ -285,20 +291,20 @@ export function ModuleGrid({
 
       {/* COMPACT CENTERED PAGINATION: < 1 > with Red Arrow Buttons */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2.5 pt-6 mt-4 border-t border-white/10">
+        <div className="flex items-center justify-center gap-2 pt-6 mt-2 border-t border-white/10">
           {/* Previous Red Button */}
           <button
             type="button"
             disabled={safeCurrentPage <= 1}
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            className="w-9 h-9 rounded-xl bg-gradient-to-r from-[#E11D2E] to-[#8A0F1A] hover:from-[#FF3B4D] hover:to-[#B91C1C] active:scale-95 text-white shadow-[0_0_12px_rgba(225,29,46,0.35)] hover:shadow-[0_0_20px_rgba(225,29,46,0.6)] disabled:opacity-25 disabled:pointer-events-none disabled:shadow-none flex items-center justify-center transition-all cursor-pointer shrink-0 border border-red-500/30"
+            className="w-10 h-10 rounded-xl bg-gradient-to-r from-[#E11D2E] to-[#8A0F1A] hover:from-[#FF3B4D] hover:to-[#B91C1C] active:scale-95 text-white shadow-[0_0_12px_rgba(225,29,46,0.35)] hover:shadow-[0_0_20px_rgba(225,29,46,0.6)] disabled:opacity-25 disabled:pointer-events-none disabled:shadow-none flex items-center justify-center transition-all cursor-pointer shrink-0 border border-red-500/30"
             aria-label="Previous page"
           >
             <ChevronLeft size={18} />
           </button>
 
           {/* Compact Page Number Display */}
-          <div className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0d0e12] border border-white/10 text-xs font-mono select-none">
+          <div className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#0d0e12] border border-white/10 text-xs font-mono select-none">
             <span className="text-white font-bold text-sm">{safeCurrentPage}</span>
             <span className="text-zinc-600">/</span>
             <span className="text-zinc-400">{totalPages}</span>
@@ -309,7 +315,7 @@ export function ModuleGrid({
             type="button"
             disabled={safeCurrentPage >= totalPages}
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            className="w-9 h-9 rounded-xl bg-gradient-to-r from-[#E11D2E] to-[#8A0F1A] hover:from-[#FF3B4D] hover:to-[#B91C1C] active:scale-95 text-white shadow-[0_0_12px_rgba(225,29,46,0.35)] hover:shadow-[0_0_20px_rgba(225,29,46,0.6)] disabled:opacity-25 disabled:pointer-events-none disabled:shadow-none flex items-center justify-center transition-all cursor-pointer shrink-0 border border-red-500/30"
+            className="w-10 h-10 rounded-xl bg-gradient-to-r from-[#E11D2E] to-[#8A0F1A] hover:from-[#FF3B4D] hover:to-[#B91C1C] active:scale-95 text-white shadow-[0_0_12px_rgba(225,29,46,0.35)] hover:shadow-[0_0_20px_rgba(225,29,46,0.6)] disabled:opacity-25 disabled:pointer-events-none disabled:shadow-none flex items-center justify-center transition-all cursor-pointer shrink-0 border border-red-500/30"
             aria-label="Next page"
           >
             <ChevronRight size={18} />

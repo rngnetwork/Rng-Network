@@ -3,7 +3,6 @@
   scrollbar-width: thin;
   scrollbar-color: #E11D2E rgba(255, 255, 255, 0.04);
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
 }
 
 .redScrollbar::-webkit-scrollbar {

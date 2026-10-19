@@ -9,7 +9,7 @@ export default function BotConfigPage() {
   const serverId = (params?.serverId as string) || '1';
 
   return (
-    <div className="w-full pb-16">
+    <div className="w-full pb-20">
       <BotConfigManager serverId={serverId} />
     </div>
   );

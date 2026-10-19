@@ -270,7 +270,7 @@ export const INITIAL_MOCK_MODULES: BotModule[] = [
     description: 'Comprehensive staff punishment controls, warning counters, strike progression, and moderation action logging.',
     category: 'moderation',
     icon: 'Gavel',
-    enabled: true,
+    enabled: false,
     submoduleCount: 3,
     tags: ['mod', 'moderation', 'punish', 'kick', 'ban', 'strike'],
     submodules: [
@@ -303,7 +303,7 @@ export const INITIAL_MOCK_MODULES: BotModule[] = [
         title: 'Mute & Staff Roles',
         description: 'Assign which roles control moderation actions and which role isolates muted members.',
         icon: 'Users',
-        enabled: true,
+        enabled: false,
         fields: [
           {
             id: 'mod_mute_role',
@@ -327,7 +327,7 @@ export const INITIAL_MOCK_MODULES: BotModule[] = [
         title: 'Punishment DM Dispatch',
         description: 'Notify users via private DM whenever a strike, mute, or kick is enacted.',
         icon: 'Mail',
-        enabled: true,
+        enabled: false,
         fields: [
           {
             id: 'mod_send_dm_reason',
@@ -353,7 +353,7 @@ export const INITIAL_MOCK_MODULES: BotModule[] = [
     description: 'Dynamic voice channels that spawn automatically when members join a hub, then cleanly self-delete when empty.',
     category: 'utility',
     icon: 'Volume2',
-    enabled: true,
+    enabled: false,
     submoduleCount: 3,
     tags: ['voice', 'j2c', 'channels', 'audio', 'dynamic'],
     badge: 'Popular',
@@ -364,7 +364,7 @@ export const INITIAL_MOCK_MODULES: BotModule[] = [
         title: 'Voice Hub Master Channel',
         description: 'Select the trigger voice channel that members join to spawn their custom room.',
         icon: 'Headphones',
-        enabled: true,
+        enabled: false,
         fields: [
           {
             id: 'j2c_hub_channel',
@@ -604,7 +604,7 @@ export const INITIAL_MOCK_MODULES: BotModule[] = [
     description: 'Build custom text triggers, automated keywords, keyword regex matchers, and slash shortcuts.',
     category: 'engagement',
     icon: 'Zap',
-    enabled: true,
+    enabled: false,
     submoduleCount: 2,
     tags: ['commands', 'triggers', 'custom', 'autoresponder', 'keywords'],
     submodules: [
@@ -613,7 +613,7 @@ export const INITIAL_MOCK_MODULES: BotModule[] = [
         title: 'Keyword Auto-Responses',
         description: 'Whenever a message includes specific keywords, the bot responds automatically.',
         icon: 'MessageCircle',
-        enabled: true,
+        enabled: false,
         fields: [
           {
             id: 'tr_case_sensitive',
@@ -655,7 +655,7 @@ export const INITIAL_MOCK_MODULES: BotModule[] = [
     description: 'Complete server currency system with daily payouts, gambling mini-games, server shop, and bank vaults.',
     category: 'economy',
     icon: 'Coins',
-    enabled: true,
+    enabled: false,
     submoduleCount: 3,
     tags: ['economy', 'currency', 'shop', 'coins', 'rewards', 'finance'],
     submodules: [
@@ -664,7 +664,7 @@ export const INITIAL_MOCK_MODULES: BotModule[] = [
         title: 'Currency Branding',
         description: 'Set your server unique currency name and symbol.',
         icon: 'CircleDollarSign',
-        enabled: true,
+        enabled: false,
         fields: [
           {
             id: 'ec_coin_name',
@@ -804,7 +804,7 @@ export const INITIAL_MOCK_MODULES: BotModule[] = [
     description: 'Require new accounts to pass a verification gate before seeing channels, filtering out raids and raid bots.',
     category: 'security',
     icon: 'BadgeCheck',
-    enabled: true,
+    enabled: false,
     submoduleCount: 2,
     tags: ['verification', 'gate', 'captcha', 'security', 'onboarding'],
     submodules: [
@@ -813,7 +813,7 @@ export const INITIAL_MOCK_MODULES: BotModule[] = [
         title: 'Gate Verification Method',
         description: 'Select how users complete authentication.',
         icon: 'Lock',
-        enabled: true,
+        enabled: false,
         fields: [
           {
             id: 'vf_type',
@@ -863,7 +863,7 @@ export const INITIAL_MOCK_MODULES: BotModule[] = [
     description: 'Host automated giveaways with emoji reactions, role requirements, server booster multipliers, and winner redraws.',
     category: 'engagement',
     icon: 'Gift',
-    enabled: true,
+    enabled: false,
     submoduleCount: 2,
     tags: ['giveaways', 'events', 'prizes', 'drops', 'contests'],
     submodules: [
@@ -872,7 +872,7 @@ export const INITIAL_MOCK_MODULES: BotModule[] = [
         title: 'Giveaway Core Settings',
         description: 'Default announcement channels and manager permissions.',
         icon: 'Award',
-        enabled: true,
+        enabled: false,
         fields: [
           {
             id: 'gw_channel',

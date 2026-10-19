@@ -11,12 +11,14 @@ interface CustomScrollbarProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const CustomScrollbar = forwardRef<HTMLDivElement, CustomScrollbarProps>(
   ({ children, className = '', maxHeight, style, ...props }, ref) => {
+    const isConstrained = maxHeight !== undefined && maxHeight !== null;
+
     return (
       <div
         ref={ref}
-        className={`${styles.redScrollbar} overflow-y-auto overflow-x-hidden ${className}`}
+        className={`${styles.redScrollbar} ${isConstrained ? 'overflow-y-auto overflow-x-hidden' : ''} ${className}`}
         style={{
-          maxHeight: maxHeight !== undefined ? maxHeight : undefined,
+          maxHeight: isConstrained ? maxHeight : undefined,
           ...style,
         }}
         {...props}

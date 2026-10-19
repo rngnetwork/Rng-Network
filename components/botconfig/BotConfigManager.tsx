@@ -72,11 +72,14 @@ export function BotConfigManager({ serverId }: BotConfigManagerProps) {
     };
   }, [serverId]);
 
-  // Deep comparison for dirty state
+  // Ultra-fast dirty state check: only inspect active module currently being edited
   const isDirty = useMemo(() => {
-    if (!initialModules || initialModules.length === 0) return false;
-    return JSON.stringify(modules) !== JSON.stringify(initialModules);
-  }, [modules, initialModules]);
+    if (!selectedModuleId || !initialModules.length) return false;
+    const current = modules.find((m) => m.id === selectedModuleId);
+    const initial = initialModules.find((m) => m.id === selectedModuleId);
+    if (!current || !initial) return false;
+    return JSON.stringify(current) !== JSON.stringify(initial);
+  }, [modules, initialModules, selectedModuleId]);
 
   // Handle Quick Master Toggle on Module Card (or inside Detail)
   const handleToggleModule = useCallback(
