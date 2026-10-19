@@ -15,18 +15,15 @@ import com.rng.server.dto.discord.DiscordGuildDto;
 import com.rng.server.dto.discord.DiscordGuildPatchRequest;
 import com.rng.server.dto.DiscordEmojiDto;
 import com.rng.server.dto.discord.DiscordEmojiResponseDto;
+import com.rng.server.mapper.DiscordServerMapper;
 import com.rng.server.repository.ServerRepository;
 import com.rng.server.dto.ServerRoleDto;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
-import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
-import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
@@ -50,17 +47,30 @@ public class ServerService {
     private final DiscordServerClient discordClient;
     private final UserRepository userRepository;
     private final Optional<JDA> jda;
+    private final DiscordServerMapper discordServerMapper;
 
+    @Autowired
     public ServerService(
             ServerRepository serverRepository,
             DiscordServerClient discordClient,
             UserRepository userRepository,
-            @Autowired(required = false) JDA jda
+            @Autowired(required = false) JDA jda,
+            DiscordServerMapper discordServerMapper
     ) {
         this.serverRepository = serverRepository;
         this.discordClient = discordClient;
         this.userRepository = userRepository;
         this.jda = Optional.ofNullable(jda);
+        this.discordServerMapper = discordServerMapper != null ? discordServerMapper : new DiscordServerMapper();
+    }
+
+    public ServerService(
+            ServerRepository serverRepository,
+            DiscordServerClient discordClient,
+            UserRepository userRepository,
+            JDA jda
+    ) {
+        this(serverRepository, discordClient, userRepository, jda, new DiscordServerMapper());
     }
 
     @Cacheable(value = "guilds:summary", key = "'all'")
@@ -122,8 +132,8 @@ public class ServerService {
 
             int boostLevel = server.getPremiumTier();
             int boostCount = server.getPremiumSubscriptionCount();
-            String iconUrl = formatDiscordIconUrl(server.getId(), server.getIconHash());
-            String bannerUrl = formatDiscordBannerUrl(server.getId(), server.getBannerHash());
+            String iconUrl = discordServerMapper.formatDiscordIconUrl(server.getId(), server.getIconHash());
+            String bannerUrl = discordServerMapper.formatDiscordBannerUrl(server.getId(), server.getBannerHash());
             String serverName = server.getName();
 
             if (jda.isPresent() && jda.get().getStatus() == JDA.Status.CONNECTED) {
@@ -141,18 +151,16 @@ public class ServerService {
                 }
             }
 
-            result.add(ServerDto.builder()
-                    .id(server.getId())
-                    .slug(server.getSlug())
-                    .name(serverName)
-                    .iconUrl(iconUrl)
-                    .bannerUrl(bannerUrl)
-                    .onlineCount(guild.getApproximatePresenceCount() != null ? guild.getApproximatePresenceCount() : 0)
-                    .totalCount(guild.getApproximateMemberCount() != null ? guild.getApproximateMemberCount() : 0)
-                    .boostLevel(boostLevel)
-                    .boostCount(boostCount)
-                    .status("operational")
-                    .build());
+            result.add(discordServerMapper.toServerDto(
+                    server,
+                    serverName,
+                    iconUrl,
+                    bannerUrl,
+                    guild.getApproximatePresenceCount() != null ? guild.getApproximatePresenceCount() : 0,
+                    guild.getApproximateMemberCount() != null ? guild.getApproximateMemberCount() : 0,
+                    boostLevel,
+                    boostCount
+            ));
         }
         return result;
     }
@@ -221,30 +229,18 @@ public class ServerService {
             }
         }
 
-        return ServerDetailDto.builder()
-                .id(server.getId())
-                .slug(server.getSlug())
-                .name(details.getName())
-                .description(details.getDescription())
-                .iconUrl(formatDiscordIconUrl(server.getId(), details.getIcon()))
-                .bannerUrl(formatDiscordBannerUrl(server.getId(), details.getBanner()))
-                .onlineCount(onlineCount)
-                .totalCount(totalCount)
-                .boostLevel(boostLevel)
-                .boostCount(boostCount)
-                .features(details.getFeatures() != null ? details.getFeatures() : List.of())
-                .afkChannelId(details.getAfkChannelId())
-                .afkTimeout(details.getAfkTimeout())
-                .systemChannelId(details.getSystemChannelId())
-                .sendWelcome(sendWelcome)
-                .stickerPrompt(stickerPrompt)
-                .boostMessage(boostMessage)
-                .setupTips(setupTips)
-                .defaultMessageNotifications(details.getDefaultMessageNotifications())
-                .vanityUrl(details.getVanityUrlCode())
-                .widgetEnabled(details.getWidgetEnabled())
-                .widgetChannelId(details.getWidgetChannelId())
-                .build();
+        return discordServerMapper.toServerDetailDto(
+                server,
+                details,
+                onlineCount,
+                totalCount,
+                boostLevel,
+                boostCount,
+                sendWelcome,
+                stickerPrompt,
+                boostMessage,
+                setupTips
+        );
     }
 
     @Cacheable(value = "guild:channels", key = "#idOrSlug")
@@ -259,13 +255,7 @@ public class ServerService {
                 List<DiscordChannelDto> channels = discordClient.getGuildChannels(server.getId());
                 if (channels != null && !channels.isEmpty()) {
                     return channels.stream()
-                            .map(c -> ChannelDto.builder()
-                                    .id(c.getId())
-                                    .name(c.getName())
-                                    .type(c.getType())
-                                    .position(c.getPosition() != null ? c.getPosition() : 0)
-                                    .parentId(c.getParentId())
-                                    .build())
+                            .map(discordServerMapper::toChannelDto)
                             .sorted(Comparator.comparingInt(c -> c.getPosition() != null ? c.getPosition() : 0))
                             .toList();
                 }
@@ -279,7 +269,7 @@ public class ServerService {
             Guild jdaGuild = jda.get().getGuildById(server.getId());
             if (jdaGuild != null) {
                 return jdaGuild.getChannels().stream()
-                        .map(this::mapJdaChannelToDto)
+                        .map(discordServerMapper::toChannelDto)
                         .toList();
             }
         }
@@ -442,22 +432,6 @@ public class ServerService {
         return String.format("Updated via RNG Control Center by %s (%s)", fullName, operatorEmail);
     }
 
-    private String formatDiscordIconUrl(String guildId, String iconHash) {
-        if (guildId == null || iconHash == null) {
-            return null;
-        }
-        String ext = iconHash.startsWith("a_") ? "gif" : "png";
-        return String.format("https://cdn.discordapp.com/icons/%s/%s.%s", guildId, iconHash, ext);
-    }
-
-    private String formatDiscordBannerUrl(String guildId, String bannerHash) {
-        if (guildId == null || bannerHash == null) {
-            return null;
-        }
-        String ext = bannerHash.startsWith("a_") ? "gif" : "png";
-        return String.format("https://cdn.discordapp.com/banners/%s/%s.%s", guildId, bannerHash, ext);
-    }
-
     private List<ServerDto> syncAndMapJdaGuilds(List<Guild> jdaGuilds) {
         Map<String, DiscordGuildDto> countMap = new HashMap<>();
         try {
@@ -500,18 +474,16 @@ public class ServerService {
                 total = countDto.getApproximateMemberCount();
             }
 
-            result.add(ServerDto.builder()
-                    .id(server.getId())
-                    .slug(server.getSlug())
-                    .name(guild.getName())
-                    .iconUrl(guild.getIconUrl())
-                    .bannerUrl(guild.getBannerUrl())
-                    .onlineCount(online)
-                    .totalCount(total)
-                    .boostLevel(guild.getBoostTier().getKey())
-                    .boostCount(guild.getBoostCount())
-                    .status("operational")
-                    .build());
+            result.add(discordServerMapper.toServerDto(
+                    server,
+                    guild.getName(),
+                    guild.getIconUrl(),
+                    guild.getBannerUrl(),
+                    online,
+                    total,
+                    guild.getBoostTier().getKey(),
+                    guild.getBoostCount()
+            ));
         }
         return result;
     }
@@ -551,56 +523,20 @@ public class ServerService {
         }
         int total = guild.getMemberCount();
 
-        return ServerDetailDto.builder()
-                .id(server.getId())
-                .slug(server.getSlug())
-                .name(guild.getName())
-                .description(guild.getDescription())
-                .iconUrl(guild.getIconUrl())
-                .bannerUrl(guild.getBannerUrl())
-                .onlineCount(online)
-                .totalCount(total)
-                .boostLevel(guild.getBoostTier().getKey())
-                .boostCount(guild.getBoostCount())
-                .features(guild.getFeatures().stream().toList())
-                .afkChannelId(guild.getAfkChannel() != null ? guild.getAfkChannel().getId() : null)
-                .afkTimeout(guild.getAfkTimeout().getSeconds())
-                .systemChannelId(guild.getSystemChannel() != null ? guild.getSystemChannel().getId() : null)
-                .sendWelcome(true)
-                .stickerPrompt(true)
-                .boostMessage(true)
-                .setupTips(true)
-                .defaultMessageNotifications(guild.getDefaultNotificationLevel().getKey())
-                .vanityUrl(guild.getVanityCode())
-                .widgetEnabled(false)
-                .widgetChannelId(null)
-                .build();
-    }
-
-    private ChannelDto mapJdaChannelToDto(GuildChannel channel) {
-        int position = channel instanceof net.dv8tion.jda.api.entities.channel.attribute.IPositionableChannel pc ? pc.getPosition() : 0;
-        return ChannelDto.builder()
-                .id(channel.getId())
-                .name(channel.getName())
-                .type(channel.getType().getId())
-                .position(position)
-                .parentId(null)
-                .build();
+        return discordServerMapper.toServerDetailDto(server, guild, online, total);
     }
 
     private ServerDto mapEntityToDto(Server server) {
-        return ServerDto.builder()
-                .id(server.getId())
-                .slug(server.getSlug())
-                .name(server.getName())
-                .iconUrl(formatDiscordIconUrl(server.getId(), server.getIconHash()))
-                .bannerUrl(formatDiscordBannerUrl(server.getId(), server.getBannerHash()))
-                .onlineCount(0)
-                .totalCount(0)
-                .boostLevel(server.getPremiumTier())
-                .boostCount(server.getPremiumSubscriptionCount())
-                .status("operational")
-                .build();
+        return discordServerMapper.toServerDto(
+                server,
+                server.getName(),
+                discordServerMapper.formatDiscordIconUrl(server.getId(), server.getIconHash()),
+                discordServerMapper.formatDiscordBannerUrl(server.getId(), server.getBannerHash()),
+                0,
+                0,
+                server.getPremiumTier(),
+                server.getPremiumSubscriptionCount()
+        );
     }
 
     public String resolveGuildId(String idOrSlug) {
@@ -651,7 +587,7 @@ public class ServerService {
                 List<DiscordEmojiResponseDto> restEmojis = discordClient.getGuildEmojis(guildId);
                 if (restEmojis != null && !restEmojis.isEmpty()) {
                     return restEmojis.stream()
-                            .map(e -> DiscordEmojiDto.from(e.id(), e.name(), e.animated()))
+                            .map(discordServerMapper::toDiscordEmojiDto)
                             .toList();
                 }
             } catch (Exception e) {
@@ -667,7 +603,7 @@ public class ServerService {
                     List<net.dv8tion.jda.api.entities.emoji.RichCustomEmoji> emojis = guild.getEmojis();
                     if (!emojis.isEmpty()) {
                         return emojis.stream()
-                                .map(e -> DiscordEmojiDto.from(e.getId(), e.getName(), e.isAnimated()))
+                                .map(discordServerMapper::toDiscordEmojiDto)
                                 .toList();
                     }
                 }
@@ -697,7 +633,7 @@ public class ServerService {
                 List<DiscordEmojiResponseDto> appEmojis = discordClient.getApplicationEmojis(appId);
                 if (appEmojis != null && !appEmojis.isEmpty()) {
                     return appEmojis.stream()
-                            .map(e -> DiscordEmojiDto.from(e.id(), e.name(), e.animated()))
+                            .map(discordServerMapper::toDiscordEmojiDto)
                             .toList();
                 }
             } catch (Exception e) {
