@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import {
+  Globe,
   Server as ServerIcon,
   Shield,
   Ticket,
   MessageSquare,
   Mail,
-  UserCheck,
+  Layers,
 } from 'lucide-react';
 import type {
   ActionType,
@@ -34,17 +35,17 @@ export interface ActionTemplateModalProps {
   onSubmit: (payload: CreateActionPayload) => Promise<void> | void;
 }
 
-const ACTION_TYPE_OPTIONS: DropdownOption<ActionType>[] = [
-  { label: 'Role Grant / Toggle (ROLE)', value: 'ROLE' },
-  { label: 'Support Ticket Channel (TICKET)', value: 'TICKET' },
-  { label: 'Bot Reply Message (REPLY)', value: 'REPLY' },
-  { label: 'Bot Direct Message (DM)', value: 'DM' },
+const ACTION_TYPE_OPTIONS: { label: string; value: ActionType }[] = [
+  { label: 'Role Grant', value: 'ROLE' },
+  { label: 'Private Ticket', value: 'TICKET' },
+  { label: 'Bot Reply', value: 'REPLY' },
+  { label: 'Bot DM', value: 'DM' },
 ];
 
-const ROLE_SUBTYPE_OPTIONS: DropdownOption<RoleSubtype>[] = [
-  { label: 'Toggle Role (TOGGLE)', value: 'TOGGLE' },
-  { label: 'Grant Role Only (ADD)', value: 'ADD' },
-  { label: 'Remove Role Only (REMOVE)', value: 'REMOVE' },
+const RESPONSE_TYPE_OPTIONS: DropdownOption<ResponseType>[] = [
+  { label: 'Public Embed', value: 'PUBLIC_EMBED' },
+  { label: 'Ephemeral Embed', value: 'EPHEMERAL_EMBED' },
+  { label: 'Direct Message Embed', value: 'DM_EMBED' },
 ];
 
 export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
@@ -81,35 +82,41 @@ export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
 
   // Role specific
   const [roleSubtype, setRoleSubtype] = useState<RoleSubtype>(initialAction?.roleSubtype ?? 'TOGGLE');
+  const [roleFeedback, setRoleFeedback] = useState(initialAction?.replyContent ?? '');
 
   // Ticket specific
   const [channelPrefix, setChannelPrefix] = useState(initialAction?.channelPrefix ?? 'ticket-');
   const [welcomeMessage, setWelcomeMessage] = useState(
-    initialAction?.welcomeMessage ??
-      'Welcome {user}! Support staff will assist you shortly.'
+    initialAction?.welcomeMessage ?? 'Welcome {user} to support!'
   );
-
-  // Delivery Format & Message Content
-  const [deliveryFormat, setDeliveryFormat] = useState<'TEXT' | 'EMBED'>(
-    initialAction?.responseEmbedTemplateId ? 'EMBED' : 'TEXT'
-  );
-  const [replyContent, setReplyContent] = useState(initialAction?.replyContent ?? '');
   const [dmContent, setDmContent] = useState(initialAction?.dmContent ?? '');
-  const [selectedTemplateId, setSelectedTemplateId] = useState(
+
+  // Shared Response & Follow-Up Configuration (Role & Ticket)
+  const [responseType, setResponseType] = useState<ResponseType>(
+    initialAction?.responseType ?? 'PUBLIC_EMBED'
+  );
+  const [responseEmbedTemplateId, setResponseEmbedTemplateId] = useState(
     initialAction?.responseEmbedTemplateId ?? ''
   );
+
+  // Reply specific
+  const [replyMode, setReplyMode] = useState<'TEXT' | 'EMBED'>(
+    initialAction?.actionType === 'REPLY' && initialAction?.responseEmbedTemplateId
+      ? 'EMBED'
+      : 'TEXT'
+  );
+  const [replyContent, setReplyContent] = useState(initialAction?.replyContent ?? '');
   const [isEphemeral, setIsEphemeral] = useState(initialAction?.isEphemeral ?? true);
+
+  // DM specific
+  const [dmMode, setDmMode] = useState<'TEXT' | 'EMBED'>(
+    initialAction?.actionType === 'DM' && initialAction?.responseEmbedTemplateId
+      ? 'EMBED'
+      : 'TEXT'
+  );
+  const [botDmText, setBotDmText] = useState(initialAction?.dmContent ?? '');
   const [dispatchDMLogsWithFallback, setDispatchDMLogsWithFallback] = useState(
     initialAction?.dispatchDMLogsWithFallback ?? true
-  );
-
-  // Multi-select Session Chaining Prerequisites
-  const [requiredUser, setRequiredUser] = useState(Boolean(initialAction?.requiredUser));
-  const [requiredRole, setRequiredRole] = useState(
-    initialAction?.requiredRole !== undefined ? Boolean(initialAction.requiredRole) : true
-  );
-  const [confirmationMessage, setConfirmationMessage] = useState(
-    initialAction?.confirmationMessage ?? ''
   );
 
   const [submitting, setSubmitting] = useState(false);
@@ -131,75 +138,72 @@ export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
     );
     setActionType(initialAction?.actionType ?? 'ROLE');
     setRoleSubtype(initialAction?.roleSubtype ?? 'TOGGLE');
+    setRoleFeedback(initialAction?.replyContent ?? '');
     setChannelPrefix(initialAction?.channelPrefix ?? 'ticket-');
     setWelcomeMessage(
-      initialAction?.welcomeMessage ??
-        'Welcome {user}! Support staff will assist you shortly.'
+      initialAction?.welcomeMessage ?? 'Welcome {user} to support!'
     );
-    setDeliveryFormat(initialAction?.responseEmbedTemplateId ? 'EMBED' : 'TEXT');
-    setReplyContent(initialAction?.replyContent ?? '');
     setDmContent(initialAction?.dmContent ?? '');
-    setSelectedTemplateId(initialAction?.responseEmbedTemplateId ?? '');
-    setIsEphemeral(initialAction?.isEphemeral ?? true);
-    setDispatchDMLogsWithFallback(initialAction?.dispatchDMLogsWithFallback ?? true);
-    setRequiredUser(Boolean(initialAction?.requiredUser));
-    setRequiredRole(
-      initialAction?.requiredRole !== undefined ? Boolean(initialAction.requiredRole) : true
+    setResponseType(initialAction?.responseType ?? 'PUBLIC_EMBED');
+    setResponseEmbedTemplateId(initialAction?.responseEmbedTemplateId ?? '');
+    setReplyMode(
+      initialAction?.actionType === 'REPLY' && initialAction?.responseEmbedTemplateId
+        ? 'EMBED'
+        : 'TEXT'
     );
-    setConfirmationMessage(initialAction?.confirmationMessage ?? '');
+    setReplyContent(initialAction?.replyContent ?? '');
+    setIsEphemeral(initialAction?.isEphemeral ?? true);
+    setDmMode(
+      initialAction?.actionType === 'DM' && initialAction?.responseEmbedTemplateId
+        ? 'EMBED'
+        : 'TEXT'
+    );
+    setBotDmText(initialAction?.dmContent ?? '');
+    setDispatchDMLogsWithFallback(initialAction?.dispatchDMLogsWithFallback ?? true);
   }
 
-  // Load connected servers for multi-server assignment
+  // Load connected servers
   useEffect(() => {
-    let isMounted = true;
+    let active = true;
     if (isOpen) {
       setLoadingServers(true);
       fetchServers()
         .then((res) => {
-          if (isMounted && res.success && Array.isArray(res.data)) {
+          if (active && res.success && Array.isArray(res.data)) {
             setConnectedServers(res.data);
           }
         })
-        .catch(() => {
-          // Fallback handled cleanly
-        })
+        .catch(() => {})
         .finally(() => {
-          if (isMounted) setLoadingServers(false);
+          if (active) setLoadingServers(false);
         });
     }
     return () => {
-      isMounted = false;
+      active = false;
     };
   }, [isOpen]);
 
-  const templateOptions: DropdownOption<string>[] = embedTemplates.map((t) => ({
-    label: t.name,
-    value: t.id,
-    description: `Category: ${t.category || 'GENERAL'}`,
-  }));
-
-  const handleToggleServer = (sId: string) => {
+  const handleToggleServer = (id: string) => {
     setSelectedServerIds((prev) =>
-      prev.includes(sId) ? prev.filter((id) => id !== sId) : [...prev, sId]
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
     );
   };
 
-  const handleFormSubmit = async () => {
+  const templateOptions: DropdownOption<string>[] = [
+    { label: 'None (Default Confirmation)', value: '' },
+    ...embedTemplates.map((t) => ({
+      label: t.name,
+      value: t.id || t.templateId || '',
+      description: t.category ? `Category: ${t.category}` : undefined,
+    })),
+  ];
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!name.trim()) return;
+
     setSubmitting(true);
-
     try {
-      let responseType: ResponseType | undefined;
-      if (actionType === 'REPLY' || actionType === 'ROLE') {
-        if (deliveryFormat === 'EMBED') {
-          responseType = isEphemeral ? 'EPHEMERAL_EMBED' : 'PUBLIC_EMBED';
-        } else {
-          responseType = isEphemeral ? 'EPHEMERAL_TEXT' : 'PUBLIC_TEXT';
-        }
-      } else if (actionType === 'DM') {
-        responseType = deliveryFormat === 'EMBED' ? 'DM_EMBED' : 'PUBLIC_TEXT';
-      }
-
       const assignedServers = isGlobal
         ? []
         : selectedServerIds.length > 0
@@ -208,65 +212,55 @@ export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
         ? [serverId]
         : [];
 
-      const payload: CreateActionPayload = {
-        serverId: isGlobal ? undefined : assignedServers[0],
-        serverIds: assignedServers,
-        isGlobal,
+      const basePayload: CreateActionPayload = {
         name: name.trim(),
         description: description.trim() || undefined,
         actionType,
-        requiredUser,
-        requiredRole: actionType === 'ROLE' ? true : requiredRole,
-        confirmationMessage: confirmationMessage.trim() || undefined,
-        ...(actionType === 'ROLE'
-          ? {
-              roleSubtype,
-              replyContent: replyContent.trim() || undefined,
-              responseType,
-              isEphemeral,
-              responseEmbedTemplateId:
-                deliveryFormat === 'EMBED' && selectedTemplateId
-                  ? selectedTemplateId
-                  : undefined,
-            }
-          : {}),
-        ...(actionType === 'TICKET'
-          ? {
-              channelPrefix: channelPrefix.trim() || 'ticket-',
-              welcomeMessage: welcomeMessage.trim(),
-              dmContent: dmContent.trim() || undefined,
-              responseType,
-              responseEmbedTemplateId:
-                deliveryFormat === 'EMBED' && selectedTemplateId
-                  ? selectedTemplateId
-                  : undefined,
-            }
-          : {}),
-        ...(actionType === 'REPLY'
-          ? {
-              responseType,
-              isEphemeral,
-              replyContent: deliveryFormat === 'TEXT' ? replyContent.trim() : undefined,
-              responseEmbedTemplateId:
-                deliveryFormat === 'EMBED' && selectedTemplateId
-                  ? selectedTemplateId
-                  : undefined,
-            }
-          : {}),
-        ...(actionType === 'DM'
-          ? {
-              responseType,
-              dmContent: deliveryFormat === 'TEXT' ? dmContent.trim() : undefined,
-              responseEmbedTemplateId:
-                deliveryFormat === 'EMBED' && selectedTemplateId
-                  ? selectedTemplateId
-                  : undefined,
-              dispatchDMLogsWithFallback,
-            }
-          : {}),
+        isGlobal,
+        serverId: !isGlobal && assignedServers.length > 0 ? assignedServers[0] : undefined,
+        serverIds: assignedServers,
       };
 
-      await onSubmit(payload);
+      let finalPayload: CreateActionPayload = { ...basePayload };
+
+      if (actionType === 'ROLE') {
+        finalPayload = {
+          ...basePayload,
+          roleSubtype,
+          replyContent: roleFeedback.trim() || undefined,
+          responseType,
+          responseEmbedTemplateId: responseEmbedTemplateId || undefined,
+          requiredRole: true,
+        };
+      } else if (actionType === 'TICKET') {
+        finalPayload = {
+          ...basePayload,
+          channelPrefix: channelPrefix.trim() || 'ticket-',
+          welcomeMessage: welcomeMessage.trim() || undefined,
+          dmContent: dmContent.trim() || undefined,
+          responseType,
+          responseEmbedTemplateId: responseEmbedTemplateId || undefined,
+          dispatchDMLogsWithFallback: true,
+        };
+      } else if (actionType === 'REPLY') {
+        finalPayload = {
+          ...basePayload,
+          replyContent: replyMode === 'TEXT' ? replyContent.trim() || undefined : undefined,
+          responseEmbedTemplateId: replyMode === 'EMBED' ? responseEmbedTemplateId || undefined : undefined,
+          responseType: replyMode === 'EMBED' ? (isEphemeral ? 'EPHEMERAL_EMBED' : 'PUBLIC_EMBED') : (isEphemeral ? 'EPHEMERAL_TEXT' : 'PUBLIC_TEXT'),
+          isEphemeral,
+        };
+      } else if (actionType === 'DM') {
+        finalPayload = {
+          ...basePayload,
+          dmContent: dmMode === 'TEXT' ? botDmText.trim() || undefined : undefined,
+          responseEmbedTemplateId: dmMode === 'EMBED' ? responseEmbedTemplateId || undefined : undefined,
+          responseType: dmMode === 'EMBED' ? 'DM_EMBED' : 'EPHEMERAL_TEXT',
+          dispatchDMLogsWithFallback,
+        };
+      }
+
+      await onSubmit(finalPayload);
       onClose();
     } finally {
       setSubmitting(false);
@@ -277,12 +271,8 @@ export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={
-        initialAction
-          ? `Edit Action (${initialAction.actionId})`
-          : 'New Action Template'
-      }
-      description="Configure button or select menu action."
+      title={initialAction ? 'Edit Action Template' : 'New Action Template'}
+      description="Configure interactive button or select menu action behavior."
       size="lg"
       footer={
         <div className="flex items-center justify-end gap-2.5">
@@ -297,57 +287,83 @@ export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
             disabled={!name.trim()}
             onClick={handleFormSubmit}
           >
-            {initialAction ? 'Save Action' : 'Create Action'}
+            Save Template
           </Button>
         </div>
       }
     >
-      <div className="flex flex-col gap-4">
-        {/* Row 1: Name and Action Type */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <TextInput
-            label="Action Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Dynamic Role Grant"
-            required
-          />
-          <Dropdown
-            label="Action Type"
-            options={ACTION_TYPE_OPTIONS}
-            value={actionType}
-            onChange={setActionType}
+      <form onSubmit={handleFormSubmit} className="flex flex-col gap-4">
+        {/* Template Name */}
+        <TextInput
+          label="Template Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Dynamic Role Grant Pipeline"
+          maxLength={100}
+          required
+        />
+
+        {/* Template Description */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-semibold text-zinc-300">Template Description</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Brief description of what this interactive action does..."
+            rows={2}
+            maxLength={500}
+            className="w-full px-3.5 py-2.5 rounded-apple-md bg-black/40 border border-white/10 text-white text-xs placeholder:text-zinc-500 focus:border-brand-red focus:outline-none transition-colors resize-none"
           />
         </div>
 
-        {/* Global Scope Toggle */}
-        <div className="p-3.5 rounded-apple-lg bg-surface-card border border-white/10 flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-white">Global Action</span>
-            <p className="text-[11px] text-zinc-400">
-              Available across all connected servers
-            </p>
+        {/* Action Template Scope */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-semibold text-zinc-300">Action Template Scope</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setIsGlobal(true)}
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-apple-md text-xs font-semibold transition-all cursor-pointer ${
+                isGlobal
+                  ? 'bg-brand-red text-white shadow-sm'
+                  : 'bg-white/[0.03] text-zinc-400 hover:text-white border border-white/5'
+              }`}
+            >
+              <Globe size={14} />
+              Global
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsGlobal(false)}
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-apple-md text-xs font-semibold transition-all cursor-pointer ${
+                !isGlobal
+                  ? 'bg-brand-red text-white shadow-sm'
+                  : 'bg-white/[0.03] text-zinc-400 hover:text-white border border-white/5'
+              }`}
+            >
+              <ServerIcon size={14} />
+              Server-Specific
+            </button>
           </div>
-          <ToggleSwitch checked={isGlobal} onChange={setIsGlobal} />
         </div>
 
-        {/* Multi-Server Scoping when NOT global */}
+        {/* Server's Dropdown (Visible strictly when Scope == Server-Specific) */}
         {!isGlobal && (
-          <div className="p-4 rounded-apple-lg bg-black/40 border border-white/10 flex flex-col gap-2.5">
+          <div className="p-3.5 rounded-apple-lg bg-black/40 border border-white/10 flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
                 <ServerIcon size={14} className="text-zinc-400" />
-                Target Discord Servers
+                Discord Servers Assigned
               </span>
               <span className="text-[11px] font-mono text-zinc-400">
-                {selectedServerIds.length} assigned
+                {selectedServerIds.length} selected
               </span>
             </div>
 
             {loadingServers ? (
-              <span className="text-xs text-zinc-500 py-2">Loading servers...</span>
+              <span className="text-xs text-zinc-500 py-1">Loading servers...</span>
             ) : connectedServers.length === 0 ? (
-              <span className="text-xs text-zinc-500 py-2">
+              <span className="text-xs text-zinc-500 py-1">
                 No connected servers found. Current server context will be used.
               </span>
             ) : (
@@ -367,7 +383,7 @@ export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
                         type="checkbox"
                         checked={isChecked}
                         onChange={() => handleToggleServer(srv.id)}
-                        className="w-3.5 h-3.5 rounded bg-black/60 border border-white/20 text-brand-red focus:ring-0 focus:ring-offset-0"
+                        className="w-3.5 h-3.5 rounded bg-black/60 border border-white/20 text-brand-red focus:ring-0 focus:ring-offset-0 cursor-pointer"
                       />
                       <span className="truncate">{srv.name}</span>
                     </label>
@@ -378,175 +394,294 @@ export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
           </div>
         )}
 
-        {/* Description */}
-        <TextInput
-          label="Description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Brief description of this action..."
-        />
+        {/* Action Type: Role Grant | Private Ticket | Bot Reply | Bot DM */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-semibold text-zinc-300">Action Type</label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {ACTION_TYPE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setActionType(opt.value)}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-apple-md text-xs font-semibold transition-all cursor-pointer ${
+                  actionType === opt.value
+                    ? 'bg-brand-red text-white shadow-sm'
+                    : 'bg-white/[0.03] text-zinc-400 hover:text-white border border-white/5'
+                }`}
+              >
+                {opt.value === 'ROLE' && <Shield size={14} />}
+                {opt.value === 'TICKET' && <Ticket size={14} />}
+                {opt.value === 'REPLY' && <MessageSquare size={14} />}
+                {opt.value === 'DM' && <Mail size={14} />}
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-        {/* ROLE Specific Configuration */}
+        {/* Conditional Sub-form: Role Grant */}
         {actionType === 'ROLE' && (
-          <div className="p-4 rounded-apple-lg bg-black/40 border border-white/10 flex flex-col gap-3">
-            <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
-              <Shield size={14} className="text-brand-red" />
-              Role Mutation Settings
+          <div className="p-4 rounded-apple-lg bg-black/40 border border-white/10 flex flex-col gap-4">
+            {/* Operation: TOGGLE | ADD | REMOVE */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold text-zinc-300">Operation</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['TOGGLE', 'ADD', 'REMOVE'] as RoleSubtype[]).map((op) => (
+                  <button
+                    key={op}
+                    type="button"
+                    onClick={() => setRoleSubtype(op)}
+                    className={`py-1.5 px-3 rounded-apple-md text-xs font-bold transition-all cursor-pointer ${
+                      roleSubtype === op
+                        ? 'bg-brand-red text-white shadow-sm'
+                        : 'bg-white/[0.03] text-zinc-400 hover:text-white border border-white/5'
+                    }`}
+                  >
+                    {op}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <Dropdown
-              label="Role Mode"
-              options={ROLE_SUBTYPE_OPTIONS}
-              value={roleSubtype}
-              onChange={setRoleSubtype}
+            {/* Feedback: single line text input */}
+            <TextInput
+              label="Feedback"
+              value={roleFeedback}
+              onChange={(e) => setRoleFeedback(e.target.value)}
+              placeholder="Variables supported: {targetUser}, {user}, {targetRole}, {server}, {channel}"
             />
 
-            <TextInput
-              label="Confirmation Message"
-              value={replyContent}
-              onChange={(e) => setReplyContent(e.target.value)}
-              placeholder="e.g. Role {targetRole} updated for {targetUser}"
-            />
+            {/* Response Section */}
+            <div className="pt-3 border-t border-white/10 flex flex-col gap-3">
+              <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
+                <Layers size={14} className="text-brand-red" />
+                Response Section
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Dropdown
+                  label="Response Type"
+                  options={RESPONSE_TYPE_OPTIONS}
+                  value={responseType}
+                  onChange={(val) => setResponseType(val as ResponseType)}
+                />
+                <Dropdown
+                  label="Embed Template"
+                  options={templateOptions}
+                  value={responseEmbedTemplateId}
+                  onChange={setResponseEmbedTemplateId}
+                  placeholder="Select embed template..."
+                  searchable
+                />
+              </div>
+            </div>
           </div>
         )}
 
-        {/* TICKET Specific Configuration */}
+        {/* Conditional Sub-form: Private Ticket */}
         {actionType === 'TICKET' && (
-          <div className="p-4 rounded-apple-lg bg-black/40 border border-white/10 flex flex-col gap-3">
+          <div className="p-4 rounded-apple-lg bg-black/40 border border-white/10 flex flex-col gap-4">
             <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
               <Ticket size={14} className="text-brand-red" />
-              Ticket Channel Settings
+              SUPPORT TICKET CREATION
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Ticket Channel Name / Pattern */}
+            <div>
               <TextInput
-                label="Channel Prefix"
+                label="Ticket Channel Name / Pattern"
                 value={channelPrefix}
                 onChange={(e) => setChannelPrefix(e.target.value)}
                 placeholder="ticket-"
               />
-              <TextInput
-                label="DM Audit Log (Optional)"
-                value={dmContent}
-                onChange={(e) => setDmContent(e.target.value)}
-                placeholder="Ticket opened for {user}"
-              />
+              <p className="text-[10px] text-zinc-500 mt-1">
+                Custom exact name (e.g. ticket-0017) or dynamic pattern using {'{hexCode}'} or {'{username}'}.
+              </p>
             </div>
 
-            <TextInput
-              label="Greeting Message"
-              value={welcomeMessage}
-              onChange={(e) => setWelcomeMessage(e.target.value)}
-              placeholder="Welcome {user}! Staff will assist you shortly."
-            />
+            {/* Welcome Message in Ticket */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-zinc-300">Welcome Message in Ticket</label>
+              <textarea
+                value={welcomeMessage}
+                onChange={(e) => setWelcomeMessage(e.target.value)}
+                placeholder="Welcome {user} to support!"
+                rows={2}
+                className="w-full px-3.5 py-2.5 rounded-apple-md bg-black/40 border border-white/10 text-white text-xs placeholder:text-zinc-500 focus:border-brand-red focus:outline-none transition-colors resize-none"
+              />
+              <p className="text-[10px] text-zinc-500">
+                Variables supported: {'{user}'}, {'{username}'}, {'{targetUser}'}, {'{targetRole}'}, {'{server}'}, {'{channel}'}
+              </p>
+            </div>
+
+            {/* Direct Message Notification / Audit Log (Optional) */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-zinc-300">
+                Direct Message Notification / Audit Log (Optional)
+              </label>
+              <textarea
+                value={dmContent}
+                onChange={(e) => setDmContent(e.target.value)}
+                placeholder="e.g. A support ticket has been opened for {targetUser} regarding role {targetRole}."
+                rows={2}
+                className="w-full px-3.5 py-2.5 rounded-apple-md bg-black/40 border border-white/10 text-white text-xs placeholder:text-zinc-500 focus:border-brand-red focus:outline-none transition-colors resize-none"
+              />
+              <p className="text-[10px] text-zinc-500">
+                Variables supported: {'{user}'}, {'{targetUser}'}, {'{targetRole}'}, {'{server}'}, {'{channel}'}. Delivered to operator via DM.
+              </p>
+            </div>
+
+            {/* Response Section */}
+            <div className="pt-3 border-t border-white/10 flex flex-col gap-3">
+              <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
+                <Layers size={14} className="text-brand-red" />
+                Response Section
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Dropdown
+                  label="Response Type"
+                  options={RESPONSE_TYPE_OPTIONS}
+                  value={responseType}
+                  onChange={(val) => setResponseType(val as ResponseType)}
+                />
+                <Dropdown
+                  label="Follow-Up Embed Template"
+                  options={templateOptions}
+                  value={responseEmbedTemplateId}
+                  onChange={setResponseEmbedTemplateId}
+                  placeholder="Select embed template..."
+                  searchable
+                />
+              </div>
+            </div>
           </div>
         )}
 
-        {/* REPLY / DM Specific Configuration */}
-        {(actionType === 'REPLY' || actionType === 'DM') && (
-          <div className="p-4 rounded-apple-lg bg-black/40 border border-white/10 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
-                {actionType === 'REPLY' ? (
-                  <MessageSquare size={14} className="text-brand-red" />
-                ) : (
-                  <Mail size={14} className="text-brand-red" />
-                )}
-                {actionType === 'REPLY' ? 'Reply Settings' : 'Direct Message Settings'}
-              </div>
-
-              {/* Delivery Format Pills */}
-              <div className="inline-flex rounded-apple-md bg-zinc-900 p-0.5 border border-white/10">
-                <button
-                  type="button"
-                  onClick={() => setDeliveryFormat('TEXT')}
-                  className={`px-3 py-1 rounded-apple-sm text-xs font-semibold transition-colors cursor-pointer ${
-                    deliveryFormat === 'TEXT'
-                      ? 'bg-brand-red text-white'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  Text
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeliveryFormat('EMBED')}
-                  className={`px-3 py-1 rounded-apple-sm text-xs font-semibold transition-colors cursor-pointer ${
-                    deliveryFormat === 'EMBED'
-                      ? 'bg-brand-red text-white'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  Embed
-                </button>
-              </div>
+        {/* Conditional Sub-form: Bot Reply */}
+        {actionType === 'REPLY' && (
+          <div className="p-4 rounded-apple-lg bg-black/40 border border-white/10 flex flex-col gap-4">
+            <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
+              <MessageSquare size={14} className="text-brand-red" />
+              BOT REPLY CONFIGURATION
             </div>
 
-            {deliveryFormat === 'TEXT' ? (
+            {/* Delivery Mode: Text Message vs Embedded Message */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setReplyMode('TEXT')}
+                className={`py-2 px-3 rounded-apple-md text-xs font-semibold transition-all cursor-pointer ${
+                  replyMode === 'TEXT'
+                    ? 'bg-brand-red text-white shadow-sm'
+                    : 'bg-white/[0.03] text-zinc-400 hover:text-white border border-white/5'
+                }`}
+              >
+                Text Message
+              </button>
+              <button
+                type="button"
+                onClick={() => setReplyMode('EMBED')}
+                className={`py-2 px-3 rounded-apple-md text-xs font-semibold transition-all cursor-pointer ${
+                  replyMode === 'EMBED'
+                    ? 'bg-brand-red text-white shadow-sm'
+                    : 'bg-white/[0.03] text-zinc-400 hover:text-white border border-white/5'
+                }`}
+              >
+                Embedded Message
+              </button>
+            </div>
+
+            {/* Content Field depending on Mode */}
+            {replyMode === 'TEXT' ? (
               <TextInput
-                label={actionType === 'REPLY' ? 'Reply Content' : 'DM Content'}
-                value={actionType === 'REPLY' ? replyContent : dmContent}
-                onChange={(e) =>
-                  actionType === 'REPLY' ? setReplyContent(e.target.value) : setDmContent(e.target.value)
-                }
-                placeholder="Message content..."
+                label="Message Content"
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                placeholder="Variables supported: {user}, {server}, {channel}"
               />
             ) : (
               <Dropdown
                 label="Follow-Up Embed Template"
                 options={templateOptions}
-                value={selectedTemplateId}
-                onChange={setSelectedTemplateId}
-                placeholder="Select saved template..."
+                value={responseEmbedTemplateId}
+                onChange={setResponseEmbedTemplateId}
+                placeholder="Select embed template..."
                 searchable
               />
             )}
 
-            {actionType === 'REPLY' && (
-              <ToggleSwitch
-                checked={isEphemeral}
-                onChange={setIsEphemeral}
-                label="Ephemeral reply"
-                description="Only visible to the interacting user"
-              />
-            )}
-
-            {actionType === 'DM' && (
-              <ToggleSwitch
-                checked={dispatchDMLogsWithFallback}
-                onChange={setDispatchDMLogsWithFallback}
-                label="Ticket channel fallback"
-                description="Deliver to ticket channel if direct messages are closed (Error 50007)"
-              />
-            )}
+            {/* Ephemeral Toggle */}
+            <ToggleSwitch
+              checked={isEphemeral}
+              onChange={setIsEphemeral}
+              label="Is this message ephemeral?"
+              description="Only visible to the interacting user"
+            />
           </div>
         )}
 
-        {/* Multi-Select Session Chaining Prerequisites */}
-        <div className="p-4 rounded-apple-lg bg-black/40 border border-white/10 flex flex-col gap-3">
-          <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
-            <UserCheck size={14} className="text-brand-red" />
-            Session Prerequisites
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="p-3 rounded-apple-md bg-white/[0.02] border border-white/5 flex items-center justify-between">
-              <span className="text-xs text-white">Require User Selection</span>
-              <ToggleSwitch checked={requiredUser} onChange={setRequiredUser} size="sm" />
+        {/* Conditional Sub-form: Bot DM */}
+        {actionType === 'DM' && (
+          <div className="p-4 rounded-apple-lg bg-black/40 border border-white/10 flex flex-col gap-4">
+            <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
+              <Mail size={14} className="text-brand-red" />
+              DIRECT MESSAGE CONFIGURATION
             </div>
 
-            <div className="p-3 rounded-apple-md bg-white/[0.02] border border-white/5 flex items-center justify-between">
-              <span className="text-xs text-white">Require Role Selection</span>
-              <ToggleSwitch
-                checked={actionType === 'ROLE' ? true : requiredRole}
-                onChange={setRequiredRole}
-                disabled={actionType === 'ROLE'}
-                size="sm"
+            {/* Delivery Mode: Text Message vs Embedded Message */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setDmMode('TEXT')}
+                className={`py-2 px-3 rounded-apple-md text-xs font-semibold transition-all cursor-pointer ${
+                  dmMode === 'TEXT'
+                    ? 'bg-brand-red text-white shadow-sm'
+                    : 'bg-white/[0.03] text-zinc-400 hover:text-white border border-white/5'
+                }`}
+              >
+                Text Message
+              </button>
+              <button
+                type="button"
+                onClick={() => setDmMode('EMBED')}
+                className={`py-2 px-3 rounded-apple-md text-xs font-semibold transition-all cursor-pointer ${
+                  dmMode === 'EMBED'
+                    ? 'bg-brand-red text-white shadow-sm'
+                    : 'bg-white/[0.03] text-zinc-400 hover:text-white border border-white/5'
+                }`}
+              >
+                Embedded Message
+              </button>
+            </div>
+
+            {/* Content Field depending on Mode */}
+            {dmMode === 'TEXT' ? (
+              <TextInput
+                label="DM Content"
+                value={botDmText}
+                onChange={(e) => setBotDmText(e.target.value)}
+                placeholder="Variables supported: {user}, {server}, {channel}"
               />
-            </div>
+            ) : (
+              <Dropdown
+                label="Follow-Up Embed Template"
+                options={templateOptions}
+                value={responseEmbedTemplateId}
+                onChange={setResponseEmbedTemplateId}
+                placeholder="Select embed template..."
+                searchable
+              />
+            )}
+
+            {/* Closed DMs Fallback Toggle */}
+            <ToggleSwitch
+              checked={dispatchDMLogsWithFallback}
+              onChange={setDispatchDMLogsWithFallback}
+              label="Automatic Ticket Channel Fallback"
+              description="Deliver payload into provisioned ticket channel if Discord Error 50007 occurs"
+            />
           </div>
-        </div>
-      </div>
+        )}
+      </form>
     </Modal>
   );
 };

@@ -228,8 +228,10 @@ export const ServerEmbedBuilderCoordinator: React.FC<
     name: string;
     description: string;
     category: string;
-    tags: string[];
+    tags?: string[];
     isPublic: boolean;
+    serverId?: string;
+    serverIds?: string[];
   }) => {
     const token =
       typeof window !== 'undefined'
@@ -244,8 +246,9 @@ export const ServerEmbedBuilderCoordinator: React.FC<
           name: meta.name,
           description: meta.description,
           category: meta.category,
-          tags: meta.tags,
+          tags: meta.tags || [],
           isPublic: meta.isPublic,
+          serverId: meta.serverIds?.[0] || meta.serverId || serverId,
           payload: validationReport.compiledPayload as unknown as Record<string, unknown>,
         },
         token
@@ -533,6 +536,7 @@ export const ServerEmbedBuilderCoordinator: React.FC<
       <SaveTemplateModal
         isOpen={isSaveModalOpen}
         initialName={state.activeTemplateName}
+        serverId={serverId}
         onClose={() => setIsSaveModalOpen(false)}
         onSave={handleSaveTemplate}
       />

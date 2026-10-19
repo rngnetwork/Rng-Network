@@ -236,8 +236,10 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
     name: string;
     description: string;
     category: string;
-    tags: string[];
+    tags?: string[];
     isPublic: boolean;
+    serverId?: string;
+    serverIds?: string[];
   }) => {
     const token =
       typeof window !== 'undefined'
@@ -252,8 +254,9 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
           name: metadata.name,
           description: metadata.description,
           category: metadata.category,
-          tags: metadata.tags,
+          tags: metadata.tags || [],
           isPublic: metadata.isPublic,
+          serverId: metadata.serverIds?.[0] || metadata.serverId,
           payload:
             validationReport.compiledPayload as unknown as Record<string, unknown>,
         },
@@ -316,8 +319,10 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
       name: string;
       description: string;
       category: string;
-      tags: string[];
+      tags?: string[];
       isPublic: boolean;
+      serverId?: string;
+      serverIds?: string[];
       overwriteWithCanvas: boolean;
     }
   ) => {
@@ -340,8 +345,9 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
           name: updates.name,
           description: updates.description,
           category: updates.category,
-          tags: updates.tags,
+          tags: updates.tags || [],
           isPublic: updates.isPublic,
+          serverId: updates.serverIds?.[0] || updates.serverId,
           payload: targetPayload,
         },
         token

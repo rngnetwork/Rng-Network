@@ -1,26 +1,30 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Layers } from 'lucide-react';
+import { Globe, Server as ServerIcon, Layers } from 'lucide-react';
 import type { TemplateData } from '@/lib/model/embed';
 import { Modal } from '@/components/common/feedback/Modal';
 import { TextInput } from '@/components/common/input/TextInput';
-import { ToggleSwitch } from '@/components/common/input/ToggleSwitch';
 import { Button } from '@/components/common/input/Button';
+import { fetchServers } from '@/lib/api/dashboard/servers';
+import type { ServerItem } from '@/lib/model/server';
 
 export interface EditTemplateModalProps {
   isOpen: boolean;
   template: TemplateData | null;
   currentCanvasContainerCount?: number;
+  serverId?: string;
   onClose: () => void;
   onSave: (
     templateId: string,
     updates: {
       name: string;
-      description: string;
       category: string;
-      tags: string[];
+      description: string;
       isPublic: boolean;
+      serverId?: string;
+      serverIds?: string[];
+      tags?: string[];
       overwriteWithCanvas: boolean;
     }
   ) => Promise<void> | void;
@@ -29,30 +33,63 @@ export interface EditTemplateModalProps {
 export const EditTemplateModal: React.FC<EditTemplateModalProps> = ({
   isOpen,
   template,
-  currentCanvasContainerCount = 0,
+  serverId,
   onClose,
   onSave,
 }) => {
   const [name, setName] = useState('');
+  const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('GENERAL');
-  const [tagsStr, setTagsStr] = useState('');
-  const [isPublic, setIsPublic] = useState(false);
+  const [isGlobal, setIsGlobal] = useState(true);
+  const [selectedServerIds, setSelectedServerIds] = useState<string[]>([]);
+  const [connectedServers, setConnectedServers] = useState<ServerItem[]>([]);
+  const [loadingServers, setLoadingServers] = useState(false);
   const [overwriteWithCanvas, setOverwriteWithCanvas] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (template) {
+    if (template && isOpen) {
       setName(template.name || '');
+      setCategory(template.category || '');
       setDescription(template.description || '');
-      setCategory(template.category || 'GENERAL');
-      setTagsStr(Array.isArray(template.tags) ? template.tags.join(', ') : '');
-      setIsPublic(Boolean(template.public || template.isPublic));
+      const isPub = Boolean(template.public ?? template.isPublic ?? true);
+      setIsGlobal(isPub);
+      setSelectedServerIds(
+        template.serverId ? [template.serverId] : serverId ? [serverId] : []
+      );
       setOverwriteWithCanvas(false);
+
+      let active = true;
+      setLoadingServers(true);
+      fetchServers()
+        .then((res) => {
+          if (active && res.success && Array.isArray(res.data)) {
+            setConnectedServers(res.data);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (active) setLoadingServers(false);
+        });
+
+      return () => {
+        active = false;
+      };
     }
-  }, [template]);
+  }, [template, isOpen, serverId]);
 
   if (!template) return null;
+
+  const handleToggleServer = (id: string) => {
+    setSelectedServerIds((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+    );
+  };
+
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const sanitized = e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    setCategory(sanitized);
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,17 +97,14 @@ export const EditTemplateModal: React.FC<EditTemplateModalProps> = ({
 
     setSaving(true);
     try {
-      const tags = tagsStr
-        .split(',')
-        .map((t) => t.trim())
-        .filter((t) => t.length > 0);
-
       await onSave(template.id, {
         name: name.trim(),
+        category: category.trim() || 'general',
         description: description.trim(),
-        category: category.trim().toUpperCase() || 'GENERAL',
-        tags,
-        isPublic,
+        isPublic: isGlobal,
+        serverId: !isGlobal && selectedServerIds.length > 0 ? selectedServerIds[0] : undefined,
+        serverIds: !isGlobal ? selectedServerIds : [],
+        tags: category.trim() ? [category.trim()] : [],
         overwriteWithCanvas,
       });
       onClose();
@@ -83,8 +117,8 @@ export const EditTemplateModal: React.FC<EditTemplateModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Edit Template (${template.name})`}
-      description="Update template metadata or overwrite with current canvas."
+      title="Edit Template"
+      description="Update template metadata and scope."
       size="md"
       footer={
         <div className="flex items-center justify-end gap-2.5">
@@ -99,75 +133,138 @@ export const EditTemplateModal: React.FC<EditTemplateModalProps> = ({
             disabled={!name.trim()}
             onClick={handleSave}
           >
-            Save Changes
+            Save Template
           </Button>
         </div>
       }
     >
       <form onSubmit={handleSave} className="flex flex-col gap-4">
+        {/* Template Name */}
         <TextInput
           label="Template Name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Server Welcome Verification Hub"
+          placeholder="e.g. Welcome Verification Hub"
+          maxLength={100}
           required
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Category (no uppercase, no spaces) */}
+        <div>
           <TextInput
             label="Category"
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            placeholder="e.g. GENERAL, ONBOARDING, RULES"
+            onChange={handleCategoryChange}
+            placeholder="e.g. onboarding, rules"
           />
+          <p className="text-[10px] text-zinc-500 mt-1">
+            Single lowercase keyword only (no uppercase, no spaces).
+          </p>
+        </div>
 
-          <TextInput
-            label="Tags (Comma separated)"
-            value={tagsStr}
-            onChange={(e) => setTagsStr(e.target.value)}
-            placeholder="welcome, rules, roleplay"
+        {/* Description */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-semibold text-zinc-300">Description</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Brief description of this template layout..."
+            rows={3}
+            maxLength={500}
+            className="w-full px-3.5 py-2.5 rounded-apple-md bg-black/40 border border-white/10 text-white text-xs placeholder:text-zinc-500 focus:border-brand-red focus:outline-none transition-colors resize-none"
           />
         </div>
 
-        <TextInput
-          label="Description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Brief summary of this layout..."
-        />
-
-        {/* Overwrite with Canvas callout */}
-        <div className="p-3.5 rounded-apple-lg bg-black/40 border border-white/10 flex items-start gap-3">
-          <div className="p-2 rounded-apple-md bg-white/[0.04] text-zinc-400 mt-0.5">
-            <Layers size={16} />
+        {/* Template Scope */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-semibold text-zinc-300">Template Scope</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setIsGlobal(true)}
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-apple-md text-xs font-semibold transition-all cursor-pointer ${
+                isGlobal
+                  ? 'bg-brand-red text-white shadow-sm'
+                  : 'bg-white/[0.03] text-zinc-400 hover:text-white border border-white/5'
+              }`}
+            >
+              <Globe size={14} />
+              Global
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsGlobal(false)}
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-apple-md text-xs font-semibold transition-all cursor-pointer ${
+                !isGlobal
+                  ? 'bg-brand-red text-white shadow-sm'
+                  : 'bg-white/[0.03] text-zinc-400 hover:text-white border border-white/5'
+              }`}
+            >
+              <ServerIcon size={14} />
+              Server-Specific
+            </button>
           </div>
-          <div className="flex-1 min-w-0">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={overwriteWithCanvas}
-                onChange={(e) => setOverwriteWithCanvas(e.target.checked)}
-                className="w-4 h-4 rounded bg-black/60 border border-white/20 text-brand-red focus:ring-0 focus:ring-offset-0 cursor-pointer"
-              />
-              <span className="text-xs font-semibold text-white">
-                Overwrite layout with active builder canvas
+        </div>
+
+        {/* Discord Servers Assigned (Visible only when Server-Specific) */}
+        {!isGlobal && (
+          <div className="p-3.5 rounded-apple-lg bg-black/40 border border-white/10 flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
+                <ServerIcon size={14} className="text-zinc-400" />
+                Discord Servers Assigned
               </span>
-            </label>
-            <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
-              When checked, this template&apos;s stored Components V2 layout will be replaced with your current active canvas ({currentCanvasContainerCount} container{currentCanvasContainerCount !== 1 ? 's' : ''}).
-            </p>
-          </div>
-        </div>
+              <span className="text-[11px] font-mono text-zinc-400">
+                {selectedServerIds.length} selected
+              </span>
+            </div>
 
-        <div className="p-3.5 rounded-apple-lg bg-surface-card border border-white/10 flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-white">Public Template</span>
-            <p className="text-[11px] text-zinc-400">
-              Make this template accessible to other authorized operators
-            </p>
+            {loadingServers ? (
+              <span className="text-xs text-zinc-500 py-1">Loading servers...</span>
+            ) : connectedServers.length === 0 ? (
+              <span className="text-xs text-zinc-500 py-1">
+                No connected servers found. Current server context will be used.
+              </span>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1 [scrollbar-width:thin]">
+                {connectedServers.map((srv) => {
+                  const isChecked = selectedServerIds.includes(srv.id);
+                  return (
+                    <label
+                      key={srv.id}
+                      className={`flex items-center gap-2.5 p-2 rounded-apple-md border text-xs cursor-pointer transition-colors ${
+                        isChecked
+                          ? 'bg-brand-red/10 border-brand-red/40 text-white'
+                          : 'bg-white/[0.02] border-white/5 text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleToggleServer(srv.id)}
+                        className="w-3.5 h-3.5 rounded bg-black/60 border border-white/20 text-brand-red focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                      />
+                      <span className="truncate">{srv.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
           </div>
-          <ToggleSwitch checked={isPublic} onChange={setIsPublic} />
-        </div>
+        )}
+
+        {/* Checkbox: Overwrite Canvas Layout */}
+        <label className="flex items-center gap-2.5 p-3 rounded-apple-md bg-white/[0.02] border border-white/5 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={overwriteWithCanvas}
+            onChange={(e) => setOverwriteWithCanvas(e.target.checked)}
+            className="w-4 h-4 rounded bg-black/60 border border-white/20 text-brand-red focus:ring-0 focus:ring-offset-0 cursor-pointer"
+          />
+          <span className="text-xs font-semibold text-white">
+            Overwrite template layout with current builder canvas
+          </span>
+        </label>
       </form>
     </Modal>
   );
