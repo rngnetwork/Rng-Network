@@ -50,7 +50,7 @@ export const EditTemplateModal: React.FC<EditTemplateModalProps> = ({
   useEffect(() => {
     if (template && isOpen) {
       setName(template.name || '');
-      setCategory(template.category || '');
+      setCategory((template.category || '').toLowerCase().replace(/[^a-z0-9_-]/g, ''));
       setDescription(template.description || '');
       const isPub = Boolean(template.public ?? template.isPublic ?? true);
       setIsGlobal(isPub);

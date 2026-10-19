@@ -65,7 +65,7 @@ public class EmbedTemplate {
     @NotBlank(message = "Category is required")
     @Indexed
     @Builder.Default
-    private String category = "GENERAL";
+    private String category = "general";
 
     @Builder.Default
     private List<String> tags = new ArrayList<>();

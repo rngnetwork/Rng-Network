@@ -102,7 +102,7 @@ export const SavedTemplateCard: React.FC<SavedTemplateCardProps> = ({
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-white/[0.05] border border-white/10 text-zinc-300">
-              {template.category || 'general'}
+              {(template.category || 'general').toLowerCase()}
             </span>
           </div>
         </div>

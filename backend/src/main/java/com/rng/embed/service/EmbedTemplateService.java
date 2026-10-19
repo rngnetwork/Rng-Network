@@ -37,7 +37,7 @@ public class EmbedTemplateService {
         Page<EmbedTemplate> templates;
         String authorId = operatorUserId != null ? String.valueOf(operatorUserId) : null;
         if (category != null && !category.isBlank()) {
-            templates = templateRepository.findAccessibleByCategory(serverId, authorId, category.trim().toUpperCase(), pageable);
+            templates = templateRepository.findAccessibleByCategory(serverId, authorId, category.trim().toLowerCase(), pageable);
         } else {
             templates = templateRepository.findAccessibleTemplates(serverId, authorId, pageable);
         }
@@ -95,7 +95,7 @@ public class EmbedTemplateService {
                 .authorId(String.valueOf(operatorUserId))
                 .authorName(authorName)
                 .serverId(request.serverId())
-                .category(request.category() != null && !request.category().isBlank() ? request.category().trim().toUpperCase() : "GENERAL")
+                .category(request.category() != null && !request.category().isBlank() ? request.category().trim().toLowerCase() : "general")
                 .tags(request.tags() != null ? request.tags() : new ArrayList<>())
                 .payload(request.payload())
                 .isPublic(request.isPublic())
@@ -167,7 +167,7 @@ public class EmbedTemplateService {
             template.setDescription(request.description().trim());
         }
         if (request.category() != null && !request.category().isBlank()) {
-            template.setCategory(request.category().trim().toUpperCase());
+            template.setCategory(request.category().trim().toLowerCase());
         }
         if (request.tags() != null) {
             template.setTags(request.tags());
@@ -233,7 +233,7 @@ public class EmbedTemplateService {
     public TemplateResponse importTemplate(Long operatorUserId, Map<String, Object> templateJson) {
         String name = (String) templateJson.getOrDefault("name", "Imported Template");
         String description = (String) templateJson.get("description");
-        String category = (String) templateJson.getOrDefault("category", "GENERAL");
+        String category = ((String) templateJson.getOrDefault("category", "general")).toLowerCase();
         List<String> tags = (List<String>) templateJson.getOrDefault("tags", List.of());
         Map<String, Object> payload = (Map<String, Object>) templateJson.get("payload");
         if (payload == null) {

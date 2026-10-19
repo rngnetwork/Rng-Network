@@ -334,12 +334,10 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
 
             const actionTypeLabel =
               action.actionType === 'ROLE'
-                ? 'role'
-                : action.actionType === 'TICKET'
-                ? 'ticket'
-                : action.actionType === 'REPLY'
-                ? 'reply'
-                : 'dm';
+                ? action.roleSubtype
+                  ? `ROLE · ${action.roleSubtype}`
+                  : 'ROLE'
+                : action.actionType || 'ACTION';
 
             return (
               <div
