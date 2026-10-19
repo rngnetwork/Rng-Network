@@ -77,7 +77,7 @@ if command -v apt-get &> /dev/null; then
     # Check Java JDK 21
     if ! command -v java &> /dev/null; then
         echo "  -> Java JDK not found. Installing OpenJDK 21 via apt-get..."
-        sudo apt-get update && sudo apt-get install -y openjdk-21-jdk
+        sudo apt-get update && sudo apt-get install -y openjdk-25-jdk
     fi
     # Check Node.js & npm
     if ! command -v node &> /dev/null; then

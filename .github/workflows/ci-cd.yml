@@ -72,19 +72,19 @@ jobs:
         run: cat target/frontend-report.md >> $GITHUB_STEP_SUMMARY
 
   # ----------------------------------------------------------------------------
-  # Job 3: Spring Boot 3.2.4 Backend CI Pipeline
+  # Job 3: Spring Boot 4.1.1 Backend CI Pipeline
   # ----------------------------------------------------------------------------
   backend-ci:
-    name: Backend (Spring Boot 3.2.4) CI
+    name: Backend (Spring Boot 4.1.1) CI
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup JDK 21 (Temurin)
+      - name: Setup JDK 25 (Temurin)
         uses: actions/setup-java@v5
         with:
-          java-version: '21'
+          java-version: '25'
           distribution: 'temurin'
           cache: 'maven'
 

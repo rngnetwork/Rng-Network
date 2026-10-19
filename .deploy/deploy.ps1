@@ -71,10 +71,10 @@ $javaCmd = Get-Command "java" -ErrorAction SilentlyContinue
 if (-not $javaCmd) {
     Write-Host "  [!] Java JDK not detected in PATH." -ForegroundColor Red
     if (Get-Command "winget" -ErrorAction SilentlyContinue) {
-        Write-Host "  -> Installing Microsoft OpenJDK 21 via winget..." -ForegroundColor Yellow
-        winget install --id Microsoft.OpenJDK.21 --accept-source-agreements --accept-package-agreements
+        Write-Host "  -> Installing Microsoft OpenJDK 25 via winget..." -ForegroundColor Yellow
+        winget install --id Microsoft.OpenJDK.25 --accept-source-agreements --accept-package-agreements
     } else {
-        Write-Host "  [!] Please install Java 21 JDK manually from https://adoptium.net/" -ForegroundColor Red
+        Write-Host "  [!] Please install Java 25 JDK manually from https://adoptium.net/" -ForegroundColor Red
         exit 1
     }
 } else {
