@@ -1,5 +1,6 @@
 package com.rng.server.domain;
 
+import com.rng.common.domain.BaseJpaEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -10,10 +11,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import java.time.Instant;
 
 @Entity
 @Table(name = "servers", indexes = {
@@ -24,7 +21,7 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Server {
+public class Server extends BaseJpaEntity {
 
     @Id
     @Column(length = 64, nullable = false)
@@ -49,12 +46,4 @@ public class Server {
     @Column(name = "premium_subscription_count", nullable = false)
     @Builder.Default
     private Integer premiumSubscriptionCount = 0;
-
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt;
 }
