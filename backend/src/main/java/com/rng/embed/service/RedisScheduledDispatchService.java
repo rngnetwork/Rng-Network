@@ -86,7 +86,6 @@ public class RedisScheduledDispatchService {
     /**
      * Atomically claim due tasks moving them from scheduled to processing set.
      */
-    @SuppressWarnings("unchecked")
     public List<String> claimDueTasks(long currentEpochMs, long timeoutMs, int batchSize) {
         if (redisTemplate == null) {
             return List.of();
