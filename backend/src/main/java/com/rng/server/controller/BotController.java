@@ -1,4 +1,4 @@
-package com.rng.api.controller;
+package com.rng.server.controller;
 
 import com.rng.common.dto.ApiResponse;
 import com.rng.server.dto.DiscordEmojiDto;
