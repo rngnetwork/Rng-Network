@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -76,23 +78,22 @@ public class PreFlightValidatorService {
             errors.add("Payload 'components' array is required and cannot be empty.");
         } else {
             for (Object compObj : rootComponents) {
-                if (!(compObj instanceof Map<?, ?> compMapRaw)) {
+                Map<String, Object> comp = toComponentMap(compObj);
+                if (comp.isEmpty()) {
                     continue;
                 }
-                @SuppressWarnings("unchecked")
-                Map<String, Object> comp = (Map<String, Object>) compMapRaw;
                 int type = getComponentType(comp);
                 totalComponentCount++;
 
                 if (type == 17) { // Container
                     containerCount++;
-                    ComponentStats stats = inspectContainer(comp, errors, warnings);
+                    PreFlightComponentStats stats = inspectContainer(comp, errors, warnings);
                     totalComponentCount += stats.nestedComponentCount;
                     totalActionRows += stats.actionRowCount;
                     cumulativeCharCount += stats.charCount;
                 } else if (type == 1) { // Top-level Action Row
                     totalActionRows++;
-                    ComponentStats stats = inspectActionRow(comp, errors);
+                    PreFlightComponentStats stats = inspectActionRow(comp, errors);
                     totalComponentCount += stats.nestedComponentCount;
                     cumulativeCharCount += stats.charCount;
                 } else if (type == 10) { // Top-level Text Display
@@ -142,8 +143,8 @@ public class PreFlightValidatorService {
                 .build();
     }
 
-    private ComponentStats inspectContainer(Map<String, Object> container, List<String> errors, List<String> warnings) {
-        ComponentStats stats = new ComponentStats();
+    private PreFlightComponentStats inspectContainer(Map<String, Object> container, List<String> errors, List<String> warnings) {
+        PreFlightComponentStats stats = new PreFlightComponentStats();
         Object childrenObj = container.get("components");
         if (!(childrenObj instanceof List<?> childrenList)) {
             return stats;
@@ -154,11 +155,10 @@ public class PreFlightValidatorService {
         }
 
         for (Object childObj : childrenList) {
-            if (!(childObj instanceof Map<?, ?> childMapRaw)) {
+            Map<String, Object> child = toComponentMap(childObj);
+            if (child.isEmpty()) {
                 continue;
             }
-            @SuppressWarnings("unchecked")
-            Map<String, Object> child = (Map<String, Object>) childMapRaw;
             int type = getComponentType(child);
             stats.nestedComponentCount++;
 
@@ -166,7 +166,7 @@ public class PreFlightValidatorService {
                 errors.add("Nested containers (container inside container) are strictly forbidden.");
             } else if (type == 1) { // Nested Action Row
                 stats.actionRowCount++;
-                ComponentStats rowStats = inspectActionRow(child, errors);
+                PreFlightComponentStats rowStats = inspectActionRow(child, errors);
                 stats.nestedComponentCount += rowStats.nestedComponentCount;
                 stats.charCount += rowStats.charCount;
             } else if (type == 9) { // Section
@@ -184,8 +184,8 @@ public class PreFlightValidatorService {
         return stats;
     }
 
-    private ComponentStats inspectActionRow(Map<String, Object> row, List<String> errors) {
-        ComponentStats stats = new ComponentStats();
+    private PreFlightComponentStats inspectActionRow(Map<String, Object> row, List<String> errors) {
+        PreFlightComponentStats stats = new PreFlightComponentStats();
         Object childrenObj = row.get("components");
         if (!(childrenObj instanceof List<?> childrenList)) {
             return stats;
@@ -195,11 +195,10 @@ public class PreFlightValidatorService {
         int selectCount = 0;
 
         for (Object itemObj : childrenList) {
-            if (!(itemObj instanceof Map<?, ?> itemRaw)) {
+            Map<String, Object> item = toComponentMap(itemObj);
+            if (item.isEmpty()) {
                 continue;
             }
-            @SuppressWarnings("unchecked")
-            Map<String, Object> item = (Map<String, Object>) itemRaw;
             int type = getComponentType(item);
             stats.nestedComponentCount++;
 
@@ -295,9 +294,8 @@ public class PreFlightValidatorService {
         Object compsObj = section.get("components");
         if (compsObj instanceof List<?> compsList) {
             for (Object c : compsList) {
-                if (c instanceof Map<?, ?> cMap) {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> cMapCast = (Map<String, Object>) cMap;
+                Map<String, Object> cMapCast = toComponentMap(c);
+                if (!cMapCast.isEmpty()) {
                     chars += extractTextChars(cMapCast);
                 }
             }
@@ -407,9 +405,12 @@ public class PreFlightValidatorService {
         }
     }
 
-    private static class ComponentStats {
-        int nestedComponentCount = 0;
-        int actionRowCount = 0;
-        long charCount = 0;
+    private Map<String, Object> toComponentMap(Object obj) {
+        if (obj instanceof Map<?, ?> map) {
+            Map<String, Object> typedMap = new LinkedHashMap<>();
+            map.forEach((k, v) -> typedMap.put(String.valueOf(k), v));
+            return typedMap;
+        }
+        return Collections.emptyMap();
     }
 }
