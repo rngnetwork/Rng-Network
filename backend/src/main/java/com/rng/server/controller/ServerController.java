@@ -1,9 +1,10 @@
-package com.rng.api.controller;
+package com.rng.server.controller;
 
 import com.rng.common.dto.ApiResponse;
 import com.rng.identity.domain.User;
 import com.rng.identity.repository.UserRepository;
 import com.rng.server.dto.ChannelDto;
+import com.rng.server.dto.DiscordEmojiDto;
 import com.rng.server.dto.ServerDetailDto;
 import com.rng.server.dto.ServerDto;
 import com.rng.server.dto.ServerRoleDto;
@@ -55,8 +56,8 @@ public class ServerController {
     }
 
     @GetMapping("/{idOrSlug}/emojis")
-    public ResponseEntity<ApiResponse<List<com.rng.server.dto.DiscordEmojiDto>>> getServerEmojis(@PathVariable("idOrSlug") String idOrSlug) {
-        List<com.rng.server.dto.DiscordEmojiDto> emojis = serverService.getServerEmojis(idOrSlug);
+    public ResponseEntity<ApiResponse<List<DiscordEmojiDto>>> getServerEmojis(@PathVariable("idOrSlug") String idOrSlug) {
+        List<DiscordEmojiDto> emojis = serverService.getServerEmojis(idOrSlug);
         return ResponseEntity.ok(ApiResponse.success(emojis));
     }
 
