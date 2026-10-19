@@ -67,8 +67,7 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
     }
 
     @Override
-    @SuppressWarnings("rawtypes")
-    public void onGenericGuildUpdate(@NotNull GenericGuildUpdateEvent event) {
+    public void onGenericGuildUpdate(@NotNull GenericGuildUpdateEvent<?> event) {
         String guildId = event.getGuild().getId();
         log.info("Discord Gateway Event: Guild {} updated", guildId);
         evictGuildCaches(guildId);
@@ -107,8 +106,7 @@ public class DiscordGatewayEventListener extends ListenerAdapter {
     }
 
     @Override
-    @SuppressWarnings("rawtypes")
-    public void onGenericChannelUpdate(@NotNull GenericChannelUpdateEvent event) {
+    public void onGenericChannelUpdate(@NotNull GenericChannelUpdateEvent<?> event) {
         if (event.isFromGuild()) {
             String guildId = event.getGuild().getId();
             log.debug("Discord Gateway Event: Channel updated in guild {}", guildId);
