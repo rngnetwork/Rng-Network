@@ -47,7 +47,7 @@ class EmbedDomainTest {
 
         Set<ConstraintViolation<EmbedTemplate>> violations = validator.validate(template);
         assertThat(violations).isEmpty();
-        assertThat(template.getCategory()).isEqualTo("GENERAL");
+        assertThat(template.getCategory()).isEqualTo("general");
         assertThat(template.getTags()).isEmpty();
         assertThat(template.isPublic()).isFalse();
     }
@@ -153,7 +153,7 @@ class EmbedDomainTest {
         Field timestampField = DispatchLog.class.getDeclaredField("timestamp");
         Indexed indexedAnnotation = timestampField.getAnnotation(Indexed.class);
         assertThat(indexedAnnotation).isNotNull();
-        assertThat(indexedAnnotation.expireAfterSeconds()).isEqualTo(2592000); // 30 days TTL (2592000s)
+        assertThat(indexedAnnotation.expireAfter()).isEqualTo("30d"); // 30 days TTL
     }
 
     @Test
@@ -230,7 +230,7 @@ class EmbedDomainTest {
         Field createdAtField = InteractionLog.class.getDeclaredField("createdAt");
         Indexed indexedAnnotation = createdAtField.getAnnotation(Indexed.class);
         assertThat(indexedAnnotation).isNotNull();
-        assertThat(indexedAnnotation.expireAfterSeconds()).isEqualTo(2592000); // 30 days TTL (2592000s)
+        assertThat(indexedAnnotation.expireAfter()).isEqualTo("30d"); // 30 days TTL
     }
 
     @Test

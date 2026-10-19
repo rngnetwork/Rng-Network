@@ -48,11 +48,10 @@ class DiscordGatewayEventListenerTest {
 
     @Test
     @DisplayName("onGenericGuildUpdate evicts guilds:summary and guild:details caches")
-    @SuppressWarnings("rawtypes")
     void onGenericGuildUpdate_evictsCaches() {
         Guild guild = mock(Guild.class);
         when(guild.getId()).thenReturn("123456");
-        GenericGuildUpdateEvent event = mock(GenericGuildUpdateEvent.class);
+        GenericGuildUpdateEvent<?> event = mock(GenericGuildUpdateEvent.class);
         when(event.getGuild()).thenReturn(guild);
 
         listener.onGenericGuildUpdate(event);

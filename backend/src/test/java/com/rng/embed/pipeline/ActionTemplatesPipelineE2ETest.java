@@ -109,10 +109,18 @@ class ActionTemplatesPipelineE2ETest {
     @Mock
     private TextChannel mockTicketChannel;
 
+    @Mock
+    private net.dv8tion.jda.api.requests.restaction.WebhookMessageCreateAction<net.dv8tion.jda.api.entities.Message> sendMsgAction;
+
+    @Mock
+    private CacheRestAction<PrivateChannel> dmRestAction;
+
+    @Mock
+    private MessageCreateAction createAction;
+
     private ActionExecutionServiceImpl actionExecutionService;
 
     @BeforeEach
-    @SuppressWarnings("unchecked")
     void setUp() {
         actionExecutionService = new ActionExecutionServiceImpl(
                 interactionLogRepository,
@@ -159,7 +167,6 @@ class ActionTemplatesPipelineE2ETest {
 
     @Test
     @DisplayName("Should execute canonical 3-stage action chaining pipeline end-to-end")
-    @SuppressWarnings("unchecked")
     void should_execute_canonical_3_stage_action_chain() {
         // --- STAGE 0: Operator dynamic selections saved in Redis session ---
         Map<String, String> sessionData = new HashMap<>();
@@ -194,7 +201,6 @@ class ActionTemplatesPipelineE2ETest {
         MessageCreateData renderedTemplate2 = mock(MessageCreateData.class);
         when(embedTemplateRenderer.renderToMessageData(eq(template2), anyMap())).thenReturn(renderedTemplate2);
 
-        WebhookMessageCreateAction<Message> sendMsgAction = mock(WebhookMessageCreateAction.class);
         when(mockHook.sendMessage(renderedTemplate2)).thenReturn(sendMsgAction);
         Message intermediateMsg = mock(Message.class);
         when(intermediateMsg.getId()).thenReturn("msg-intermediate-stage1");
@@ -333,13 +339,10 @@ class ActionTemplatesPipelineE2ETest {
 
     @Test
     @DisplayName("Should deliver fallback message to ticket channel when operator DM is closed")
-    @SuppressWarnings("unchecked")
     void should_fallback_to_ticket_channel_when_user_dm_is_closed() {
-        CacheRestAction<PrivateChannel> dmRestAction = mock(CacheRestAction.class);
         when(mockOperatorUser.openPrivateChannel()).thenReturn(dmRestAction);
         when(dmRestAction.complete()).thenThrow(new RuntimeException("Cannot send to user (DMs disabled)"));
 
-        MessageCreateAction createAction = mock(MessageCreateAction.class);
         when(mockTicketChannel.sendMessage(any(MessageCreateData.class))).thenReturn(createAction);
 
         MessageCreateData logData = mock(MessageCreateData.class);

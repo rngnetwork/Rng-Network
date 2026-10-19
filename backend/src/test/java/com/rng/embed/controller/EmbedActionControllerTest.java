@@ -64,11 +64,7 @@ class EmbedActionControllerTest {
 
     @BeforeEach
     void setUp() {
-        MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
-        converter.setObjectMapper(objectMapper);
-
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
-                .setMessageConverters(converter)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
 

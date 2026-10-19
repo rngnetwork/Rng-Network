@@ -13,6 +13,7 @@ import com.rng.server.dto.discord.DiscordChannelDto;
 import com.rng.server.dto.discord.DiscordGuildDetailDto;
 import com.rng.server.dto.discord.DiscordGuildDto;
 import com.rng.server.dto.discord.DiscordGuildPatchRequest;
+import com.rng.server.mapper.DiscordServerMapper;
 import com.rng.server.repository.ServerRepository;
 import com.rng.server.service.ServerService;
 import net.dv8tion.jda.api.JDA;
@@ -380,5 +381,13 @@ class ServerServiceTest {
         assertThatThrownBy(() -> serverService.getServerRoles("non-existent"))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Server not found");
+    }
+
+    @Test
+    @DisplayName("ServerService should support custom DiscordServerMapper injection via 5-arg constructor")
+    void testConstructorWithCustomDiscordServerMapper() {
+        DiscordServerMapper customMapper = new DiscordServerMapper();
+        ServerService customService = new ServerService(serverRepository, discordClient, userRepository, null, customMapper);
+        assertThat(customService).isNotNull();
     }
 }

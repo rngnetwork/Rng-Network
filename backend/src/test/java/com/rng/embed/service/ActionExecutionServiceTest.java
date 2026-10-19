@@ -97,6 +97,18 @@ class ActionExecutionServiceTest {
     @Mock
     private AuditableRestAction<Void> voidAction;
 
+    @Mock
+    private CacheRestAction<Member> memberRestAction;
+
+    @Mock
+    private CacheRestAction<PrivateChannel> dmRestAction;
+
+    @Mock
+    private MessageCreateAction messageCreateAction;
+
+    @Mock
+    private net.dv8tion.jda.api.requests.restaction.ChannelAction<TextChannel> channelAction;
+
     private ActionExecutionServiceImpl service;
 
     @BeforeEach
@@ -337,18 +349,15 @@ class ActionExecutionServiceTest {
 
     @Test
     @DisplayName("Should abort role grant when target member has left the Discord server")
-    @SuppressWarnings("unchecked")
     void should_abort_role_grant_when_target_member_left_server() {
         Guild mockGuild = mock(Guild.class);
-        CacheRestAction<Member> restAction = mock(CacheRestAction.class);
         when(mockGuild.getId()).thenReturn("guild-999");
         when(mockGuild.getMemberById("user-left")).thenReturn(null);
-        when(mockGuild.retrieveMemberById("user-left")).thenReturn(restAction);
-        when(restAction.complete()).thenThrow(new RuntimeException("Target member left server"));
+        when(mockGuild.retrieveMemberById("user-left")).thenReturn(memberRestAction);
+        when(memberRestAction.complete()).thenThrow(new RuntimeException("Target member left server"));
 
         InteractionHook mockHook = mock(InteractionHook.class);
-        WebhookMessageEditAction editAct = mock(WebhookMessageEditAction.class);
-        when(mockHook.editOriginal(anyString())).thenReturn(editAct);
+        when(mockHook.editOriginal(anyString())).thenReturn(editAction);
         Map<String, String> sessionData = Map.of("targetUser", "user-left");
 
         EmbedAction action = EmbedAction.builder()
@@ -405,16 +414,13 @@ class ActionExecutionServiceTest {
 
     @Test
     @DisplayName("Should deliver audit logs directly into ticket channel when user DMs are closed")
-    @SuppressWarnings("unchecked")
     void should_deliver_logs_to_ticket_channel_when_dm_fails_with_50007() {
         User mockUser = mock(User.class);
-        CacheRestAction<PrivateChannel> restAction = mock(CacheRestAction.class);
-        when(mockUser.openPrivateChannel()).thenReturn(restAction);
-        when(restAction.complete()).thenThrow(new RuntimeException("Cannot send to user (DMs disabled)"));
+        when(mockUser.openPrivateChannel()).thenReturn(dmRestAction);
+        when(dmRestAction.complete()).thenThrow(new RuntimeException("Cannot send to user (DMs disabled)"));
 
         TextChannel ticketChannel = mock(TextChannel.class);
-        MessageCreateAction createAction = mock(MessageCreateAction.class);
-        when(ticketChannel.sendMessage(any(MessageCreateData.class))).thenReturn(createAction);
+        when(ticketChannel.sendMessage(any(MessageCreateData.class))).thenReturn(messageCreateAction);
 
         ActionExecutionResult result = service.dispatchDMLogsWithFallback(mockUser, ticketChannel, mock(MessageCreateData.class));
         assertThat(result.isSuccess()).isTrue();
@@ -424,16 +430,13 @@ class ActionExecutionServiceTest {
 
     @Test
     @DisplayName("Should successfully deliver audit logs directly via DM when user DMs are open")
-    @SuppressWarnings("unchecked")
     void should_deliver_logs_via_dm_when_dms_open() {
         User mockUser = mock(User.class);
-        CacheRestAction<PrivateChannel> restAction = mock(CacheRestAction.class);
         PrivateChannel privateChannel = mock(PrivateChannel.class);
-        when(mockUser.openPrivateChannel()).thenReturn(restAction);
-        when(restAction.complete()).thenReturn(privateChannel);
+        when(mockUser.openPrivateChannel()).thenReturn(dmRestAction);
+        when(dmRestAction.complete()).thenReturn(privateChannel);
 
-        MessageCreateAction createAction = mock(MessageCreateAction.class);
-        when(privateChannel.sendMessage(any(MessageCreateData.class))).thenReturn(createAction);
+        when(privateChannel.sendMessage(any(MessageCreateData.class))).thenReturn(messageCreateAction);
 
         TextChannel ticketChannel = mock(TextChannel.class);
 
@@ -446,7 +449,6 @@ class ActionExecutionServiceTest {
 
     @Test
     @DisplayName("Should execute compound action creating dual-member ACL ticket channel")
-    @SuppressWarnings("unchecked")
     void should_execute_compound_action_with_dual_member_acl() {
         Guild mockGuild = mock(Guild.class);
         Member operator = mock(Member.class);
@@ -461,7 +463,6 @@ class ActionExecutionServiceTest {
         Role publicRole = mock(Role.class);
         when(mockGuild.getPublicRole()).thenReturn(publicRole);
 
-        net.dv8tion.jda.api.requests.restaction.ChannelAction<TextChannel> channelAction = mock(net.dv8tion.jda.api.requests.restaction.ChannelAction.class);
         when(mockGuild.createTextChannel(anyString())).thenReturn(channelAction);
         when(channelAction.addPermissionOverride(any(), any(), any())).thenReturn(channelAction);
 
@@ -470,8 +471,7 @@ class ActionExecutionServiceTest {
         when(channelAction.complete()).thenReturn(createdTicket);
 
         InteractionHook mockHook = mock(InteractionHook.class);
-        WebhookMessageEditAction editAct = mock(WebhookMessageEditAction.class);
-        when(mockHook.editOriginal(anyString())).thenReturn(editAct);
+        when(mockHook.editOriginal(anyString())).thenReturn(editAction);
 
         EmbedAction action = EmbedAction.builder()
                 .actionId("rng_act_ticket")

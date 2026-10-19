@@ -65,7 +65,7 @@ class MongoIndexReconciliationConfigTest {
         verify(interactionIndexOps).dropIndex("createdAt_ttl_90d");
 
         ArgumentCaptor<IndexDefinition> captor = ArgumentCaptor.forClass(IndexDefinition.class);
-        verify(interactionIndexOps).ensureIndex(captor.capture());
+        verify(interactionIndexOps).createIndex(captor.capture());
         assertThat(captor.getValue().getIndexOptions()).containsEntry("expireAfterSeconds", 2592000L);
     }
 
@@ -80,8 +80,8 @@ class MongoIndexReconciliationConfigTest {
         verify(interactionIndexOps, never()).dropIndex(any());
         verify(dispatchIndexOps, never()).dropIndex(any());
 
-        verify(interactionIndexOps).ensureIndex(any(IndexDefinition.class));
-        verify(dispatchIndexOps).ensureIndex(any(IndexDefinition.class));
+        verify(interactionIndexOps).createIndex(any(IndexDefinition.class));
+        verify(dispatchIndexOps).createIndex(any(IndexDefinition.class));
     }
 
     @Test
@@ -97,7 +97,7 @@ class MongoIndexReconciliationConfigTest {
         reconciliationConfig.run();
 
         verify(interactionIndexOps, never()).dropIndex(any());
-        verify(interactionIndexOps, never()).ensureIndex(any(IndexDefinition.class));
+        verify(interactionIndexOps, never()).createIndex(any(IndexDefinition.class));
     }
 
     @Test
@@ -129,7 +129,7 @@ class MongoIndexReconciliationConfigTest {
         reconciliationConfig.init();
 
         verify(interactionIndexOps).dropIndex("createdAt");
-        verify(interactionIndexOps).ensureIndex(any(IndexDefinition.class));
+        verify(interactionIndexOps).createIndex(any(IndexDefinition.class));
     }
 
     @Test

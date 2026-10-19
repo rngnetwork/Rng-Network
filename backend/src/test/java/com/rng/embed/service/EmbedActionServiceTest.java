@@ -30,6 +30,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.security.access.AccessDeniedException;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -119,7 +120,7 @@ class EmbedActionServiceTest {
         assertThat(result.roleSubtype()).isEqualTo(RoleSubtype.TOGGLE);
 
         verify(embedActionRepository).save(any(EmbedAction.class));
-        verify(valueOperations).set(eq("action:template:" + result.actionId()), anyString(), any());
+        verify(valueOperations).set(eq("action:template:" + result.actionId()), anyString(), any(Duration.class));
     }
 
     @Test
@@ -159,7 +160,7 @@ class EmbedActionServiceTest {
 
         assertThat(result.name()).isEqualTo("New Name");
         verify(redisTemplate).delete("action:template:" + actionId);
-        verify(valueOperations).set(eq("action:template:" + actionId), anyString(), any());
+        verify(valueOperations).set(eq("action:template:" + actionId), anyString(), any(Duration.class));
     }
 
     @Test
@@ -226,7 +227,7 @@ class EmbedActionServiceTest {
 
         assertThat(result).isPresent();
         assertThat(result.get().getActionType()).isEqualTo(ActionType.TICKET);
-        verify(valueOperations).set(eq("action:template:" + actionId), anyString(), any());
+        verify(valueOperations).set(eq("action:template:" + actionId), anyString(), any(Duration.class));
     }
 
     @Test
