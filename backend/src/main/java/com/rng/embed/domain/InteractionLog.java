@@ -56,6 +56,6 @@ public class InteractionLog {
     private String details;
 
     @CreatedDate
-    @Indexed(expireAfterSeconds = 2592000)
+    @Indexed(expireAfter = "30d")
     private Instant createdAt;
 }
