@@ -1,11 +1,8 @@
 package com.rng.identity.domain;
 
+import com.rng.common.domain.BaseJpaEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import java.time.Instant;
 
 @Entity
 @Table(name = "users", indexes = {
@@ -17,7 +14,7 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
+public class User extends BaseJpaEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -65,14 +62,6 @@ public class User {
     @Column(nullable = false, length = 30)
     @Builder.Default
     private String status = "ACTIVE";
-
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt;
 
     public java.util.List<String> getDesignationList() {
         if (designations == null || designations.isBlank()) return java.util.List.of();
