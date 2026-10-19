@@ -7,11 +7,13 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.index.IndexInfo;
+import org.springframework.data.mongodb.core.index.IndexOperations;
 
 import java.time.Duration;
 import java.util.List;
@@ -19,6 +21,7 @@ import java.util.Optional;
 
 @Slf4j
 @Configuration
+@ConditionalOnProperty(name = "spring.data.mongodb.auto-index-creation", havingValue = "true", matchIfMissing = true)
 @RequiredArgsConstructor
 public class MongoIndexReconciliationConfig implements CommandLineRunner {
 
@@ -50,11 +53,18 @@ public class MongoIndexReconciliationConfig implements CommandLineRunner {
 
     public static void dropObsoleteIndex(MongoTemplate template, Class<?> entityClass, String indexName) {
         try {
-            List<IndexInfo> indexes = template.indexOps(entityClass).getIndexInfo();
+            IndexOperations ops = template.indexOps(entityClass);
+            if (ops == null) {
+                return;
+            }
+            List<IndexInfo> indexes = ops.getIndexInfo();
+            if (indexes == null) {
+                return;
+            }
             for (IndexInfo index : indexes) {
                 if (indexName.equals(index.getName())) {
                     log.info("Dropping obsolete index {} on {}", indexName, entityClass.getSimpleName());
-                    template.indexOps(entityClass).dropIndex(indexName);
+                    ops.dropIndex(indexName);
                     break;
                 }
             }
@@ -69,7 +79,14 @@ public class MongoIndexReconciliationConfig implements CommandLineRunner {
 
     public static void reconcileTtl(MongoTemplate template, Class<?> entityClass, String fieldName) {
         try {
-            List<IndexInfo> indexes = template.indexOps(entityClass).getIndexInfo();
+            IndexOperations ops = template.indexOps(entityClass);
+            if (ops == null) {
+                return;
+            }
+            List<IndexInfo> indexes = ops.getIndexInfo();
+            if (indexes == null) {
+                return;
+            }
             boolean hasTargetTtl = false;
 
             for (IndexInfo index : indexes) {
@@ -81,20 +98,20 @@ public class MongoIndexReconciliationConfig implements CommandLineRunner {
                     if (expireAfter.isPresent()) {
                         if (expireAfter.get().getSeconds() != TARGET_TTL_SECONDS) {
                             log.info("Dropping obsolete TTL index {} on {}", index.getName(), entityClass.getSimpleName());
-                            template.indexOps(entityClass).dropIndex(index.getName());
+                            ops.dropIndex(index.getName());
                         } else {
                             hasTargetTtl = true;
                         }
                     } else if (matchesName) {
                         log.info("Dropping non-TTL index {} with conflicting name on {}", index.getName(), entityClass.getSimpleName());
-                        template.indexOps(entityClass).dropIndex(index.getName());
+                        ops.dropIndex(index.getName());
                     }
                 }
             }
 
             if (!hasTargetTtl) {
                 log.info("Ensuring 30-day TTL index on {}.{}", entityClass.getSimpleName(), fieldName);
-                template.indexOps(entityClass).ensureIndex(
+                ops.createIndex(
                         new Index().on(fieldName, Sort.Direction.ASC).expire(Duration.ofSeconds(TARGET_TTL_SECONDS))
                 );
             }
