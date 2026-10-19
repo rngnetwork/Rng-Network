@@ -89,4 +89,8 @@ public class User {
                 .filter(s -> !s.isEmpty())
                 .toList();
     }
+
+    public boolean isActive() {
+        return "ACTIVE".equalsIgnoreCase(this.status);
+    }
 }

@@ -169,6 +169,64 @@ public class DiscordServerClientImpl implements DiscordServerClient {
         }
     }
 
+    @Override
+    public List<com.rng.server.dto.discord.DiscordEmojiResponseDto> getGuildEmojis(String guildId) {
+        String url = DISCORD_API_BASE + "/guilds/" + guildId + "/emojis";
+        HttpHeaders headers = createHeaders(null);
+        HttpEntity<?> entity = new HttpEntity<>(headers);
+        try {
+            ResponseEntity<com.rng.server.dto.discord.DiscordEmojiResponseDto[]> response = restTemplate.exchange(
+                    url, HttpMethod.GET, entity, com.rng.server.dto.discord.DiscordEmojiResponseDto[].class
+            );
+            if (response.getBody() == null) return List.of();
+            return Arrays.asList(response.getBody());
+        } catch (Exception e) {
+            log.warn("Failed to fetch guild emojis from Discord REST for guild {}: {}", guildId, e.getMessage());
+            return List.of();
+        }
+    }
+
+    @Override
+    public List<com.rng.server.dto.discord.DiscordEmojiResponseDto> getApplicationEmojis(String applicationId) {
+        String url = DISCORD_API_BASE + "/applications/" + applicationId + "/emojis";
+        HttpHeaders headers = createHeaders(null);
+        HttpEntity<?> entity = new HttpEntity<>(headers);
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    url, HttpMethod.GET, entity, Map.class
+            );
+            if (response.getBody() != null && response.getBody().get("items") instanceof List<?> itemsList) {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                return mapper.convertValue(
+                        itemsList,
+                        new com.fasterxml.jackson.core.type.TypeReference<List<com.rng.server.dto.discord.DiscordEmojiResponseDto>>() {}
+                );
+            }
+            return List.of();
+        } catch (Exception e) {
+            log.warn("Failed to fetch application emojis from Discord REST for app {}: {}", applicationId, e.getMessage());
+            return List.of();
+        }
+    }
+
+    @Override
+    public String getApplicationId() {
+        String url = DISCORD_API_BASE + "/oauth2/applications/@me";
+        HttpHeaders headers = createHeaders(null);
+        HttpEntity<?> entity = new HttpEntity<>(headers);
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    url, HttpMethod.GET, entity, Map.class
+            );
+            if (response.getBody() != null && response.getBody().get("id") != null) {
+                return String.valueOf(response.getBody().get("id"));
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch application ID from Discord REST: {}", e.getMessage());
+        }
+        return null;
+    }
+
     private void handleException(String operation, Exception e) {
         log.error("Discord API call failed in {}: {}", operation, e.getMessage());
         if (e instanceof HttpStatusCodeException statusEx) {

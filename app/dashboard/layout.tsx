@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { api, UserProfileData } from '@/lib/api';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { Navbar } from '@/components/dashboard/Navbar';
-import { ShieldAlert, ArrowRight } from 'lucide-react';
+import { ShieldAlert, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function DashboardLayout({
   children,
@@ -15,6 +15,8 @@ export default function DashboardLayout({
   const router = useRouter();
   const [user, setUser] = useState<UserProfileData | null>(null);
   const [authState, setAuthState] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
 
   useEffect(() => {
     const loadSession = async () => {
@@ -117,16 +119,39 @@ export default function DashboardLayout({
       <div className="fixed top-[-15%] left-[-10%] w-[45vw] h-[45vw] bg-red-600/5 blur-[160px] rounded-full pointer-events-none" />
       <div className="fixed bottom-[-15%] right-[-10%] w-[40vw] h-[40vw] bg-red-950/10 blur-[180px] rounded-full pointer-events-none" />
 
+      {/* Sidebar Edge Center Toggle Button */}
+      <button
+        type="button"
+        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+        className="hidden md:flex fixed top-1/2 -translate-y-1/2 z-50 items-center justify-center w-5 h-12 bg-[#18181b] hover:bg-red-600 text-zinc-400 hover:text-white border border-l-0 border-white/20 rounded-r-md shadow-2xl transition-all duration-300 ease-in-out cursor-pointer group"
+        style={{ left: sidebarCollapsed ? '0px' : '256px' }}
+        title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+        aria-label={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+      >
+        {sidebarCollapsed ? (
+          <ChevronRight size={13} className="transition-transform group-hover:scale-110" />
+        ) : (
+          <ChevronLeft size={13} className="transition-transform group-hover:scale-110" />
+        )}
+      </button>
+
       {/* Sidebar Navigation */}
-      <Sidebar user={user} />
+      <Sidebar
+        user={user}
+        isCollapsed={sidebarCollapsed}
+      />
 
       {/* Main App Container */}
-      <div className="flex-1 flex flex-col md:pl-64 min-w-0">
-        {/* Top Navbar Bar Component */}
-        <Navbar user={user} />
+      <div className={`flex-1 flex flex-col min-w-0 min-h-screen transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'md:pl-0' : 'md:pl-64'}`}>
+        {/* Top Navbar Bar Component with Joint Bottom Center Toggle */}
+        <Navbar
+          user={user}
+          isHeaderCollapsed={headerCollapsed}
+          onToggleHeader={() => setHeaderCollapsed(!headerCollapsed)}
+        />
 
         {/* Dynamic Page Content */}
-        <main className="flex-1 p-6 md:p-8 w-full">
+        <main className="flex-1 p-4 md:p-6 w-full">
           {children}
         </main>
       </div>

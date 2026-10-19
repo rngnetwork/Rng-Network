@@ -7,6 +7,10 @@ spring:
   application:
     name: rng-api
 
+  threads:
+    virtual:
+      enabled: true
+
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/rng_db}
     username: ${DB_USERNAME:postgres}
@@ -22,10 +26,13 @@ spring:
         format_sql: true
 
   data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/rng_db}
+      auto-index-creation: true
     redis:
-      host: ${SPRING_DATA_REDIS_HOST:localhost}
-      port: ${SPRING_DATA_REDIS_PORT:6379}
-      password: ${SPRING_DATA_REDIS_PASSWORD:}
+      host: ${SPRING_DATA_REDIS_HOST:${REDIS_HOST:localhost}}
+      port: ${SPRING_DATA_REDIS_PORT:${REDIS_PORT:6379}}
+      password: ${SPRING_DATA_REDIS_PASSWORD:${REDIS_PASSWORD:}}
       timeout: 2000ms
 
   flyway:

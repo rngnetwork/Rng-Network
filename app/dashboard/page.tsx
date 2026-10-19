@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
 
 export default function DashboardRedirectPage() {
   const router = useRouter();
@@ -14,7 +13,7 @@ export default function DashboardRedirectPage() {
       return;
     }
 
-    router.replace('/dashboard/servers');
+    router.replace('/dashboard/embeds');
   }, [router]);
 
   return (

@@ -6,6 +6,7 @@ import com.rng.identity.repository.UserRepository;
 import com.rng.server.dto.ChannelDto;
 import com.rng.server.dto.ServerDetailDto;
 import com.rng.server.dto.ServerDto;
+import com.rng.server.dto.ServerRoleDto;
 import com.rng.server.dto.UpdateServerSettingsRequest;
 import com.rng.server.service.ServerService;
 import jakarta.validation.Valid;
@@ -45,6 +46,18 @@ public class ServerController {
     public ResponseEntity<ApiResponse<List<ChannelDto>>> getServerChannels(@PathVariable("idOrSlug") String idOrSlug) {
         List<ChannelDto> channels = serverService.getServerChannels(idOrSlug);
         return ResponseEntity.ok(ApiResponse.success(channels));
+    }
+
+    @GetMapping("/{idOrSlug}/roles")
+    public ResponseEntity<ApiResponse<List<ServerRoleDto>>> getServerRoles(@PathVariable("idOrSlug") String idOrSlug) {
+        List<ServerRoleDto> roles = serverService.getServerRoles(idOrSlug);
+        return ResponseEntity.ok(ApiResponse.success(roles));
+    }
+
+    @GetMapping("/{idOrSlug}/emojis")
+    public ResponseEntity<ApiResponse<List<com.rng.server.dto.DiscordEmojiDto>>> getServerEmojis(@PathVariable("idOrSlug") String idOrSlug) {
+        List<com.rng.server.dto.DiscordEmojiDto> emojis = serverService.getServerEmojis(idOrSlug);
+        return ResponseEntity.ok(ApiResponse.success(emojis));
     }
 
     @PutMapping("/{idOrSlug}")

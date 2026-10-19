@@ -7,6 +7,7 @@ import com.rng.server.client.DiscordServerClient;
 import com.rng.server.domain.Server;
 import com.rng.server.dto.ServerDetailDto;
 import com.rng.server.dto.ServerDto;
+import com.rng.server.dto.ServerRoleDto;
 import com.rng.server.dto.UpdateServerSettingsRequest;
 import com.rng.server.dto.discord.DiscordChannelDto;
 import com.rng.server.dto.discord.DiscordGuildDetailDto;
@@ -18,6 +19,7 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Role;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,6 +28,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.awt.Color;
 
 import java.util.List;
 import java.util.Optional;
@@ -284,5 +288,97 @@ class ServerServiceTest {
         assertThat(details.getOnlineCount()).isEqualTo(123);
         assertThat(details.getTotalCount()).isEqualTo(456);
         verify(discordClient, never()).getBotGuilds();
+    }
+
+    @Test
+    @DisplayName("getServerRoles should return roles with bot assignability and filter out @everyone")
+    void testGetServerRolesWithJdaConnected() {
+        JDA jda = mock(JDA.class);
+        when(jda.getStatus()).thenReturn(JDA.Status.CONNECTED);
+
+        Guild guild = mock(Guild.class);
+        when(jda.getGuildById("100000000000000001")).thenReturn(guild);
+
+        net.dv8tion.jda.api.entities.SelfMember botMember = mock(net.dv8tion.jda.api.entities.SelfMember.class);
+        when(guild.getSelfMember()).thenReturn(botMember);
+
+        Role publicRole = mock(Role.class);
+        when(publicRole.isPublicRole()).thenReturn(true);
+
+        Role highRole = mock(Role.class);
+        when(highRole.isPublicRole()).thenReturn(false);
+        when(highRole.getId()).thenReturn("role_high");
+        when(highRole.getName()).thenReturn("Marshal");
+        when(highRole.getPosition()).thenReturn(10);
+        when(highRole.getColor()).thenReturn(Color.RED);
+        when(highRole.isManaged()).thenReturn(false);
+        when(botMember.canInteract(highRole)).thenReturn(false);
+
+        Role memberRole = mock(Role.class);
+        when(memberRole.isPublicRole()).thenReturn(false);
+        when(memberRole.getId()).thenReturn("role_member");
+        when(memberRole.getName()).thenReturn("Member");
+        when(memberRole.getPosition()).thenReturn(5);
+        when(memberRole.getColor()).thenReturn(null);
+        when(memberRole.isManaged()).thenReturn(false);
+        when(botMember.canInteract(memberRole)).thenReturn(true);
+
+        when(guild.getRoles()).thenReturn(List.of(publicRole, memberRole, highRole));
+        when(serverRepository.findByIdOrSlug("rednecks-gaming")).thenReturn(Optional.of(sampleServer));
+
+        ServerService jdaServerService = new ServerService(serverRepository, discordClient, userRepository, jda);
+        List<ServerRoleDto> roles = jdaServerService.getServerRoles("rednecks-gaming");
+
+        assertThat(roles).hasSize(2);
+        // Sorted descending by position: highRole (10) then memberRole (5)
+        assertThat(roles.get(0).getId()).isEqualTo("role_high");
+        assertThat(roles.get(0).isAssignableByBot()).isFalse();
+        assertThat(roles.get(0).getColorHex()).isEqualTo("#FF0000");
+
+        assertThat(roles.get(1).getId()).isEqualTo("role_member");
+        assertThat(roles.get(1).isAssignableByBot()).isTrue();
+        assertThat(roles.get(1).getColorHex()).isNull();
+    }
+
+    @Test
+    @DisplayName("getServerRoles should mark managed bot integration role as not assignable by bot")
+    void testGetServerRolesManagedRoleNotAssignable() {
+        JDA jda = mock(JDA.class);
+        when(jda.getStatus()).thenReturn(JDA.Status.CONNECTED);
+
+        Guild guild = mock(Guild.class);
+        when(jda.getGuildById("100000000000000001")).thenReturn(guild);
+
+        net.dv8tion.jda.api.entities.SelfMember botMember = mock(net.dv8tion.jda.api.entities.SelfMember.class);
+        when(guild.getSelfMember()).thenReturn(botMember);
+
+        Role managedRole = mock(Role.class);
+        when(managedRole.isPublicRole()).thenReturn(false);
+        when(managedRole.getId()).thenReturn("role_managed");
+        when(managedRole.getName()).thenReturn("Bot Integration");
+        when(managedRole.getPosition()).thenReturn(8);
+        when(managedRole.getColor()).thenReturn(null);
+        when(managedRole.isManaged()).thenReturn(true);
+        lenient().when(botMember.canInteract(managedRole)).thenReturn(true);
+
+        when(guild.getRoles()).thenReturn(List.of(managedRole));
+        when(serverRepository.findByIdOrSlug("100000000000000001")).thenReturn(Optional.of(sampleServer));
+
+        ServerService jdaServerService = new ServerService(serverRepository, discordClient, userRepository, jda);
+        List<ServerRoleDto> roles = jdaServerService.getServerRoles("100000000000000001");
+
+        assertThat(roles).hasSize(1);
+        assertThat(roles.get(0).isManaged()).isTrue();
+        assertThat(roles.get(0).isAssignableByBot()).isFalse();
+    }
+
+    @Test
+    @DisplayName("getServerRoles should throw ResourceNotFoundException when server does not exist")
+    void testGetServerRolesNotFound() {
+        when(serverRepository.findByIdOrSlug("non-existent")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> serverService.getServerRoles("non-existent"))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Server not found");
     }
 }

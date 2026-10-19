@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   Server,
   User,
+  Boxes,
   LogOut,
   Menu,
   X,
@@ -18,9 +19,10 @@ import { api, UserProfileData } from '@/lib/api';
 
 interface SidebarProps {
   user: UserProfileData | null;
+  isCollapsed?: boolean;
 }
 
-export function Sidebar({ user }: SidebarProps) {
+export function Sidebar({ user, isCollapsed = false }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -61,8 +63,15 @@ export function Sidebar({ user }: SidebarProps) {
       label: 'Servers',
       href: '/dashboard/servers',
       icon: Server,
-      show: true,
+      show: false,
       badge: serverCount !== null ? `${serverCount} Live` : 'Live',
+    },
+    {
+      label: 'Embed Builder',
+      href: '/dashboard/embeds',
+      icon: Boxes,
+      show: true,
+      badge: 'V2',
     },
     {
       label: 'Whitelist',
@@ -238,7 +247,7 @@ export function Sidebar({ user }: SidebarProps) {
       </div>
 
       {/* Desktop Persistent Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 h-screen fixed top-0 left-0 bg-[#0c0c0c]/80 backdrop-blur-2xl border-r border-white/10 z-40">
+      <aside className={`hidden md:flex flex-col w-64 h-screen fixed top-0 left-0 bg-[#0c0c0c]/80 backdrop-blur-2xl border-r border-white/10 z-40 transition-transform duration-300 ease-in-out ${isCollapsed ? '-translate-x-full' : 'translate-x-0'}`}>
         {navContent}
       </aside>
 

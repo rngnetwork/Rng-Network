@@ -13,12 +13,17 @@ import com.rng.server.dto.discord.DiscordChannelDto;
 import com.rng.server.dto.discord.DiscordGuildDetailDto;
 import com.rng.server.dto.discord.DiscordGuildDto;
 import com.rng.server.dto.discord.DiscordGuildPatchRequest;
+import com.rng.server.dto.DiscordEmojiDto;
+import com.rng.server.dto.discord.DiscordEmojiResponseDto;
 import com.rng.server.repository.ServerRepository;
+import com.rng.server.dto.ServerRoleDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
@@ -30,6 +35,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -247,6 +253,28 @@ public class ServerService {
         Server server = serverRepository.findByIdOrSlug(idOrSlug)
                 .orElseThrow(() -> new ResourceNotFoundException("Server not found: " + idOrSlug));
 
+        // Priority 1: Fetch live directly from Discord REST API v10
+        if (discordClient != null) {
+            try {
+                List<DiscordChannelDto> channels = discordClient.getGuildChannels(server.getId());
+                if (channels != null && !channels.isEmpty()) {
+                    return channels.stream()
+                            .map(c -> ChannelDto.builder()
+                                    .id(c.getId())
+                                    .name(c.getName())
+                                    .type(c.getType())
+                                    .position(c.getPosition() != null ? c.getPosition() : 0)
+                                    .parentId(c.getParentId())
+                                    .build())
+                            .sorted(Comparator.comparingInt(c -> c.getPosition() != null ? c.getPosition() : 0))
+                            .toList();
+                }
+            } catch (Exception e) {
+                log.warn("Discord REST client channel retrieval failed for {}: {}", server.getId(), e.getMessage());
+            }
+        }
+
+        // Priority 2: Fallback to JDA Gateway in-memory cache
         if (jda.isPresent() && jda.get().getStatus() == JDA.Status.CONNECTED) {
             Guild jdaGuild = jda.get().getGuildById(server.getId());
             if (jdaGuild != null) {
@@ -256,22 +284,54 @@ public class ServerService {
             }
         }
 
-        List<DiscordChannelDto> channels = discordClient.getGuildChannels(server.getId());
-        return channels.stream()
-                .map(c -> ChannelDto.builder()
-                        .id(c.getId())
-                        .name(c.getName())
-                        .type(c.getType())
-                        .position(c.getPosition())
-                        .parentId(c.getParentId())
-                        .build())
-                .toList();
+        return List.of();
+    }
+
+    @Cacheable(value = "guild:roles", key = "#idOrSlug")
+    @Transactional(readOnly = true)
+    public List<ServerRoleDto> getServerRoles(String idOrSlug) {
+        Server server = serverRepository.findByIdOrSlug(idOrSlug)
+                .orElseThrow(() -> new ResourceNotFoundException("Server not found: " + idOrSlug));
+
+        if (jda.isPresent() && jda.get().getStatus() == JDA.Status.CONNECTED) {
+            Guild jdaGuild = jda.get().getGuildById(server.getId());
+            if (jdaGuild != null) {
+                Member botMember = null;
+                try {
+                    botMember = jdaGuild.getSelfMember();
+                } catch (Exception e) {
+                    if (jda.get().getSelfUser() != null) {
+                        try {
+                            botMember = jdaGuild.retrieveMember(jda.get().getSelfUser()).complete();
+                        } catch (Exception ex) {
+                            log.warn("Could not retrieve bot self member for guild {}: {}", jdaGuild.getId(), ex.getMessage());
+                        }
+                    }
+                }
+                final Member resolvedBotMember = botMember;
+                return jdaGuild.getRoles().stream()
+                        .filter(role -> !role.isPublicRole())
+                        .map(role -> ServerRoleDto.builder()
+                                .id(role.getId())
+                                .name(role.getName())
+                                .colorHex(role.getColor() != null ? String.format("#%06X", (0xFFFFFF & role.getColor().getRGB())) : null)
+                                .position(role.getPosition())
+                                .managed(role.isManaged())
+                                .assignableByBot(resolvedBotMember != null && resolvedBotMember.canInteract(role) && !role.isManaged())
+                                .build())
+                        .sorted(Comparator.comparingInt(ServerRoleDto::getPosition).reversed())
+                        .toList();
+            }
+        }
+
+        return List.of();
     }
 
     @Caching(evict = {
             @CacheEvict(value = "guilds:summary", allEntries = true),
             @CacheEvict(value = "guild:details", allEntries = true),
-            @CacheEvict(value = "guild:channels", allEntries = true)
+            @CacheEvict(value = "guild:channels", allEntries = true),
+            @CacheEvict(value = "guild:roles", allEntries = true)
     })
     @Transactional
     public ServerDetailDto updateServerSettings(String idOrSlug, UpdateServerSettingsRequest request, String operatorEmail) {
@@ -429,9 +489,11 @@ public class ServerService {
                     });
 
             DiscordGuildDto countDto = countMap.get(guild.getId());
-            int online = calculateOnlineCount(guild);
-            if (online == 0 && countDto != null && countDto.getApproximatePresenceCount() != null) {
+            int online = 0;
+            if (countDto != null && countDto.getApproximatePresenceCount() != null) {
                 online = countDto.getApproximatePresenceCount();
+            } else {
+                online = calculateOnlineCount(guild);
             }
             int total = guild.getMemberCount();
             if (total == 0 && countDto != null && countDto.getApproximateMemberCount() != null) {
@@ -476,17 +538,18 @@ public class ServerService {
     }
 
     private ServerDetailDto mapJdaGuildToDetailDto(Server server, Guild guild) {
-        int online = calculateOnlineCount(guild);
-        int total = guild.getMemberCount();
-        if (online == 0) {
-            try {
-                DiscordGuildDetailDto detail = discordClient.getGuildDetails(server.getId());
-                if (detail != null && detail.getApproximatePresenceCount() != null) {
-                    online = detail.getApproximatePresenceCount();
-                }
-            } catch (Exception ignored) {
+        int online = 0;
+        try {
+            DiscordGuildDetailDto detail = discordClient.getGuildDetails(server.getId());
+            if (detail != null && detail.getApproximatePresenceCount() != null) {
+                online = detail.getApproximatePresenceCount();
             }
+        } catch (Exception ignored) {
         }
+        if (online == 0) {
+            online = calculateOnlineCount(guild);
+        }
+        int total = guild.getMemberCount();
 
         return ServerDetailDto.builder()
                 .id(server.getId())
@@ -538,5 +601,110 @@ public class ServerService {
                 .boostCount(server.getPremiumSubscriptionCount())
                 .status("operational")
                 .build();
+    }
+
+    public String resolveGuildId(String idOrSlug) {
+        if (idOrSlug == null || idOrSlug.isBlank()) {
+            return idOrSlug;
+        }
+        if (idOrSlug.matches("\\d+")) {
+            return idOrSlug;
+        }
+        Optional<Server> server = serverRepository.findByIdOrSlug(idOrSlug);
+        if (server.isPresent()) {
+            return server.get().getId();
+        }
+        if (jda.isPresent() && jda.get().getStatus() == JDA.Status.CONNECTED) {
+            for (Guild g : jda.get().getGuilds()) {
+                String slug = generateUniqueSlug(g.getName(), g.getId());
+                if (slug.equalsIgnoreCase(idOrSlug)) {
+                    return g.getId();
+                }
+            }
+        }
+        try {
+            List<DiscordGuildDto> botGuilds = discordClient.getBotGuilds();
+            if (botGuilds != null) {
+                for (DiscordGuildDto bg : botGuilds) {
+                    String slug = generateUniqueSlug(bg.getName(), bg.getId());
+                    if (slug.equalsIgnoreCase(idOrSlug)) {
+                        return bg.getId();
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        return idOrSlug;
+    }
+
+    @Cacheable(value = "emojis:server", key = "#idOrSlug")
+    public List<DiscordEmojiDto> getServerEmojis(String idOrSlug) {
+        String guildId = resolveGuildId(idOrSlug);
+        if (guildId == null || !guildId.matches("\\d+")) {
+            log.warn("Cannot resolve valid Discord snowflake ID for server identifier: {}", idOrSlug);
+            return List.of();
+        }
+
+        // 1. Try Discord REST API v10
+        if (discordClient != null) {
+            try {
+                List<DiscordEmojiResponseDto> restEmojis = discordClient.getGuildEmojis(guildId);
+                if (restEmojis != null && !restEmojis.isEmpty()) {
+                    return restEmojis.stream()
+                            .map(e -> DiscordEmojiDto.from(e.id(), e.name(), e.animated()))
+                            .toList();
+                }
+            } catch (Exception e) {
+                log.warn("Failed to fetch server emojis from Discord REST for guild {}: {}", guildId, e.getMessage());
+            }
+        }
+
+        // 2. Fallback to JDA Gateway cache
+        if (jda.isPresent() && jda.get().getStatus() == JDA.Status.CONNECTED) {
+            try {
+                Guild guild = jda.get().getGuildById(guildId);
+                if (guild != null) {
+                    List<net.dv8tion.jda.api.entities.emoji.RichCustomEmoji> emojis = guild.getEmojis();
+                    if (!emojis.isEmpty()) {
+                        return emojis.stream()
+                                .map(e -> DiscordEmojiDto.from(e.getId(), e.getName(), e.isAnimated()))
+                                .toList();
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("JDA cache lookup failed for guild emojis {}: {}", guildId, e.getMessage());
+            }
+        }
+
+        return List.of();
+    }
+
+    @Cacheable(value = "emojis:bot", key = "'all'")
+    public List<DiscordEmojiDto> getBotEmojis() {
+        // Resolve Application ID and fetch application-scoped emojis
+        String appId = null;
+        if (jda.isPresent()) {
+            try {
+                appId = jda.get().retrieveApplicationInfo().complete().getId();
+            } catch (Exception ignored) {}
+        }
+        if (appId == null) {
+            appId = discordClient.getApplicationId();
+        }
+
+        if (appId != null) {
+            try {
+                List<DiscordEmojiResponseDto> appEmojis = discordClient.getApplicationEmojis(appId);
+                if (appEmojis != null && !appEmojis.isEmpty()) {
+                    return appEmojis.stream()
+                            .map(e -> DiscordEmojiDto.from(e.id(), e.name(), e.animated()))
+                            .toList();
+                }
+            } catch (Exception e) {
+                log.warn("Failed to fetch application emojis for bot: {}", e.getMessage());
+            }
+        }
+
+        return List.of();
     }
 }
