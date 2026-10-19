@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   type DiscordButtonComponent,
   type DiscordSelectComponent,
@@ -40,6 +40,7 @@ import {
   deleteTemplate,
   fetchActionTemplates,
 } from '@/lib/api/dashboard/embeds';
+import { fetchServers } from '@/lib/api/dashboard/servers';
 import { useToast } from '@/components/common/feedback/ToastProvider';
 
 export const GlobalEmbedBuilderCoordinator: React.FC = () => {
@@ -57,6 +58,7 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
   const [templateCategory, setTemplateCategory] = useState('ALL');
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [availableActions, setAvailableActions] = useState<EmbedAction[]>([]);
+  const [serversMap, setServersMap] = useState<Record<string, string>>({});
 
   // Modals state (Rendered at upper z-index z-50)
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
@@ -231,6 +233,20 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
   useEffect(() => {
     void loadActions();
   }, [loadActions]);
+
+  useEffect(() => {
+    fetchServers()
+      .then((res) => {
+        if (res.success && Array.isArray(res.data)) {
+          const map: Record<string, string> = {};
+          res.data.forEach((srv) => {
+            map[srv.id] = srv.name;
+          });
+          setServersMap(map);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSaveTemplate = async (metadata: {
     name: string;
@@ -480,9 +496,21 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
     }
   };
 
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    templates.forEach((t) => {
+      const cat = t.category?.trim();
+      if (cat) {
+        set.add(cat);
+      }
+    });
+    return Array.from(set);
+  }, [templates]);
+
   const filteredTemplates = templates.filter((tpl) => {
     const matchesCategory =
-      templateCategory === 'ALL' || tpl.category === templateCategory;
+      templateCategory === 'ALL' ||
+      (tpl.category && tpl.category.toLowerCase() === templateCategory.toLowerCase());
     const q = templateSearch.toLowerCase();
     const matchesSearch =
       !q ||
@@ -653,6 +681,7 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
           <TemplateFilterBar
             searchQuery={templateSearch}
             selectedCategory={templateCategory}
+            categories={categories}
             onChangeSearch={setTemplateSearch}
             onChangeCategory={setTemplateCategory}
             onOpenSaveModal={() => setIsSaveModalOpen(true)}
@@ -674,6 +703,7 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
                 <SavedTemplateCard
                   key={tpl.id}
                   template={tpl}
+                  serversMap={serversMap}
                   onLoadTemplate={handleLoadTemplateIntoCanvas}
                   onEditTemplate={(t) => setEditingTemplate(t)}
                   onExportTemplate={handleExportTemplate}
@@ -690,6 +720,7 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
         <div className="flex-1 min-h-0 overflow-y-auto rounded-apple-2xl border border-white/10 bg-surface-card/60 p-4 md:p-5 shadow-apple-card [scrollbar-width:thin]">
           <ActionTemplatesTab
             embedTemplates={templates}
+            serversMap={serversMap}
             onActionsUpdated={loadActions}
           />
         </div>

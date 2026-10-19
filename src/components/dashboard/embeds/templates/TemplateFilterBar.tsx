@@ -9,30 +9,37 @@ import { Button } from '@/components/common/input/Button';
 export interface TemplateFilterBarProps {
   searchQuery: string;
   selectedCategory: string;
+  categories?: string[];
   onChangeSearch: (query: string) => void;
   onChangeCategory: (category: string) => void;
   onOpenSaveModal: () => void;
   onImportJson?: (data: Record<string, unknown>) => void;
 }
 
-const CATEGORY_OPTIONS: DropdownOption<string>[] = [
-  { label: 'All Categories', value: 'ALL' },
-  { label: 'General', value: 'GENERAL' },
-  { label: 'Announcements', value: 'ANNOUNCEMENT' },
-  { label: 'Rules & Governance', value: 'RULES' },
-  { label: 'Support & Tickets', value: 'SUPPORT' },
-  { label: 'Operations', value: 'OPERATIONS' },
-];
-
 export const TemplateFilterBar: React.FC<TemplateFilterBarProps> = ({
   searchQuery,
   selectedCategory,
+  categories = [],
   onChangeSearch,
   onChangeCategory,
   onOpenSaveModal,
   onImportJson,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const categoryOptions: DropdownOption<string>[] = React.useMemo(() => {
+    const list: DropdownOption<string>[] = [
+      { label: 'All Categories', value: 'ALL' },
+    ];
+    if (categories && categories.length > 0) {
+      categories.forEach((cat) => {
+        if (cat) {
+          list.push({ label: cat, value: cat });
+        }
+      });
+    }
+    return list;
+  }, [categories]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -79,7 +86,7 @@ export const TemplateFilterBar: React.FC<TemplateFilterBarProps> = ({
 
         <Dropdown
           label="Template Category"
-          options={CATEGORY_OPTIONS}
+          options={categoryOptions}
           value={selectedCategory}
           onChange={onChangeCategory}
         />

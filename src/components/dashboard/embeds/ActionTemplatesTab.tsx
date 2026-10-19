@@ -10,6 +10,8 @@ import {
   Layers,
   Search,
   Zap,
+  Pencil,
+  ArrowUpRight,
 } from 'lucide-react';
 import type { EmbedAction, CreateActionPayload } from '@/lib/model/action';
 import type { TemplateData } from '@/lib/model/embed';
@@ -24,9 +26,11 @@ import {
   deleteActionTemplate,
   updateActionTemplate,
 } from '@/lib/api/dashboard/embeds';
+import { fetchServers } from '@/lib/api/dashboard/servers';
 
 export interface ActionTemplatesTabProps {
   serverId?: string;
+  serversMap?: Record<string, string>;
   onSelectAction?: (action: EmbedAction) => void;
   onActionsUpdated?: () => void;
   embedTemplates?: TemplateData[];
@@ -34,12 +38,14 @@ export interface ActionTemplatesTabProps {
 
 export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
   serverId,
+  serversMap,
   onSelectAction,
   onActionsUpdated,
   embedTemplates = [],
 }) => {
   const { toast } = useToast();
   const [actions, setActions] = useState<EmbedAction[]>([]);
+  const [internalServersMap, setInternalServersMap] = useState<Record<string, string>>(serversMap || {});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
@@ -72,6 +78,24 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
   useEffect(() => {
     void loadActions();
   }, [loadActions]);
+
+  useEffect(() => {
+    if (serversMap && Object.keys(serversMap).length > 0) {
+      setInternalServersMap(serversMap);
+      return;
+    }
+    fetchServers()
+      .then((res) => {
+        if (res.success && Array.isArray(res.data)) {
+          const map: Record<string, string> = {};
+          res.data.forEach((srv) => {
+            map[srv.id] = srv.name;
+          });
+          setInternalServersMap(map);
+        }
+      })
+      .catch(() => {});
+  }, [serversMap]);
 
   const handleCopyId = async (actionId: string) => {
     try {
@@ -243,7 +267,7 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
                     : 'text-zinc-400 hover:text-white'
                 }`}
               >
-                {scope === 'ALL' ? 'All Scopes' : scope === 'GLOBAL' ? 'Global' : 'Server'}
+                {scope === 'ALL' ? 'All Scopes' : scope === 'GLOBAL' ? 'Global' : 'Server-Specific'}
               </button>
             ))}
           </div>
@@ -260,7 +284,15 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
                   : 'text-zinc-400 hover:text-white border border-transparent'
               }`}
             >
-              {type}
+              {type === 'ALL'
+                ? 'All Types'
+                : type === 'ROLE'
+                ? 'Role Grant'
+                : type === 'TICKET'
+                ? 'Private Ticket'
+                : type === 'REPLY'
+                ? 'Bot Reply'
+                : 'Bot DM'}
             </button>
           ))}
         </div>
@@ -293,80 +325,99 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredActions.map((action) => {
             const isCopied = copiedId === action.actionId;
-            const scopeLabel = action.isGlobal
-              ? 'Global'
-              : action.serverIds && action.serverIds.length > 0
-              ? `${action.serverIds.length} Server${action.serverIds.length !== 1 ? 's' : ''}`
-              : 'Server Scoped';
+            const assignedServers: string[] =
+              Array.isArray(action.serverIds) && action.serverIds.length > 0
+                ? action.serverIds
+                : action.serverId
+                ? [action.serverId]
+                : [];
+
+            const actionTypeLabel =
+              action.actionType === 'ROLE'
+                ? 'role'
+                : action.actionType === 'TICKET'
+                ? 'ticket'
+                : action.actionType === 'REPLY'
+                ? 'reply'
+                : 'dm';
 
             return (
               <div
                 key={action.id || action.actionId}
-                className="p-4 rounded-apple-xl bg-surface-card border border-white/10 hover:border-white/20 transition-all flex flex-col justify-between gap-3 shadow-apple-card"
+                className="p-4 rounded-apple-xl bg-surface-card border border-white/[0.08] hover:border-white/15 transition-all flex flex-col justify-between gap-4 shadow-apple-card"
               >
                 <div className="flex flex-col gap-2">
+                  {/* Header: Name + Real Action Type Pill */}
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-sm font-bold text-white truncate">
-                      {action.name}
-                    </span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Zap size={16} className="text-brand-red shrink-0" />
+                      <h4 className="text-sm font-bold text-white truncate">
+                        {action.name}
+                      </h4>
+                    </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      {action.actionType === 'ROLE' && (
-                        <Badge variant="neutral" size="sm">
-                          ROLE · {action.roleSubtype || 'TOGGLE'}
-                        </Badge>
-                      )}
-                      {action.actionType === 'TICKET' && (
-                        <Badge variant="neutral" size="sm">
-                          TICKET
-                        </Badge>
-                      )}
-                      {action.actionType === 'REPLY' && (
-                        <Badge variant="neutral" size="sm">
-                          REPLY
-                        </Badge>
-                      )}
-                      {action.actionType === 'DM' && (
-                        <Badge variant="crimson" size="sm">
-                          DM
-                        </Badge>
-                      )}
+                      <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-white/[0.05] border border-white/10 text-zinc-300">
+                        {actionTypeLabel}
+                      </span>
                     </div>
                   </div>
 
-                  <p className="text-xs text-zinc-400 line-clamp-2">
-                    {action.description || 'No description provided.'}
-                  </p>
-
-                  {/* 1-Click Copyable Action ID Chip */}
-                  <button
-                    type="button"
-                    onClick={() => handleCopyId(action.actionId)}
-                    title="Click to copy action identifier"
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-apple-md bg-black/40 border border-white/10 text-xs font-mono text-zinc-300 hover:border-white/20 transition-all cursor-pointer"
-                  >
-                    <span className="text-[11px] truncate text-zinc-300 font-mono">
+                  {/* Copyable Action ID chip */}
+                  <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-apple-md bg-black/40 border border-white/[0.06]">
+                    <span className="font-mono text-[11px] text-zinc-400 truncate select-all">
                       {action.actionId}
                     </span>
-                    <div className="flex items-center gap-1 shrink-0 text-zinc-400">
+                    <button
+                      type="button"
+                      onClick={() => handleCopyId(action.actionId)}
+                      title="Copy Action ID"
+                      aria-label="Copy Action ID"
+                      className="p-1 rounded text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                    >
                       {isCopied ? (
                         <Check size={12} className="text-emerald-400" />
                       ) : (
                         <Copy size={12} />
                       )}
-                    </div>
-                  </button>
+                    </button>
+                  </div>
+
+                  {/* Description: Only shown if non-empty */}
+                  {action.description?.trim() ? (
+                    <p className="text-xs text-zinc-400 line-clamp-2">
+                      {action.description}
+                    </p>
+                  ) : null}
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-white/[0.06]">
-                  <Badge variant="neutral" size="sm">
-                    {scopeLabel}
-                  </Badge>
+                {/* Footer: Scope Pills on Left + Colored Action Buttons on Right */}
+                <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between gap-2">
+                  {/* Scope Pills */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {action.isGlobal ? (
+                      <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-white/[0.05] border border-white/10 text-zinc-300">
+                        Global
+                      </span>
+                    ) : assignedServers.length > 0 ? (
+                      assignedServers.map((sid) => (
+                        <span
+                          key={sid}
+                          className="px-2 py-0.5 rounded text-[11px] font-mono bg-white/[0.05] border border-white/10 text-zinc-300"
+                        >
+                          {internalServersMap[sid] || sid}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-white/[0.05] border border-white/10 text-zinc-300">
+                        Server-Specific
+                      </span>
+                    )}
+                  </div>
 
-                  <div className="flex items-center gap-1.5">
-                    <Button
+                  {/* Colored Action Buttons */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
                       type="button"
-                      variant="ghost"
-                      size="sm"
                       onClick={() => {
                         const copyAction: EmbedAction = {
                           ...action,
@@ -376,29 +427,43 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
                         };
                         setEditingAction(copyAction);
                       }}
-                      className="min-h-[28px] px-2 py-0.5 text-xs text-zinc-300 hover:text-white"
                       title="Duplicate Action Template"
+                      aria-label={`Duplicate action template ${action.name}`}
+                      className="p-1.5 rounded-apple-md text-zinc-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-colors cursor-pointer"
                     >
-                      Duplicate
-                    </Button>
-                    <Button
+                      <Copy size={14} />
+                    </button>
+
+                    <button
                       type="button"
-                      variant="secondary"
-                      size="sm"
                       onClick={() => setEditingAction(action)}
-                      className="min-h-[28px] px-2.5 py-0.5 text-xs"
+                      title="Edit Action Template"
+                      aria-label={`Edit action template ${action.name}`}
+                      className="p-1.5 rounded-apple-md text-white bg-blue-600 hover:bg-blue-500 border border-blue-400/30 shadow-md shadow-blue-600/20 active:scale-95 transition-all cursor-pointer"
                     >
-                      Edit
-                    </Button>
+                      <Pencil size={14} />
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => handleDeleteAction(action.actionId, action.name)}
-                      aria-label={`Delete action ${action.name}`}
+                      aria-label={`Delete action template ${action.name}`}
                       title="Delete Action Template"
-                      className="p-1.5 rounded text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                      className="p-1.5 rounded-apple-md text-white bg-red-600 hover:bg-red-500 border border-red-400/30 shadow-md shadow-red-600/20 active:scale-95 transition-all cursor-pointer"
                     >
-                      <Trash2 size={13} />
+                      <Trash2 size={14} />
                     </button>
+
+                    {onSelectAction && (
+                      <button
+                        type="button"
+                        onClick={() => onSelectAction(action)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-apple-md text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 border border-emerald-400/30 shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer"
+                      >
+                        <span>Select</span>
+                        <ArrowUpRight size={13} />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
