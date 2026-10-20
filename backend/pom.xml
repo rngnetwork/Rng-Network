@@ -22,7 +22,6 @@
         <maven.compiler.release>25</maven.compiler.release>
         <lombok.version>1.18.38</lombok.version>
         <jjwt.version>0.12.6</jjwt.version>
-        <flyway.version>12.4.0</flyway.version>
     </properties>
 
     <dependencies>
@@ -57,8 +56,8 @@
             <scope>runtime</scope>
         </dependency>
         <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-core</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>
@@ -185,21 +184,6 @@
                 <configuration>
                     <mainClass>com.rednecksgaming.RednecksGamingApplication</mainClass>
                     <jvmArguments>-XX:+UnlockExperimentalVMOptions -XX:+UseCompactObjectHeaders -XX:+EnableDynamicAgentLoading</jvmArguments>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.flywaydb</groupId>
-                <artifactId>flyway-maven-plugin</artifactId>
-                <version>${flyway.version}</version>
-                <configuration>
-                    <url>${env.DB_URL:jdbc:postgresql://localhost:5432/rng_db}</url>
-                    <user>${env.DB_USERNAME:postgres}</user>
-                    <password>${env.DB_PASSWORD:postgres}</password>
-                    <locations>
-                        <location>classpath:db/migration</location>
-                        <location>filesystem:src/main/resources/db/migration</location>
-                    </locations>
-                    <baselineOnMigrate>true</baselineOnMigrate>
                 </configuration>
             </plugin>
             <plugin>
