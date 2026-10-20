@@ -11,6 +11,9 @@ export interface LoadPresetModalProps {
   onClose: () => void;
   savedTemplates: TemplateData[];
   currentServerId?: string;
+  currentServerSlug?: string;
+  currentServerSnowflake?: string;
+  snowflakeToSlugMap?: Record<string, string>;
   onLoadTemplate: (
     state: { message: { content: string }; type17Containers: Type17Container[] },
     name?: string
@@ -23,6 +26,9 @@ export const LoadPresetModal: React.FC<LoadPresetModalProps> = ({
   onClose,
   savedTemplates,
   currentServerId,
+  currentServerSlug,
+  currentServerSnowflake,
+  snowflakeToSlugMap = {},
   onLoadTemplate,
 }) => {
   const [search, setSearch] = useState('');
@@ -30,15 +36,34 @@ export const LoadPresetModal: React.FC<LoadPresetModalProps> = ({
   const filteredSaved = useMemo(() => {
     const q = search.toLowerCase().trim();
     return savedTemplates.filter((s) => {
-      // Strict server boundary check: if viewing a specific server, only show templates assigned to it or global templates
-      if (currentServerId) {
-        const hasServerIds = Array.isArray(s.serverIds) && s.serverIds.length > 0;
-        const matchesServerIds = hasServerIds && s.serverIds!.includes(currentServerId);
-        const matchesLegacyServerId = Boolean(s.serverId && s.serverId === currentServerId);
-        const isPublicOrGlobal = Boolean(s.isPublic) || (!s.serverId && !hasServerIds);
+      // Client-side server boundary resolution:
+      // 1. Get the template's snowflake IDs
+      // 2. Parse each snowflake ID to serverSlug using snowflakeToSlugMap
+      // 3. Show assigned templates matching current server slug/snowflake, or global templates
+      const targetSlug = currentServerSlug || currentServerId;
+      const targetSnowflake = currentServerSnowflake || currentServerId;
 
-        if (!matchesServerIds && !matchesLegacyServerId && !isPublicOrGlobal) {
-          return false;
+      if (targetSlug || targetSnowflake) {
+        const templateSnowflakes: string[] = [
+          ...(Array.isArray(s.serverIds) ? s.serverIds : []),
+          ...(s.serverId ? [s.serverId] : []),
+        ].filter(Boolean);
+
+        const isPublicOrGlobal = Boolean(s.isPublic) || templateSnowflakes.length === 0;
+
+        if (!isPublicOrGlobal) {
+          // Parse each template snowflake ID to serverSlug
+          const parsedServerSlugs = templateSnowflakes.map(
+            (snowId) => snowflakeToSlugMap[snowId] || snowId
+          );
+
+          const matchesSlug = Boolean(targetSlug) && parsedServerSlugs.includes(targetSlug!);
+          const matchesSnowflake =
+            Boolean(targetSnowflake) && templateSnowflakes.includes(targetSnowflake!);
+
+          if (!matchesSlug && !matchesSnowflake) {
+            return false;
+          }
         }
       }
 
@@ -48,7 +73,14 @@ export const LoadPresetModal: React.FC<LoadPresetModalProps> = ({
         (s.description?.toLowerCase().includes(q) ?? false)
       );
     });
-  }, [search, savedTemplates, currentServerId]);
+  }, [
+    search,
+    savedTemplates,
+    currentServerId,
+    currentServerSlug,
+    currentServerSnowflake,
+    snowflakeToSlugMap,
+  ]);
 
   const handleSelectTemplate = (tpl: TemplateData) => {
     const p = (tpl.payload || tpl.payloadJson || {}) as Record<string, unknown>;

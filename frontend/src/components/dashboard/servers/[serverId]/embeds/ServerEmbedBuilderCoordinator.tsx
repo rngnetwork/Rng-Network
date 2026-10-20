@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import {
   type DiscordButtonComponent,
@@ -19,6 +19,8 @@ import {
   fetchGlobalTemplates,
   createTemplate,
 } from '@/lib/api/dashboard/embeds';
+import { fetchServers } from '@/lib/api/dashboard/servers';
+import type { ServerItem } from '@/lib/model/server';
 import { useEmbedHistory } from '@/components/dashboard/embeds/useEmbedHistory';
 import { MessageBuilderWorkspace } from '@/components/dashboard/embeds/MessageBuilderWorkspace';
 import { GlobalEditTabCoordinator } from '@/components/dashboard/embeds/EditTab/GlobalEditTabCoordinator';
@@ -52,6 +54,7 @@ export const ServerEmbedBuilderCoordinator: React.FC<
 
   const [actions, setActions] = useState<EmbedAction[]>([]);
   const [embedTemplates, setEmbedTemplates] = useState<TemplateData[]>([]);
+  const [servers, setServers] = useState<ServerItem[]>([]);
 
   // Modals state (Rendered at upper z-index z-50)
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
@@ -200,20 +203,45 @@ export const ServerEmbedBuilderCoordinator: React.FC<
         .catch(() => {});
     }
 
-    if (serverId) {
-      fetchGlobalTemplates({ serverId, page: 0, size: 50 }, token)
-        .then((res) => {
-          if (isMounted && res.success && res.data) {
-            setEmbedTemplates(res.data.content || []);
-          }
-        })
-        .catch(() => {});
-    }
+    fetchServers(token)
+      .then((res) => {
+        if (isMounted && res.success && Array.isArray(res.data)) {
+          setServers(res.data);
+        }
+      })
+      .catch(() => {});
+
+    fetchGlobalTemplates({ page: 0, size: 100 }, token)
+      .then((res) => {
+        if (isMounted && res.success && res.data) {
+          setEmbedTemplates(res.data.content || []);
+        }
+      })
+      .catch(() => {});
 
     return () => {
       isMounted = false;
     };
   }, [serverId]);
+
+  const snowflakeToSlugMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    servers.forEach((s) => {
+      if (s.id) map[s.id] = s.slug || s.id;
+      if (s.slug) map[s.slug] = s.slug;
+    });
+    return map;
+  }, [servers]);
+
+  const currentServerSlug = useMemo(() => {
+    const matched = servers.find((s) => s.slug === serverId || s.id === serverId);
+    return matched?.slug || serverId;
+  }, [servers, serverId]);
+
+  const currentServerSnowflake = useMemo(() => {
+    const matched = servers.find((s) => s.slug === serverId || s.id === serverId);
+    return matched?.id || serverId;
+  }, [servers, serverId]);
 
   const handleSaveTemplate = async (meta: {
     name: string;
@@ -434,6 +462,9 @@ export const ServerEmbedBuilderCoordinator: React.FC<
         onClose={() => setIsLoadPresetOpen(false)}
         savedTemplates={embedTemplates}
         currentServerId={serverId}
+        currentServerSlug={currentServerSlug}
+        currentServerSnowflake={currentServerSnowflake}
+        snowflakeToSlugMap={snowflakeToSlugMap}
         onLoadTemplate={(loadedState, name) => {
           dispatch({
             type: 'LOAD_TEMPLATE',

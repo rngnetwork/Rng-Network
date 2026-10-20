@@ -73,6 +73,12 @@ export const EditTemplateModal: React.FC<EditTemplateModalProps> = ({
       .then((res) => {
         if (active && res.success && Array.isArray(res.data)) {
           setConnectedServers(res.data);
+          setSelectedServerIds((prev) =>
+            prev.map((val) => {
+              const matched = res.data.find((s) => s.slug === val || s.id === val);
+              return matched ? matched.id : val;
+            })
+          );
         }
       })
       .catch(() => {})
@@ -234,7 +240,8 @@ export const EditTemplateModal: React.FC<EditTemplateModalProps> = ({
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1 [scrollbar-width:thin]">
                 {connectedServers.map((srv) => {
-                  const isChecked = selectedServerIds.includes(srv.id);
+                  const isChecked =
+                    selectedServerIds.includes(srv.id) || selectedServerIds.includes(srv.slug);
                   return (
                     <label
                       key={srv.id}

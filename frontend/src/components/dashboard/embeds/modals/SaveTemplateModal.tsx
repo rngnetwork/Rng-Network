@@ -59,6 +59,12 @@ export const SaveTemplateModal: React.FC<SaveTemplateModalProps> = ({
       .then((res) => {
         if (active && res.success && Array.isArray(res.data)) {
           setConnectedServers(res.data);
+          if (serverId) {
+            const matched = res.data.find((s) => s.slug === serverId || s.id === serverId);
+            if (matched) {
+              setSelectedServerIds((prev) => Array.from(new Set([...prev.filter((id) => id !== serverId), matched.id])));
+            }
+          }
         }
       })
       .catch(() => {})
@@ -217,7 +223,8 @@ export const SaveTemplateModal: React.FC<SaveTemplateModalProps> = ({
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1 [scrollbar-width:thin]">
                 {connectedServers.map((srv) => {
-                  const isChecked = selectedServerIds.includes(srv.id);
+                  const isChecked =
+                    selectedServerIds.includes(srv.id) || selectedServerIds.includes(srv.slug);
                   return (
                     <label
                       key={srv.id}
