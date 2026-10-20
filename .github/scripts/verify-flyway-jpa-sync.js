@@ -2,7 +2,7 @@
 /**
  * verify-flyway-jpa-sync.js
  *
- * Verifies that Spring Data JPA Entities in backend/src/main/java/com/rng
+ * Verifies that Spring Data JPA Entities in backend/src/main/java
  * match Flyway SQL Migration scripts in backend/src/main/resources/db/migration.
  */
 
@@ -13,7 +13,7 @@ const path = require('path');
 
 const rootDir = path.resolve(__dirname, '..', '..');
 const migrationDir = path.join(rootDir, 'backend', 'src', 'main', 'resources', 'db', 'migration');
-const javaSourcePath = path.join(rootDir, 'backend', 'src', 'main', 'java', 'com', 'rng');
+const javaSourcePath = path.join(rootDir, 'backend', 'src', 'main', 'java');
 const reportOutputDir = path.join(rootDir, 'backend', 'target');
 
 console.log('🔍 Starting JPA Entity to Flyway SQL Migrations Synchronization Check...');
