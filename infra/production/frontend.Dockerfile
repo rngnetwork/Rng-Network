@@ -1,5 +1,5 @@
 # ==============================================================================
-# Next.js 16 Production Dockerfile (Node 20 Alpine)
+# Next.js 16 Production Standalone Dockerfile (Node 20 Alpine)
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
@@ -17,6 +17,8 @@ RUN npm ci
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -25,26 +27,24 @@ COPY . .
 RUN npm run build
 
 # ------------------------------------------------------------------------------
-# Stage 3: Minimal Production Runtime
+# Stage 3: Minimal Production Standalone Runtime
 # ------------------------------------------------------------------------------
 FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
-    PORT=3000
+    PORT=3000 \
+    HOSTNAME="0.0.0.0"
 
 # Create non-root nodejs user for container security
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-COPY package*.json ./
-RUN npm ci --only=production
-
-COPY --from=builder /app/.next ./.next
+# Copy static assets and standalone build output
 COPY --from=builder /app/public ./public
-
-RUN chown -R nextjs:nodejs /app
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs:nodejs
 
@@ -53,4 +53,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=10s --timeout=5s --retries=5 \
     CMD wget --quiet --tries=1 --spider http://localhost:3000 || exit 1
 
-CMD ["npm", "run", "start"]
+CMD ["node", "server.js"]
