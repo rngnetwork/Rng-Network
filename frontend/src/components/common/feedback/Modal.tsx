@@ -1,0 +1,117 @@
+'use client';
+
+import React, { useEffect, useRef, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
+
+export interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title?: string;
+  description?: string;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  className?: string;
+}
+
+const sizeClasses = {
+  sm: 'max-w-sm',
+  md: 'max-w-md',
+  lg: 'max-w-lg',
+  xl: 'max-w-2xl',
+};
+
+const emptySubscribe = () => () => {};
+
+export const Modal: React.FC<ModalProps> = ({
+  isOpen,
+  onClose,
+  title,
+  description,
+  children,
+  footer,
+  size = 'md',
+  className = '',
+}) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    }
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen || !mounted || typeof document === 'undefined') return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={title ? 'modal-title' : undefined}
+    >
+      <div
+        className="fixed inset-0"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      <div
+        ref={modalRef}
+        className={`relative w-full ${sizeClasses[size]} rounded-apple-xl bg-surface-elevated border border-surface-border shadow-elevated overflow-hidden z-10 flex flex-col max-h-[90vh] ${className}`}
+      >
+        <div className="flex items-start justify-between p-4 border-b border-surface-border/60">
+          <div className="flex flex-col pr-4">
+            {title ? (
+              <h2 id="modal-title" className="text-base font-semibold text-text-primary leading-tight">
+                {title}
+              </h2>
+            ) : null}
+            {description ? (
+              <p className="text-xs text-text-secondary mt-1">{description}</p>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close dialog"
+            className="w-3.5 h-3.5 rounded-full bg-[#FF5F56] border border-[#E0443E]/80 hover:brightness-110 active:brightness-90 transition-all flex items-center justify-center group cursor-pointer shrink-0 mt-0.5"
+          >
+            <svg
+              className="w-2 h-2 text-[#4A0002] opacity-0 group-hover:opacity-100 transition-opacity"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth="3"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-4 overflow-y-auto flex-1 text-sm text-text-secondary">
+          {children}
+        </div>
+
+        {footer ? (
+          <div className="flex items-center justify-end gap-2 p-3.5 bg-surface-canvas/50 border-t border-surface-border/60">
+            {footer}
+          </div>
+        ) : null}
+      </div>
+    </div>,
+    document.body
+  );
+};
