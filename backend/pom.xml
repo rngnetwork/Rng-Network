@@ -4,11 +4,11 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.rng</groupId>
-    <artifactId>rng-backend</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
-    <name>RNG Backend Application</name>
-    <description>RNG Private Application Single-Module Spring Boot Backend</description>
+    <groupId>com.rednecksgaming</groupId>
+    <artifactId>rednecksgaming-backend</artifactId>
+    <version>0.0.1</version>
+    <name>Rednecks Gaming Backend</name>
+    <description>Rednecks Administrative Center Backend</description>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
@@ -179,7 +179,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>com.rng.RngApplication</mainClass>
+                    <mainClass>com.rednecksgaming.RngApplication</mainClass>
                     <jvmArguments>-XX:+UnlockExperimentalVMOptions -XX:+UseCompactObjectHeaders -XX:+EnableDynamicAgentLoading</jvmArguments>
                 </configuration>
             </plugin>
