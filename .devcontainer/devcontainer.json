@@ -1,6 +1,6 @@
 {
-  "name": "RNG Application DevContainer",
-  "forwardPorts": [3000, 8080, 5432],
+  "name": "RNG Control Center DevContainer",
+  "forwardPorts": [3000, 8080, 5432, 6379, 27017],
   "portsAttributes": {
     "3000": {
       "label": "Frontend UI",
@@ -14,8 +14,30 @@
     },
     "5432": {
       "label": "PostgreSQL Database",
-      "onAutoForward": "ignore"
+      "onAutoForward": "silent",
+      "elevationRequirement": "none"
+    },
+    "6379": {
+      "label": "Redis Cache",
+      "onAutoForward": "silent",
+      "elevationRequirement": "none"
+    },
+    "27017": {
+      "label": "MongoDB Store",
+      "onAutoForward": "silent",
+      "elevationRequirement": "none"
     }
   },
-  "postStartCommand": "sudo service postgresql start || true"
+  "postCreateCommand": "docker compose up -d postgres redis mongodb",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "vmware.vscode-spring-boot",
+        "bradlc.vscode-tailwindcss",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  }
 }
