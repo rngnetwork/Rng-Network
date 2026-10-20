@@ -40,7 +40,7 @@ public class AuthController {
         Long userId = tokenService.getUserIdFromToken(jwt);
         String jti = tokenService.getJtiFromToken(jwt);
 
-        AuthResponse response = authService.processDiscord2Fa(userId, jti, request.getCode(), httpResponse);
+        AuthResponse response = authService.processDiscord2Fa(userId, jti, request.getCode(), request.getRedirectUri(), httpResponse);
         return ResponseEntity.ok(ApiResponse.success(response, "Discord 2FA verification successful. Access credentials issued."));
     }
 

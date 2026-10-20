@@ -12,6 +12,7 @@ import com.rednecksgaming.identity.domain.AuthProvider;
 import com.rednecksgaming.identity.domain.User;
 import com.rednecksgaming.identity.dto.*;
 import com.rednecksgaming.identity.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,9 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -69,6 +73,11 @@ public class AuthService {
 
     @Transactional
     public AuthResponse processDiscord2Fa(Long userId, String pre2FaJti, String discordCode, HttpServletResponse response) {
+        return processDiscord2Fa(userId, pre2FaJti, discordCode, null, response);
+    }
+
+    @Transactional
+    public AuthResponse processDiscord2Fa(Long userId, String pre2FaJti, String discordCode, String redirectUri, HttpServletResponse response) {
         // 1. Revoke single-use pre-2FA token
         if (pre2FaJti != null) {
             tokenService.revokeJti(pre2FaJti);
@@ -79,7 +88,7 @@ public class AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         // 3. Perform Discord OAuth2 exchange
-        DiscordUserDto discordUser = discordClient.fetchDiscordUser(discordCode);
+        DiscordUserDto discordUser = discordClient.fetchDiscordUser(discordCode, redirectUri);
         String discordId = discordUser.getId();
 
         // 4. Verification & Linking Logic
@@ -261,6 +270,20 @@ public class AuthService {
                 .roleList(user.getRoleList())
                 .status(user.getStatus())
                 .build();
+    }
+
+    public List<ActiveSessionDto> getActiveSessions(Long userId, HttpServletRequest request) {
+        String ip = request.getRemoteAddr();
+        String userAgent = request.getHeader("User-Agent");
+        ActiveSessionDto currentSession = ActiveSessionDto.builder()
+                .id("current")
+                .ipAddress(ip != null ? ip : "127.0.0.1")
+                .userAgent(userAgent != null ? userAgent : "Browser")
+                .createdAt(Instant.now())
+                .lastActiveAt(Instant.now())
+                .current(true)
+                .build();
+        return List.of(currentSession);
     }
 
     private void addRefreshCookie(HttpServletResponse response, String value, int maxAge) {

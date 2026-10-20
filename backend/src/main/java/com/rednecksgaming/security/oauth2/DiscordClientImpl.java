@@ -6,11 +6,16 @@ import com.rednecksgaming.common.security.DiscordClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
-import org.springframework.stereotype.Service;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
@@ -33,17 +38,26 @@ public class DiscordClientImpl implements DiscordClient {
 
     @Override
     public DiscordUserDto fetchDiscordUser(String code) {
+        return fetchDiscordUser(code, null);
+    }
+
+    @Override
+    public DiscordUserDto fetchDiscordUser(String code, String overrideRedirectUri) {
         try {
             // 1. Exchange OAuth2 Code for Access Token
             HttpHeaders tokenHeaders = new HttpHeaders();
             tokenHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+            String effectiveRedirectUri = (StringUtils.hasText(overrideRedirectUri))
+                    ? overrideRedirectUri.trim()
+                    : this.redirectUri;
 
             MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
             body.add("client_id", clientId);
             body.add("client_secret", clientSecret);
             body.add("grant_type", "authorization_code");
             body.add("code", code);
-            body.add("redirect_uri", redirectUri);
+            body.add("redirect_uri", effectiveRedirectUri);
 
             HttpEntity<MultiValueMap<String, String>> tokenRequest = new HttpEntity<>(body, tokenHeaders);
             ResponseEntity<Map<String, Object>> tokenResponse = restTemplate.exchange(
@@ -80,7 +94,7 @@ public class DiscordClientImpl implements DiscordClient {
             String email = (String) userBody.get("email");
             String avatar = (String) userBody.get("avatar");
 
-            log.info("Successfully fetched Discord user: {} ({})", username, id);
+            log.info("Successfully fetched Discord user: {} ({}) with redirectUri: {}", username, id, effectiveRedirectUri);
 
             return DiscordUserDto.builder()
                     .id(id)

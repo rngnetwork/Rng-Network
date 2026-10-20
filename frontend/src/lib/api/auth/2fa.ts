@@ -4,11 +4,16 @@ import type { AuthResponse, TwoFactorStatus } from '../../model/auth';
 
 export async function verifyDiscord2FA(
   code: string,
-  pre2FaToken: string
+  pre2FaToken: string,
+  redirectUri?: string
 ): Promise<ApiResponse<AuthResponse>> {
+  const payload: { code: string; redirectUri?: string } = { code };
+  if (redirectUri) {
+    payload.redirectUri = redirectUri;
+  }
   const res = await httpClient.post<AuthResponse>(
     '/auth/discord/2fa',
-    { code },
+    payload,
     withTokenConfig(pre2FaToken)
   );
   if (res.data?.accessToken) {
@@ -19,9 +24,10 @@ export async function verifyDiscord2FA(
 
 export async function submitDiscord2Fa(
   pre2FaToken: string,
-  code: string
+  code: string,
+  redirectUri?: string
 ): Promise<ApiResponse<AuthResponse>> {
-  return verifyDiscord2FA(code, pre2FaToken);
+  return verifyDiscord2FA(code, pre2FaToken, redirectUri);
 }
 
 export async function get2FAStatus(accessToken?: string): Promise<ApiResponse<TwoFactorStatus>> {

@@ -14,4 +14,6 @@ public class Discord2FaRequest {
 
     @NotBlank(message = "Discord OAuth2 code is required")
     private String code;
+
+    private String redirectUri;
 }

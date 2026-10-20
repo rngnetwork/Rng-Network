@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api, setStoredAccessToken } from '@/lib/api';
 import { OAuthCallbackLoader } from './OAuthCallbackLoader';
@@ -12,14 +12,23 @@ export const DiscordCallbackHandler: React.FC = () => {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isResetFlow, setIsResetFlow] = useState(false);
+  const hasExecutedRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
 
     const processDiscordCallback = async () => {
+      if (hasExecutedRef.current) return;
+      hasExecutedRef.current = true;
+
       const code = searchParams.get('code');
       const state = searchParams.get('state');
       const pre2FaToken = sessionStorage.getItem('pre2FaToken');
+      const redirectUri =
+        process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI ||
+        (typeof window !== 'undefined'
+          ? `${window.location.origin}/auth/discord/callback`
+          : 'http://localhost:3000/auth/discord/callback');
 
       if (!code) {
         if (isMounted) {
@@ -71,7 +80,7 @@ export const DiscordCallbackHandler: React.FC = () => {
       }
 
       try {
-        const res = await api.submitDiscord2Fa(pre2FaToken, code);
+        const res = await api.submitDiscord2Fa(pre2FaToken, code, redirectUri);
         if (res.success && res.data?.accessToken) {
           setStoredAccessToken(res.data.accessToken);
           sessionStorage.removeItem('pre2FaToken');
