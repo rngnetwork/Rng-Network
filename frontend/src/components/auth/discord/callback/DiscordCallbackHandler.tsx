@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { api, setStoredAccessToken } from '@/lib/api';
+import { api, setStoredAccessToken, getStoredAccessToken } from '@/lib/api';
 import { OAuthCallbackLoader } from './OAuthCallbackLoader';
 import { OAuthErrorNotice } from './OAuthErrorNotice';
 
@@ -15,8 +15,6 @@ export const DiscordCallbackHandler: React.FC = () => {
   const hasExecutedRef = useRef(false);
 
   useEffect(() => {
-    let isMounted = true;
-
     const processDiscordCallback = async () => {
       if (hasExecutedRef.current) return;
       hasExecutedRef.current = true;
@@ -31,51 +29,49 @@ export const DiscordCallbackHandler: React.FC = () => {
           : 'http://localhost:3000/auth/discord/callback');
 
       if (!code) {
-        if (isMounted) {
-          setStatus('error');
-          setErrorMessage('Missing Discord authorization code parameter.');
-        }
+        setStatus('error');
+        setErrorMessage('Missing Discord authorization code parameter.');
         return;
       }
 
       if (state) {
-        if (isMounted) setIsResetFlow(true);
+        setIsResetFlow(true);
         try {
           const res = await api.verifyForgotPasswordDiscord(code, state);
           if (res.success && res.data?.resetToken) {
             sessionStorage.setItem('resetPasswordToken', res.data.resetToken);
             sessionStorage.setItem('resetPasswordEmail', res.data.email);
-            if (isMounted) {
-              setStatus('success');
-              setTimeout(() => {
-                router.push('/auth/reset-password');
-              }, 800);
-            }
+            setStatus('success');
+            setTimeout(() => {
+              router.replace('/auth/reset-password');
+            }, 600);
             return;
           }
-          if (isMounted) {
-            setStatus('error');
-            setErrorMessage(res.message || 'Discord verification for password recovery failed.');
-          }
+          setStatus('error');
+          setErrorMessage(res.message || 'Discord verification for password recovery failed.');
           return;
         } catch (err: unknown) {
-          if (isMounted) {
-            setStatus('error');
-            setErrorMessage(
-              err instanceof Error
-                ? err.message
-                : 'Discord verification for password recovery failed.'
-            );
-          }
+          setStatus('error');
+          setErrorMessage(
+            err instanceof Error
+              ? err.message
+              : 'Discord verification for password recovery failed.'
+          );
           return;
         }
       }
 
       if (!pre2FaToken) {
-        if (isMounted) {
-          setStatus('error');
-          setErrorMessage('Pre-2FA authentication token missing or expired. Please sign in again.');
+        // If pre2FaToken was already consumed and user holds an active access token, redirect to dashboard smoothly
+        const existingToken = getStoredAccessToken();
+        if (existingToken) {
+          setStatus('success');
+          router.replace('/dashboard');
+          return;
         }
+
+        setStatus('error');
+        setErrorMessage('Pre-2FA authentication token missing or expired. Please sign in again.');
         return;
       }
 
@@ -84,31 +80,23 @@ export const DiscordCallbackHandler: React.FC = () => {
         if (res.success && res.data?.accessToken) {
           setStoredAccessToken(res.data.accessToken);
           sessionStorage.removeItem('pre2FaToken');
-          if (isMounted) {
-            setStatus('success');
-            setTimeout(() => {
-              router.push('/dashboard');
-            }, 900);
-          }
-        } else if (isMounted) {
+          setStatus('success');
+          setTimeout(() => {
+            router.replace('/dashboard');
+          }, 600);
+        } else {
           setStatus('error');
           setErrorMessage(res.message || 'Discord 2FA verification failed.');
         }
       } catch (err: unknown) {
-        if (isMounted) {
-          setStatus('error');
-          setErrorMessage(
-            err instanceof Error ? err.message : 'An error occurred during 2FA upgrade.'
-          );
-        }
+        setStatus('error');
+        setErrorMessage(
+          err instanceof Error ? err.message : 'An error occurred during 2FA upgrade.'
+        );
       }
     };
 
-    processDiscordCallback();
-
-    return () => {
-      isMounted = false;
-    };
+    void processDiscordCallback();
   }, [searchParams, router]);
 
   if (status === 'error') {

@@ -54,9 +54,15 @@ export const EditTemplateModal: React.FC<EditTemplateModalProps> = ({
     setCategory((template.category || '').toLowerCase().replace(/[^a-z0-9_-]/g, ''));
     setDescription(template.description || '');
     setIsGlobal(Boolean(template.public ?? template.isPublic ?? true));
-    setSelectedServerIds(
-      template.serverId ? [template.serverId] : serverId ? [serverId] : []
-    );
+    const initialServers =
+      Array.isArray(template.serverIds) && template.serverIds.length > 0
+        ? template.serverIds
+        : template.serverId
+        ? [template.serverId]
+        : serverId
+        ? [serverId]
+        : [];
+    setSelectedServerIds(initialServers);
     setOverwriteWithCanvas(false);
   }
 

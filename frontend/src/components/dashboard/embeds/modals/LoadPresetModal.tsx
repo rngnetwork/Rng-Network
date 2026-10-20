@@ -10,6 +10,7 @@ export interface LoadPresetModalProps {
   isOpen: boolean;
   onClose: () => void;
   savedTemplates: TemplateData[];
+  currentServerId?: string;
   onLoadTemplate: (
     state: { message: { content: string }; type17Containers: Type17Container[] },
     name?: string
@@ -21,19 +22,33 @@ export const LoadPresetModal: React.FC<LoadPresetModalProps> = ({
   isOpen,
   onClose,
   savedTemplates,
+  currentServerId,
   onLoadTemplate,
 }) => {
   const [search, setSearch] = useState('');
 
   const filteredSaved = useMemo(() => {
     const q = search.toLowerCase().trim();
-    if (!q) return savedTemplates;
-    return savedTemplates.filter(
-      (s) =>
+    return savedTemplates.filter((s) => {
+      // Strict server boundary check: if viewing a specific server, only show templates assigned to it or global templates
+      if (currentServerId) {
+        const hasServerIds = Array.isArray(s.serverIds) && s.serverIds.length > 0;
+        const matchesServerIds = hasServerIds && s.serverIds!.includes(currentServerId);
+        const matchesLegacyServerId = Boolean(s.serverId && s.serverId === currentServerId);
+        const isPublicOrGlobal = Boolean(s.isPublic) || (!s.serverId && !hasServerIds);
+
+        if (!matchesServerIds && !matchesLegacyServerId && !isPublicOrGlobal) {
+          return false;
+        }
+      }
+
+      if (!q) return true;
+      return (
         s.name.toLowerCase().includes(q) ||
         (s.description?.toLowerCase().includes(q) ?? false)
-    );
-  }, [search, savedTemplates]);
+      );
+    });
+  }, [search, savedTemplates, currentServerId]);
 
   const handleSelectTemplate = (tpl: TemplateData) => {
     const p = (tpl.payload || tpl.payloadJson || {}) as Record<string, unknown>;

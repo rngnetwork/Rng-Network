@@ -32,6 +32,7 @@ import java.util.Map;
 @Document(collection = "embed_templates")
 @CompoundIndexes({
     @CompoundIndex(name = "idx_server_public_category", def = "{'serverId': 1, 'isPublic': 1, 'category': 1}"),
+    @CompoundIndex(name = "idx_server_ids_public", def = "{'serverIds': 1, 'isPublic': 1}"),
     @CompoundIndex(name = "idx_author_updated", def = "{'authorId': 1, 'updatedAt': -1}"),
     @CompoundIndex(name = "idx_category_tags", def = "{'category': 1, 'tags': 1}")
 })
@@ -61,6 +62,11 @@ public class EmbedTemplate {
 
     @Indexed
     private String serverId; // Null for global community template
+
+    @Indexed
+    @Builder.Default
+    @Field("serverIds")
+    private List<String> serverIds = new ArrayList<>();
 
     @NotBlank(message = "Category is required")
     @Indexed

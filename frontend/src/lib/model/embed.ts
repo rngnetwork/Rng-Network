@@ -325,6 +325,7 @@ export interface TemplateItem {
   createdAt?: string;
   isPublic?: boolean;
   serverId?: string;
+  serverIds?: string[];
   state: {
     message: { content: string };
     type17Containers: Type17Container[];
@@ -380,6 +381,7 @@ export interface TemplateData {
   name: string;
   description?: string;
   serverId?: string;
+  serverIds?: string[];
   authorId: number;
   authorUsername?: string;
   tags: string[];
@@ -401,6 +403,7 @@ export interface CreateTemplatePayload {
   name: string;
   description?: string;
   serverId?: string;
+  serverIds?: string[];
   category?: string;
   tags?: string[];
   isPublic?: boolean;
@@ -414,6 +417,7 @@ export interface UpdateTemplatePayload {
   name?: string;
   description?: string;
   serverId?: string;
+  serverIds?: string[];
   category?: string;
   tags?: string[];
   isPublic?: boolean;

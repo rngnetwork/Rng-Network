@@ -200,13 +200,15 @@ export const ServerEmbedBuilderCoordinator: React.FC<
         .catch(() => {});
     }
 
-    fetchGlobalTemplates({ page: 0, size: 50 }, token)
-      .then((res) => {
-        if (isMounted && res.success && res.data) {
-          setEmbedTemplates(res.data.content || []);
-        }
-      })
-      .catch(() => {});
+    if (serverId) {
+      fetchGlobalTemplates({ serverId, page: 0, size: 50 }, token)
+        .then((res) => {
+          if (isMounted && res.success && res.data) {
+            setEmbedTemplates(res.data.content || []);
+          }
+        })
+        .catch(() => {});
+    }
 
     return () => {
       isMounted = false;
@@ -237,7 +239,8 @@ export const ServerEmbedBuilderCoordinator: React.FC<
           category: meta.category,
           tags: meta.tags || [],
           isPublic: meta.isPublic,
-          serverId: meta.serverIds?.[0] || meta.serverId || serverId,
+          serverId: (meta.serverIds && meta.serverIds.length > 0 ? meta.serverIds[0] : meta.serverId) || serverId,
+          serverIds: meta.serverIds && meta.serverIds.length > 0 ? meta.serverIds : (meta.serverId ? [meta.serverId] : (serverId ? [serverId] : [])),
           payload: validationReport.compiledPayload as unknown as Record<string, unknown>,
         },
         token
@@ -430,6 +433,7 @@ export const ServerEmbedBuilderCoordinator: React.FC<
         isOpen={isLoadPresetOpen}
         onClose={() => setIsLoadPresetOpen(false)}
         savedTemplates={embedTemplates}
+        currentServerId={serverId}
         onLoadTemplate={(loadedState, name) => {
           dispatch({
             type: 'LOAD_TEMPLATE',

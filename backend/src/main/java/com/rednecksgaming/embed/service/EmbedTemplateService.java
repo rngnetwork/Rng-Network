@@ -36,10 +36,22 @@ public class EmbedTemplateService {
     public Page<TemplateResponse> listTemplates(Long operatorUserId, String serverId, String category, Pageable pageable) {
         Page<EmbedTemplate> templates;
         String authorId = operatorUserId != null ? String.valueOf(operatorUserId) : null;
-        if (category != null && !category.isBlank()) {
-            templates = templateRepository.findAccessibleByCategory(serverId, authorId, category.trim().toLowerCase(), pageable);
+        boolean hasServer = serverId != null && !serverId.isBlank() && !serverId.equalsIgnoreCase("global");
+        boolean hasCategory = category != null && !category.isBlank();
+
+        if (hasServer) {
+            String cleanServerId = serverId.trim();
+            if (hasCategory) {
+                templates = templateRepository.findAccessibleByServerAndCategory(cleanServerId, category.trim().toLowerCase(), pageable);
+            } else {
+                templates = templateRepository.findAccessibleByServer(cleanServerId, pageable);
+            }
         } else {
-            templates = templateRepository.findAccessibleTemplates(serverId, authorId, pageable);
+            if (hasCategory) {
+                templates = templateRepository.findGlobalAccessibleByCategory(authorId, category.trim().toLowerCase(), pageable);
+            } else {
+                templates = templateRepository.findGlobalAccessible(authorId, pageable);
+            }
         }
         return templates.map(this::toResponse);
     }
@@ -88,13 +100,21 @@ public class EmbedTemplateService {
                 ? operator.getFullName()
                 : operator.getEmail();
 
+        List<String> effectiveServerIds = request.serverIds() != null && !request.serverIds().isEmpty()
+                ? request.serverIds()
+                : (request.serverId() != null && !request.serverId().isBlank() ? List.of(request.serverId().trim()) : new ArrayList<>());
+        String primaryServerId = request.serverId() != null && !request.serverId().isBlank()
+                ? request.serverId().trim()
+                : (!effectiveServerIds.isEmpty() ? effectiveServerIds.get(0) : null);
+
         EmbedTemplate template = EmbedTemplate.builder()
                 .templateId(templateId)
                 .name(request.name().trim())
                 .description(request.description() != null ? request.description().trim() : null)
                 .authorId(String.valueOf(operatorUserId))
                 .authorName(authorName)
-                .serverId(request.serverId())
+                .serverId(primaryServerId)
+                .serverIds(effectiveServerIds)
                 .category(request.category() != null && !request.category().isBlank() ? request.category().trim().toLowerCase() : "general")
                 .tags(request.tags() != null ? request.tags() : new ArrayList<>())
                 .payload(request.payload())
@@ -171,6 +191,19 @@ public class EmbedTemplateService {
         }
         if (request.tags() != null) {
             template.setTags(request.tags());
+        }
+        if (request.serverIds() != null) {
+            template.setServerIds(request.serverIds());
+            if (request.serverId() != null && !request.serverId().isBlank()) {
+                template.setServerId(request.serverId().trim());
+            } else if (!request.serverIds().isEmpty()) {
+                template.setServerId(request.serverIds().get(0));
+            } else {
+                template.setServerId(null);
+            }
+        } else if (request.serverId() != null) {
+            template.setServerId(request.serverId().trim());
+            template.setServerIds(List.of(request.serverId().trim()));
         }
         template.setPayload(request.payload());
         if (request.isPublic() != null) {
@@ -257,6 +290,13 @@ public class EmbedTemplateService {
     }
 
     private TemplateResponse toResponse(EmbedTemplate doc) {
+        List<String> effectiveServerIds = doc.getServerIds() != null && !doc.getServerIds().isEmpty()
+                ? doc.getServerIds()
+                : (doc.getServerId() != null ? List.of(doc.getServerId()) : new ArrayList<>());
+        String effectiveServerId = doc.getServerId() != null
+                ? doc.getServerId()
+                : (!effectiveServerIds.isEmpty() ? effectiveServerIds.get(0) : null);
+
         return TemplateResponse.builder()
                 .id(doc.getId())
                 .templateId(doc.getTemplateId())
@@ -264,7 +304,8 @@ public class EmbedTemplateService {
                 .description(doc.getDescription())
                 .authorId(doc.getAuthorId())
                 .authorName(doc.getAuthorName())
-                .serverId(doc.getServerId())
+                .serverId(effectiveServerId)
+                .serverIds(effectiveServerIds)
                 .category(doc.getCategory())
                 .tags(doc.getTags())
                 .payload(doc.getPayload())

@@ -22,8 +22,22 @@ public record UpdateTemplateRequest(
 
     List<String> tags,
 
+    String serverId,
+
+    List<String> serverIds,
+
     @NotNull(message = "Discord V2 payload is mandatory")
     Map<String, Object> payload,
 
     Boolean isPublic
-) {}
+) {
+    public UpdateTemplateRequest(
+            String name,
+            String description,
+            String category,
+            List<String> tags,
+            Map<String, Object> payload,
+            Boolean isPublic) {
+        this(name, description, category, tags, null, null, payload, isPublic);
+    }
+}

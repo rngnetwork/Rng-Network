@@ -18,6 +18,7 @@ public record TemplateResponse(
     String authorId,
     String authorName,
     String serverId,
+    List<String> serverIds,
     String category,
     List<String> tags,
     Map<String, Object> payload,

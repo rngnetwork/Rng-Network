@@ -105,14 +105,26 @@ class EmbedTemplateServiceTest {
     }
 
     @Test
-    @DisplayName("listTemplates delegates to repository with operator authorId")
-    void listTemplates_delegatesWithAuthorId() {
+    @DisplayName("listTemplates delegates to server-scoped query when serverId is provided")
+    void listTemplates_delegatesToAccessibleByServer() {
         org.springframework.data.domain.Page<EmbedTemplate> emptyPage = new org.springframework.data.domain.PageImpl<>(java.util.List.of());
-        when(templateRepository.findAccessibleTemplates(eq("guild_123"), eq("1"), any(org.springframework.data.domain.Pageable.class)))
+        when(templateRepository.findAccessibleByServer(eq("guild_123"), any(org.springframework.data.domain.Pageable.class)))
                 .thenReturn(emptyPage);
 
         var result = service.listTemplates(1L, "guild_123", null, org.springframework.data.domain.PageRequest.of(0, 10));
         assertThat(result).isNotNull();
-        verify(templateRepository).findAccessibleTemplates(eq("guild_123"), eq("1"), any(org.springframework.data.domain.Pageable.class));
+        verify(templateRepository).findAccessibleByServer(eq("guild_123"), any(org.springframework.data.domain.Pageable.class));
+    }
+
+    @Test
+    @DisplayName("listTemplates delegates to global accessible query when serverId is null")
+    void listTemplates_delegatesToGlobalWhenServerIdNull() {
+        org.springframework.data.domain.Page<EmbedTemplate> emptyPage = new org.springframework.data.domain.PageImpl<>(java.util.List.of());
+        when(templateRepository.findGlobalAccessible(eq("1"), any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(emptyPage);
+
+        var result = service.listTemplates(1L, null, null, org.springframework.data.domain.PageRequest.of(0, 10));
+        assertThat(result).isNotNull();
+        verify(templateRepository).findGlobalAccessible(eq("1"), any(org.springframework.data.domain.Pageable.class));
     }
 }

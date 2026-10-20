@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -24,8 +25,23 @@ public record CreateTemplateRequest(
 
     String serverId,
 
+    List<String> serverIds,
+
     @NotNull(message = "Discord V2 payload is mandatory")
     Map<String, Object> payload,
 
     boolean isPublic
-) {}
+) {
+    public CreateTemplateRequest(
+            String name,
+            String description,
+            String category,
+            List<String> tags,
+            String serverId,
+            Map<String, Object> payload,
+            boolean isPublic) {
+        this(name, description, category, tags, serverId,
+                serverId != null && !serverId.isBlank() ? List.of(serverId) : new ArrayList<>(),
+                payload, isPublic);
+    }
+}

@@ -19,16 +19,28 @@ public interface EmbedTemplateRepository extends MongoRepository<EmbedTemplate, 
 
     boolean existsByTemplateId(String templateId);
 
-    @Query("{ '$or': [ { 'serverId': ?0 }, { 'isPublic': true } ] }")
+    @Query("{ '$or': [ { 'serverIds': ?0 }, { 'serverId': ?0 }, { 'isPublic': true } ] }")
+    Page<EmbedTemplate> findAccessibleByServer(String serverId, Pageable pageable);
+
+    @Query("{ '$and': [ { '$or': [ { 'serverIds': ?0 }, { 'serverId': ?0 }, { 'isPublic': true } ] }, { 'category': ?1 } ] }")
+    Page<EmbedTemplate> findAccessibleByServerAndCategory(String serverId, String category, Pageable pageable);
+
+    @Query("{ '$or': [ { 'isPublic': true }, { 'authorId': ?0 } ] }")
+    Page<EmbedTemplate> findGlobalAccessible(String authorId, Pageable pageable);
+
+    @Query("{ '$and': [ { '$or': [ { 'isPublic': true }, { 'authorId': ?0 } ] }, { 'category': ?1 } ] }")
+    Page<EmbedTemplate> findGlobalAccessibleByCategory(String authorId, String category, Pageable pageable);
+
+    @Query("{ '$or': [ { 'serverIds': ?0 }, { 'serverId': ?0 }, { 'isPublic': true } ] }")
     Page<EmbedTemplate> findAccessibleTemplates(String serverId, Pageable pageable);
 
-    @Query("{ '$and': [ { '$or': [ { 'serverId': ?0 }, { 'isPublic': true } ] }, { 'category': ?1 } ] }")
+    @Query("{ '$and': [ { '$or': [ { 'serverIds': ?0 }, { 'serverId': ?0 }, { 'isPublic': true } ] }, { 'category': ?1 } ] }")
     Page<EmbedTemplate> findAccessibleByCategory(String serverId, String category, Pageable pageable);
 
-    @Query("{ '$or': [ { 'serverId': ?0 }, { 'isPublic': true }, { 'authorId': ?1 } ] }")
+    @Query("{ '$or': [ { 'serverIds': ?0 }, { 'serverId': ?0 }, { 'isPublic': true } ] }")
     Page<EmbedTemplate> findAccessibleTemplates(String serverId, String authorId, Pageable pageable);
 
-    @Query("{ '$and': [ { '$or': [ { 'serverId': ?0 }, { 'isPublic': true }, { 'authorId': ?1 } ] }, { 'category': ?2 } ] }")
+    @Query("{ '$and': [ { '$or': [ { 'serverIds': ?0 }, { 'serverId': ?0 }, { 'isPublic': true } ] }, { 'category': ?2 } ] }")
     Page<EmbedTemplate> findAccessibleByCategory(String serverId, String authorId, String category, Pageable pageable);
 
     Page<EmbedTemplate> findByAuthorIdOrderByUpdatedAtDesc(String authorId, Pageable pageable);

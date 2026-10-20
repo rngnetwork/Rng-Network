@@ -307,7 +307,8 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
           category: metadata.category,
           tags: metadata.tags || [],
           isPublic: metadata.isPublic,
-          serverId: metadata.serverIds?.[0] || metadata.serverId,
+          serverId: metadata.serverIds && metadata.serverIds.length > 0 ? metadata.serverIds[0] : metadata.serverId,
+          serverIds: metadata.serverIds && metadata.serverIds.length > 0 ? metadata.serverIds : (metadata.serverId ? [metadata.serverId] : []),
           payload:
             validationReport.compiledPayload as unknown as Record<string, unknown>,
         },
@@ -398,7 +399,8 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
           category: updates.category,
           tags: updates.tags || [],
           isPublic: updates.isPublic,
-          serverId: updates.serverIds?.[0] || updates.serverId,
+          serverId: updates.serverIds && updates.serverIds.length > 0 ? updates.serverIds[0] : updates.serverId,
+          serverIds: updates.serverIds !== undefined ? updates.serverIds : (updates.serverId ? [updates.serverId] : undefined),
           payload: targetPayload,
         },
         token
