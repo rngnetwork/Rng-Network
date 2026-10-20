@@ -1,7 +1,10 @@
 name: RNG Control Center CI/CD Pipeline
 
 on:
-  [push, pull_request]
+  push:
+    branches: [main, master, backend-revamp, '**']
+  pull_request:
+    branches: [main, master, '**']
 
 jobs:
   # ----------------------------------------------------------------------------
@@ -27,6 +30,9 @@ jobs:
   frontend-ci:
     name: Frontend (Next.js 16) CI
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -36,6 +42,7 @@ jobs:
         with:
           node-version: '24.19.0'
           cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install Frontend Dependencies
         id: install
@@ -49,6 +56,18 @@ jobs:
         id: lint
         run: npm run lint
 
+      - name: Run Component & Unit Tests (Vitest)
+        id: test
+        run: npm run test -- --reporter=json --outputFile=test-results.json
+
+      - name: Generate Tabular Vitest Test Report
+        if: always()
+        run: node ../.github/scripts/generate-vitest-report.js test-results.json ../target/vitest-report.md
+
+      - name: Output Vitest Report to CI Summary
+        if: always()
+        run: cat ../target/vitest-report.md >> $GITHUB_STEP_SUMMARY || true
+
       - name: Audit Dependencies
         id: audit
         run: npm audit --audit-level=critical || true
@@ -60,7 +79,7 @@ jobs:
       - name: Generate Dynamic Frontend Markdown Report
         if: always()
         run: |
-          node .github/scripts/generate-frontend-report.js \
+          node ../.github/scripts/generate-frontend-report.js \
             "${{ steps.install.outcome }}" \
             "${{ steps.typecheck.outcome }}" \
             "${{ steps.lint.outcome }}" \
@@ -69,7 +88,7 @@ jobs:
 
       - name: Output Real-Time Frontend Report to CI Summary
         if: always()
-        run: cat target/frontend-report.md >> $GITHUB_STEP_SUMMARY
+        run: cat ../target/frontend-report.md >> $GITHUB_STEP_SUMMARY || true
 
   # ----------------------------------------------------------------------------
   # Job 3: Spring Boot 4.1.1 Backend CI Pipeline
@@ -77,6 +96,9 @@ jobs:
   backend-ci:
     name: Backend (Spring Boot 4.1.1) CI
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -94,17 +116,17 @@ jobs:
           node-version: '24.19.0'
 
       - name: Verify Flyway SQL Schema Mirrored to JPA Entities
-        run: node .github/scripts/verify-flyway-jpa-sync.js
+        run: node ../.github/scripts/verify-flyway-jpa-sync.js
 
       - name: Output Real-Time Schema Sync Report to CI Summary
         if: always()
-        run: cat backend/target/schema-sync-report.md >> $GITHUB_STEP_SUMMARY || true
+        run: cat target/schema-sync-report.md >> $GITHUB_STEP_SUMMARY || true
 
       - name: Grant Execute Permission for Maven Wrapper
-        run: chmod +x ./backend/mvnw
+        run: chmod +x ./mvnw
 
       - name: Run Backend Integration Tests & JaCoCo Coverage
-        run: ./backend/mvnw -f ./backend/pom.xml test -Dspring.profiles.active=test
+        run: ./mvnw test -Dspring.profiles.active=test
 
       - name: Upload JaCoCo Coverage Report Artifact
         if: always()
