@@ -1,0 +1,44 @@
+{
+  "name": "rednecksgaming-frontend",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "axios": "^1.7.9",
+    "framer-motion": "^13.0.0",
+    "lucide-react": "^1.30.0",
+    "next": "^16.4.2",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.5.4",
+    "eslint": "^9",
+    "eslint-config-next": "^16.4.2",
+    "jsdom": "^25.0.1",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5",
+    "vitest": "^4.1.12"
+  },
+  "overrides": {
+    "chokidar": "^4.0.3",
+    "dompurify": "^3.4.17",
+    "vite": "^6.2.1",
+    "postcss-selector-parser": "^7.1.6",
+    "braces": "npm:@cekrem/braces@3.0.4",
+    "micromatch": "^4.0.8"
+  }
+}
