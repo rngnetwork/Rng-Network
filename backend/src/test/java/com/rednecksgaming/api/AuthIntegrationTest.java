@@ -33,6 +33,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -84,6 +85,8 @@ class AuthIntegrationTest {
         user.setDiscordUsername(null);
         user.setDiscordAvatar(null);
         userRepository.save(user);
+
+
     }
 
     @Test
@@ -155,6 +158,7 @@ class AuthIntegrationTest {
                 .avatar("mock_avatar_hash_123")
                 .build();
         when(discordClient.fetchDiscordUser(anyString())).thenReturn(mockDiscordUser);
+        when(discordClient.fetchDiscordUser(anyString(), any())).thenReturn(mockDiscordUser);
 
         // 1. Email Login -> Pre-2FA Token
         LoginRequest loginRequest = LoginRequest.builder()
@@ -245,6 +249,8 @@ class AuthIntegrationTest {
         user.setDiscordLinked(true);
         userRepository.save(user);
 
+
+
         DiscordUserDto updatedDiscordUser = DiscordUserDto.builder()
                 .id("discord_99887766")
                 .username("NewUpdatedUsername")
@@ -252,6 +258,7 @@ class AuthIntegrationTest {
                 .avatar("a_new_animated_avatar_hash")
                 .build();
         when(discordClient.fetchDiscordUser(anyString())).thenReturn(updatedDiscordUser);
+        when(discordClient.fetchDiscordUser(anyString(), any())).thenReturn(updatedDiscordUser);
 
         String pre2FaToken = tokenService.generatePre2FaToken(user.getId(), user.getEmail());
         Discord2FaRequest request = Discord2FaRequest.builder()

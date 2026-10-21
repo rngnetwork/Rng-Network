@@ -79,15 +79,17 @@ class EmbedDomainTest {
 
         CompoundIndexes compoundIndexes = EmbedTemplate.class.getAnnotation(CompoundIndexes.class);
         assertThat(compoundIndexes).isNotNull();
-        assertThat(compoundIndexes.value()).hasSize(3);
+        assertThat(compoundIndexes.value()).hasSize(4);
 
         List<String> indexNames = List.of(
                 compoundIndexes.value()[0].name(),
                 compoundIndexes.value()[1].name(),
-                compoundIndexes.value()[2].name()
+                compoundIndexes.value()[2].name(),
+                compoundIndexes.value()[3].name()
         );
         assertThat(indexNames).containsExactlyInAnyOrder(
                 "idx_server_public_category",
+                "idx_server_ids_public",
                 "idx_author_updated",
                 "idx_category_tags"
         );
@@ -141,6 +143,7 @@ class EmbedDomainTest {
                 compoundIndexes.value()[0].name(),
                 compoundIndexes.value()[1].name(),
                 compoundIndexes.value()[2].name(),
+
                 compoundIndexes.value()[3].name()
         );
         assertThat(indexNames).containsExactlyInAnyOrder(

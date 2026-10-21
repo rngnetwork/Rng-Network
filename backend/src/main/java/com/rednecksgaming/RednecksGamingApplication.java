@@ -9,10 +9,12 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.data.web.config.EnableSpringDataWebSupport;
 
 @EnableCaching
 @EnableScheduling
 @EnableJpaAuditing
+@EnableSpringDataWebSupport(pageSerializationMode = EnableSpringDataWebSupport.PageSerializationMode.DIRECT)
 @SpringBootApplication(
         scanBasePackages = "com.rednecksgaming",
         exclude = {DataRedisRepositoriesAutoConfiguration.class}

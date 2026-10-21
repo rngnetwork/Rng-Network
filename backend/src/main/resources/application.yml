@@ -5,7 +5,7 @@ server:
 
 spring:
   application:
-    name: rng-api
+    name: rednecksgaming-backend
 
   threads:
     virtual:
@@ -26,6 +26,9 @@ spring:
         format_sql: true
 
   data:
+    web:
+      pageable:
+        page-serialization-mode: direct
     mongodb:
       uri: ${MONGODB_URI:mongodb://localhost:27017/rng_db}
       auto-index-creation: true
