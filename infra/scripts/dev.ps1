@@ -1,18 +1,32 @@
 # ==============================================================================
-# RNG Full-Stack Local Development Automation (Windows PowerShell)
+# RNG Full-Stack Local Development & Production Automation (Windows PowerShell)
 # Orchestrates Docker datastores, backend Spring Boot API, and frontend Next.js
+#
+# Usage:
+#   .\infra\scripts\dev.ps1          # Default: Production mode (Pre-builds & runs 'npm run start')
+#   .\infra\scripts\dev.ps1 -Prod    # Explicit: Production mode (Pre-builds & runs 'npm run start')
+#   .\infra\scripts\dev.ps1 -Dev     # Development mode (Runs 'npm run dev' with HMR)
 # ==============================================================================
 
+param (
+    [switch]$Dev,
+    [switch]$Prod
+)
+
 $ErrorActionPreference = "Continue"
+
+$isDevMode = $Dev.IsPresent
+$modeLabel = if ($isDevMode) { "DEVELOPMENT (Hot Reload / HMR)" } else { "PRODUCTION (Pre-built Ahead-Of-Time)" }
 
 # Resolve repository root
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 Set-Location $RepoRoot
 
 Write-Host "======================================================================" -ForegroundColor Cyan
-Write-Host "       RNG CONTROL CENTER - LOCAL DEVELOPMENT ENVIRONMENT             " -ForegroundColor Cyan
+Write-Host "       RNG CONTROL CENTER - LOCAL ENVIRONMENT LAUNCHER                " -ForegroundColor Cyan
 Write-Host "======================================================================" -ForegroundColor Cyan
-Write-Host "Repo Root: $RepoRoot`n" -ForegroundColor DarkGray
+Write-Host "Repo Root: $RepoRoot" -ForegroundColor DarkGray
+Write-Host "Mode:      $modeLabel`n" -ForegroundColor Yellow
 
 # ------------------------------------------------------------------------------
 # 1. Docker Status Check & Auto-Recovery
@@ -114,9 +128,9 @@ if ($nodeCmd) {
 }
 
 # ------------------------------------------------------------------------------
-# 4. Pre-Flight Compilation & Type Checking (mvn compile, npx tsc --noEmit)
+# 4. Pre-Flight Compilation & Verification
 # ------------------------------------------------------------------------------
-Write-Host "`n[4/5] Running pre-flight build & type-check verification..." -ForegroundColor Yellow
+Write-Host "`n[4/5] Running pre-flight build & verification ($modeLabel)..." -ForegroundColor Yellow
 
 $BackendDir = Join-Path $RepoRoot "backend"
 $FrontendDir = Join-Path $RepoRoot "frontend"
@@ -130,16 +144,29 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "  [x] Backend Java classes compiled cleanly." -ForegroundColor Green
 
-Write-Host "  -> Verifying frontend TypeScript types ('npx tsc --noEmit')..." -ForegroundColor Cyan
-Push-Location $FrontendDir
-& cmd.exe /c "npx tsc --noEmit"
-$tscExit = $LASTEXITCODE
-Pop-Location
-if ($tscExit -ne 0) {
-    Write-Host "  [!] ERROR: Frontend TypeScript type check failed with exit code $tscExit! Aborting startup." -ForegroundColor Red
-    exit 1
+if ($isDevMode) {
+    Write-Host "  -> Verifying frontend TypeScript types ('npx tsc --noEmit')..." -ForegroundColor Cyan
+    Push-Location $FrontendDir
+    & cmd.exe /c "npx tsc --noEmit"
+    $tscExit = $LASTEXITCODE
+    Pop-Location
+    if ($tscExit -ne 0) {
+        Write-Host "  [!] ERROR: Frontend TypeScript type check failed with exit code $tscExit! Aborting startup." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "  [x] Frontend TypeScript type check passed." -ForegroundColor Green
+} else {
+    Write-Host "  -> Pre-building frontend production bundle ('npm run build')..." -ForegroundColor Cyan
+    Push-Location $FrontendDir
+    & cmd.exe /c "npm run build"
+    $buildExit = $LASTEXITCODE
+    Pop-Location
+    if ($buildExit -ne 0) {
+        Write-Host "  [!] ERROR: Frontend build failed with exit code $buildExit! Aborting startup." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "  [x] Frontend production bundle pre-built successfully (zero on-site compilation delay)." -ForegroundColor Green
 }
-Write-Host "  [x] Frontend TypeScript type check passed." -ForegroundColor Green
 
 # ------------------------------------------------------------------------------
 # 5. Concurrently Launch Backend & Frontend with Clean Shutdown
@@ -152,14 +179,23 @@ $backendProcess = Start-Process -FilePath "cmd.exe" `
     -WorkingDirectory $BackendDir `
     -PassThru
 
-Write-Host "  -> Launching Frontend via 'npm run dev' in '$FrontendDir'..." -ForegroundColor Cyan
-$frontendProcess = Start-Process -FilePath "cmd.exe" `
-    -ArgumentList "/c", "npm run dev" `
-    -WorkingDirectory $FrontendDir `
-    -PassThru
+if ($isDevMode) {
+    Write-Host "  -> Launching Frontend via 'npm run dev' (dev mode with HMR)..." -ForegroundColor Cyan
+    $frontendProcess = Start-Process -FilePath "cmd.exe" `
+        -ArgumentList "/c", "npm run dev" `
+        -WorkingDirectory $FrontendDir `
+        -PassThru
+} else {
+    Write-Host "  -> Launching Frontend via 'npm run start' (pre-compiled production mode)..." -ForegroundColor Cyan
+    $frontendProcess = Start-Process -FilePath "cmd.exe" `
+        -ArgumentList "/c", "npm run start" `
+        -WorkingDirectory $FrontendDir `
+        -PassThru
+}
 
 Write-Host "`n======================================================================" -ForegroundColor Green
-Write-Host "   RNG FULL-STACK LOCAL DEVELOPMENT SERVERS SPAWNED SUCCESSFULLY      " -ForegroundColor Green
+Write-Host "   RNG FULL-STACK SERVERS SPAWNED SUCCESSFULLY                        " -ForegroundColor Green
+Write-Host "     * Mode:        $modeLabel                                        " -ForegroundColor Yellow
 Write-Host "     * Frontend UI: http://localhost:3000                             " -ForegroundColor Cyan
 Write-Host "     * Backend API: http://localhost:8080/api/v1                      " -ForegroundColor Cyan
 Write-Host "                                                                      " -ForegroundColor Green
@@ -170,7 +206,7 @@ $cleanupExecuted = $false
 $cleanupAction = {
     if ($cleanupExecuted) { return }
     $script:cleanupExecuted = $true
-    Write-Host "`n`nShutting down local development processes cleanly..." -ForegroundColor Yellow
+    Write-Host "`n`nShutting down local processes cleanly..." -ForegroundColor Yellow
 
     if ($backendProcess -and -not $backendProcess.HasExited) {
         Write-Host "  -> Stopping Spring Boot backend (PID: $($backendProcess.Id))..." -ForegroundColor DarkGray

@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# RNG Full-Stack Local Development Automation (Linux / macOS / Codespaces)
+# RNG Full-Stack Local Development & Production Automation (Linux / macOS / Codespaces)
 # Orchestrates Docker datastores, backend Spring Boot API, and frontend Next.js
+#
+# Usage:
+#   ./infra/scripts/dev.sh          # Default: Production mode (Pre-builds & runs 'npm run start')
+#   ./infra/scripts/dev.sh --prod   # Explicit: Production mode (Pre-builds & runs 'npm run start')
+#   ./infra/scripts/dev.sh --dev    # Development mode (Runs 'npm run dev' with HMR)
 # ==============================================================================
 
 set -e
@@ -10,12 +15,35 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 cd "$REPO_ROOT"
 
+MODE="prod"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --dev|-d)
+            MODE="dev"
+            shift
+            ;;
+        --prod|-p)
+            MODE="prod"
+            shift
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
+
+if [ "$MODE" = "dev" ]; then
+    MODE_LABEL="DEVELOPMENT (Hot Reload / HMR)"
+else
+    MODE_LABEL="PRODUCTION (Pre-built Ahead-Of-Time)"
+fi
+
 BACKEND_PID=""
 FRONTEND_PID=""
 
 cleanup() {
     echo ""
-    echo "Shutting down local development processes cleanly..."
+    echo "Shutting down local processes cleanly..."
     if [ -n "$BACKEND_PID" ]; then
         echo "  -> Stopping Spring Boot backend (PID: ${BACKEND_PID})..."
         kill -TERM "$BACKEND_PID" 2>/dev/null || true
@@ -32,9 +60,10 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "======================================================================"
-echo "       RNG CONTROL CENTER - LOCAL DEVELOPMENT ENVIRONMENT             "
+echo "       RNG CONTROL CENTER - LOCAL ENVIRONMENT LAUNCHER                "
 echo "======================================================================"
 echo "Repo Root: $REPO_ROOT"
+echo "Mode:      $MODE_LABEL"
 echo ""
 
 # ------------------------------------------------------------------------------
@@ -82,10 +111,10 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 4. Pre-Flight Compilation & Type Checking (mvn compile, npx tsc --noEmit)
+# 4. Pre-Flight Compilation & Verification
 # ------------------------------------------------------------------------------
 echo ""
-echo "[4/5] Running pre-flight build & type-check verification..."
+echo "[4/5] Running pre-flight build & verification ($MODE_LABEL)..."
 
 echo "  -> Compiling backend Java classes (mvn compile -q)..."
 (
@@ -95,15 +124,24 @@ echo "  -> Compiling backend Java classes (mvn compile -q)..."
 )
 echo "  [x] Backend Java classes compiled cleanly."
 
-echo "  -> Verifying frontend TypeScript types (npx tsc --noEmit)..."
-(
-    cd "$REPO_ROOT/frontend"
-    npx tsc --noEmit
-)
-echo "  [x] Frontend TypeScript type check passed."
+if [ "$MODE" = "dev" ]; then
+    echo "  -> Verifying frontend TypeScript types (npx tsc --noEmit)..."
+    (
+        cd "$REPO_ROOT/frontend"
+        npx tsc --noEmit
+    )
+    echo "  [x] Frontend TypeScript type check passed."
+else
+    echo "  -> Pre-building frontend production bundle (npm run build)..."
+    (
+        cd "$REPO_ROOT/frontend"
+        npm run build
+    )
+    echo "  [x] Frontend production bundle pre-built successfully (zero on-site compilation delay)."
+fi
 
 # ------------------------------------------------------------------------------
-# 5. Concurrently Launch Backend & Frontend with direct process execution
+# 5. Concurrently Launch Backend & Frontend
 # ------------------------------------------------------------------------------
 echo ""
 echo "[5/5] Launching Spring Boot backend and Next.js frontend concurrently..."
@@ -115,15 +153,26 @@ echo "[5/5] Launching Spring Boot backend and Next.js frontend concurrently..."
 ) &
 BACKEND_PID=$!
 
-(
-    cd "$REPO_ROOT/frontend"
-    exec npm run dev
-) &
-FRONTEND_PID=$!
+if [ "$MODE" = "dev" ]; then
+    echo "  -> Launching Frontend via 'npm run dev' (dev mode with HMR)..."
+    (
+        cd "$REPO_ROOT/frontend"
+        exec npm run dev
+    ) &
+    FRONTEND_PID=$!
+else
+    echo "  -> Launching Frontend via 'npm run start' (pre-compiled production mode)..."
+    (
+        cd "$REPO_ROOT/frontend"
+        exec npm run start
+    ) &
+    FRONTEND_PID=$!
+fi
 
 echo ""
 echo "======================================================================"
-echo "   RNG FULL-STACK LOCAL DEVELOPMENT SERVERS SPAWNED SUCCESSFULLY      "
+echo "   RNG FULL-STACK SERVERS SPAWNED SUCCESSFULLY                        "
+echo "     * Mode:        $MODE_LABEL                                       "
 echo "     * Frontend UI: http://localhost:3000                             "
 echo "     * Backend API: http://localhost:8080/api/v1                      "
 echo "                                                                      "
