@@ -283,4 +283,101 @@ class DiscordServerMapperTest {
         assertThat(dto.getVanityUrl()).isEqualTo("jda-vanity");
         assertThat(dto.getSendWelcome()).isTrue();
     }
+
+    @Test
+    @DisplayName("toChannelDto(GuildChannel) should handle channels without category or positionable interface")
+    void testToChannelDtoFromGuildChannelEdgeCases() {
+        GuildChannel plainChannel = mock(GuildChannel.class);
+        when(plainChannel.getId()).thenReturn("ch_plain");
+        when(plainChannel.getName()).thenReturn("plain-channel");
+        when(plainChannel.getType()).thenReturn(ChannelType.TEXT);
+
+        ChannelDto mappedPlain = mapper.toChannelDto(plainChannel);
+        assertThat(mappedPlain.getPosition()).isZero();
+        assertThat(mappedPlain.getParentId()).isNull();
+
+        TextChannel textChannelNoCat = mock(TextChannel.class);
+        when(textChannelNoCat.getId()).thenReturn("ch_no_cat");
+        when(textChannelNoCat.getName()).thenReturn("no-category-channel");
+        when(textChannelNoCat.getType()).thenReturn(ChannelType.TEXT);
+        when(textChannelNoCat.getPosition()).thenReturn(4);
+        when(textChannelNoCat.getParentCategory()).thenReturn(null);
+
+        ChannelDto mappedNoCat = mapper.toChannelDto((GuildChannel) textChannelNoCat);
+        assertThat(mappedNoCat.getPosition()).isEqualTo(4);
+        assertThat(mappedNoCat.getParentId()).isNull();
+    }
+
+    @Test
+    @DisplayName("toDiscordEmojiDto(RichCustomEmoji) handles animated custom emoji")
+    void testToDiscordEmojiDtoAnimatedRichCustomEmoji() {
+        RichCustomEmoji emoji = mock(RichCustomEmoji.class);
+        when(emoji.getId()).thenReturn("999111");
+        when(emoji.getName()).thenReturn("hyper_blob");
+        when(emoji.isAnimated()).thenReturn(true);
+
+        DiscordEmojiDto mapped = mapper.toDiscordEmojiDto(emoji);
+        assertThat(mapped).isNotNull();
+        assertThat(mapped.animated()).isTrue();
+    }
+
+    @Test
+    @DisplayName("toServerDetailDto handles null features from REST details")
+    void testToServerDetailDtoNullFeatures() {
+        Server server = Server.builder().id("srv_null_feat").slug("slug-nf").name("NF").build();
+        DiscordGuildDetailDto details = DiscordGuildDetailDto.builder()
+                .id("srv_null_feat")
+                .name("NF Server")
+                .features(null)
+                .build();
+
+        ServerDetailDto dto = mapper.toServerDetailDto(server, details, 1, 2, 0, 0, true, true, true, true);
+        assertThat(dto.getFeatures()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("toServerDetailDto from JDA Guild handles null and non-null AFK, system channel, features, and notification levels")
+    void testToServerDetailDtoFromJdaGuildBranches() {
+        Server server = Server.builder().id("srv_jda2").slug("jda2").name("JDA 2").build();
+        net.dv8tion.jda.api.entities.Guild guild = mock(net.dv8tion.jda.api.entities.Guild.class);
+        when(guild.getName()).thenReturn("JDA Server 2");
+        when(guild.getBoostTier()).thenReturn(net.dv8tion.jda.api.entities.Guild.BoostTier.NONE);
+
+        // Branch 1: Null features, null afkChannel, null afkTimeout, null systemChannel, null defaultNotificationLevel
+        when(guild.getFeatures()).thenReturn(null);
+        when(guild.getAfkChannel()).thenReturn(null);
+        when(guild.getAfkTimeout()).thenReturn(null);
+        when(guild.getSystemChannel()).thenReturn(null);
+        when(guild.getDefaultNotificationLevel()).thenReturn(null);
+
+        ServerDetailDto dto1 = mapper.toServerDetailDto(server, guild, 0, 0);
+        assertThat(dto1.getFeatures()).isEmpty();
+        assertThat(dto1.getAfkChannelId()).isNull();
+        assertThat(dto1.getAfkTimeout()).isZero();
+        assertThat(dto1.getSystemChannelId()).isNull();
+        assertThat(dto1.getDefaultMessageNotifications()).isZero();
+
+        // Branch 2: Non-null afkChannel, afkTimeout, systemChannel
+        net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel afkChan = mock(net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel.class);
+        when(afkChan.getId()).thenReturn("afk_voice_99");
+        when(guild.getAfkChannel()).thenReturn(afkChan);
+        when(guild.getAfkTimeout()).thenReturn(net.dv8tion.jda.api.entities.Guild.Timeout.SECONDS_900);
+
+        net.dv8tion.jda.api.entities.channel.concrete.TextChannel sysChan = mock(net.dv8tion.jda.api.entities.channel.concrete.TextChannel.class);
+        when(sysChan.getId()).thenReturn("sys_text_99");
+        when(guild.getSystemChannel()).thenReturn(sysChan);
+
+        ServerDetailDto dto2 = mapper.toServerDetailDto(server, guild, 10, 50);
+        assertThat(dto2.getAfkChannelId()).isEqualTo("afk_voice_99");
+        assertThat(dto2.getAfkTimeout()).isEqualTo(900);
+        assertThat(dto2.getSystemChannelId()).isEqualTo("sys_text_99");
+    }
+
+    @Test
+    @DisplayName("toServerDetailDto returns null when server is present but details or guild is null")
+    void testToServerDetailDtoNullDetailsOrGuildWithNonNullServer() {
+        Server server = Server.builder().id("srv_valid").name("Valid").build();
+        assertThat(mapper.toServerDetailDto(server, (DiscordGuildDetailDto) null, 0, 0, 0, 0, false, false, false, false)).isNull();
+        assertThat(mapper.toServerDetailDto(server, (net.dv8tion.jda.api.entities.Guild) null, 0, 0)).isNull();
+    }
 }
