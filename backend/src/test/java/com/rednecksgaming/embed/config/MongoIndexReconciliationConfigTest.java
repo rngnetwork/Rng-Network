@@ -150,4 +150,84 @@ class MongoIndexReconciliationConfigTest {
         assertThat(processedBean).isSameAs(mongoTemplate);
         verify(embedActionIndexOps).dropIndex("idx_server_action");
     }
+
+    @Test
+    @DisplayName("reconcileAll handles null template safely without throwing exception")
+    void reconcileAll_nullTemplateHandled() {
+        MongoIndexReconciliationConfig.reconcileAll(null);
+    }
+
+    @Test
+    @DisplayName("dropObsoleteIndex handles null indexOps, null indexInfo, and exceptions safely")
+    void dropObsoleteIndex_safeHandling() {
+        MongoTemplate mockTemplate = mock(MongoTemplate.class);
+        when(mockTemplate.indexOps(EmbedAction.class)).thenReturn(null);
+        MongoIndexReconciliationConfig.dropObsoleteIndex(mockTemplate, EmbedAction.class, "any_index");
+
+        IndexOperations mockOps = mock(IndexOperations.class);
+        when(mockTemplate.indexOps(EmbedAction.class)).thenReturn(mockOps);
+        when(mockOps.getIndexInfo()).thenReturn(null);
+        MongoIndexReconciliationConfig.dropObsoleteIndex(mockTemplate, EmbedAction.class, "any_index");
+
+        when(mockOps.getIndexInfo()).thenThrow(new RuntimeException("MongoDB connection timeout"));
+        MongoIndexReconciliationConfig.dropObsoleteIndex(mockTemplate, EmbedAction.class, "any_index");
+    }
+
+    @Test
+    @DisplayName("reconcileTtl handles null indexOps, null indexInfo, and exceptions safely")
+    void reconcileTtl_safeHandling() {
+        MongoTemplate mockTemplate = mock(MongoTemplate.class);
+        when(mockTemplate.indexOps(InteractionLog.class)).thenReturn(null);
+        MongoIndexReconciliationConfig.reconcileTtl(mockTemplate, InteractionLog.class, "createdAt");
+
+        IndexOperations mockOps = mock(IndexOperations.class);
+        when(mockTemplate.indexOps(InteractionLog.class)).thenReturn(mockOps);
+        when(mockOps.getIndexInfo()).thenReturn(null);
+        MongoIndexReconciliationConfig.reconcileTtl(mockTemplate, InteractionLog.class, "createdAt");
+
+        when(mockOps.getIndexInfo()).thenThrow(new RuntimeException("MongoDB error"));
+        MongoIndexReconciliationConfig.reconcileTtl(mockTemplate, InteractionLog.class, "createdAt");
+    }
+
+    @Test
+    @DisplayName("Instance methods dropObsoleteIndex and reconcileTtl delegate to template")
+    void instanceMethods_delegateToTemplate() {
+        when(embedActionIndexOps.getIndexInfo()).thenReturn(List.of());
+        when(interactionIndexOps.getIndexInfo()).thenReturn(List.of());
+
+        reconciliationConfig.dropObsoleteIndex(EmbedAction.class, "custom_index");
+        reconciliationConfig.reconcileTtl(InteractionLog.class, "createdAt");
+
+        verify(interactionIndexOps).createIndex(any(IndexDefinition.class));
+    }
+
+    @Test
+    @DisplayName("init() PostConstruct executes reconcileAll")
+    void init_executesReconcileAll() {
+        when(embedActionIndexOps.getIndexInfo()).thenReturn(List.of());
+        when(interactionIndexOps.getIndexInfo()).thenReturn(List.of());
+        when(dispatchIndexOps.getIndexInfo()).thenReturn(List.of());
+
+        reconciliationConfig.init();
+
+        verify(interactionIndexOps).createIndex(any(IndexDefinition.class));
+        verify(dispatchIndexOps).createIndex(any(IndexDefinition.class));
+    }
+
+    @Test
+    @DisplayName("reconcileTtl ignores non-TTL index on field when name does not match fieldName")
+    void reconcileTtl_nonTtlIndexWithDifferentNameNotDropped() {
+        IndexInfo nonTtlCustomNameIndex = mock(IndexInfo.class);
+        when(nonTtlCustomNameIndex.isIndexForFields(List.of("createdAt"))).thenReturn(true);
+        when(nonTtlCustomNameIndex.getName()).thenReturn("custom_compound_index");
+        when(nonTtlCustomNameIndex.getExpireAfter()).thenReturn(Optional.empty());
+
+        when(interactionIndexOps.getIndexInfo()).thenReturn(List.of(nonTtlCustomNameIndex));
+
+        reconciliationConfig.reconcileTtl(InteractionLog.class, "createdAt");
+
+        // Should not drop custom_compound_index, but should create the target TTL index
+        verify(interactionIndexOps, never()).dropIndex("custom_compound_index");
+        verify(interactionIndexOps).createIndex(any(IndexDefinition.class));
+    }
 }
