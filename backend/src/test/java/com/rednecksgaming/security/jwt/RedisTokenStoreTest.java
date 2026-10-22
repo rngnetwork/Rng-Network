@@ -48,6 +48,58 @@ class RedisTokenStoreTest {
     }
 
     @Test
+    @DisplayName("revokeJti handles null and blank jti safely")
+    void revokeJti_nullOrBlank_returnsEarly() {
+        RedisTokenStore tokenStore = new RedisTokenStore(redisTemplate);
+
+        tokenStore.revokeJti(null, 60000L);
+        tokenStore.revokeJti("", 60000L);
+        tokenStore.revokeJti("   ", 60000L);
+
+        verifyNoInteractions(redisTemplate);
+    }
+
+    @Test
+    @DisplayName("revokeJti clamps expirationMs to at least 1000ms")
+    void revokeJti_clampsSmallExpiration() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        RedisTokenStore tokenStore = new RedisTokenStore(redisTemplate);
+
+        tokenStore.revokeJti("small-exp-jti", 100L);
+
+        verify(valueOperations).set(eq("token:jti:revoked:small-exp-jti"), eq("1"), eq(Duration.ofMillis(1000L)));
+    }
+
+    @Test
+    @DisplayName("revokeJti catches Redis exception and falls back to in-memory store")
+    void revokeJti_whenRedisThrows_fallsBackToInMemory() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        doThrow(new RuntimeException("Redis connection refused"))
+                .when(valueOperations).set(any(String.class), any(String.class), any(Duration.class));
+
+        RedisTokenStore tokenStore = new RedisTokenStore(redisTemplate);
+        tokenStore.revokeJti("fallback-jti-1", 60000L);
+
+        // When checking, if redis also throws, in-memory store confirms revocation
+        when(redisTemplate.hasKey("token:jti:revoked:fallback-jti-1"))
+                .thenThrow(new RuntimeException("Redis still down"));
+
+        assertThat(tokenStore.isJtiRevoked("fallback-jti-1")).isTrue();
+    }
+
+    @Test
+    @DisplayName("isJtiRevoked returns false when redis hasKey returns false or null")
+    void isJtiRevoked_whenRedisReturnsFalseOrNull() {
+        RedisTokenStore tokenStore = new RedisTokenStore(redisTemplate);
+
+        when(redisTemplate.hasKey("token:jti:revoked:not-revoked")).thenReturn(false);
+        assertThat(tokenStore.isJtiRevoked("not-revoked")).isFalse();
+
+        when(redisTemplate.hasKey("token:jti:revoked:null-key")).thenReturn(null);
+        assertThat(tokenStore.isJtiRevoked("null-key")).isFalse();
+    }
+
+    @Test
     @DisplayName("fallback to in-memory set when Redis is not configured")
     void fallbackToInMemory_whenNoRedis() {
         RedisTokenStore tokenStore = new RedisTokenStore(null);
