@@ -43,6 +43,11 @@ public class AuthService {
                     return new BadCredentialsException("Invalid email or password");
                 });
 
+        if (!user.isActive()) {
+            log.warn("Login attempt rejected: User {} is inactive or suspended", request.getEmail());
+            throw new UnauthorizedException("Account is inactive or suspended. Please contact High Command.");
+        }
+
         if (user.getProvider() == AuthProvider.GOOGLE) {
             log.warn("Login attempt rejected: User {} is configured with Google provider", request.getEmail());
             throw new BadCredentialsException("This account is configured for Google Sign-In. Please sign in with 'Continue with Google'.");
@@ -86,6 +91,10 @@ public class AuthService {
         // 2. Fetch User
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (!user.isActive()) {
+            throw new UnauthorizedException("Account is inactive or suspended");
+        }
 
         // 3. Perform Discord OAuth2 exchange
         DiscordUserDto discordUser = discordClient.fetchDiscordUser(discordCode, redirectUri);
@@ -138,6 +147,10 @@ public class AuthService {
         Long userId = tokenService.getUserIdFromToken(refreshToken);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UnauthorizedException("User not found"));
+
+        if (!user.isActive()) {
+            throw new UnauthorizedException("Account is inactive or suspended");
+        }
 
         String newAccessToken = tokenService.generateAccessToken(user.getId(), user.getEmail(), user.getRole());
 
