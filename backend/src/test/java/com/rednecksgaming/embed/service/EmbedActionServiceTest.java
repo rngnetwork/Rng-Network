@@ -1,6 +1,7 @@
 package com.rednecksgaming.embed.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rednecksgaming.common.exception.InternalServerException;
 import com.rednecksgaming.common.exception.ResourceNotFoundException;
 import com.rednecksgaming.embed.domain.ActionType;
 import com.rednecksgaming.embed.domain.EmbedAction;
@@ -493,5 +494,685 @@ class EmbedActionServiceTest {
         EmbedActionDto result = service.updateAction(actionId, request, "operator@rng.com");
         assertThat(result).isNotNull();
         assertThat(result.getResponseEmbedTemplateId()).isEqualTo("tpl-public-update");
+    }
+
+    @Test
+    @DisplayName("generateUniqueActionId retries on collision and succeeds")
+    void generateUniqueActionId_collisionAndRetrySuccess() {
+        CreateActionRequest request = CreateActionRequest.builder()
+                .name("Retry Action")
+                .actionType(ActionType.ROLE)
+                .build();
+
+        when(embedActionRepository.existsByActionId(anyString()))
+                .thenReturn(true)
+                .thenReturn(false);
+        when(embedActionRepository.save(any(EmbedAction.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        EmbedActionDto result = service.createAction(request);
+        assertThat(result).isNotNull();
+        verify(embedActionRepository, atLeast(2)).existsByActionId(anyString());
+    }
+
+    @Test
+    @DisplayName("generateUniqueActionId throws InternalServerException when 10 retries are exhausted")
+    void generateUniqueActionId_exhaustionThrowsInternalServer() {
+        CreateActionRequest request = CreateActionRequest.builder()
+                .name("Exhausted Action")
+                .actionType(ActionType.ROLE)
+                .build();
+
+        when(embedActionRepository.existsByActionId(anyString())).thenReturn(true);
+
+        assertThatThrownBy(() -> service.createAction(request))
+                .isInstanceOf(InternalServerException.class)
+                .hasMessageContaining("Failed to generate unique action ID after maximum retries");
+    }
+
+    @Test
+    @DisplayName("resolveAction returns empty for null or blank actionId")
+    void resolveAction_nullOrBlankReturnsEmpty() {
+        assertThat(service.resolveAction(null)).isEmpty();
+        assertThat(service.resolveAction("   ")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("resolveAction falls back to Mongo when Redis read throws exception")
+    void resolveAction_redisExceptionFallsBackToMongo() {
+        String actionId = "rng_act_redis_err";
+        EmbedAction mongoAction = EmbedAction.builder().actionId(actionId).name("Fallback Action").build();
+
+        when(valueOperations.get(anyString())).thenThrow(new RuntimeException("Redis connection timed out"));
+        when(embedActionRepository.findByActionId(actionId)).thenReturn(Optional.of(mongoAction));
+
+        Optional<EmbedAction> result = service.resolveAction(actionId);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().getName()).isEqualTo("Fallback Action");
+    }
+
+    @Test
+    @DisplayName("deleteAction throws ResourceNotFoundException when actionId does not exist")
+    void deleteAction_notFoundThrows() {
+        when(embedActionRepository.existsByActionId("rng_act_missing")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.deleteAction("rng_act_missing"))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Action Template not found with ID: rng_act_missing");
+    }
+
+    @Test
+    @DisplayName("getActionsForServer with null or blank serverId delegates to getGlobalActions")
+    void getActionsForServer_nullOrBlankDelegatesToGlobal() {
+        EmbedAction globalAction = EmbedAction.builder().actionId("rng_act_g").name("Global").isGlobal(true).build();
+        when(embedActionRepository.findByIsGlobalTrue()).thenReturn(List.of(globalAction));
+
+        assertThat(service.getActionsForServer(null)).hasSize(1);
+        assertThat(service.getActionsForServer("   ")).hasSize(1);
+        verify(embedActionRepository, times(2)).findByIsGlobalTrue();
+    }
+
+    @Test
+    @DisplayName("getInteractionLogs with null or blank guildId queries all logs")
+    void getInteractionLogs_nullOrBlankQueriesAll() {
+        Pageable pageable = PageRequest.of(0, 10);
+        InteractionLog logEntry = InteractionLog.builder().id("l1").build();
+        when(interactionLogRepository.findAllByOrderByCreatedAtDesc(pageable))
+                .thenReturn(new PageImpl<>(List.of(logEntry)));
+
+        assertThat(service.getInteractionLogs(null, pageable).getTotalElements()).isEqualTo(1);
+        assertThat(service.getInteractionLogs("  ", pageable).getTotalElements()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("createAction resolves operator by numeric userId string")
+    void createAction_resolvesOperatorByNumericId() {
+        User operator = User.builder().id(42L).email("num_op@rng.com").build();
+        when(userRepository.findById(42L)).thenReturn(Optional.of(operator));
+        when(embedActionRepository.existsByActionId(anyString())).thenReturn(false);
+        when(embedActionRepository.save(any(EmbedAction.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CreateActionRequest request = CreateActionRequest.builder()
+                .name("Numeric Op Action")
+                .actionType(ActionType.ROLE)
+                .build();
+
+        EmbedActionDto result = service.createAction(request, "42");
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("createAction and updateAction warn and proceed when responseEmbedTemplateId does not exist")
+    void createAndUpdateAction_missingTemplateWarnsAndProceeds() {
+        when(embedTemplateRepository.findById("missing_tmpl")).thenReturn(Optional.empty());
+        when(embedTemplateRepository.findByTemplateId("missing_tmpl")).thenReturn(Optional.empty());
+        when(embedActionRepository.existsByActionId(anyString())).thenReturn(false);
+        when(embedActionRepository.save(any(EmbedAction.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CreateActionRequest createReq = CreateActionRequest.builder()
+                .name("Missing Tpl Action")
+                .actionType(ActionType.ROLE)
+                .responseEmbedTemplateId("missing_tmpl")
+                .build();
+
+        EmbedActionDto createResult = service.createAction(createReq, "op@rng.com");
+        assertThat(createResult.getResponseEmbedTemplateId()).isEqualTo("missing_tmpl");
+
+        EmbedAction existing = EmbedAction.builder().actionId("rng_act_up_tpl").name("Existing").build();
+        when(embedActionRepository.findByActionId("rng_act_up_tpl")).thenReturn(Optional.of(existing));
+
+        UpdateActionRequest updateReq = UpdateActionRequest.builder()
+                .responseEmbedTemplateId("missing_tmpl")
+                .build();
+
+        EmbedActionDto updateResult = service.updateAction("rng_act_up_tpl", updateReq, "op@rng.com");
+        assertThat(updateResult.getResponseEmbedTemplateId()).isEqualTo("missing_tmpl");
+    }
+
+    @Test
+    @DisplayName("createAction access control and template accessibility validation branches")
+    void createAction_accessControlAndAccessibilityBranches() {
+        when(embedActionRepository.existsByActionId(anyString())).thenReturn(false);
+        when(embedActionRepository.save(any(EmbedAction.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // 1. Global action requires operator clearance
+        CreateActionRequest globalReq = CreateActionRequest.builder()
+                .name("Global Action")
+                .actionType(ActionType.ROLE)
+                .isGlobal(true)
+                .build();
+
+        assertThatThrownBy(() -> service.createAction(globalReq, null))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Operator clearance required");
+
+        assertThatThrownBy(() -> service.createAction(globalReq, "   "))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Operator clearance required");
+
+        // 2. Global action requires High Command (ROLE_CHIEF_HIGH_COMMAND in roleList)
+        User chiefUser = User.builder().id(50L).email("chief@rng.com").roles("ROLE_CHIEF_HIGH_COMMAND").build();
+        when(userRepository.findByEmail("chief@rng.com")).thenReturn(Optional.of(chiefUser));
+
+        EmbedActionDto chiefDto = service.createAction(globalReq, "chief@rng.com");
+        assertThat(chiefDto.isGlobal()).isTrue();
+
+        // High command in roleList as ROLE_HIGH_COMMAND
+        User hcListUser = User.builder().id(51L).email("hclist@rng.com").roles("ROLE_HIGH_COMMAND").build();
+        when(userRepository.findByEmail("hclist@rng.com")).thenReturn(Optional.of(hcListUser));
+        EmbedActionDto hcListDto = service.createAction(globalReq, "hclist@rng.com");
+        assertThat(hcListDto.isGlobal()).isTrue();
+
+        // 3. Non-accessible referenced template throws AccessDeniedException
+        EmbedTemplate privateTemplate = EmbedTemplate.builder()
+                .id("t_priv")
+                .isPublic(false)
+                .serverId("guild_SECRET")
+                .authorId("9999")
+                .authorName("other@rng.com")
+                .build();
+        when(embedTemplateRepository.findById("t_priv")).thenReturn(Optional.of(privateTemplate));
+
+        User normalUser = User.builder().id(60L).email("norm@rng.com").role("ROLE_USER").build();
+        when(userRepository.findByEmail("norm@rng.com")).thenReturn(Optional.of(normalUser));
+
+        CreateActionRequest badAccessReq = CreateActionRequest.builder()
+                .name("Bad Access")
+                .actionType(ActionType.ROLE)
+                .serverId("guild_NORMAL")
+                .responseEmbedTemplateId("t_priv")
+                .build();
+
+        assertThatThrownBy(() -> service.createAction(badAccessReq, "norm@rng.com"))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Referenced embed template is not accessible");
+
+        // Accessible if operator is author by email matching authorName
+        EmbedTemplate authorTmpl = EmbedTemplate.builder()
+                .id("t_author")
+                .isPublic(false)
+                .serverId("guild_SECRET")
+                .authorId("9999")
+                .authorName("norm@rng.com")
+                .build();
+        when(embedTemplateRepository.findById("t_author")).thenReturn(Optional.of(authorTmpl));
+
+        CreateActionRequest authorAccessReq = CreateActionRequest.builder()
+                .name("Author Access")
+                .actionType(ActionType.ROLE)
+                .responseEmbedTemplateId("t_author")
+                .build();
+
+        EmbedActionDto authorDto = service.createAction(authorAccessReq, "norm@rng.com");
+        assertThat(authorDto).isNotNull();
+
+        // Accessible if template serverId matches target serverId
+        CreateActionRequest serverAccessReq = CreateActionRequest.builder()
+                .name("Server Access")
+                .actionType(ActionType.ROLE)
+                .serverId("guild_SECRET")
+                .responseEmbedTemplateId("t_priv")
+                .build();
+        EmbedActionDto srvDto = service.createAction(serverAccessReq, "norm@rng.com");
+        assertThat(srvDto).isNotNull();
+    }
+
+    @Test
+    @DisplayName("updateAction exhaustively updates all fields and validates access control")
+    void updateAction_allFieldsAndSecurityBranches() {
+        EmbedAction existing = EmbedAction.builder()
+                .actionId("rng_act_full_update")
+                .isGlobal(false)
+                .serverId("guild_old")
+                .name("Old")
+                .build();
+        when(embedActionRepository.findByActionId("rng_act_full_update")).thenReturn(Optional.of(existing));
+        when(embedActionRepository.save(any(EmbedAction.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // 1. Updating non-global to isGlobal=true requires High Command
+        UpdateActionRequest makeGlobalReq = UpdateActionRequest.builder().isGlobal(true).build();
+        assertThatThrownBy(() -> service.updateAction("rng_act_full_update", makeGlobalReq, null))
+                .isInstanceOf(AccessDeniedException.class);
+
+        User normalUser = User.builder().id(70L).email("user@rng.com").role("ROLE_USER").build();
+        when(userRepository.findByEmail("user@rng.com")).thenReturn(Optional.of(normalUser));
+        assertThatThrownBy(() -> service.updateAction("rng_act_full_update", makeGlobalReq, "user@rng.com"))
+                .isInstanceOf(AccessDeniedException.class);
+
+        // 2. High command operator can make it global
+        User chiefUser = User.builder().id(50L).email("chief@rng.com").role("ROLE_CHIEF_HIGH_COMMAND").build();
+        when(userRepository.findByEmail("chief@rng.com")).thenReturn(Optional.of(chiefUser));
+
+        // 3. Inaccessible template in update throws AccessDeniedException
+        EmbedTemplate privTmpl = EmbedTemplate.builder().id("t_priv2").isPublic(false).serverId("other_srv").authorId("0").build();
+        when(embedTemplateRepository.findById("t_priv2")).thenReturn(Optional.of(privTmpl));
+
+        UpdateActionRequest badTmplReq = UpdateActionRequest.builder().responseEmbedTemplateId("t_priv2").build();
+        assertThatThrownBy(() -> service.updateAction("rng_act_full_update", badTmplReq, "user@rng.com"))
+                .isInstanceOf(AccessDeniedException.class);
+
+        // 4. Update every single field successfully
+        UpdateActionRequest fullReq = UpdateActionRequest.builder()
+                .serverId("guild_new")
+                .isGlobal(true)
+                .serverIds(List.of("guild_new", "guild_extra"))
+                .name("New Name")
+                .description("New Description")
+                .actionType(ActionType.TICKET)
+                .roleSubtype(RoleSubtype.ADD)
+                .roleId("role_new")
+                .roleName("New Role")
+                .channelPrefix("support-")
+                .welcomeMessage("Welcome to support")
+                .replyContent("Ticket created")
+                .confirmationMessage("Confirmed")
+                .isEphemeral(false)
+                .dmContent("DM notification")
+                .requiredUser(true)
+                .requiredRole(true)
+                .responseType(com.rednecksgaming.embed.domain.ResponseType.PUBLIC_TEXT)
+                .responseEmbedTemplateId("t_priv2") // accessible because chiefUser is High Command!
+                .compoundOperations(List.of())
+                .build();
+
+        EmbedActionDto updated = service.updateAction("rng_act_full_update", fullReq, "chief@rng.com");
+
+        assertThat(updated.getName()).isEqualTo("New Name");
+        assertThat(updated.getServerId()).isEqualTo("guild_new");
+        assertThat(updated.isGlobal()).isTrue();
+        assertThat(updated.getServerIds()).containsExactly("guild_new", "guild_extra");
+        assertThat(updated.getDescription()).isEqualTo("New Description");
+        assertThat(updated.getActionType()).isEqualTo(ActionType.TICKET);
+        assertThat(updated.getRoleSubtype()).isEqualTo(RoleSubtype.ADD);
+        assertThat(updated.getRoleId()).isEqualTo("role_new");
+        assertThat(updated.getRoleName()).isEqualTo("New Role");
+        assertThat(updated.getChannelPrefix()).isEqualTo("support-");
+        assertThat(updated.getWelcomeMessage()).isEqualTo("Welcome to support");
+        assertThat(updated.getReplyContent()).isEqualTo("Ticket created");
+        assertThat(updated.getConfirmationMessage()).isEqualTo("Confirmed");
+        assertThat(updated.isEphemeral()).isFalse();
+        assertThat(updated.getDmContent()).isEqualTo("DM notification");
+        assertThat(updated.isRequiredUser()).isTrue();
+        assertThat(updated.isRequiredRole()).isTrue();
+        assertThat(updated.getResponseType()).isEqualTo(com.rednecksgaming.embed.domain.ResponseType.PUBLIC_TEXT);
+    }
+
+    @Test
+    @DisplayName("cacheAction and evictActionCache gracefully tolerate null redisTemplate and redis exceptions")
+    void cacheActionAndEvict_nullRedisAndExceptionHandling() {
+        EmbedActionServiceImpl noRedisService = new EmbedActionServiceImpl(
+                embedActionRepository, interactionLogRepository, embedTemplateRepository,
+                userRepository, null, objectMapper
+        );
+
+        when(embedActionRepository.existsByActionId(anyString())).thenReturn(false);
+        when(embedActionRepository.save(any(EmbedAction.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // Create action with no redis template does not fail
+        CreateActionRequest req = CreateActionRequest.builder().name("No Redis").actionType(ActionType.ROLE).build();
+        EmbedActionDto dto = noRedisService.createAction(req);
+        assertThat(dto).isNotNull();
+
+        // Delete action with no redis template does not fail
+        when(embedActionRepository.existsByActionId("rng_act_del_noredis")).thenReturn(true);
+        noRedisService.deleteAction("rng_act_del_noredis");
+        verify(embedActionRepository).deleteByActionId("rng_act_del_noredis");
+
+        // Redis throws exception during caching and eviction
+        doThrow(new RuntimeException("Redis set error")).when(valueOperations).set(anyString(), anyString(), any(Duration.class));
+        doThrow(new RuntimeException("Redis delete error")).when(redisTemplate).delete(anyString());
+
+        service.createAction(req); // should log warning and not throw
+        when(embedActionRepository.existsByActionId("rng_act_del_error")).thenReturn(true);
+        service.deleteAction("rng_act_del_error"); // should log warning and not throw
+    }
+
+    @Test
+    @DisplayName("resolveOperatorUser and tryResolveOperatorUser via reflection cover all lookup branches")
+    void operatorResolution_allBranches() {
+        // Test tryResolveOperatorUser
+        User numUser = User.builder().id(123L).email("user123@rng.com").build();
+        when(userRepository.findById(123L)).thenReturn(Optional.of(numUser));
+        when(userRepository.findById(456L)).thenReturn(Optional.empty());
+        User emailUser = User.builder().id(789L).email("user789@rng.com").build();
+        lenient().when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+        lenient().when(userRepository.findByEmail("user789@rng.com")).thenReturn(Optional.of(emailUser));
+
+        // Numeric ID found
+        User u1 = org.springframework.test.util.ReflectionTestUtils.invokeMethod(service, "tryResolveOperatorUser", "123");
+        assertThat(u1).isNotNull();
+        assertThat(u1.getId()).isEqualTo(123L);
+
+        // Numeric ID not found, email fallback not found
+        User u2 = org.springframework.test.util.ReflectionTestUtils.invokeMethod(service, "tryResolveOperatorUser", "456");
+        assertThat(u2).isNull();
+
+        // Non-numeric found by email
+        User u3 = org.springframework.test.util.ReflectionTestUtils.invokeMethod(service, "tryResolveOperatorUser", "user789@rng.com");
+        assertThat(u3).isNotNull();
+        assertThat(u3.getId()).isEqualTo(789L);
+
+        // Non-numeric not found by email
+        User u4 = org.springframework.test.util.ReflectionTestUtils.invokeMethod(service, "tryResolveOperatorUser", "notfound@rng.com");
+        assertThat(u4).isNull();
+
+        // Null / blank
+        User u5 = org.springframework.test.util.ReflectionTestUtils.invokeMethod(service, "tryResolveOperatorUser", (String) null);
+        assertThat(u5).isNull();
+        User u6 = org.springframework.test.util.ReflectionTestUtils.invokeMethod(service, "tryResolveOperatorUser", "   ");
+        assertThat(u6).isNull();
+
+        // Test resolveOperatorUser
+        assertThatThrownBy(() -> org.springframework.test.util.ReflectionTestUtils.invokeMethod(service, "resolveOperatorUser", (String) null))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> org.springframework.test.util.ReflectionTestUtils.invokeMethod(service, "resolveOperatorUser", "   "))
+                .isInstanceOf(AccessDeniedException.class);
+
+        User r1 = org.springframework.test.util.ReflectionTestUtils.invokeMethod(service, "resolveOperatorUser", "123");
+        assertThat(r1).isEqualTo(numUser);
+
+        User r2 = org.springframework.test.util.ReflectionTestUtils.invokeMethod(service, "resolveOperatorUser", "user789@rng.com");
+        assertThat(r2).isEqualTo(emailUser);
+
+        assertThatThrownBy(() -> org.springframework.test.util.ReflectionTestUtils.invokeMethod(service, "resolveOperatorUser", "456"))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        assertThatThrownBy(() -> org.springframework.test.util.ReflectionTestUtils.invokeMethod(service, "resolveOperatorUser", "notfound@rng.com"))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("updateAction with all null fields skips all setters")
+    void updateAction_allNullFieldsSkipsSetters() {
+        EmbedAction existing = EmbedAction.builder()
+                .actionId("rng_act_null_fields")
+                .name("Original")
+                .isGlobal(false)
+                .serverId("srv1")
+                .serverIds(List.of("srv1"))
+                .build();
+        when(embedActionRepository.findByActionId("rng_act_null_fields")).thenReturn(Optional.of(existing));
+        when(embedActionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        UpdateActionRequest emptyReq = UpdateActionRequest.builder().build();
+        EmbedActionDto res = service.updateAction("rng_act_null_fields", emptyReq, null);
+        assertThat(res.getName()).isEqualTo("Original");
+    }
+
+    @Test
+    @DisplayName("createAction covers roleList High Command, template accessibility matrix, and default values")
+    void createAction_comprehensiveBranches() {
+        when(embedActionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // 1. Operator with null role string but roleList containing ROLE_CHIEF_HIGH_COMMAND
+        User chiefByList = User.builder().id(901L).email("chief_list@rng.com").role(null).roles("ROLE_USER,ROLE_CHIEF_HIGH_COMMAND").build();
+        when(userRepository.findByEmail("chief_list@rng.com")).thenReturn(Optional.of(chiefByList));
+
+        // Global creation with operator having chief clearance via roleList
+        CreateActionRequest globalReq = CreateActionRequest.builder()
+                .name("Global Action")
+                .isGlobal(true)
+                .serverId(null)
+                .serverIds(null)
+                .isEphemeral(false)
+                .requiredUser(true)
+                .requiredRole(true)
+                .build();
+        EmbedActionDto globalDto = service.createAction(globalReq, "chief_list@rng.com");
+        assertThat(globalDto.isGlobal()).isTrue();
+        assertThat(globalDto.isEphemeral()).isFalse();
+        assertThat(globalDto.isRequiredUser()).isTrue();
+        assertThat(globalDto.isRequiredRole()).isTrue();
+
+        // 2. Global creation with blank operator email throws AccessDeniedException
+        assertThatThrownBy(() -> service.createAction(globalReq, "   "))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Operator clearance required to create global action templates");
+
+        // 3. Global creation with non-high-command user throws AccessDeniedException
+        User regularUser = User.builder().id(902L).email("reg@rng.com").role("ROLE_USER").roles("ROLE_USER").build();
+        when(userRepository.findByEmail("reg@rng.com")).thenReturn(Optional.of(regularUser));
+        assertThatThrownBy(() -> service.createAction(globalReq, "reg@rng.com"))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Only High Command can create global action templates");
+
+        // 4. Operator with ROLE_HIGH_COMMAND in roleList
+        User hcByList = User.builder().id(903L).email("hc_list@rng.com").role(null).roles("ROLE_HIGH_COMMAND").build();
+        when(userRepository.findByEmail("hc_list@rng.com")).thenReturn(Optional.of(hcByList));
+        EmbedActionDto hcDto = service.createAction(globalReq, "hc_list@rng.com");
+        assertThat(hcDto.isGlobal()).isTrue();
+
+        // 5. Template accessibility in createAction:
+        // - Template found via findByTemplateId fallback
+        // - Template has serverId null (accessible to all)
+        EmbedTemplate tmplNullServer = EmbedTemplate.builder().templateId("t_null_srv").isPublic(false).serverId(null).build();
+        when(embedTemplateRepository.findById("t_null_srv")).thenReturn(Optional.empty());
+        when(embedTemplateRepository.findByTemplateId("t_null_srv")).thenReturn(Optional.of(tmplNullServer));
+
+        CreateActionRequest reqNullSrvTmpl = CreateActionRequest.builder()
+                .name("Tmpl Null Srv")
+                .responseEmbedTemplateId("t_null_srv")
+                .build();
+        EmbedActionDto dtoWithTmpl = service.createAction(reqNullSrvTmpl, "reg@rng.com");
+        assertThat(dtoWithTmpl).isNotNull();
+
+        // - Template not found in Mongo (warning log, non-fatal reference)
+        when(embedTemplateRepository.findById("t_missing")).thenReturn(Optional.empty());
+        when(embedTemplateRepository.findByTemplateId("t_missing")).thenReturn(Optional.empty());
+        CreateActionRequest reqMissingTmpl = CreateActionRequest.builder()
+                .name("Tmpl Missing")
+                .responseEmbedTemplateId("t_missing")
+                .build();
+        EmbedActionDto dtoMissing = service.createAction(reqMissingTmpl, "reg@rng.com");
+        assertThat(dtoMissing).isNotNull();
+
+        // - Template author match by operator ID
+        EmbedTemplate tmplAuthorId = EmbedTemplate.builder().templateId("t_auth_id").isPublic(false).serverId("srv_diff").authorId("902").build();
+        when(embedTemplateRepository.findById("t_auth_id")).thenReturn(Optional.of(tmplAuthorId));
+        CreateActionRequest reqAuthId = CreateActionRequest.builder()
+                .name("Author Match ID")
+                .responseEmbedTemplateId("t_auth_id")
+                .build();
+        EmbedActionDto dtoAuthId = service.createAction(reqAuthId, "reg@rng.com");
+        assertThat(dtoAuthId).isNotNull();
+
+        // - Template author match by operator email
+        EmbedTemplate tmplAuthorEmail = EmbedTemplate.builder().templateId("t_auth_email").isPublic(false).serverId("srv_diff").authorName("reg@rng.com").build();
+        when(embedTemplateRepository.findById("t_auth_email")).thenReturn(Optional.of(tmplAuthorEmail));
+        CreateActionRequest reqAuthEmail = CreateActionRequest.builder()
+                .name("Author Match Email")
+                .responseEmbedTemplateId("t_auth_email")
+                .build();
+        EmbedActionDto dtoAuthEmail = service.createAction(reqAuthEmail, "reg@rng.com");
+        assertThat(dtoAuthEmail).isNotNull();
+
+        // - Template serverId matches targetServerIds from serverIds list
+        EmbedTemplate tmplServerMatch = EmbedTemplate.builder().templateId("t_srv_match").isPublic(false).serverId("srv_match_1").build();
+        when(embedTemplateRepository.findById("t_srv_match")).thenReturn(Optional.of(tmplServerMatch));
+        CreateActionRequest reqSrvMatch = CreateActionRequest.builder()
+                .name("Server Match")
+                .serverIds(List.of("srv_match_1", "srv_match_2"))
+                .responseEmbedTemplateId("t_srv_match")
+                .build();
+        EmbedActionDto dtoSrvMatch = service.createAction(reqSrvMatch, "reg@rng.com");
+        assertThat(dtoSrvMatch).isNotNull();
+
+        // - Template serverId matches targetServerIds from single serverId
+        CreateActionRequest reqSingleSrvMatch = CreateActionRequest.builder()
+                .name("Single Server Match")
+                .serverId("srv_match_1")
+                .responseEmbedTemplateId("t_srv_match")
+                .build();
+        EmbedActionDto dtoSingleSrvMatch = service.createAction(reqSingleSrvMatch, "reg@rng.com");
+        assertThat(dtoSingleSrvMatch).isNotNull();
+
+        // 6. Defaults check: null name, null channelPrefix, null isEphemeral, null responseType, null compoundOperations
+        CreateActionRequest minimalReq = CreateActionRequest.builder()
+                .name(null)
+                .channelPrefix(null)
+                .isEphemeral(null)
+                .responseType(null)
+                .compoundOperations(null)
+                .build();
+        EmbedActionDto minDto = service.createAction(minimalReq, null);
+        assertThat(minDto.getName()).isEmpty();
+        assertThat(minDto.getChannelPrefix()).isEqualTo("ticket-");
+        assertThat(minDto.isEphemeral()).isTrue();
+        assertThat(minDto.getResponseType()).isEqualTo(com.rednecksgaming.embed.domain.ResponseType.EPHEMERAL_TEXT);
+        assertThat(minDto.getCompoundOperations()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("updateAction covers roleList High Command, global denial, and template accessibility branches")
+    void updateAction_comprehensiveBranches() {
+        when(embedActionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // 1. Existing action is global: blank operatorEmail throws AccessDeniedException
+        EmbedAction globalExisting = EmbedAction.builder()
+                .actionId("rng_act_global_existing")
+                .name("Global")
+                .isGlobal(true)
+                .build();
+        when(embedActionRepository.findByActionId("rng_act_global_existing")).thenReturn(Optional.of(globalExisting));
+        UpdateActionRequest simpleReq = UpdateActionRequest.builder().name("Renamed").build();
+
+        assertThatThrownBy(() -> service.updateAction("rng_act_global_existing", simpleReq, "   "))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Operator clearance required to modify global action templates");
+
+        // 2. Existing action is global: non-high-command operator throws AccessDeniedException
+        User regularUser = User.builder().id(902L).email("reg@rng.com").role("ROLE_USER").roles("ROLE_USER").build();
+        when(userRepository.findByEmail("reg@rng.com")).thenReturn(Optional.of(regularUser));
+        assertThatThrownBy(() -> service.updateAction("rng_act_global_existing", simpleReq, "reg@rng.com"))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Only High Command can modify global action templates");
+
+        // 3. Existing action is global: High Command via roleList succeeds
+        User chiefByList = User.builder().id(901L).email("chief_list@rng.com").role(null).roles("ROLE_CHIEF_HIGH_COMMAND").build();
+        when(userRepository.findByEmail("chief_list@rng.com")).thenReturn(Optional.of(chiefByList));
+        EmbedActionDto updatedGlobal = service.updateAction("rng_act_global_existing", simpleReq, "chief_list@rng.com");
+        assertThat(updatedGlobal.getName()).isEqualTo("Renamed");
+
+        // 4. Update template accessibility:
+        // - Template not found in Mongo (warning branch)
+        EmbedAction localExisting = EmbedAction.builder()
+                .actionId("rng_act_local_existing")
+                .name("Local")
+                .isGlobal(false)
+                .serverId("srv_local")
+                .build();
+        when(embedActionRepository.findByActionId("rng_act_local_existing")).thenReturn(Optional.of(localExisting));
+
+        when(embedTemplateRepository.findById("t_not_found")).thenReturn(Optional.empty());
+        when(embedTemplateRepository.findByTemplateId("t_not_found")).thenReturn(Optional.empty());
+        UpdateActionRequest missingTmplReq = UpdateActionRequest.builder().responseEmbedTemplateId("t_not_found").build();
+        EmbedActionDto resMissingTmpl = service.updateAction("rng_act_local_existing", missingTmplReq, "reg@rng.com");
+        assertThat(resMissingTmpl).isNotNull();
+
+        // - Template found via findByTemplateId fallback
+        // - Template has serverId null (accessible)
+        EmbedTemplate tmplFallback = EmbedTemplate.builder().templateId("t_fb_update").isPublic(false).serverId(null).build();
+        when(embedTemplateRepository.findById("t_fb_update")).thenReturn(Optional.empty());
+        when(embedTemplateRepository.findByTemplateId("t_fb_update")).thenReturn(Optional.of(tmplFallback));
+        UpdateActionRequest fbTmplReq = UpdateActionRequest.builder().responseEmbedTemplateId("t_fb_update").build();
+        EmbedActionDto resFb = service.updateAction("rng_act_local_existing", fbTmplReq, "reg@rng.com");
+        assertThat(resFb).isNotNull();
+
+        // - Author match by operator ID in update
+        EmbedTemplate tmplAuthorId = EmbedTemplate.builder().templateId("t_auth_id_up").isPublic(false).serverId("other").authorId("902").build();
+        when(embedTemplateRepository.findById("t_auth_id_up")).thenReturn(Optional.of(tmplAuthorId));
+        UpdateActionRequest authorIdReq = UpdateActionRequest.builder().responseEmbedTemplateId("t_auth_id_up").build();
+        EmbedActionDto resAuthId = service.updateAction("rng_act_local_existing", authorIdReq, "reg@rng.com");
+        assertThat(resAuthId).isNotNull();
+
+        // - Author match by operator email in update
+        EmbedTemplate tmplAuthorEmail = EmbedTemplate.builder().templateId("t_auth_email_up").isPublic(false).serverId("other").authorName("reg@rng.com").build();
+        when(embedTemplateRepository.findById("t_auth_email_up")).thenReturn(Optional.of(tmplAuthorEmail));
+        UpdateActionRequest authorEmailReq = UpdateActionRequest.builder().responseEmbedTemplateId("t_auth_email_up").build();
+        EmbedActionDto resAuthEmail = service.updateAction("rng_act_local_existing", authorEmailReq, "reg@rng.com");
+        assertThat(resAuthEmail).isNotNull();
+
+        // - Template serverId match using existing action's serverId when request serverIds is null
+        EmbedAction existingWithServer = EmbedAction.builder()
+                .actionId("rng_act_existing_srv")
+                .serverId("srv_target")
+                .serverIds(List.of("srv_target"))
+                .build();
+        when(embedActionRepository.findByActionId("rng_act_existing_srv")).thenReturn(Optional.of(existingWithServer));
+
+        EmbedTemplate tmplTargetSrv = EmbedTemplate.builder().templateId("t_target_srv").isPublic(false).serverId("srv_target").build();
+        when(embedTemplateRepository.findById("t_target_srv")).thenReturn(Optional.of(tmplTargetSrv));
+        UpdateActionRequest reqWithExistingSrv = UpdateActionRequest.builder().responseEmbedTemplateId("t_target_srv").build();
+        EmbedActionDto resExistingSrv = service.updateAction("rng_act_existing_srv", reqWithExistingSrv, "reg@rng.com");
+        assertThat(resExistingSrv).isNotNull();
+    }
+
+    @Test
+    @DisplayName("resolveAction, cacheAction, evictActionCache, and generateUniqueActionId cover all edge paths")
+    void cacheAndHelperBranches() throws Exception {
+        // 1. resolveAction null and blank
+        assertThat(service.resolveAction(null)).isEmpty();
+        assertThat(service.resolveAction("   ")).isEmpty();
+
+        // 2. resolveAction with redis returning null or blank falls through to MongoDB
+        when(valueOperations.get(anyString())).thenReturn(null);
+        EmbedAction mongoAction = EmbedAction.builder().actionId("act_mongo").name("Mongo").build();
+        when(embedActionRepository.findByActionId("act_mongo")).thenReturn(Optional.of(mongoAction));
+
+        Optional<EmbedAction> res1 = service.resolveAction("act_mongo");
+        assertThat(res1).contains(mongoAction);
+
+        // Blank cached string
+        when(valueOperations.get(anyString())).thenReturn("   ");
+        Optional<EmbedAction> res2 = service.resolveAction("act_mongo");
+        assertThat(res2).contains(mongoAction);
+
+        // Redis exception falls through to MongoDB
+        when(valueOperations.get(anyString())).thenThrow(new RuntimeException("Redis connection refused"));
+        Optional<EmbedAction> res3 = service.resolveAction("act_mongo");
+        assertThat(res3).contains(mongoAction);
+
+        // MongoDB findById fallback when findByActionId is empty
+        when(embedActionRepository.findByActionId("act_by_id")).thenReturn(Optional.empty());
+        when(embedActionRepository.findById("act_by_id")).thenReturn(Optional.of(mongoAction));
+        doReturn(null).when(valueOperations).get(anyString());
+        Optional<EmbedAction> res4 = service.resolveAction("act_by_id");
+        assertThat(res4).contains(mongoAction);
+
+        // Both findByActionId and findById empty
+        when(embedActionRepository.findByActionId("act_not_found")).thenReturn(Optional.empty());
+        when(embedActionRepository.findById("act_not_found")).thenReturn(Optional.empty());
+        Optional<EmbedAction> res5 = service.resolveAction("act_not_found");
+        assertThat(res5).isEmpty();
+
+        // 3. cacheAction edge cases via reflection
+        // action == null -> does nothing
+        org.springframework.test.util.ReflectionTestUtils.invokeMethod(service, "cacheAction", (EmbedAction) null);
+
+        // Redis set throws exception -> logs warning
+        doThrow(new RuntimeException("Redis set failed")).when(valueOperations).set(anyString(), anyString(), any(java.time.Duration.class));
+        org.springframework.test.util.ReflectionTestUtils.invokeMethod(service, "cacheAction", mongoAction);
+
+        // 4. evictActionCache edge cases via reflection
+        // actionId == null -> does nothing
+        org.springframework.test.util.ReflectionTestUtils.invokeMethod(service, "evictActionCache", (String) null);
+
+        // Redis delete throws exception -> logs warning
+        doThrow(new RuntimeException("Redis delete failed")).when(redisTemplate).delete(anyString());
+        org.springframework.test.util.ReflectionTestUtils.invokeMethod(service, "evictActionCache", "act_mongo");
+
+        // 5. generateUniqueActionId collision retry
+        // First candidate exists, second candidate does not exist
+        when(embedActionRepository.existsByActionId(anyString()))
+                .thenReturn(true)
+                .thenReturn(false);
+        String uniqueId = org.springframework.test.util.ReflectionTestUtils.invokeMethod(service, "generateUniqueActionId");
+        assertThat(uniqueId).startsWith("rng_act_");
+
+        // All 10 candidates exist -> throws InternalServerException
+        when(embedActionRepository.existsByActionId(anyString())).thenReturn(true);
+        assertThatThrownBy(() -> org.springframework.test.util.ReflectionTestUtils.invokeMethod(service, "generateUniqueActionId"))
+                .isInstanceOf(com.rednecksgaming.common.exception.InternalServerException.class)
+                .hasMessageContaining("Failed to generate unique action ID after maximum retries");
     }
 }
