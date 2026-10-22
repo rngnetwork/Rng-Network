@@ -25,10 +25,40 @@ public class WhitelistService {
 
     @Transactional(readOnly = true)
     public List<WhitelistedUserDto> getWhitelistedUsers(Long currentUserId) {
+        return getWhitelistedUsers(currentUserId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<WhitelistedUserDto> getWhitelistedUsers(Long currentUserId, String ministry) {
         User operator = getOperator(currentUserId);
+
+        if (ministry == null || ministry.isBlank()) {
+            if (PersonnelHierarchy.isHighCommand(operator)) {
+                return userRepository.findAll().stream()
+                        .map(this::mapToDto)
+                        .toList();
+            }
+
+            if (PersonnelHierarchy.isMinister(operator)) {
+                List<String> operatorMinistries = PersonnelHierarchy.getMinisterMinistries(operator);
+                if (operatorMinistries.isEmpty()) {
+                    throw new ForbiddenException("Minister account is not assigned to a valid Ministry designation");
+                }
+
+                return userRepository.findAll().stream()
+                        .filter(user -> user.getDesignationList().stream().anyMatch(operatorMinistries::contains))
+                        .map(this::mapToDto)
+                        .toList();
+            }
+
+            throw new ForbiddenException("Access Denied: Insufficient authorization scope to view whitelist");
+        }
+
+        String targetMinistry = ministry.trim();
 
         if (PersonnelHierarchy.isHighCommand(operator)) {
             return userRepository.findAll().stream()
+                    .filter(user -> user.getDesignationList().stream().anyMatch(d -> d.equalsIgnoreCase(targetMinistry)))
                     .map(this::mapToDto)
                     .toList();
         }
@@ -39,8 +69,13 @@ public class WhitelistService {
                 throw new ForbiddenException("Minister account is not assigned to a valid Ministry designation");
             }
 
+            boolean authorizedForMinistry = operatorMinistries.stream().anyMatch(m -> m.equalsIgnoreCase(targetMinistry));
+            if (!authorizedForMinistry) {
+                throw new ForbiddenException("Ministers may only query their own assigned ministries: " + operatorMinistries);
+            }
+
             return userRepository.findAll().stream()
-                    .filter(user -> user.getDesignationList().stream().anyMatch(operatorMinistries::contains))
+                    .filter(user -> user.getDesignationList().stream().anyMatch(d -> d.equalsIgnoreCase(targetMinistry)))
                     .map(this::mapToDto)
                     .toList();
         }
@@ -297,8 +332,12 @@ public class WhitelistService {
     }
 
     private User getOperator(Long currentUserId) {
-        return userRepository.findById(currentUserId)
+        User operator = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("Authenticated operator user not found"));
+        if (!operator.isActive()) {
+            throw new ForbiddenException("Operator account is inactive or suspended");
+        }
+        return operator;
     }
 
     private WhitelistedUserDto mapToDto(User user) {
