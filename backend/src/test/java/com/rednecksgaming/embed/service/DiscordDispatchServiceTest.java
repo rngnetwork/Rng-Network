@@ -120,7 +120,7 @@ class DiscordDispatchServiceTest {
 
         setupRestClientPost();
         JsonNode expectedNode = objectMapper.readTree("{\"id\":\"msg_100\"}");
-        when(responseSpec.body(JsonNode.class)).thenReturn(expectedNode);
+        when(responseSpec.body(String.class)).thenReturn(expectedNode.toString());
 
         JsonNode result = quotedTokenService.dispatchToChannel("12345", Map.of("content", "hello"), null);
 
@@ -138,7 +138,7 @@ class DiscordDispatchServiceTest {
 
         setupRestClientPost();
         JsonNode expectedNode = objectMapper.readTree("{\"id\":\"msg_101\"}");
-        when(responseSpec.body(JsonNode.class)).thenReturn(expectedNode);
+        when(responseSpec.body(String.class)).thenReturn(expectedNode.toString());
 
         JsonNode result = singleQuotedService.dispatchToChannel("12345", Map.of("content", "hello"), null);
 
@@ -161,7 +161,7 @@ class DiscordDispatchServiceTest {
     void dispatchToChannel_withFileAttachments() throws Exception {
         setupRestClientPost();
         JsonNode expectedNode = objectMapper.readTree("{\"id\":\"msg_files_1\"}");
-        when(responseSpec.body(JsonNode.class)).thenReturn(expectedNode);
+        when(responseSpec.body(String.class)).thenReturn(expectedNode.toString());
 
         Resource file1 = new ByteArrayResource("test-data".getBytes(StandardCharsets.UTF_8)) {
             @Override
@@ -182,7 +182,7 @@ class DiscordDispatchServiceTest {
     void editOriginalInteraction_success() throws Exception {
         setupRestClientPatch();
         JsonNode expectedNode = objectMapper.readTree("{\"id\":\"msg_edit_1\"}");
-        when(responseSpec.body(JsonNode.class)).thenReturn(expectedNode);
+        when(responseSpec.body(String.class)).thenReturn(expectedNode.toString());
 
         Map<String, Object> payload = new HashMap<>();
         payload.put("content", "Edited text");
@@ -202,7 +202,7 @@ class DiscordDispatchServiceTest {
         );
         setupRestClientPatch();
         JsonNode expectedNode = objectMapper.readTree("{\"id\":\"msg_edit_2\"}");
-        when(responseSpec.body(JsonNode.class)).thenReturn(expectedNode);
+        when(responseSpec.body(String.class)).thenReturn(expectedNode.toString());
 
         JsonNode result = noTokenService.editOriginalInteraction("app_1", "tok_1", Map.of("flags", 32768));
 
@@ -215,7 +215,7 @@ class DiscordDispatchServiceTest {
     void sendFollowUpInteraction_ephemeralTrue() throws Exception {
         setupRestClientPost();
         JsonNode expectedNode = objectMapper.readTree("{\"id\":\"msg_followup_1\"}");
-        when(responseSpec.body(JsonNode.class)).thenReturn(expectedNode);
+        when(responseSpec.body(String.class)).thenReturn(expectedNode.toString());
 
         JsonNode result = service.sendFollowUpInteraction("app_1", "tok_1", Map.of("content", "Secret"), true);
 
@@ -234,7 +234,7 @@ class DiscordDispatchServiceTest {
     void sendFollowUpInteraction_ephemeralFalse() throws Exception {
         setupRestClientPost();
         JsonNode expectedNode = objectMapper.readTree("{\"id\":\"msg_followup_2\"}");
-        when(responseSpec.body(JsonNode.class)).thenReturn(expectedNode);
+        when(responseSpec.body(String.class)).thenReturn(expectedNode.toString());
 
         JsonNode result = service.sendFollowUpInteraction("app_1", "tok_1", Map.of("content", "Public"), false);
 
@@ -256,7 +256,7 @@ class DiscordDispatchServiceTest {
                 HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", HttpHeaders.EMPTY,
                 error1015.getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8
         );
-        when(responseSpec.body(JsonNode.class)).thenThrow(exception);
+        when(responseSpec.body(String.class)).thenThrow(exception);
 
         assertThatThrownBy(() -> service.dispatchToChannel("12345", Map.of(), null))
                 .isInstanceOf(ServiceUnavailableException.class)
@@ -276,15 +276,15 @@ class DiscordDispatchServiceTest {
         );
         JsonNode successNode = objectMapper.readTree("{\"id\":\"msg_retry_success\"}");
 
-        when(responseSpec.body(JsonNode.class))
+        when(responseSpec.body(String.class))
                 .thenThrow(exception)
-                .thenReturn(successNode);
+                .thenReturn(successNode.toString());
 
         JsonNode result = service.dispatchToChannel("12345", Map.of(), null);
 
         assertThat(result).isNotNull();
         assertThat(result.get("id").asText()).isEqualTo("msg_retry_success");
-        verify(responseSpec, times(2)).body(JsonNode.class);
+        verify(responseSpec, times(2)).body(String.class);
     }
 
     @Test
@@ -299,9 +299,9 @@ class DiscordDispatchServiceTest {
         );
         JsonNode successNode = objectMapper.readTree("{\"id\":\"msg_header_retry_success\"}");
 
-        when(responseSpec.body(JsonNode.class))
+        when(responseSpec.body(String.class))
                 .thenThrow(exception)
-                .thenReturn(successNode);
+                .thenReturn(successNode.toString());
 
         JsonNode result = service.dispatchToChannel("12345", Map.of(), null);
 
@@ -318,7 +318,7 @@ class DiscordDispatchServiceTest {
                 HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", HttpHeaders.EMPTY,
                 rateLimitBody.getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8
         );
-        when(responseSpec.body(JsonNode.class)).thenThrow(exception);
+        when(responseSpec.body(String.class)).thenThrow(exception);
 
         assertThatThrownBy(() -> service.dispatchToChannel("12345", Map.of(), null))
                 .isInstanceOf(InternalServerException.class)
@@ -333,7 +333,7 @@ class DiscordDispatchServiceTest {
                 HttpStatus.UNAUTHORIZED, "Unauthorized", HttpHeaders.EMPTY,
                 "{}".getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8
         );
-        when(responseSpec.body(JsonNode.class)).thenThrow(exception);
+        when(responseSpec.body(String.class)).thenThrow(exception);
 
         assertThatThrownBy(() -> service.dispatchToChannel("12345", Map.of(), null))
                 .isInstanceOf(UnauthorizedException.class)
@@ -348,7 +348,7 @@ class DiscordDispatchServiceTest {
                 HttpStatus.BAD_REQUEST, "Bad Request", HttpHeaders.EMPTY,
                 "{\"message\":\"Invalid form body\"}".getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8
         );
-        when(responseSpec.body(JsonNode.class)).thenThrow(exception);
+        when(responseSpec.body(String.class)).thenThrow(exception);
 
         assertThatThrownBy(() -> service.dispatchToChannel("12345", Map.of(), null))
                 .isInstanceOf(BadRequestException.class)
@@ -363,7 +363,7 @@ class DiscordDispatchServiceTest {
                 HttpStatus.FORBIDDEN, "Forbidden", HttpHeaders.EMPTY,
                 "{}".getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8
         );
-        when(responseSpec.body(JsonNode.class)).thenThrow(exception);
+        when(responseSpec.body(String.class)).thenThrow(exception);
 
         assertThatThrownBy(() -> service.dispatchToChannel("12345", Map.of(), null))
                 .isInstanceOf(ForbiddenException.class)
@@ -374,7 +374,7 @@ class DiscordDispatchServiceTest {
     @DisplayName("Unexpected generic exception wraps in InternalServerException")
     void dispatchToChannel_genericExceptionThrowsInternalServer() {
         setupRestClientPost();
-        when(responseSpec.body(JsonNode.class)).thenThrow(new RuntimeException("Socket closed abruptly"));
+        when(responseSpec.body(String.class)).thenThrow(new RuntimeException("Socket closed abruptly"));
 
         assertThatThrownBy(() -> service.dispatchToChannel("12345", Map.of(), null))
                 .isInstanceOf(InternalServerException.class)
@@ -398,9 +398,9 @@ class DiscordDispatchServiceTest {
         );
         JsonNode successNode = objectMapper.readTree("{\"id\":\"msg_fallback_success\"}");
 
-        when(responseSpec.body(JsonNode.class))
+        when(responseSpec.body(String.class))
                 .thenThrow(exception)
-                .thenReturn(successNode);
+                .thenReturn(successNode.toString());
 
         JsonNode result = service.dispatchToChannel("12345", Map.of(), null);
         assertThat(result).isNotNull();
@@ -416,7 +416,7 @@ class DiscordDispatchServiceTest {
                 HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", HttpHeaders.EMPTY,
                 rateLimitBody.getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8
         );
-        when(responseSpec.body(JsonNode.class)).thenThrow(exception);
+        when(responseSpec.body(String.class)).thenThrow(exception);
 
         Thread.currentThread().interrupt();
         try {
@@ -433,7 +433,7 @@ class DiscordDispatchServiceTest {
     void editOriginalInteraction_emptyOrPlaceholderTokenDoesNotSetAuthHeader() throws Exception {
         setupRestClientPatch();
         JsonNode successNode = objectMapper.readTree("{\"id\":\"original_msg\"}");
-        when(responseSpec.body(JsonNode.class)).thenReturn(successNode);
+        when(responseSpec.body(String.class)).thenReturn(successNode.toString());
 
         DiscordDispatchServiceImpl noTokenService = new DiscordDispatchServiceImpl(
                 restClient, objectMapper, redisTemplate, "   "
@@ -453,7 +453,7 @@ class DiscordDispatchServiceTest {
     void sendFollowUpInteraction_emptyOrPlaceholderTokenDoesNotSetAuthHeader() throws Exception {
         setupRestClientPost();
         JsonNode successNode = objectMapper.readTree("{\"id\":\"followup_msg\"}");
-        when(responseSpec.body(JsonNode.class)).thenReturn(successNode);
+        when(responseSpec.body(String.class)).thenReturn(successNode.toString());
 
         DiscordDispatchServiceImpl noTokenService = new DiscordDispatchServiceImpl(
                 restClient, objectMapper, redisTemplate, "   "
@@ -473,7 +473,7 @@ class DiscordDispatchServiceTest {
     void dispatchToChannel_emptyAttachmentsListTakesJsonPath() throws Exception {
         setupRestClientPost();
         JsonNode successNode = objectMapper.readTree("{\"id\":\"msg_no_files\"}");
-        when(responseSpec.body(JsonNode.class)).thenReturn(successNode);
+        when(responseSpec.body(String.class)).thenReturn(successNode.toString());
 
         JsonNode result = service.dispatchToChannel("12345", Map.of("content", "hi"), List.of());
         assertThat(result).isNotNull();
@@ -503,7 +503,7 @@ class DiscordDispatchServiceTest {
     void executeWithRetry_nullRedisTemplateExecutesSuccessfully() throws Exception {
         setupRestClientPost();
         JsonNode successNode = objectMapper.readTree("{\"id\":\"msg_no_redis\"}");
-        when(responseSpec.body(JsonNode.class)).thenReturn(successNode);
+        when(responseSpec.body(String.class)).thenReturn(successNode.toString());
 
         DiscordDispatchServiceImpl noRedisService = new DiscordDispatchServiceImpl(
                 restClient, objectMapper, null, "Bot test-token"
@@ -518,7 +518,7 @@ class DiscordDispatchServiceTest {
         setupRestClientPost();
         when(redisTemplate.hasKey(anyString())).thenReturn(null);
         JsonNode successNode = objectMapper.readTree("{\"id\":\"msg_null_haskey\"}");
-        when(responseSpec.body(JsonNode.class)).thenReturn(successNode);
+        when(responseSpec.body(String.class)).thenReturn(successNode.toString());
 
         JsonNode result = service.dispatchToChannel("12345", Map.of(), null);
         assertThat(result).isNotNull();
@@ -537,7 +537,7 @@ class DiscordDispatchServiceTest {
                 "<html><head><title>Cloudflare Rate Limited</title></head></html>".getBytes(StandardCharsets.UTF_8),
                 StandardCharsets.UTF_8
         );
-        when(responseSpec.body(JsonNode.class)).thenThrow(exception);
+        when(responseSpec.body(String.class)).thenThrow(exception);
 
         assertThatThrownBy(() -> service.dispatchToChannel("12345", Map.of(), null))
                 .isInstanceOf(ServiceUnavailableException.class)
@@ -553,7 +553,7 @@ class DiscordDispatchServiceTest {
                 "error 1015: edge ban".getBytes(StandardCharsets.UTF_8),
                 StandardCharsets.UTF_8
         );
-        when(responseSpec.body(JsonNode.class)).thenThrow(exception);
+        when(responseSpec.body(String.class)).thenThrow(exception);
 
         DiscordDispatchServiceImpl noRedisService = new DiscordDispatchServiceImpl(
                 restClient, objectMapper, null, "Bot test-token"
@@ -568,7 +568,7 @@ class DiscordDispatchServiceTest {
     @DisplayName("executeWithRetry re-throws domain exceptions from action supplier")
     void executeWithRetry_rethrowsDomainExceptions() {
         setupRestClientPost();
-        when(responseSpec.body(JsonNode.class))
+        when(responseSpec.body(String.class))
                 .thenThrow(new BadRequestException("Custom bad request"))
                 .thenThrow(new ForbiddenException("Custom forbidden"))
                 .thenThrow(new UnauthorizedException("Custom unauthorized"));
@@ -598,9 +598,9 @@ class DiscordDispatchServiceTest {
         );
         JsonNode successNode = objectMapper.readTree("{\"id\":\"msg_unparseable_header\"}");
 
-        when(responseSpec.body(JsonNode.class))
+        when(responseSpec.body(String.class))
                 .thenThrow(exception)
-                .thenReturn(successNode);
+                .thenReturn(successNode.toString());
 
         JsonNode result = service.dispatchToChannel("12345", Map.of(), null);
         assertThat(result).isNotNull();
@@ -620,7 +620,7 @@ class DiscordDispatchServiceTest {
                 restClient, objectMapper, redisTemplate, "\"unmatched"
         );
         setupRestClientPost();
-        when(responseSpec.body(JsonNode.class)).thenReturn(objectMapper.createObjectNode());
+        when(responseSpec.body(String.class)).thenReturn("{}");
         assertThat(openQuoteService.dispatchToChannel("12345", Map.of(), null)).isNotNull();
 
         // Starts with single quote but doesn't end with single quote

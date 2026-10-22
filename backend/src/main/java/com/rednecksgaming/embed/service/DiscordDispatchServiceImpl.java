@@ -102,11 +102,12 @@ public class DiscordDispatchServiceImpl implements DiscordDispatchService {
             if (!token.isBlank() && !token.equalsIgnoreCase("your-discord-bot-token")) {
                 requestSpec.header(HttpHeaders.AUTHORIZATION, "Bot " + token);
             }
-            return requestSpec
+            String rawJson = requestSpec
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(finalPayload)
                     .retrieve()
-                    .body(JsonNode.class);
+                    .body(String.class);
+            return parseResponse(rawJson);
         });
     }
 
@@ -127,21 +128,23 @@ public class DiscordDispatchServiceImpl implements DiscordDispatchService {
             if (!token.isBlank() && !token.equalsIgnoreCase("your-discord-bot-token")) {
                 requestSpec.header(HttpHeaders.AUTHORIZATION, "Bot " + token);
             }
-            return requestSpec
+            String rawJson = requestSpec
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(finalPayload)
                     .retrieve()
-                    .body(JsonNode.class);
+                    .body(String.class);
+            return parseResponse(rawJson);
         });
     }
 
     private JsonNode sendRequest(RestClient.RequestBodySpec requestSpec, Map<String, Object> payload, List<Resource> fileAttachments) {
         if (fileAttachments == null || fileAttachments.isEmpty()) {
-            return requestSpec
+            String rawJson = requestSpec
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(payload)
                     .retrieve()
-                    .body(JsonNode.class);
+                    .body(String.class);
+            return parseResponse(rawJson);
         } else {
             MultiValueMap<String, Object> multipartBody = new LinkedMultiValueMap<>();
             try {
@@ -157,11 +160,24 @@ public class DiscordDispatchServiceImpl implements DiscordDispatchService {
                 multipartBody.add("files[" + i + "]", fileAttachments.get(i));
             }
 
-            return requestSpec
+            String rawJson = requestSpec
                     .contentType(MediaType.MULTIPART_FORM_DATA)
                     .body(multipartBody)
                     .retrieve()
-                    .body(JsonNode.class);
+                    .body(String.class);
+            return parseResponse(rawJson);
+        }
+    }
+
+    private JsonNode parseResponse(String rawJson) {
+        if (rawJson == null || rawJson.isBlank()) {
+            return objectMapper.createObjectNode();
+        }
+        try {
+            return objectMapper.readTree(rawJson);
+        } catch (Exception e) {
+            log.warn("Failed to parse Discord response payload as JsonNode: {}", rawJson, e);
+            return objectMapper.createObjectNode();
         }
     }
 
