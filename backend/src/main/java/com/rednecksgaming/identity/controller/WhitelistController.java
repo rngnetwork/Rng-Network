@@ -24,9 +24,11 @@ public class WhitelistController {
     private final WhitelistService whitelistService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<WhitelistedUserDto>>> getWhitelistedUsers(Authentication authentication) {
+    public ResponseEntity<ApiResponse<List<WhitelistedUserDto>>> getWhitelistedUsers(
+            Authentication authentication,
+            @RequestParam(value = "ministry", required = false) String ministry) {
         Long userId = (Long) authentication.getPrincipal();
-        List<WhitelistedUserDto> users = whitelistService.getWhitelistedUsers(userId);
+        List<WhitelistedUserDto> users = whitelistService.getWhitelistedUsers(userId, ministry);
         return ResponseEntity.ok(ApiResponse.success(users));
     }
 
