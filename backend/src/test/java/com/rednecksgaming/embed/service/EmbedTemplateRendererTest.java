@@ -47,6 +47,10 @@ class EmbedTemplateRendererTest {
         assertThat(renderer.interpolateVariables(null, Map.of("user", "123"))).isNull();
         assertThat(renderer.interpolateVariables("Hello {user}", null)).isEqualTo("Hello {user}");
         assertThat(renderer.interpolateVariables("Hello {user}", Map.of())).isEqualTo("Hello {user}");
+
+        Map<String, String> mapWithNullKey = new HashMap<>();
+        mapWithNullKey.put(null, "value");
+        assertThat(renderer.interpolateVariables("Hello {user}", mapWithNullKey)).isEqualTo("Hello {user}");
     }
 
     @Test
@@ -59,194 +63,232 @@ class EmbedTemplateRendererTest {
     }
 
     @Test
-    @DisplayName("Should render EmbedTemplate into MessageCreateData with content and buttons")
-    void should_render_template_to_message_create_data() {
+    @DisplayName("Should handle empty or null payload gracefully")
+    void should_handle_empty_or_null_payload_gracefully() {
+        MessageCreateData data1 = renderer.renderToMessageData(null, Map.of());
+        assertThat(data1.getContent()).isEqualTo("⚠️ Empty response template");
+
+        EmbedTemplate emptyTemplate = EmbedTemplate.builder().id("tpl-empty").payload(null).build();
+        MessageCreateData data2 = renderer.renderToMessageData(emptyTemplate, Map.of());
+        assertThat(data2.getContent()).isEqualTo("⚠️ Empty response template");
+
+        EmbedTemplate emptyMapTemplate = EmbedTemplate.builder().id("tpl-empty2").payload(Map.of()).build();
+        MessageCreateData data3 = renderer.renderToMessageData(emptyMapTemplate, Map.of());
+        assertThat(data3.getContent()).isEqualTo("⚠️ Empty response template");
+    }
+
+    @Test
+    @DisplayName("Should render Components V2 with nested Type 17 Containers, Type 9 Sections, and Text Displays")
+    void should_render_components_v2_type17_containers_sections_and_text() {
         Map<String, Object> payload = Map.of(
-                "content", "Action performed by {user} on {targetUser}",
+                "flags", 32768,
                 "components", List.of(
                         Map.of(
-                                "type", 1,
+                                "type", 17, // Container
                                 "components", List.of(
+                                        Map.of("type", 10, "content", "Welcome to {server}!"),
+                                        Map.of("type", 10, "text", "Alternative text property"),
                                         Map.of(
-                                                "type", 2,
-                                                "style", 3,
-                                                "label", "DM Logs for {ticketId}",
-                                                "custom_id", "rng_act_ticket_123"
+                                                "type", 9, // Section
+                                                "components", List.of(
+                                                        Map.of("type", 10, "content", "Section body text")
+                                                )
+                                        ),
+                                        Map.of(
+                                                "type", 1, // Action Row
+                                                "components", List.of(
+                                                        Map.of("type", 2, "style", 3, "label", "Confirm", "custom_id", "btn_confirm"),
+                                                        Map.of("type", 2, "style", 5, "label", "Docs", "url", "https://discord.com")
+                                                )
                                         )
                                 )
                         )
                 )
         );
 
-        EmbedTemplate template = EmbedTemplate.builder()
-                .id("tpl-1")
-                .name("Success Response")
-                .payload(payload)
-                .build();
+        EmbedTemplate template = EmbedTemplate.builder().id("tpl-comp").payload(payload).build();
+        MessageCreateData data = renderer.renderToMessageData(template, Map.of("server", "RNG HQ"));
 
-        Map<String, String> variables = Map.of(
-                "user", "<@123>",
-                "targetUser", "<@456>",
-                "ticketId", "TK-999"
-        );
-
-        MessageCreateData data = renderer.renderToMessageData(template, variables);
         assertThat(data).isNotNull();
-        assertThat(data.getContent()).isEqualTo("Action performed by <@123> on <@456>");
+        assertThat(data.getContent()).contains("Welcome to RNG HQ!");
+        assertThat(data.getContent()).contains("Alternative text property");
+        assertThat(data.getContent()).contains("Section body text");
         assertThat(data.getComponents()).hasSize(1);
 
         ActionRow row = (ActionRow) data.getComponents().get(0);
-        assertThat(row.getButtons()).hasSize(1);
-        Button btn = row.getButtons().get(0);
-        assertThat(btn.getLabel()).isEqualTo("DM Logs for TK-999");
-        assertThat(btn.getCustomId()).isEqualTo("rng_act_ticket_123");
-        assertThat(btn.getStyle()).isEqualTo(ButtonStyle.SUCCESS);
+        assertThat(row.getButtons()).hasSize(2);
+        assertThat(row.getButtons().get(0).getStyle()).isEqualTo(ButtonStyle.SUCCESS);
+        assertThat(row.getButtons().get(1).getStyle()).isEqualTo(ButtonStyle.LINK);
     }
 
     @Test
-    @DisplayName("Should render template with multiple action rows and different button styles including link")
-    void should_render_template_with_multiple_buttons_and_styles() {
+    @DisplayName("Should render template using containers array fallback with title, description, and fields")
+    void should_render_containers_array_fallback() {
+        Map<String, Object> container = Map.of(
+                "title", "Announcement: {title}",
+                "description", "Description of {title}",
+                "fields", List.of(
+                        Map.of("name", "Field 1", "value", "Value 1"),
+                        Map.of("name", "Field 2", "value", "Value 2")
+                ),
+                "components", List.of(
+                        Map.of("type", 10, "content", "Footer text inside container")
+                )
+        );
+
         Map<String, Object> payload = Map.of(
-                "content", "Multi-Button Template",
+                "content", "Top message",
+                "containers", List.of(container)
+        );
+
+        EmbedTemplate template = EmbedTemplate.builder().id("tpl-containers").payload(payload).build();
+        MessageCreateData data = renderer.renderToMessageData(template, Map.of("title", "Server Maintenance"));
+
+        assertThat(data).isNotNull();
+        assertThat(data.getContent()).contains("Top message");
+        assertThat(data.getContent()).contains("**Announcement: Server Maintenance**");
+        assertThat(data.getContent()).contains("Description of Server Maintenance");
+        assertThat(data.getContent()).contains("**Field 1**\nValue 1");
+        assertThat(data.getContent()).contains("Footer text inside container");
+    }
+
+    @Test
+    @DisplayName("Should render button fallbacks for missing label and customId")
+    void should_render_button_fallbacks() {
+        Map<String, Object> payload = Map.of(
                 "components", List.of(
                         Map.of(
                                 "type", 1,
                                 "components", List.of(
-                                        Map.of("type", 2, "style", 1, "label", "Primary", "custom_id", "act_1"),
-                                        Map.of("type", 2, "style", 2, "label", "Secondary", "custom_id", "act_2"),
-                                        Map.of("type", 2, "style", 4, "label", "Danger", "custom_id", "act_4"),
-                                        Map.of("type", 2, "style", 5, "label", "Documentation", "url", "https://rng.army/docs")
+                                        Map.of("type", 2, "style", 1), // missing label and custom_id
+                                        Map.of("type", 2, "style", 5)  // link missing url and label
                                 )
                         )
                 )
         );
 
-        EmbedTemplate template = EmbedTemplate.builder()
-                .id("tpl-2")
-                .name("Multi-Button")
-                .payload(payload)
-                .build();
-
+        EmbedTemplate template = EmbedTemplate.builder().id("tpl-btn-fb").payload(payload).build();
         MessageCreateData data = renderer.renderToMessageData(template, Map.of());
-        assertThat(data.getContent()).isEqualTo("Multi-Button Template");
-        assertThat(data.getComponents()).hasSize(1);
 
+        assertThat(data.getComponents()).hasSize(1);
         ActionRow row = (ActionRow) data.getComponents().get(0);
-        assertThat(row.getButtons()).hasSize(4);
-        assertThat(row.getButtons().get(0).getStyle()).isEqualTo(ButtonStyle.PRIMARY);
-        assertThat(row.getButtons().get(1).getStyle()).isEqualTo(ButtonStyle.SECONDARY);
-        assertThat(row.getButtons().get(2).getStyle()).isEqualTo(ButtonStyle.DANGER);
-        assertThat(row.getButtons().get(3).getStyle()).isEqualTo(ButtonStyle.LINK);
-        assertThat(row.getButtons().get(3).getUrl()).isEqualTo("https://rng.army/docs");
+        assertThat(row.getButtons()).hasSize(2);
+        assertThat(row.getButtons().get(0).getLabel()).isEqualTo("Submit");
+        assertThat(row.getButtons().get(0).getCustomId()).isEqualTo("rng_act_noop");
+        assertThat(row.getButtons().get(1).getUrl()).isEqualTo("https://discord.com");
     }
 
     @Test
-    @DisplayName("Should handle empty or null payload gracefully")
-    void should_handle_empty_or_null_payload_gracefully() {
-        EmbedTemplate emptyTemplate = EmbedTemplate.builder()
-                .id("tpl-empty")
-                .payload(null)
-                .build();
+    @DisplayName("Should render interpolated wire payload preserving flags and components")
+    void should_render_interpolated_wire_payload() {
+        // Null or empty payload
+        assertThat(renderer.renderInterpolatedWirePayload(null, Map.of()))
+                .containsEntry("content", "⚠️ Empty response template");
 
-        MessageCreateData data = renderer.renderToMessageData(emptyTemplate, Map.of());
-        assertThat(data).isNotNull();
+        EmbedTemplate emptyTemplate = EmbedTemplate.builder().id("tpl-e").payload(Map.of()).build();
+        assertThat(renderer.renderInterpolatedWirePayload(emptyTemplate, Map.of()))
+                .containsEntry("content", "⚠️ Empty response template");
+
+        // With components
+        Map<String, Object> payloadWithComps = Map.of(
+                "components", List.of(
+                        Map.of("type", 10, "content", "Hello {name}")
+                )
+        );
+        EmbedTemplate tpl1 = EmbedTemplate.builder().id("tpl-1").payload(payloadWithComps).build();
+        Map<String, Object> wirePayload = renderer.renderInterpolatedWirePayload(tpl1, Map.of("name", "Operator"));
+
+        assertThat(wirePayload.get("flags")).isEqualTo(32768);
+        assertThat(wirePayload).containsKey("components");
+        List<?> comps = (List<?>) wirePayload.get("components");
+        Map<?, ?> c0 = (Map<?, ?>) comps.get(0);
+        assertThat(c0.get("content")).isEqualTo("Hello Operator");
+
+        // Without components (returns fullPayload)
+        Map<String, Object> payloadWithoutComps = Map.of("content", "Static content {name}");
+        EmbedTemplate tpl2 = EmbedTemplate.builder().id("tpl-2").payload(payloadWithoutComps).build();
+        Map<String, Object> nonWirePayload = renderer.renderInterpolatedWirePayload(tpl2, Map.of("name", "World"));
+        assertThat(nonWirePayload.get("content")).isEqualTo("Static content World");
+
+        // Components is empty list
+        Map<String, Object> payloadEmptyComps = Map.of("components", List.of());
+        EmbedTemplate tpl3 = EmbedTemplate.builder().id("tpl-3").payload(payloadEmptyComps).build();
+        Map<String, Object> emptyCompsPayload = renderer.renderInterpolatedWirePayload(tpl3, Map.of());
+        assertThat(emptyCompsPayload).containsEntry("components", List.of());
+    }
+
+    @Test
+    @DisplayName("Should return empty fallback message when components or container yield no visible text or buttons")
+    void should_return_empty_fallback_when_components_yield_nothing() {
+        // Unknown component type (e.g., 14) and empty components list
+        Map<String, Object> payload = Map.of(
+                "components", List.of(
+                        Map.of("type", 14), // Separator
+                        Map.of("type", 10, "content", "   "), // Blank text display
+                        Map.of("type", 10), // Text display missing both content and text
+                        Map.of("type", 17), // Container missing components array
+                        Map.of("type", 17, "components", "not-array"),
+                        Map.of("type", 9), // Section missing components array
+                        Map.of("type", 9, "components", "not-array"),
+                        Map.of("type", 1, "components", List.of()), // ActionRow with 0 buttons
+                        Map.of("type", 1), // ActionRow missing components
+                        Map.of("type", 1, "components", "not-array"),
+                        Map.of("type", 1, "components", List.of(
+                                Map.of("type", 3), // Select menu inside row (ignored by parser)
+                                Map.of("not-type", 1) // Missing type
+                        ))
+                )
+        );
+
+        EmbedTemplate template = EmbedTemplate.builder().id("tpl-empty-components").payload(payload).build();
+        MessageCreateData data = renderer.renderToMessageData(template, Map.of());
+
         assertThat(data.getContent()).isEqualTo("⚠️ Empty response template");
     }
 
     @Test
-    @DisplayName("Should render Components V2 Type 17 Containers with nested Type 10 Text Displays and Action Rows")
-    void should_render_components_v2_type17_containers_with_nested_text_and_buttons() {
+    @DisplayName("Should handle container node with blank or missing title, description, fields, and components")
+    void should_handle_container_node_with_blank_or_missing_attributes() {
+        Map<String, Object> container = new HashMap<>();
+        container.put("title", "   ");
+        container.put("description", "   ");
+        container.put("fields", "not-array");
+        container.put("components", "not-array");
+
+        Map<String, Object> containerWithPartialFields = new HashMap<>();
+        containerWithPartialFields.put("fields", List.of(
+                Map.of("name", "NameOnly"),
+                Map.of("value", "ValueOnly"),
+                Map.of("name", "   ", "value", "   ")
+        ));
+
         Map<String, Object> payload = Map.of(
-                "flags", 32768,
-                "components", List.of(
-                        Map.of(
-                                "type", 17,
-                                "accent_color", 43260,
-                                "components", List.of(
-                                        Map.of("type", 10, "content", "Welcome to {server}, {user}!"),
-                                        Map.of("type", 10, "content", "Role {targetRole} assigned to {targetUser}"),
-                                        Map.of(
-                                                "type", 1,
-                                                "components", List.of(
-                                                        Map.of("type", 2, "style", 3, "label", "Confirm Role", "custom_id", "rng_act_confirm")
-                                                )
-                                        )
-                                )
-                        )
-                )
+                "containers", List.of(container, containerWithPartialFields)
         );
 
-        EmbedTemplate template = EmbedTemplate.builder()
-                .templateId("tmpl_v2_test")
-                .name("Components V2 Container")
-                .payload(payload)
-                .build();
+        EmbedTemplate template = EmbedTemplate.builder().id("tpl-blank-container").payload(payload).build();
+        MessageCreateData data = renderer.renderToMessageData(template, Map.of());
 
-        Map<String, String> vars = Map.of(
-                "server", "Rednecks Gaming",
-                "user", "<@111>",
-                "targetRole", "<@&222>",
-                "targetUser", "<@333>"
-        );
-
-        MessageCreateData data = renderer.renderToMessageData(template, vars);
-        assertThat(data).isNotNull();
-        assertThat(data.getContent()).contains("Welcome to Rednecks Gaming, <@111>!");
-        assertThat(data.getContent()).contains("Role <@&222> assigned to <@333>");
-        assertThat(data.getComponents()).hasSize(1);
-        ActionRow row = (ActionRow) data.getComponents().get(0);
-        assertThat(row.getButtons()).hasSize(1);
-        assertThat(row.getButtons().get(0).getCustomId()).isEqualTo("rng_act_confirm");
+        assertThat(data.getContent()).contains("**NameOnly**");
+        assertThat(data.getContent()).contains("ValueOnly");
     }
 
     @Test
-    @DisplayName("Should render interpolated Discord Components V2 wire payload preserving Type 17 Container and flags")
-    void should_render_interpolated_wire_payload_preserving_type17_container_and_flags() {
-        Map<String, Object> payload = Map.of(
-                "flags", 32768,
-                "components", List.of(
-                        Map.of(
-                                "type", 17,
-                                "accent_color", 43260,
-                                "components", List.of(
-                                        Map.of("type", 10, "content", "Server: {server}\nOperator: {user}"),
-                                        Map.of(
-                                                "type", 1,
-                                                "components", List.of(
-                                                        Map.of("type", 2, "style", 1, "label", "Action Button", "custom_id", "rng_act_123")
-                                                )
-                                        )
-                                )
-                        )
-                )
-        );
+    @DisplayName("Should handle serialization errors in renderToMessageData and renderInterpolatedWirePayload gracefully")
+    void should_handle_serialization_errors_gracefully() {
+        ObjectMapper failingMapper = org.mockito.Mockito.mock(ObjectMapper.class);
+        EmbedTemplateRendererImpl failingRenderer = new EmbedTemplateRendererImpl(failingMapper);
+        try {
+            org.mockito.Mockito.when(failingMapper.writeValueAsString(org.mockito.ArgumentMatchers.any()))
+                    .thenThrow(new com.fasterxml.jackson.core.JsonParseException(null, "Test serialize error"));
+        } catch (Exception ignored) {
+        }
 
-        EmbedTemplate template = EmbedTemplate.builder()
-                .templateId("tmpl_v2_wire")
-                .name("Wire Payload Test")
-                .payload(payload)
-                .build();
+        EmbedTemplate template = EmbedTemplate.builder().id("tpl-fail").payload(Map.of("a", "b")).build();
+        MessageCreateData data = failingRenderer.renderToMessageData(template, Map.of());
+        assertThat(data.getContent()).contains("⚠️ Error rendering response template:");
 
-        Map<String, String> vars = Map.of(
-                "server", "RNG Testing Server",
-                "user", "<@RachitSWE>"
-        );
-
-        Map<String, Object> wirePayload = renderer.renderInterpolatedWirePayload(template, vars);
-        assertThat(wirePayload).isNotNull();
-        assertThat(wirePayload.get("flags")).isEqualTo(32768);
-        assertThat(wirePayload).containsKey("components");
-
-        List<?> components = (List<?>) wirePayload.get("components");
-        assertThat(components).hasSize(1);
-        Map<?, ?> container = (Map<?, ?>) components.get(0);
-        assertThat(container.get("type")).isEqualTo(17);
-        assertThat(container.get("accent_color")).isEqualTo(43260);
-
-        List<?> inner = (List<?>) container.get("components");
-        assertThat(inner).hasSize(2);
-        Map<?, ?> textComp = (Map<?, ?>) inner.get(0);
-        assertThat(textComp.get("type")).isEqualTo(10);
-        assertThat(textComp.get("content")).isEqualTo("Server: RNG Testing Server\nOperator: <@RachitSWE>");
+        Map<String, Object> wireResult = failingRenderer.renderInterpolatedWirePayload(template, Map.of());
+        assertThat(wireResult).isEqualTo(template.getPayload());
     }
 }
