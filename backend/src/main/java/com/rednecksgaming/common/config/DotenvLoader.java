@@ -31,7 +31,7 @@ public final class DotenvLoader {
         log.warn("No .env file found in candidate locations ({})", candidates);
     }
 
-    private static void loadFile(File file) {
+    static void loadFile(File file) {
         try (BufferedReader reader = new BufferedReader(new FileReader(file, StandardCharsets.UTF_8))) {
             String line;
             int loadedCount = 0;
