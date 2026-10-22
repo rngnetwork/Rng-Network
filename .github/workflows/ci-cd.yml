@@ -110,10 +110,25 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Setup Node.js for Flyway Validation Script
+      - name: Setup Node.js for CI Reporting & Verification
         uses: actions/setup-node@v4
         with:
           node-version: '24.19.0'
+
+      - name: Grant Execute Permission for Maven Wrapper
+        run: chmod +x ./mvnw
+
+      - name: Run Backend Integration Tests & JaCoCo Coverage
+        id: backend-tests
+        run: ./mvnw test jacoco:report -Dspring.profiles.active=test
+
+      - name: Generate Enterprise JaCoCo Coverage Markdown Report
+        if: always()
+        run: node ../.github/scripts/generate-jacoco-report.js target/site/jacoco/jacoco.csv target/jacoco-report.md 90
+
+      - name: Output Enterprise JaCoCo Coverage to CI Summary
+        if: always()
+        run: cat target/jacoco-report.md >> $GITHUB_STEP_SUMMARY || true
 
       - name: Verify Flyway SQL Schema Mirrored to JPA Entities
         run: node ../.github/scripts/verify-flyway-jpa-sync.js
@@ -121,12 +136,6 @@ jobs:
       - name: Output Real-Time Schema Sync Report to CI Summary
         if: always()
         run: cat target/schema-sync-report.md >> $GITHUB_STEP_SUMMARY || true
-
-      - name: Grant Execute Permission for Maven Wrapper
-        run: chmod +x ./mvnw
-
-      - name: Run Backend Integration Tests & JaCoCo Coverage
-        run: ./mvnw test -Dspring.profiles.active=test
 
       - name: Upload JaCoCo Coverage Report Artifact
         if: always()
