@@ -20,6 +20,11 @@ public final class PersonnelHierarchy {
     public static final String MINISTRY_CULTURE = "Ministry of Culture";
     public static final String MINISTRY_EXTERNAL_AFFAIRS = "Ministry of External affairs";
 
+    public static final String ROLE_CHIEF_HIGH_COMMAND = "ROLE_CHIEF_HIGH_COMMAND";
+    public static final String ROLE_HIGH_COMMAND = "ROLE_HIGH_COMMAND";
+    public static final String ROLE_MINISTER = "ROLE_MINISTER";
+    public static final String ROLE_USER = "ROLE_USER";
+
     public static final Map<String, List<String>> DESIGNATION_ROLES_MAP;
 
     static {
@@ -141,5 +146,54 @@ public final class PersonnelHierarchy {
             return "ROLE_MINISTER";
         }
         return "ROLE_USER";
+    }
+
+    public static boolean isSupreme(String rank) {
+        if (rank == null) return false;
+        String trimmed = rank.trim();
+        return ROLE_CHIEF_HIGH_COMMAND.equalsIgnoreCase(trimmed)
+                || ROLE_HIGH_COMMAND.equalsIgnoreCase(trimmed)
+                || "Chief High Command".equalsIgnoreCase(trimmed)
+                || "High Command".equalsIgnoreCase(trimmed)
+                || SUPREME.equalsIgnoreCase(trimmed);
+    }
+
+    public static boolean isMinister(String rank) {
+        if (rank == null) return false;
+        String trimmed = rank.trim();
+        return ROLE_MINISTER.equalsIgnoreCase(trimmed)
+                || "Minister".equalsIgnoreCase(trimmed);
+    }
+
+    public static int getRankWeight(String rank) {
+        if (rank == null) return 0;
+        String trimmed = rank.trim();
+        if (ROLE_CHIEF_HIGH_COMMAND.equalsIgnoreCase(trimmed) || "Chief High Command".equalsIgnoreCase(trimmed)) {
+            return 4;
+        }
+        if (ROLE_HIGH_COMMAND.equalsIgnoreCase(trimmed) || "High Command".equalsIgnoreCase(trimmed) || SUPREME.equalsIgnoreCase(trimmed)) {
+            return 3;
+        }
+        if (ROLE_MINISTER.equalsIgnoreCase(trimmed) || "Minister".equalsIgnoreCase(trimmed)) {
+            return 2;
+        }
+        if (ROLE_USER.equalsIgnoreCase(trimmed) || "User".equalsIgnoreCase(trimmed) || "Personnel".equalsIgnoreCase(trimmed)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    public static boolean canManage(String operatorRank, String targetRank) {
+        int opWeight = getRankWeight(operatorRank);
+        int targetWeight = getRankWeight(targetRank);
+        if (opWeight == 0 || targetWeight == 0) return false;
+        return opWeight > targetWeight;
+    }
+
+    public static boolean canManage(User operator, User target) {
+        if (operator == null || target == null) return false;
+        String opRole = isChiefHighCommand(operator) ? ROLE_CHIEF_HIGH_COMMAND : operator.getRole();
+        String targetRole = isChiefHighCommand(target) ? ROLE_CHIEF_HIGH_COMMAND : target.getRole();
+        return canManage(opRole, targetRole);
     }
 }
