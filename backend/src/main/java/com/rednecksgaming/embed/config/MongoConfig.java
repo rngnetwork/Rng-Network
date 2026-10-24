@@ -13,7 +13,10 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
  * MongoDB repository and auditing configuration for the embed module.
  */
 @Configuration
-@EnableMongoRepositories(basePackages = "com.rednecksgaming.embed.repository")
+@EnableMongoRepositories(basePackages = {
+    "com.rednecksgaming.embed.repository",
+    "com.rednecksgaming.botmodule.repository"
+})
 @EnableMongoAuditing
 public class MongoConfig {
 
