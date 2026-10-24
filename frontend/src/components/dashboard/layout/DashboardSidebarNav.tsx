@@ -10,6 +10,7 @@ import {
   Server,
   User,
   Boxes,
+  Bot,
   LogOut,
   ChevronRight,
 } from 'lucide-react';
@@ -85,6 +86,12 @@ export const DashboardSidebarNav: React.FC<DashboardSidebarNavProps> = ({
       icon: Boxes,
       show: true,
       badge: 'V2',
+    },
+    {
+      label: 'Bot Modules',
+      href: '/dashboard/botconfig',
+      icon: Bot,
+      show: isHighCommand,
     },
     {
       label: 'Whitelist',
