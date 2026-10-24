@@ -170,6 +170,18 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    @DisplayName("handleUpstreamServiceException maps UpstreamServiceException to 502 BAD_GATEWAY")
+    void handleUpstreamServiceException_mapsTo502() {
+        UpstreamServiceException ex = new UpstreamServiceException("Upstream Guild API connection timed out");
+        ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleUpstreamServiceException(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isFalse();
+        assertThat(response.getBody().getMessage()).isEqualTo("Upstream Guild API connection timed out");
+    }
+
+    @Test
     @DisplayName("handleServiceUnavailable maps ServiceUnavailableException to 503 SERVICE_UNAVAILABLE")
     void handleServiceUnavailable_mapsTo503() {
         ServiceUnavailableException ex = new ServiceUnavailableException("Discord Gateway WebSocket is disconnected");
