@@ -97,6 +97,11 @@ services:
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-discord-client-secret-placeholder}
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-}
       FRONTEND_2FA_URL: ${FRONTEND_2FA_URL:-http://localhost:3000/auth/2fa}
+      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-http://localhost:3000/auth/discord/callback}
+      GUILD_API_BASE_URL: ${GUILD_API_BASE_URL:-http://185.223.31.168:8790/v1}
+      GUILD_API_TOKEN: ${GUILD_API_TOKEN:-}
+      GUILD_API_CONNECT_TIMEOUT_MS: ${GUILD_API_CONNECT_TIMEOUT_MS:-3000}
+      GUILD_API_READ_TIMEOUT_MS: ${GUILD_API_READ_TIMEOUT_MS:-8000}
     ports:
       - "8080:8080"
     depends_on:
