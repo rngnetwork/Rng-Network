@@ -9,3 +9,4 @@ export * from './embed';
 export * from './action';
 export * from './dispatch';
 export * from './analytics';
+export * from './bot-module';
