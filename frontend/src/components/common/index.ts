@@ -9,6 +9,11 @@ export * from './input/DateTimePicker';
 export * from './input/Stepper';
 export * from './input/ColorPicker';
 export * from './input/EmojiPicker';
+export * from './input/SegmentedControl';
+export * from './input/TagInput';
+export * from './input/DiscordRoleSelect';
+export * from './input/DiscordChannelSelect';
+export * from './input/ModuleInheritanceIndicator';
 
 export * from './navigation/Navbar';
 export * from './navigation/HamburgerMenu';
