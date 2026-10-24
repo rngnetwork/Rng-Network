@@ -184,7 +184,7 @@ export const ServerBotConfigCoordinator: React.FC = () => {
             rolesRes.value.data.map((r) => ({
               id: r.id,
               name: r.name,
-              color: r.color,
+              color: r.colorHex || undefined,
               position: r.position,
               assignableByBot: r.assignableByBot,
             }))

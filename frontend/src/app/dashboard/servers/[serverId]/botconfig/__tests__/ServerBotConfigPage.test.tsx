@@ -72,11 +72,20 @@ describe('ServerBotConfigPage (Server-Specific Deck)', () => {
     });
     vi.mocked(settingsApi.fetchServerChannels).mockResolvedValue({
       success: true,
-      data: [{ id: '111', name: 'general', type: 0, position: 0 }],
+      data: [{ id: '111', name: 'general', type: 0, position: 0, parentId: null }],
     });
     vi.mocked(settingsApi.fetchServerRoles).mockResolvedValue({
       success: true,
-      data: [{ id: '222', name: 'Moderator', color: 0, position: 1 }],
+      data: [
+        {
+          id: '222',
+          name: 'Moderator',
+          colorHex: null,
+          position: 1,
+          managed: false,
+          assignableByBot: true,
+        },
+      ],
     });
   });
 
