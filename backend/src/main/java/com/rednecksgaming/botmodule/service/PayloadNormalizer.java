@@ -25,13 +25,12 @@ public class PayloadNormalizer {
     /**
      * Unwraps upstream response envelope (e.g. {"ok": true, "data": {...}}) if present.
      */
-    @SuppressWarnings("unchecked")
     public Map<String, Object> unwrapEnvelope(Map<String, Object> response) {
         if (response == null) {
             return Collections.emptyMap();
         }
         if (response.containsKey("data") && response.get("data") instanceof Map<?, ?> dataMap) {
-            return (Map<String, Object>) dataMap;
+            return safeCastMap(dataMap);
         }
         return response;
     }
@@ -39,7 +38,6 @@ public class PayloadNormalizer {
     /**
      * Normalizes a modules dictionary, recursively parsing any stringified JSON arrays/objects.
      */
-    @SuppressWarnings("unchecked")
     public Map<String, Object> normalizeModules(Map<String, Object> rawPayload) {
         if (rawPayload == null) {
             return Collections.emptyMap();
@@ -49,7 +47,7 @@ public class PayloadNormalizer {
         Map<String, Object> targetMap = unwrapped;
 
         if (unwrapped.containsKey("modules") && unwrapped.get("modules") instanceof Map<?, ?> modulesMap) {
-            targetMap = (Map<String, Object>) modulesMap;
+            targetMap = safeCastMap(modulesMap);
         }
 
         Map<String, Object> normalized = new LinkedHashMap<>();
@@ -65,7 +63,6 @@ public class PayloadNormalizer {
     /**
      * Normalizes a server-specific response from GET /v1/guild/:guildId, stripping redundant guildId.
      */
-    @SuppressWarnings("unchecked")
     public Map<String, Object> normalizeServerResponse(Map<String, Object> serverResponse) {
         if (serverResponse == null) {
             return Collections.emptyMap();
@@ -74,7 +71,7 @@ public class PayloadNormalizer {
         Map<String, Object> unwrapped = unwrapEnvelope(serverResponse);
 
         if (unwrapped.containsKey("modules") && unwrapped.get("modules") instanceof Map<?, ?> modulesMap) {
-            return normalizeModules((Map<String, Object>) modulesMap);
+            return normalizeModules(safeCastMap(modulesMap));
         }
 
         Map<String, Object> filtered = new LinkedHashMap<>(unwrapped);
@@ -85,7 +82,6 @@ public class PayloadNormalizer {
     /**
      * Normalizes the full tree response from GET /v1/guildConfig.
      */
-    @SuppressWarnings("unchecked")
     public Map<String, Object> normalizeGuildConfigTree(Map<String, Object> configTree) {
         if (configTree == null) {
             return Collections.emptyMap();
@@ -101,8 +97,7 @@ public class PayloadNormalizer {
                 String guildId = String.valueOf(guildEntry.getKey());
                 Object guildData = guildEntry.getValue();
                 if (guildData instanceof Map<?, ?> guildDataMap) {
-                    Map<String, Object> typedGuildData = (Map<String, Object>) guildDataMap;
-                    normalizedGuilds.put(guildId, normalizeServerResponse(typedGuildData));
+                    normalizedGuilds.put(guildId, normalizeServerResponse(safeCastMap(guildDataMap)));
                 } else {
                     normalizedGuilds.put(guildId, guildData);
                 }
@@ -114,7 +109,6 @@ public class PayloadNormalizer {
         return normalizedTree;
     }
 
-    @SuppressWarnings("unchecked")
     private Object normalizeValue(Object value) {
         if (value == null) {
             return null;
@@ -150,5 +144,13 @@ public class PayloadNormalizer {
         }
 
         return value;
+    }
+
+    private Map<String, Object> safeCastMap(Map<?, ?> rawMap) {
+        Map<String, Object> typedMap = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
+            typedMap.put(String.valueOf(entry.getKey()), entry.getValue());
+        }
+        return typedMap;
     }
 }
