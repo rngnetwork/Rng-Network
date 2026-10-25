@@ -12,6 +12,7 @@ export interface GlobalUnsavedChangesBarProps {
   onSave: () => void;
   onReset: () => void;
   message?: string;
+  resetLabel?: string;
 }
 
 const emptySubscribe = () => () => {};
@@ -22,6 +23,7 @@ export const GlobalUnsavedChangesBar: React.FC<GlobalUnsavedChangesBarProps> = (
   onSave,
   onReset,
   message = 'Careful — you have unsaved changes!',
+  resetLabel = 'Reset',
 }) => {
   const isClient = useSyncExternalStore(
     emptySubscribe,
@@ -67,8 +69,9 @@ export const GlobalUnsavedChangesBar: React.FC<GlobalUnsavedChangesBarProps> = (
               disabled={isSaving}
               onClick={onReset}
               leftIcon={<RotateCcw size={13} />}
+              aria-label={resetLabel}
             >
-              Reset
+              {resetLabel}
             </Button>
 
             <Button
