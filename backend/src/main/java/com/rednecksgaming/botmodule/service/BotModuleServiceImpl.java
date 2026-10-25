@@ -37,6 +37,7 @@ public class BotModuleServiceImpl implements BotModuleService {
     private final StringRedisTemplate redisTemplate;
     private final SchemaValidatorService schemaValidatorService;
     private final BotModuleAuditService auditService;
+    private final PayloadNormalizer payloadNormalizer;
     private final ObjectMapper objectMapper;
 
     public static final String CACHE_KEY_TREE = "bot:config:tree";
@@ -59,8 +60,11 @@ public class BotModuleServiceImpl implements BotModuleService {
         }
 
         Map<String, Object> defaults = guildApiClient.getDefaultModules();
-        setInRedis(CACHE_KEY_DEFAULT, defaults, TTL_DEFAULT);
-        return defaults;
+        Map<String, Object> configTree = getGuildConfigTree();
+
+        Map<String, Object> aggregated = payloadNormalizer.normalizeNetworkPayload(defaults, configTree);
+        setInRedis(CACHE_KEY_DEFAULT, aggregated, TTL_DEFAULT);
+        return aggregated;
     }
 
     @Override
@@ -96,7 +100,11 @@ public class BotModuleServiceImpl implements BotModuleService {
         Server server = resolveServer(idOrSlug);
         String snowflake = server.getId();
 
-        Map<String, Object> networkDefaults = getNetworkDefaultModules();
+        Map<String, Object> networkDefaultsEnvelope = getNetworkDefaultModules();
+        Map<String, Object> networkDefaults = networkDefaultsEnvelope;
+        if (networkDefaultsEnvelope.containsKey("modules") && networkDefaultsEnvelope.get("modules") instanceof Map<?, ?> modMap) {
+            networkDefaults = safeCastMap(modMap);
+        }
         Map<String, Object> serverModules = getServerModules(snowflake);
 
         Map<String, Object> compositeModules = new LinkedHashMap<>();
@@ -155,27 +163,58 @@ public class BotModuleServiceImpl implements BotModuleService {
 
     @Override
     public Map<String, Object> updateNetworkDefaultModules(String actorId, String actorName, Map<String, Object> patch) {
-        schemaValidatorService.validateModules(patch);
+        return updateNetworkDefaultModules(actorId, actorName, patch, null);
+    }
 
-        Map<String, Object> result = guildApiClient.patchDefaultModules(actorId, patch);
+    @Override
+    public Map<String, Object> updateNetworkDefaultModules(String actorId, String actorName, Map<String, Object> modules, Map<String, Object> network) {
+        if (modules != null && !modules.isEmpty()) {
+            schemaValidatorService.validateModules(modules);
+        }
+
+        Map<String, Object> result;
+        if (network != null && !network.isEmpty()) {
+            result = guildApiClient.patchDefaultModules(actorId, modules, network);
+        } else {
+            result = guildApiClient.patchDefaultModules(actorId, modules != null ? modules : Collections.emptyMap());
+        }
 
         // Persist to MongoDB
         BotModuleDocument doc = botModuleRepository.findByScope("NETWORK")
                 .orElseGet(() -> BotModuleDocument.builder()
                         .scope("NETWORK")
                         .modules(new HashMap<>())
+                        .network(new HashMap<>())
                         .createdAt(Instant.now())
                         .build());
 
-        Map<String, Object> currentModules = doc.getModules() != null ? new HashMap<>(doc.getModules()) : new HashMap<>();
-        currentModules.putAll(patch);
-        doc.setModules(currentModules);
+        if (modules != null && !modules.isEmpty()) {
+            Map<String, Object> currentModules = doc.getModules() != null ? new HashMap<>(doc.getModules()) : new HashMap<>();
+            currentModules.putAll(modules);
+            doc.setModules(currentModules);
+        } else if (doc.getModules() == null) {
+            doc.setModules(new HashMap<>());
+        }
+
+        if (network != null && !network.isEmpty()) {
+            Map<String, Object> currentNetwork = doc.getNetwork() != null ? new HashMap<>(doc.getNetwork()) : new HashMap<>();
+            currentNetwork.putAll(network);
+            doc.setNetwork(currentNetwork);
+        }
+
         doc.setUpdatedAt(Instant.now());
         doc.setLastModifiedBy(actorName != null ? actorName : actorId);
         botModuleRepository.save(doc);
 
         // Audit log (Backend-only persistence)
-        auditService.recordAuditLog("NETWORK", null, actorId, actorName, "UPDATE_NETWORK", null, patch);
+        Map<String, Object> auditPayload = new HashMap<>();
+        if (modules != null) {
+            auditPayload.put("modules", modules);
+        }
+        if (network != null) {
+            auditPayload.put("network", network);
+        }
+        auditService.recordAuditLog("NETWORK", null, actorId, actorName, "UPDATE_NETWORK", null, auditPayload);
 
         // Atomic dual-key cache eviction: bot:config:tree AND bot:config:default
         evictCache(CACHE_KEY_TREE);
@@ -349,5 +388,13 @@ public class BotModuleServiceImpl implements BotModuleService {
             log.error("Failed deserializing cached JSON: {}", e.getMessage());
             return Collections.emptyMap();
         }
+    }
+
+    private Map<String, Object> safeCastMap(Map<?, ?> rawMap) {
+        Map<String, Object> typedMap = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
+            typedMap.put(String.valueOf(entry.getKey()), entry.getValue());
+        }
+        return typedMap;
     }
 }
