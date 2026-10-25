@@ -53,7 +53,8 @@ public class BotModuleController {
         Map<String, Object> result = botModuleService.updateNetworkDefaultModules(
                 actor.actorId(),
                 actor.actorName(),
-                request.getModules()
+                request.getModules(),
+                request.getNetwork()
         );
         return ResponseEntity.ok(ApiResponse.success(result, "Network default bot modules updated successfully"));
     }

@@ -92,7 +92,7 @@ class BotModuleControllerTest {
         Map<String, Object> patch = Map.of("automod", Map.of("antiSpam", false));
         BotModuleConfigRequest request = BotModuleConfigRequest.builder().modules(patch).build();
 
-        when(botModuleService.updateNetworkDefaultModules(eq("111222333444555666"), eq("High Commander"), eq(patch)))
+        when(botModuleService.updateNetworkDefaultModules(eq("111222333444555666"), eq("High Commander"), eq(patch), isNull()))
                 .thenReturn(Map.of("status", "ok"));
 
         mockMvc.perform(patch("/api/v1/bot-modules/network")
@@ -102,7 +102,7 @@ class BotModuleControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)));
 
-        verify(botModuleService).updateNetworkDefaultModules("111222333444555666", "High Commander", patch);
+        verify(botModuleService).updateNetworkDefaultModules("111222333444555666", "High Commander", patch, null);
     }
 
     @Test
@@ -114,6 +114,29 @@ class BotModuleControllerTest {
                         .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success", is(false)));
+    }
+
+    @Test
+    @DisplayName("PATCH /api/v1/bot-modules/network updates both modules and network parameters")
+    void patchNetworkDefaultModules_withNetwork_success() throws Exception {
+        Map<String, Object> modulesPatch = Map.of("automod", Map.of("antiSpam", true));
+        Map<String, Object> networkPatch = Map.of("sp_ratio", "5");
+        BotModuleConfigRequest request = BotModuleConfigRequest.builder()
+                .modules(modulesPatch)
+                .network(networkPatch)
+                .build();
+
+        when(botModuleService.updateNetworkDefaultModules(eq("111222333444555666"), eq("High Commander"), eq(modulesPatch), eq(networkPatch)))
+                .thenReturn(Map.of("status", "ok"));
+
+        mockMvc.perform(patch("/api/v1/bot-modules/network")
+                        .principal(mockAuth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)));
+
+        verify(botModuleService).updateNetworkDefaultModules("111222333444555666", "High Commander", modulesPatch, networkPatch);
     }
 
     @Test
