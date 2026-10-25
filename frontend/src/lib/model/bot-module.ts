@@ -1,8 +1,9 @@
-export type BotModuleFieldType = 'BOOLEAN' | 'INTEGER' | 'STRING' | 'JSON';
+export type BotModuleFieldType = 'BOOLEAN' | 'INTEGER' | 'FLOAT' | 'STRING' | 'JSON' | 'TEXT';
 
 export interface BotModuleFieldSchema {
   type: BotModuleFieldType;
   label?: string;
+  displayName?: string;
   description?: string;
   min?: number;
   max?: number;
@@ -11,6 +12,16 @@ export interface BotModuleFieldSchema {
   items?: {
     type?: string;
   };
+}
+
+export interface NetworkKeySchema {
+  type?: string;
+  label?: string;
+  displayName?: string;
+  description?: string;
+  default?: unknown;
+  uniform?: boolean;
+  options?: string[];
 }
 
 export type BotModuleSchema = Record<string, Record<string, BotModuleFieldSchema>>;
@@ -35,6 +46,20 @@ export interface ServerEffectiveModulesData {
 
 export type NetworkModulesData = Record<string, BotModuleValues>;
 
+export interface NetworkDefaultPayload {
+  hubGuildId?: string;
+  servers?: number;
+  schema?: {
+    modules?: Record<string, Record<string, BotModuleFieldSchema>>;
+    networkKeys?: Record<string, NetworkKeySchema>;
+    moduleDisplayNames?: Record<string, string>;
+    networkKeyDisplayNames?: Record<string, string>;
+  };
+  modules?: Record<string, BotModuleValues>;
+  network?: Record<string, unknown>;
+}
+
 export interface BotModulePatchRequest {
-  modules: Record<string, Record<string, unknown>>;
+  modules?: Record<string, Record<string, unknown>>;
+  network?: Record<string, unknown>;
 }
