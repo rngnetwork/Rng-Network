@@ -97,7 +97,7 @@ public class BotModuleServiceImpl implements BotModuleService {
         String snowflake = server.getId();
 
         Map<String, Object> networkDefaults = getNetworkDefaultModules();
-        Map<String, Object> serverModules = getServerModules(idOrSlug);
+        Map<String, Object> serverModules = getServerModules(snowflake);
 
         Map<String, Object> compositeModules = new LinkedHashMap<>();
 
