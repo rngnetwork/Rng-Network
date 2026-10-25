@@ -179,4 +179,79 @@ describe('ServerBotConfigPage (Server-Specific Accordion Deck)', () => {
       );
     });
   });
+
+  it('extracts nested schema.modules, populates values from effectiveConfig, and excludes metadata keys like networkKeys and moduleDisplayNames from module list', async () => {
+    const mockFullPayload = {
+      serverSlug: 'rng-testing-server',
+      guildId: '1526076781247987762',
+      schema: {
+        modules: {
+          automod: {
+            antiSpam: { type: 'BOOLEAN' as const, label: 'Anti-Spam Filter' },
+            muteDuration: { type: 'INTEGER' as const, label: 'Mute Duration Seconds' },
+          },
+          antinuke: {
+            antiBan: { type: 'BOOLEAN' as const, label: 'Anti-Ban Protection' },
+          },
+        },
+        moduleDisplayNames: {
+          automod: 'Automated Moderation',
+          antinuke: 'Server Anti-Nuke',
+        },
+        networkKeys: {
+          sp_ratio: { label: 'SP Ratio', default: '5' },
+        },
+        networkKeyDisplayNames: {
+          sp_ratio: 'SP Ratio',
+        },
+      },
+      modules: {
+        automod: {
+          isOverridden: true,
+          effectiveConfig: {
+            antiSpam: true,
+            muteDuration: 300,
+          },
+          networkDefault: {
+            antiSpam: false,
+            muteDuration: 60,
+          },
+        },
+        antinuke: {
+          isOverridden: false,
+          effectiveConfig: {
+            antiBan: true,
+          },
+          networkDefault: {
+            antiBan: true,
+          },
+        },
+      },
+    };
+
+    vi.mocked(botModuleApi.getServerEffectiveModules).mockResolvedValueOnce({
+      success: true,
+      data: mockFullPayload,
+    });
+
+    renderWithToast(<ServerBotConfigPage />);
+
+    // Assert that the 2 authentic modules are rendered
+    expect(await screen.findByText('Automated Moderation')).toBeInTheDocument();
+    expect(screen.getByText('Server Anti-Nuke')).toBeInTheDocument();
+
+    // Assert that metadata keys are NEVER rendered as fake modules
+    expect(screen.queryByText(/^network keys$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^network key display names$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^module display names$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^modules$/i)).not.toBeInTheDocument();
+
+    // Expand Automod and verify sub-fields and populated values from effectiveConfig
+    const automodHeader = screen.getByRole('button', { name: /automated moderation/i });
+    fireEvent.click(automodHeader);
+
+    expect(await screen.findByText('Anti-Spam Filter')).toBeInTheDocument();
+    expect(screen.getByText('Mute Duration Seconds')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('300')).toBeInTheDocument();
+  });
 });

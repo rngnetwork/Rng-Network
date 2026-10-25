@@ -41,9 +41,10 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
   roleOptions,
   onFieldChange,
 }) => {
-  const label = resolveFieldLabel(fieldName, fieldDef);
+  const label = resolveFieldLabel(fieldName, typeof fieldDef === 'object' && fieldDef !== null ? fieldDef : undefined);
   const description = fieldDef?.description;
-  const fieldType = (fieldDef?.type || 'STRING').toUpperCase();
+  const rawType = typeof fieldDef?.type === 'string' ? fieldDef.type : 'STRING';
+  const fieldType = rawType.toUpperCase();
   const isChannelField = fieldName.toLowerCase().includes('channel');
   const isRoleField = fieldName.toLowerCase().includes('role');
 

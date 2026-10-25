@@ -95,10 +95,22 @@ export const ServerBotConfigCoordinator: React.FC = () => {
         if (modulesRes.status === 'fulfilled' && modulesRes.value.success && modulesRes.value.data) {
           setLoadError(null);
           const data = modulesRes.value.data;
-          let schemaObj = (data.schema as Record<string, Record<string, BotModuleFieldSchema>>) || {};
+          let schemaObj: Record<string, Record<string, BotModuleFieldSchema>> = {};
 
           if (data.schema && typeof data.schema === 'object') {
             const rawSchema = data.schema as Record<string, unknown>;
+            if (rawSchema.modules && typeof rawSchema.modules === 'object') {
+              schemaObj = rawSchema.modules as Record<string, Record<string, BotModuleFieldSchema>>;
+            } else {
+              const filtered: Record<string, Record<string, BotModuleFieldSchema>> = {};
+              for (const [k, v] of Object.entries(rawSchema)) {
+                if (k !== 'moduleDisplayNames' && k !== 'networkKeys' && k !== 'networkKeyDisplayNames' && k !== 'modules') {
+                  filtered[k] = v as Record<string, BotModuleFieldSchema>;
+                }
+              }
+              schemaObj = filtered;
+            }
+
             if (rawSchema.moduleDisplayNames && typeof rawSchema.moduleDisplayNames === 'object') {
               setModuleDisplayNames(rawSchema.moduleDisplayNames as Record<string, string>);
             }
@@ -108,9 +120,18 @@ export const ServerBotConfigCoordinator: React.FC = () => {
           const overrides: Record<string, boolean> = {};
           const defaults: Record<string, BotModuleValues> = {};
 
-          const modEntries = Object.entries(data.modules || {}) as [string, ModuleInheritance][];
+          const modEntries = Object.entries(data.modules || {}) as [string, ModuleInheritance & { effectiveConfig?: BotModuleValues }][];
           for (const [modName, modInfo] of modEntries) {
-            initialValuesMap[modName] = modInfo.values ? JSON.parse(JSON.stringify(modInfo.values)) : {};
+            if (
+              modName === 'moduleDisplayNames' ||
+              modName === 'networkKeys' ||
+              modName === 'networkKeyDisplayNames' ||
+              modName === 'modules'
+            ) {
+              continue;
+            }
+            const effective = (modInfo.effectiveConfig ?? modInfo.values ?? {}) as BotModuleValues;
+            initialValuesMap[modName] = JSON.parse(JSON.stringify(effective));
             overrides[modName] = Boolean(modInfo.isOverridden);
             defaults[modName] = modInfo.networkDefault ? JSON.parse(JSON.stringify(modInfo.networkDefault)) : {};
           }
@@ -303,7 +324,16 @@ export const ServerBotConfigCoordinator: React.FC = () => {
   const allModuleKeys = useMemo(() => {
     const keysFromSchema = Object.keys(schemaModules || {});
     const keysFromModules = Object.keys(currentModules || {});
-    return Array.from(new Set([...keysFromSchema, ...keysFromModules])).sort();
+    const combined = Array.from(new Set([...keysFromSchema, ...keysFromModules]));
+    return combined
+      .filter(
+        (k) =>
+          k !== 'modules' &&
+          k !== 'moduleDisplayNames' &&
+          k !== 'networkKeys' &&
+          k !== 'networkKeyDisplayNames'
+      )
+      .sort();
   }, [schemaModules, currentModules]);
 
   const filteredModules = useMemo(() => {

@@ -39,7 +39,8 @@ export type BotModuleValues = Record<string, unknown>;
 
 export interface ModuleInheritance {
   isOverridden: boolean;
-  values: BotModuleValues;
+  values?: BotModuleValues;
+  effectiveConfig?: BotModuleValues;
   networkDefault?: BotModuleValues;
   serverOverride?: BotModuleValues | null;
 }
