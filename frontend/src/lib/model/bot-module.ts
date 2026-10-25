@@ -24,7 +24,16 @@ export interface NetworkKeySchema {
   options?: string[];
 }
 
-export type BotModuleSchema = Record<string, Record<string, BotModuleFieldSchema>>;
+export type BotModuleSchema =
+  | Record<string, Record<string, BotModuleFieldSchema>>
+  | {
+      modules?: Record<string, Record<string, BotModuleFieldSchema>>;
+      networkKeys?: Record<string, NetworkKeySchema>;
+      moduleDisplayNames?: Record<string, string>;
+      networkKeyDisplayNames?: Record<string, string>;
+      [key: string]: unknown;
+    }
+  | Record<string, unknown>;
 
 export type BotModuleValues = Record<string, unknown>;
 
