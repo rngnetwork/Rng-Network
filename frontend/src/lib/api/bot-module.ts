@@ -1,26 +1,29 @@
 import { httpClient, withTokenConfig } from './core/client';
 import type { ApiResponse } from './core/types';
 import type {
-  NetworkModulesData,
+  NetworkDefaultPayload,
   ServerEffectiveModulesData,
   BotModulePatchRequest,
 } from '../model/bot-module';
 
 export async function getNetworkDefaultModules(
   token?: string
-): Promise<ApiResponse<NetworkModulesData>> {
-  return httpClient.get<NetworkModulesData>(
+): Promise<ApiResponse<NetworkDefaultPayload>> {
+  return httpClient.get<NetworkDefaultPayload>(
     '/bot-modules/network',
     withTokenConfig(token)
   );
 }
 
 export async function patchNetworkDefaultModules(
-  modules: Record<string, Record<string, unknown>>,
+  payloadOrModules: BotModulePatchRequest | Record<string, Record<string, unknown>>,
   token?: string
-): Promise<ApiResponse<NetworkModulesData>> {
-  const payload: BotModulePatchRequest = { modules };
-  return httpClient.patch<NetworkModulesData>(
+): Promise<ApiResponse<NetworkDefaultPayload>> {
+  const payload: BotModulePatchRequest =
+    ('modules' in payloadOrModules || 'network' in payloadOrModules)
+      ? (payloadOrModules as BotModulePatchRequest)
+      : { modules: payloadOrModules as Record<string, Record<string, unknown>> };
+  return httpClient.patch<NetworkDefaultPayload>(
     '/bot-modules/network',
     payload,
     withTokenConfig(token)
