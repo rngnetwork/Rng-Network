@@ -11,10 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Normalizes upstream Guild API payloads, unwrapping envelopes, un-stringifying JSON fields,
- * and stripping redundant metadata.
- */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -22,9 +19,6 @@ public class PayloadNormalizer {
 
     private final ObjectMapper objectMapper;
 
-    /**
-     * Unwraps upstream response envelope (e.g. {"ok": true, "data": {...}}) if present.
-     */
     public Map<String, Object> unwrapEnvelope(Map<String, Object> response) {
         if (response == null) {
             return Collections.emptyMap();
@@ -35,34 +29,56 @@ public class PayloadNormalizer {
         return response;
     }
 
-    /**
-     * Normalizes a modules dictionary, recursively parsing any stringified JSON arrays/objects.
-     */
     public Map<String, Object> normalizeModules(Map<String, Object> rawPayload) {
         if (rawPayload == null) {
             return Collections.emptyMap();
         }
 
         Map<String, Object> unwrapped = unwrapEnvelope(rawPayload);
-        Map<String, Object> targetMap = unwrapped;
 
+        boolean hasNetworkEnvelope = unwrapped.containsKey("network")
+                || unwrapped.containsKey("hubGuildId")
+                || unwrapped.containsKey("servers")
+                || unwrapped.containsKey("schema");
+
+        if (hasNetworkEnvelope) {
+            Map<String, Object> normalizedEnvelope = new LinkedHashMap<>();
+            if (unwrapped.containsKey("hubGuildId")) {
+                normalizedEnvelope.put("hubGuildId", unwrapped.get("hubGuildId"));
+            }
+            if (unwrapped.containsKey("servers")) {
+                normalizedEnvelope.put("servers", unwrapped.get("servers"));
+            }
+            if (unwrapped.containsKey("schema")) {
+                Object schemaObj = unwrapped.get("schema");
+                if (schemaObj instanceof Map<?, ?> sMap) {
+                    normalizedEnvelope.put("schema", enrichSchema(safeCastMap(sMap)));
+                } else {
+                    normalizedEnvelope.put("schema", normalizeValue(schemaObj));
+                }
+            }
+            if (unwrapped.containsKey("network")) {
+                normalizedEnvelope.put("network", normalizeValue(unwrapped.get("network")));
+            }
+            if (unwrapped.containsKey("modules")) {
+                Object modObj = unwrapped.get("modules");
+                if (modObj instanceof Map<?, ?> modMap) {
+                    normalizedEnvelope.put("modules", normalizeModuleMap(safeCastMap(modMap)));
+                } else {
+                    normalizedEnvelope.put("modules", modObj);
+                }
+            }
+            return normalizedEnvelope;
+        }
+
+        Map<String, Object> targetMap = unwrapped;
         if (unwrapped.containsKey("modules") && unwrapped.get("modules") instanceof Map<?, ?> modulesMap) {
             targetMap = safeCastMap(modulesMap);
         }
 
-        Map<String, Object> normalized = new LinkedHashMap<>();
-        for (Map.Entry<String, Object> entry : targetMap.entrySet()) {
-            if ("guildId".equals(entry.getKey())) {
-                continue;
-            }
-            normalized.put(entry.getKey(), normalizeValue(entry.getValue()));
-        }
-        return normalized;
+        return normalizeModuleMap(targetMap);
     }
 
-    /**
-     * Normalizes a server-specific response from GET /v1/guild/:guildId, stripping redundant guildId.
-     */
     public Map<String, Object> normalizeServerResponse(Map<String, Object> serverResponse) {
         if (serverResponse == null) {
             return Collections.emptyMap();
@@ -71,17 +87,15 @@ public class PayloadNormalizer {
         Map<String, Object> unwrapped = unwrapEnvelope(serverResponse);
 
         if (unwrapped.containsKey("modules") && unwrapped.get("modules") instanceof Map<?, ?> modulesMap) {
-            return normalizeModules(safeCastMap(modulesMap));
+            return normalizeModuleMap(safeCastMap(modulesMap));
         }
 
         Map<String, Object> filtered = new LinkedHashMap<>(unwrapped);
         filtered.remove("guildId");
-        return normalizeModules(filtered);
+        return normalizeModuleMap(filtered);
     }
 
-    /**
-     * Normalizes the full tree response from GET /v1/guildConfig.
-     */
+
     public Map<String, Object> normalizeGuildConfigTree(Map<String, Object> configTree) {
         if (configTree == null) {
             return Collections.emptyMap();
@@ -103,10 +117,153 @@ public class PayloadNormalizer {
                 }
             }
             normalizedTree.put("guilds", normalizedGuilds);
-        } else {
-            normalizedTree.putAll(unwrapped);
         }
+
+        for (Map.Entry<String, Object> entry : unwrapped.entrySet()) {
+            String key = entry.getKey();
+            if ("guilds".equals(key)) {
+                continue;
+            }
+            if ("schema".equals(key) && entry.getValue() instanceof Map<?, ?> sMap) {
+                normalizedTree.put("schema", enrichSchema(safeCastMap(sMap)));
+            } else {
+                normalizedTree.put(key, normalizeValue(entry.getValue()));
+            }
+        }
+
         return normalizedTree;
+    }
+
+    public Map<String, Object> normalizeNetworkPayload(Map<String, Object> rawDefault, Map<String, Object> rawConfig) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        Map<String, Object> unwrappedDefault = unwrapEnvelope(rawDefault);
+        Map<String, Object> unwrappedConfig = unwrapEnvelope(rawConfig);
+
+        if (unwrappedDefault.containsKey("hubGuildId")) {
+            result.put("hubGuildId", unwrappedDefault.get("hubGuildId"));
+        }
+        if (unwrappedDefault.containsKey("servers")) {
+            result.put("servers", unwrappedDefault.get("servers"));
+        }
+
+
+        Object schemaObj = unwrappedConfig.get("schema");
+        if (schemaObj == null && rawConfig != null && rawConfig.containsKey("schema")) {
+            schemaObj = rawConfig.get("schema");
+        }
+        if (schemaObj instanceof Map<?, ?> schemaMap) {
+            result.put("schema", enrichSchema(safeCastMap(schemaMap)));
+        } else {
+            result.put("schema", Collections.emptyMap());
+        }
+
+        Object modulesObj = unwrappedDefault.get("modules");
+        if (modulesObj instanceof Map<?, ?> modulesMap) {
+            result.put("modules", normalizeModuleMap(safeCastMap(modulesMap)));
+        } else if (unwrappedDefault.containsKey("modules")) {
+            result.put("modules", unwrappedDefault.get("modules"));
+        } else {
+            Map<String, Object> filtered = new LinkedHashMap<>(unwrappedDefault);
+            filtered.remove("guildId");
+            filtered.remove("hubGuildId");
+            filtered.remove("servers");
+            filtered.remove("network");
+            filtered.remove("schema");
+            result.put("modules", normalizeModuleMap(filtered));
+        }
+
+        Object networkObj = unwrappedDefault.get("network");
+        if (networkObj instanceof Map<?, ?> networkMap) {
+            result.put("network", normalizeValue(networkMap));
+        } else if (rawDefault != null && rawDefault.containsKey("network") && rawDefault.get("network") instanceof Map<?, ?> netMap) {
+            result.put("network", normalizeValue(netMap));
+        } else {
+            result.put("network", Collections.emptyMap());
+        }
+
+        return result;
+    }
+
+    public Map<String, Object> enrichSchema(Map<String, Object> rawSchema) {
+        if (rawSchema == null) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, Object> enrichedSchema = new LinkedHashMap<>(rawSchema);
+
+        Map<String, String> moduleDisplayNames = new LinkedHashMap<>();
+        Object modulesObj = rawSchema.get("modules");
+        if (modulesObj instanceof Map<?, ?> modulesMap) {
+            Map<String, Object> enrichedModules = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> modEntry : modulesMap.entrySet()) {
+                String modName = String.valueOf(modEntry.getKey());
+                String formattedModTitle = ModuleTextFormatter.format(modName);
+                moduleDisplayNames.put(modName, formattedModTitle);
+
+                Object modFieldsObj = modEntry.getValue();
+                if (modFieldsObj instanceof Map<?, ?> fieldsMap) {
+                    Map<String, Object> enrichedFields = new LinkedHashMap<>();
+                    for (Map.Entry<?, ?> fieldEntry : fieldsMap.entrySet()) {
+                        String fieldName = String.valueOf(fieldEntry.getKey());
+                        Object fieldSchemaObj = fieldEntry.getValue();
+                        if (fieldSchemaObj instanceof Map<?, ?> fieldSchemaMap) {
+                            Map<String, Object> enrichedFieldSchema = new LinkedHashMap<>(safeCastMap(fieldSchemaMap));
+                            String formattedField = ModuleTextFormatter.format(fieldName);
+                            enrichedFieldSchema.put("displayName", formattedField);
+                            if (!enrichedFieldSchema.containsKey("label") || enrichedFieldSchema.get("label") == null) {
+                                enrichedFieldSchema.put("label", formattedField);
+                            }
+                            enrichedFields.put(fieldName, enrichedFieldSchema);
+                        } else {
+                            enrichedFields.put(fieldName, fieldSchemaObj);
+                        }
+                    }
+                    enrichedModules.put(modName, enrichedFields);
+                } else {
+                    enrichedModules.put(modName, modFieldsObj);
+                }
+            }
+            enrichedSchema.put("modules", enrichedModules);
+        }
+        enrichedSchema.put("moduleDisplayNames", moduleDisplayNames);
+
+        Map<String, String> networkKeyDisplayNames = new LinkedHashMap<>();
+        Object networkKeysObj = rawSchema.get("networkKeys");
+        if (networkKeysObj instanceof Map<?, ?> networkKeysMap) {
+            Map<String, Object> enrichedKeys = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> keyEntry : networkKeysMap.entrySet()) {
+                String keyName = String.valueOf(keyEntry.getKey());
+                String formattedKeyTitle = ModuleTextFormatter.format(keyName);
+                networkKeyDisplayNames.put(keyName, formattedKeyTitle);
+
+                Object keySchemaObj = keyEntry.getValue();
+                if (keySchemaObj instanceof Map<?, ?> keySchemaMap) {
+                    Map<String, Object> enrichedKeySchema = new LinkedHashMap<>(safeCastMap(keySchemaMap));
+                    enrichedKeySchema.put("displayName", formattedKeyTitle);
+                    if (!enrichedKeySchema.containsKey("label") || enrichedKeySchema.get("label") == null) {
+                        enrichedKeySchema.put("label", formattedKeyTitle);
+                    }
+                    enrichedKeys.put(keyName, enrichedKeySchema);
+                } else {
+                    enrichedKeys.put(keyName, keySchemaObj);
+                }
+            }
+            enrichedSchema.put("networkKeys", enrichedKeys);
+        }
+        enrichedSchema.put("networkKeyDisplayNames", networkKeyDisplayNames);
+
+        return enrichedSchema;
+    }
+
+    private Map<String, Object> normalizeModuleMap(Map<String, Object> map) {
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            if ("guildId".equals(entry.getKey())) {
+                continue;
+            }
+            normalized.put(entry.getKey(), normalizeValue(entry.getValue()));
+        }
+        return normalized;
     }
 
     private Object normalizeValue(Object value) {
