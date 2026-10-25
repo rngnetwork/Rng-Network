@@ -7,6 +7,7 @@ import BotConfigPage from '../page';
 import * as botModuleApi from '@/lib/api/bot-module';
 import * as serverApi from '@/lib/api/dashboard/servers';
 import type { NetworkDefaultPayload } from '@/lib/model/bot-module';
+import type { ServerItem } from '@/lib/model/server';
 import { ToastProvider } from '@/components/common/feedback/ToastProvider';
 
 vi.mock('@/lib/api/bot-module', () => ({
@@ -215,30 +216,30 @@ describe('BotConfigPage (Network-Wide Bot Deck)', () => {
     },
   };
 
-  const mockServers = [
+  const mockServers: ServerItem[] = [
     {
       id: '1440609860537290849',
       name: 'RNG - Roughnuts',
-      iconUrl: 'https://cdn.discordapp.com/icons/1440609860537290849/icon.png',
-      onlineMemberCount: 42,
-      totalMemberCount: 150,
       slug: 'roughnuts',
-      botPresent: true,
-      channelsCount: 12,
-      rolesCount: 8,
+      iconUrl: 'https://cdn.discordapp.com/icons/1440609860537290849/icon.png',
+      bannerUrl: null,
+      onlineCount: 42,
+      totalCount: 150,
       boostLevel: 2,
+      boostCount: 7,
+      status: 'ACTIVE',
     },
     {
       id: '1526076781247987762',
       name: 'RNG - Rivals',
-      iconUrl: null,
-      onlineMemberCount: 15,
-      totalMemberCount: 80,
       slug: 'rivals',
-      botPresent: true,
-      channelsCount: 6,
-      rolesCount: 4,
+      iconUrl: null,
+      bannerUrl: null,
+      onlineCount: 15,
+      totalCount: 80,
       boostLevel: 0,
+      boostCount: 0,
+      status: 'ACTIVE',
     },
   ];
 
