@@ -27,7 +27,7 @@ function renderWithToast(ui: React.ReactElement) {
   return render(<ToastProvider>{ui}</ToastProvider>);
 }
 
-describe('ServerBotConfigPage (Server-Specific Deck)', () => {
+describe('ServerBotConfigPage (Server-Specific Accordion Deck)', () => {
   const mockServerData = {
     serverSlug: 'rng-testing-server',
     guildId: '1526076781247987762',
@@ -38,6 +38,10 @@ describe('ServerBotConfigPage (Server-Specific Deck)', () => {
       },
       antinuke: {
         enabled: { type: 'BOOLEAN' as const, label: 'Master Enable' },
+      },
+      moduleDisplayNames: {
+        automod: 'Automated Moderation',
+        antinuke: 'Anti-Nuke Protection',
       },
     },
     modules: {
@@ -89,29 +93,30 @@ describe('ServerBotConfigPage (Server-Specific Deck)', () => {
     });
   });
 
-  it('renders inherited and overridden indicators correctly', async () => {
+  it('renders inherited and overridden indicators in row-wise accordions correctly', async () => {
     renderWithToast(<ServerBotConfigPage />);
 
     expect(await screen.findByText('Automated Moderation')).toBeInTheDocument();
     expect(screen.getByText('Anti-Nuke Protection')).toBeInTheDocument();
 
-    expect(screen.getByText('Server Override')).toBeInTheDocument();
-    expect(screen.getByText('Network Default')).toBeInTheDocument();
-    expect(screen.getByText('Override Module')).toBeInTheDocument();
+    expect(screen.getByText('Custom Server Override')).toBeInTheDocument();
+    expect(screen.getAllByText(/network default/i).length).toBeGreaterThan(0);
   });
 
-  it('unlocks inherited module when clicking Override Module', async () => {
+  it('marks inherited module for custom override when clicking Override Setting', async () => {
     renderWithToast(<ServerBotConfigPage />);
 
     expect(await screen.findByText('Anti-Nuke Protection')).toBeInTheDocument();
-    const overrideButton = screen.getByText('Override Module');
+
+    // Antinuke is the first module alphabetically, so its accordion content is open by default.
+    const overrideButton = await screen.findByRole('button', { name: /override setting/i });
     fireEvent.click(overrideButton);
 
-    // After clicking override, the module state is marked overridden
-    expect(screen.getAllByText('Server Override').length).toBe(2);
+    // After clicking override, both modules show Custom Server Override badge
+    expect(screen.getAllByText('Custom Server Override').length).toBe(2);
   });
 
-  it('opens revert confirmation modal and calls reset API on confirm', async () => {
+  it('calls resetServerModule API when clicking Revert to Default', async () => {
     vi.mocked(botModuleApi.resetServerModule).mockResolvedValue({
       success: true,
       data: {},
@@ -121,18 +126,55 @@ describe('ServerBotConfigPage (Server-Specific Deck)', () => {
 
     expect(await screen.findByText('Automated Moderation')).toBeInTheDocument();
 
-    const revertButton = screen.getByTitle(/revert to network default/i);
+    // Expand the Automod accordion item
+    const automodHeader = screen.getByRole('button', { name: /automated moderation/i });
+    fireEvent.click(automodHeader);
+
+    const revertButton = await screen.findByRole('button', { name: /revert to default/i });
     fireEvent.click(revertButton);
-
-    expect(await screen.findByText(/revert module to default/i)).toBeInTheDocument();
-
-    const confirmButton = screen.getByRole('button', { name: /confirm revert/i });
-    fireEvent.click(confirmButton);
 
     await waitFor(() => {
       expect(botModuleApi.resetServerModule).toHaveBeenCalledWith(
         'rng-testing-server',
         'automod',
+        undefined
+      );
+    });
+  });
+
+  it('tracks dirty modifications and saves server modules with patchServerModules', async () => {
+    vi.mocked(botModuleApi.patchServerModules).mockResolvedValue({
+      success: true,
+      data: mockServerData,
+    });
+
+    renderWithToast(<ServerBotConfigPage />);
+
+    expect(await screen.findByText('Automated Moderation')).toBeInTheDocument();
+
+    // Expand the Automod accordion item
+    const automodHeader = screen.getByRole('button', { name: /automated moderation/i });
+    fireEvent.click(automodHeader);
+
+    // Toggle antiSpam switch
+    const antiSpamSwitch = await screen.findByRole('switch', { name: /anti-spam filter/i });
+    fireEvent.click(antiSpamSwitch);
+
+    // Unsaved changes bar docks
+    expect(await screen.findByText(/unsaved changes in 1 server setting/i)).toBeInTheDocument();
+
+    // Save changes
+    const saveButton = screen.getByRole('button', { name: /save changes/i });
+    fireEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(botModuleApi.patchServerModules).toHaveBeenCalledWith(
+        'rng-testing-server',
+        {
+          automod: {
+            antiSpam: false,
+          },
+        },
         undefined
       );
     });
