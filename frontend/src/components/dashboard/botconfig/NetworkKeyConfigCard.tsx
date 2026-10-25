@@ -15,6 +15,7 @@ export interface NetworkKeyConfigCardProps {
   onChange: (updatedVal: unknown) => void;
   servers: ServerItem[];
   disabled?: boolean;
+  hideHeader?: boolean;
 }
 
 export const NetworkKeyConfigCard: React.FC<NetworkKeyConfigCardProps> = ({
@@ -25,6 +26,7 @@ export const NetworkKeyConfigCard: React.FC<NetworkKeyConfigCardProps> = ({
   onChange,
   servers,
   disabled = false,
+  hideHeader = false,
 }) => {
   const rawObj = useMemo(() => {
     return typeof rawValue === 'object' && rawValue !== null && !Array.isArray(rawValue)
@@ -86,37 +88,45 @@ export const NetworkKeyConfigCard: React.FC<NetworkKeyConfigCardProps> = ({
   }, [isObject, rawObj, currentValue, onChange]);
 
   return (
-    <div className="flex flex-col gap-4 p-4 rounded-apple-xl bg-surface-elevated border border-surface-border shadow-apple-card">
+    <div
+      className={
+        hideHeader
+          ? 'flex flex-col gap-4 w-full'
+          : 'flex flex-col gap-4 p-4 rounded-apple-xl bg-surface-elevated border border-surface-border shadow-apple-card'
+      }
+    >
       {/* Parameter Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-surface-border/40 pb-3">
-        <div className="flex flex-col gap-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-bold text-text-primary tracking-tight">
-              {displayName}
-            </span>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-canvas border border-surface-border text-text-tertiary">
-              {keyName}
-            </span>
+      {!hideHeader && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-surface-border/40 pb-3">
+          <div className="flex flex-col gap-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-bold text-text-primary tracking-tight">
+                {displayName}
+              </span>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-canvas border border-surface-border text-text-tertiary">
+                {keyName}
+              </span>
+            </div>
+            {description ? (
+              <span className="text-xs text-text-secondary leading-relaxed">
+                {description}
+              </span>
+            ) : null}
           </div>
-          {description ? (
-            <span className="text-xs text-text-secondary leading-relaxed">
-              {description}
-            </span>
-          ) : null}
-        </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          {isUniform ? (
-            <Badge variant="brand" size="sm">
-              Uniform
-            </Badge>
-          ) : (
-            <Badge variant="warning" size="sm">
-              Overridden ({serversCount} server{serversCount === 1 ? '' : 's'})
-            </Badge>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {isUniform ? (
+              <Badge variant="brand" size="sm">
+                Uniform
+              </Badge>
+            ) : (
+              <Badge variant="warning" size="sm">
+                Overridden ({serversCount} server{serversCount === 1 ? '' : 's'})
+              </Badge>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Structured Form Fields */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
