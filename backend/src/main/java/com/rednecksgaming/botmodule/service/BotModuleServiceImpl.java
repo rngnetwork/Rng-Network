@@ -119,11 +119,13 @@ public class BotModuleServiceImpl implements BotModuleService {
                 Object serverVal = serverModules.get(moduleName);
                 moduleStatus.put("isOverridden", true);
                 moduleStatus.put("effectiveConfig", serverVal);
+                moduleStatus.put("values", serverVal);
                 moduleStatus.put("networkDefault", defaultVal);
                 moduleStatus.put("serverOverride", serverVal);
             } else {
                 moduleStatus.put("isOverridden", false);
                 moduleStatus.put("effectiveConfig", defaultVal);
+                moduleStatus.put("values", defaultVal);
                 moduleStatus.put("networkDefault", defaultVal);
                 moduleStatus.put("serverOverride", null);
             }
@@ -137,6 +139,7 @@ public class BotModuleServiceImpl implements BotModuleService {
                 Map<String, Object> moduleStatus = new LinkedHashMap<>();
                 moduleStatus.put("isOverridden", true);
                 moduleStatus.put("effectiveConfig", entry.getValue());
+                moduleStatus.put("values", entry.getValue());
                 moduleStatus.put("networkDefault", null);
                 moduleStatus.put("serverOverride", entry.getValue());
                 compositeModules.put(moduleName, moduleStatus);

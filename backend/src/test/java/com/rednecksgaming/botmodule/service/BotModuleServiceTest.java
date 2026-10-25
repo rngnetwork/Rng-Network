@@ -144,9 +144,13 @@ class BotModuleServiceTest {
 
         Map<String, Object> automodStatus = (Map<String, Object>) modules.get("automod");
         assertThat(automodStatus.get("isOverridden")).isEqualTo(true);
+        assertThat(automodStatus.get("effectiveConfig")).isEqualTo(Map.of("antiSpam", false));
+        assertThat(automodStatus.get("values")).isEqualTo(Map.of("antiSpam", false));
 
         Map<String, Object> economyStatus = (Map<String, Object>) modules.get("economy");
         assertThat(economyStatus.get("isOverridden")).isEqualTo(false);
+        assertThat(economyStatus.get("effectiveConfig")).isEqualTo(Map.of("startingBalance", 100));
+        assertThat(economyStatus.get("values")).isEqualTo(Map.of("startingBalance", 100));
     }
 
     @Test
