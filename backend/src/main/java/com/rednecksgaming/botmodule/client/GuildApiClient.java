@@ -28,6 +28,11 @@ public interface GuildApiClient {
     Map<String, Object> patchDefaultModules(String actorId, Map<String, Object> modules);
 
     /**
+     * Updates network-wide default modules and network parameters: PATCH /v1/default
+     */
+    Map<String, Object> patchDefaultModules(String actorId, Map<String, Object> modules, Map<String, Object> network);
+
+    /**
      * Updates server-specific modules: PATCH /v1/guild/:guildId
      */
     Map<String, Object> patchGuildModules(String guildId, Map<String, Object> modules);

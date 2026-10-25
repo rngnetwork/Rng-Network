@@ -24,9 +24,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Production implementation of GuildApiClient communicating with upstream Discord Guild API.
- */
+
 @Slf4j
 @Service
 public class GuildApiClientImpl implements GuildApiClient {
@@ -104,10 +102,20 @@ public class GuildApiClientImpl implements GuildApiClient {
 
     @Override
     public Map<String, Object> patchDefaultModules(String actorId, Map<String, Object> modules) {
+        return patchDefaultModules(actorId, modules, null);
+    }
+
+    @Override
+    public Map<String, Object> patchDefaultModules(String actorId, Map<String, Object> modules, Map<String, Object> network) {
         String url = baseUrl + "/default";
         Map<String, Object> payload = new HashMap<>();
         payload.put("actorId", actorId);
-        payload.put("modules", modules);
+        if (modules != null) {
+            payload.put("modules", modules);
+        }
+        if (network != null) {
+            payload.put("network", network);
+        }
         return executeRequest(url, HttpMethod.PATCH, payload);
     }
 
