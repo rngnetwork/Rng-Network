@@ -256,34 +256,51 @@ public class BotModuleServiceImpl implements BotModuleService {
             throw new ResourceNotFoundException("Server identifier cannot be empty");
         }
 
-        // 1. Check Redis slug cache
-        String slugKey = CACHE_KEY_SLUG_PREFIX + idOrSlug;
-        String cachedSnowflake = getFromRedis(slugKey);
-        if (cachedSnowflake != null) {
+        String cleanIdentifier = idOrSlug.trim();
+        if (cleanIdentifier.startsWith("\"") && cleanIdentifier.endsWith("\"") && cleanIdentifier.length() >= 2) {
+            cleanIdentifier = cleanIdentifier.substring(1, cleanIdentifier.length() - 1).trim();
+        }
+
+        if (SNOWFLAKE_PATTERN.matcher(cleanIdentifier).matches()) {
+            Optional<Server> byId = serverRepository.findById(cleanIdentifier);
+            if (byId.isPresent()) {
+                return byId.get();
+            }
             return Server.builder()
-                    .id(cachedSnowflake)
-                    .slug(idOrSlug)
-                    .name("Discord Server (" + idOrSlug + ")")
+                    .id(cleanIdentifier)
+                    .slug(cleanIdentifier)
+                    .name("Discord Server (" + cleanIdentifier + ")")
                     .build();
         }
 
-        // 2. Query PostgreSQL
-        Optional<Server> serverOpt = serverRepository.findByIdOrSlug(idOrSlug);
+        String slugKey = CACHE_KEY_SLUG_PREFIX + cleanIdentifier;
+        String cachedSnowflake = getFromRedis(slugKey);
+        if (cachedSnowflake != null) {
+            cachedSnowflake = cachedSnowflake.trim();
+            if (cachedSnowflake.startsWith("\"") && cachedSnowflake.endsWith("\"") && cachedSnowflake.length() >= 2) {
+                cachedSnowflake = cachedSnowflake.substring(1, cachedSnowflake.length() - 1).trim();
+            }
+            return Server.builder()
+                    .id(cachedSnowflake)
+                    .slug(cleanIdentifier)
+                    .name("Discord Server (" + cleanIdentifier + ")")
+                    .build();
+        }
+
+        Optional<Server> serverOpt = serverRepository.findByIdOrSlug(cleanIdentifier);
         if (serverOpt.isPresent()) {
             Server server = serverOpt.get();
+            if (server.getId() != null) {
+                String sid = server.getId().trim();
+                if (sid.startsWith("\"") && sid.endsWith("\"") && sid.length() >= 2) {
+                    sid = sid.substring(1, sid.length() - 1).trim();
+                    server.setId(sid);
+                }
+            }
             if (server.getSlug() != null) {
                 setInRedis(CACHE_KEY_SLUG_PREFIX + server.getSlug(), server.getId(), TTL_SLUG);
             }
             return server;
-        }
-
-        // 3. Fallback: direct snowflake ID
-        if (SNOWFLAKE_PATTERN.matcher(idOrSlug).matches()) {
-            return Server.builder()
-                    .id(idOrSlug)
-                    .slug(idOrSlug)
-                    .name("Discord Server (" + idOrSlug + ")")
-                    .build();
         }
 
         throw new ResourceNotFoundException("Server not found for identifier: " + idOrSlug);
@@ -306,7 +323,7 @@ public class BotModuleServiceImpl implements BotModuleService {
             return;
         }
         try {
-            String json = objectMapper.writeValueAsString(value);
+            String json = (value instanceof String s) ? s : objectMapper.writeValueAsString(value);
             redisTemplate.opsForValue().set(key, json, ttl);
         } catch (Exception e) {
             log.warn("Redis write failed for key {}: {}", key, e.getMessage());
