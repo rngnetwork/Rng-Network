@@ -44,6 +44,8 @@ public class BotModuleDocument {
     @NotNull
     private Map<String, Object> modules;
 
+    private Map<String, Object> network;
+
     @Version
     private Long version;
 
