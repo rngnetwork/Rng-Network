@@ -50,12 +50,14 @@ class BotModuleServiceTest {
 
     private ObjectMapper objectMapper;
     private SchemaValidatorService schemaValidatorService;
+    private PayloadNormalizer payloadNormalizer;
     private BotModuleServiceImpl botModuleService;
 
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
         schemaValidatorService = new SchemaValidatorService();
+        payloadNormalizer = new PayloadNormalizer(objectMapper);
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         lenient().when(valueOperations.get(anyString())).thenReturn(null);
 
@@ -66,6 +68,7 @@ class BotModuleServiceTest {
                 redisTemplate,
                 schemaValidatorService,
                 auditService,
+                payloadNormalizer,
                 objectMapper
         );
     }
@@ -73,12 +76,12 @@ class BotModuleServiceTest {
     @Test
     @DisplayName("getNetworkDefaultModules returns cached data on Redis cache hit")
     void getNetworkDefaultModules_cacheHit() throws Exception {
-        String cachedJson = "{\"automod\":{\"antiSpam\":true}}";
+        String cachedJson = "{\"modules\":{\"automod\":{\"antiSpam\":true}}}";
         when(valueOperations.get("bot:config:default")).thenReturn(cachedJson);
 
         Map<String, Object> result = botModuleService.getNetworkDefaultModules();
 
-        assertThat(result).containsKey("automod");
+        assertThat(result).containsKey("modules");
         verify(guildApiClient, never()).getDefaultModules();
     }
 
@@ -86,11 +89,22 @@ class BotModuleServiceTest {
     @DisplayName("getNetworkDefaultModules fetches upstream and caches on Redis cache miss")
     void getNetworkDefaultModules_cacheMiss() {
         when(valueOperations.get("bot:config:default")).thenReturn(null);
-        when(guildApiClient.getDefaultModules()).thenReturn(Map.of("automod", Map.of("antiSpam", true)));
+        when(guildApiClient.getDefaultModules()).thenReturn(Map.of(
+                "modules", Map.of("automod", Map.of("antiSpam", true)),
+                "network", Map.of("sp_ratio", "5")
+        ));
+        when(guildApiClient.getGuildConfig()).thenReturn(Map.of(
+                "schema", Map.of(
+                        "modules", Map.of("automod", Map.of("antiSpam", Map.of("type", "BOOLEAN"))),
+                        "networkKeys", Map.of("sp_ratio", Map.of("type", "STRING"))
+                )
+        ));
 
         Map<String, Object> result = botModuleService.getNetworkDefaultModules();
 
-        assertThat(result).containsKey("automod");
+        assertThat(result).containsKey("modules");
+        assertThat(result).containsKey("network");
+        assertThat(result).containsKey("schema");
         verify(guildApiClient, times(1)).getDefaultModules();
         verify(valueOperations, times(1)).set(eq("bot:config:default"), anyString(), eq(Duration.ofMinutes(5)));
     }
@@ -149,9 +163,29 @@ class BotModuleServiceTest {
         verify(botModuleRepository).save(any(BotModuleDocument.class));
         verify(auditService).recordAuditLog(
                 eq("NETWORK"), isNull(), eq("usr_actor"), eq("Actor Commander"),
-                eq("UPDATE_NETWORK"), isNull(), eq(patch)
+                eq("UPDATE_NETWORK"), isNull(), eq(Map.of("modules", patch))
         );
         // Dual key eviction: bot:config:tree AND bot:config:default
+        verify(redisTemplate).delete("bot:config:tree");
+        verify(redisTemplate).delete("bot:config:default");
+    }
+
+    @Test
+    @DisplayName("updateNetworkDefaultModules with modules and network updates upstream, mongo, and evicts dual keys")
+    void updateNetworkDefaultModules_withNetwork_success() {
+        Map<String, Object> modulesPatch = Map.of("automod", Map.of("antiSpam", true));
+        Map<String, Object> networkPatch = Map.of("sp_ratio", "10");
+        when(guildApiClient.patchDefaultModules("usr_actor", modulesPatch, networkPatch)).thenReturn(Map.of("status", "ok"));
+        when(botModuleRepository.findByScope("NETWORK")).thenReturn(Optional.empty());
+
+        botModuleService.updateNetworkDefaultModules("usr_actor", "Actor Commander", modulesPatch, networkPatch);
+
+        verify(guildApiClient).patchDefaultModules("usr_actor", modulesPatch, networkPatch);
+        verify(botModuleRepository).save(any(BotModuleDocument.class));
+        verify(auditService).recordAuditLog(
+                eq("NETWORK"), isNull(), eq("usr_actor"), eq("Actor Commander"),
+                eq("UPDATE_NETWORK"), isNull(), eq(Map.of("modules", modulesPatch, "network", networkPatch))
+        );
         verify(redisTemplate).delete("bot:config:tree");
         verify(redisTemplate).delete("bot:config:default");
     }
