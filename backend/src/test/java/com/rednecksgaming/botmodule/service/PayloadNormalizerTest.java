@@ -39,8 +39,12 @@ class PayloadNormalizerTest {
 
         Map<String, Object> enriched = payloadNormalizer.enrichSchema(rawSchema);
 
-        assertThat(enriched).doesNotContainKey("moduleDisplayNames");
-        assertThat(enriched).doesNotContainKey("networkKeyDisplayNames");
+        Map<String, String> moduleDisplayNames = (Map<String, String>) enriched.get("moduleDisplayNames");
+        assertThat(moduleDisplayNames).containsEntry("automod", "Automod");
+
+        Map<String, String> networkKeyDisplayNames = (Map<String, String>) enriched.get("networkKeyDisplayNames");
+        assertThat(networkKeyDisplayNames).containsEntry("sp_ratio", "SP Ratio");
+        assertThat(networkKeyDisplayNames).containsEntry("event_approval_channel", "Event Approval Channel");
 
         // Verify modules and fields keep original keys
         Map<String, Object> modules = (Map<String, Object>) enriched.get("modules");
@@ -130,7 +134,7 @@ class PayloadNormalizerTest {
         assertThat(automod.get("badWords")).asList().containsExactly("bad1", "bad2");
 
         Map<String, Object> schema = (Map<String, Object>) result.get("schema");
-        assertThat(schema).doesNotContainKey("moduleDisplayNames");
-        assertThat(schema).doesNotContainKey("networkKeyDisplayNames");
+        assertThat(schema).containsKey("moduleDisplayNames");
+        assertThat(schema).containsKey("networkKeyDisplayNames");
     }
 }

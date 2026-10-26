@@ -116,30 +116,15 @@ describe('ServerBotConfigPage (Server-Specific Accordion Deck)', () => {
     expect(screen.getAllByText('Custom Server Override').length).toBe(2);
   });
 
-  it('calls resetServerModule API when clicking Revert to Default', async () => {
-    vi.mocked(botModuleApi.resetServerModule).mockResolvedValue({
-      success: true,
-      data: {},
-    });
-
+  it('does not render Revert to Default button in the UI for overridden modules', async () => {
     renderWithToast(<ServerBotConfigPage />);
 
     expect(await screen.findByText('Automated Moderation')).toBeInTheDocument();
 
-    // Expand the Automod accordion item
     const automodHeader = screen.getByRole('button', { name: /automated moderation/i });
     fireEvent.click(automodHeader);
 
-    const revertButton = await screen.findByRole('button', { name: /revert to default/i });
-    fireEvent.click(revertButton);
-
-    await waitFor(() => {
-      expect(botModuleApi.resetServerModule).toHaveBeenCalledWith(
-        'rng-testing-server',
-        'automod',
-        undefined
-      );
-    });
+    expect(screen.queryByRole('button', { name: /revert to default/i })).not.toBeInTheDocument();
   });
 
   it('tracks dirty modifications and saves server modules with patchServerModules', async () => {

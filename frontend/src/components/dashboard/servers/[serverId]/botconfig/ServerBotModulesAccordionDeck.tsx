@@ -5,7 +5,7 @@ import type { BotModuleFieldSchema, BotModuleValues } from '@/lib/model/bot-modu
 import { Accordion, type AccordionItem } from '@/components/common/navigation/Accordion';
 import { ToggleSwitch } from '@/components/common/input/ToggleSwitch';
 import { Button } from '@/components/common/input/Button';
-import { Bot, Shield, RotateCcw, Plus } from 'lucide-react';
+import { Bot, Shield, Plus } from 'lucide-react';
 import { ServerModuleInheritanceBadge } from './ServerModuleInheritanceBadge';
 import { ServerModuleFieldRenderer } from './ServerModuleFieldRenderer';
 
@@ -23,7 +23,7 @@ export interface ServerBotModulesAccordionDeckProps {
   isSaving: boolean;
   onFieldChange: (modKey: string, fieldName: string, value: unknown) => void;
   onOverride: (modKey: string) => void;
-  onRevert: (modKey: string) => void;
+  onRevert?: (modKey: string) => void;
 }
 
 function resolveModuleTitle(
@@ -131,18 +131,7 @@ export const ServerBotModulesAccordionDeck: React.FC<ServerBotModulesAccordionDe
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                {isOverridden ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => onRevert(modKey)}
-                    disabled={isSaving}
-                    leftIcon={<RotateCcw size={13} />}
-                  >
-                    Revert to Default
-                  </Button>
-                ) : (
+                {!isOverridden && (
                   <Button
                     type="button"
                     size="sm"
