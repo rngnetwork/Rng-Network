@@ -95,6 +95,14 @@ class PayloadNormalizerTest {
     }
 
     @Test
+    @DisplayName("autowired constructor initializes properly with ObjectMapper and NetworkKeyCategorizer")
+    void autowiredConstructor_initializesProperly() {
+        NetworkKeyCategorizer cat = new NetworkKeyCategorizer();
+        PayloadNormalizer normalizer = new PayloadNormalizer(new ObjectMapper(), cat);
+        assertThat(normalizer).isNotNull();
+    }
+
+    @Test
     @DisplayName("normalizeNetworkPayload merges default, config, schema and network without losing fields")
     @SuppressWarnings("unchecked")
     void normalizeNetworkPayload_mergesProperly() {
