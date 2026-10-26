@@ -5,6 +5,11 @@ import type { BotModuleFieldSchema } from '@/lib/model/bot-module';
 import { ToggleSwitch } from '@/components/common/input/ToggleSwitch';
 import { TextInput } from '@/components/common/input/TextInput';
 import { Dropdown, type DropdownOption } from '@/components/common/input/Dropdown';
+import { DiscordRoleSelect } from '@/components/common/input/DiscordRoleSelect';
+import { DiscordChannelSelect } from '@/components/common/input/DiscordChannelSelect';
+import { TagInput } from '@/components/common/input/TagInput';
+import { Slider } from '@/components/common/input/Slider';
+import { SegmentedControl } from '@/components/common/input/SegmentedControl';
 
 export interface ServerModuleFieldRendererProps {
   modKey: string;
@@ -36,8 +41,6 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
   isSaving,
   serverChannels,
   serverRoles,
-  channelOptions,
-  roleOptions,
   onFieldChange,
 }) => {
   const label = resolveFieldLabel(fieldName, typeof fieldDef === 'object' && fieldDef !== null ? fieldDef : undefined);
@@ -52,14 +55,13 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
   if (isChannelField && serverChannels.length > 0) {
     return (
       <div className="flex flex-col gap-1.5 w-full">
-        <label className="text-xs font-medium text-text-secondary select-none">{label}</label>
-        <Dropdown
-          options={channelOptions}
-          value={rawValue != null ? String(rawValue) : 'none'}
-          onChange={(val) => onFieldChange(modKey, fieldName, val === 'none' ? null : val)}
+        <DiscordChannelSelect
+          label={label}
+          channels={serverChannels}
+          value={rawValue != null && rawValue !== 'none' ? String(rawValue) : null}
+          onChange={(val) => onFieldChange(modKey, fieldName, val)}
           disabled={fieldDisabled || isSaving}
           placeholder="Select Channel"
-          searchable={true}
         />
         {description ? (
           <span className="text-[11px] text-text-tertiary">{description}</span>
@@ -71,14 +73,66 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
   if (isRoleField && serverRoles.length > 0) {
     return (
       <div className="flex flex-col gap-1.5 w-full">
-        <label className="text-xs font-medium text-text-secondary select-none">{label}</label>
-        <Dropdown
-          options={roleOptions}
-          value={rawValue != null ? String(rawValue) : 'none'}
-          onChange={(val) => onFieldChange(modKey, fieldName, val === 'none' ? null : val)}
+        <DiscordRoleSelect
+          label={label}
+          roles={serverRoles}
+          value={rawValue != null && rawValue !== 'none' ? String(rawValue) : null}
+          onChange={(val) => onFieldChange(modKey, fieldName, val)}
           disabled={fieldDisabled || isSaving}
           placeholder="Select Role"
-          searchable={true}
+        />
+        {description ? (
+          <span className="text-[11px] text-text-tertiary">{description}</span>
+        ) : null}
+      </div>
+    );
+  }
+
+  const isArrayField = Array.isArray(rawValue) || fieldType === 'ARRAY' || Array.isArray(fieldDef?.default);
+  if (isArrayField) {
+    const tags = Array.isArray(rawValue)
+      ? (rawValue as unknown[]).map(String)
+      : typeof rawValue === 'string' && rawValue.trim().startsWith('[')
+        ? (() => {
+            try {
+              const parsed = JSON.parse(rawValue);
+              return Array.isArray(parsed) ? parsed.map(String) : [];
+            } catch {
+              return [];
+            }
+          })()
+        : [];
+
+    return (
+      <div className="flex flex-col gap-1.5 w-full">
+        <TagInput
+          label={label}
+          value={tags}
+          onChange={(newTags) => onFieldChange(modKey, fieldName, newTags)}
+          disabled={fieldDisabled || isSaving}
+          placeholder={`default: ${defaultFormatted}, type: ARRAY`}
+        />
+        {description ? (
+          <span className="text-[11px] text-text-tertiary">{description}</span>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (fieldDef?.options && fieldDef.options.length >= 2 && fieldDef.options.length <= 4) {
+    const segOptions = fieldDef.options.map((opt) => ({
+      label: opt,
+      value: opt,
+    }));
+    return (
+      <div className="flex flex-col gap-1.5 w-full">
+        <SegmentedControl
+          label={label}
+          options={segOptions}
+          value={typeof rawValue === 'string' ? rawValue : String(rawValue ?? '')}
+          onChange={(val) => onFieldChange(modKey, fieldName, val)}
+          disabled={fieldDisabled || isSaving}
+          size="sm"
         />
         {description ? (
           <span className="text-[11px] text-text-tertiary">{description}</span>
@@ -124,6 +178,32 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
           disabled={fieldDisabled || isSaving}
           aria-label={label}
         />
+      </div>
+    );
+  }
+
+  if (
+    (fieldType === 'INTEGER' || fieldType === 'FLOAT' || typeof rawValue === 'number') &&
+    typeof fieldDef?.min === 'number' &&
+    typeof fieldDef?.max === 'number'
+  ) {
+    const numVal = typeof rawValue === 'number' ? rawValue : (fieldDef.min ?? 0);
+    const step = fieldType === 'FLOAT' ? 0.1 : 1;
+
+    return (
+      <div className="flex flex-col gap-1.5 w-full">
+        <Slider
+          label={label}
+          min={fieldDef.min}
+          max={fieldDef.max}
+          step={step}
+          value={numVal}
+          onChange={(val) => onFieldChange(modKey, fieldName, val)}
+          disabled={fieldDisabled || isSaving}
+        />
+        {description ? (
+          <span className="text-[11px] text-text-tertiary">{description}</span>
+        ) : null}
       </div>
     );
   }

@@ -472,7 +472,63 @@ describe('BotConfigPage (Network-Wide Bot Deck)', () => {
 
     fireEvent.click(collapseAllBtn);
 
-    // After collapse all, it should be disabled or show 0 expanded
     expect(screen.getByText(/0 of \d+ expanded/i)).toBeInTheDocument();
+  });
+
+  it('renders SegmentedControl, Slider, and TagInput for corresponding network module field types', async () => {
+    const payloadWithSpecializedInputs: NetworkDefaultPayload = {
+      ...mockNetworkPayload,
+      schema: {
+        ...mockNetworkPayload.schema,
+        modules: {
+          ...mockNetworkPayload.schema?.modules,
+          automod: {
+            enabled: { type: 'BOOLEAN', label: 'Master Enable' },
+            punishment: { type: 'STRING', label: 'Violation Action', options: ['delete', 'mute', 'kick', 'ban'] },
+            sensitivity: { type: 'INTEGER', label: 'Sensitivity Level', min: 1, max: 10 },
+            bannedWords: { type: 'ARRAY', label: 'Banned Words List' },
+          },
+        },
+      },
+      modules: {
+        ...mockNetworkPayload.modules,
+        automod: {
+          enabled: true,
+          punishment: 'delete',
+          sensitivity: 5,
+          bannedWords: ['netbad1', 'netbad2'],
+        },
+      },
+    };
+
+    vi.mocked(botModuleApi.getNetworkDefaultModules).mockResolvedValueOnce({
+      success: true,
+      data: payloadWithSpecializedInputs,
+    });
+
+    renderWithToast(<BotConfigPage />);
+
+    expect(await screen.findByText('Automated Moderation')).toBeInTheDocument();
+
+    const automodAccordion = screen.getByRole('button', { name: /automated moderation/i });
+    fireEvent.click(automodAccordion);
+
+    expect(await screen.findByText('Violation Action')).toBeInTheDocument();
+    const radioGroup = screen.getByRole('radiogroup', { name: /violation action/i });
+    expect(radioGroup).toBeInTheDocument();
+    const deleteOption = screen.getByRole('radio', { name: 'delete' });
+    expect(deleteOption).toBeInTheDocument();
+    expect(deleteOption).toHaveAttribute('aria-checked', 'true');
+
+    expect(screen.getByText('Sensitivity Level')).toBeInTheDocument();
+    const sliderInput = screen.getByRole('slider', { name: /sensitivity level/i });
+    expect(sliderInput).toBeInTheDocument();
+    expect(sliderInput).toHaveAttribute('min', '1');
+    expect(sliderInput).toHaveAttribute('max', '10');
+    expect(sliderInput).toHaveAttribute('aria-valuenow', '5');
+
+    expect(screen.getByText('Banned Words List')).toBeInTheDocument();
+    expect(screen.getByText('netbad1')).toBeInTheDocument();
+    expect(screen.getByText('netbad2')).toBeInTheDocument();
   });
 });

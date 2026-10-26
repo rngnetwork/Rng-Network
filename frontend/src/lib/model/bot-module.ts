@@ -1,4 +1,4 @@
-export type BotModuleFieldType = 'BOOLEAN' | 'INTEGER' | 'FLOAT' | 'STRING' | 'JSON' | 'TEXT';
+export type BotModuleFieldType = 'BOOLEAN' | 'INTEGER' | 'FLOAT' | 'STRING' | 'JSON' | 'TEXT' | 'ARRAY';
 
 export interface BotModuleFieldSchema {
   type: BotModuleFieldType;

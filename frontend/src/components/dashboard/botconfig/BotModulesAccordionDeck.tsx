@@ -12,6 +12,9 @@ import { ToggleSwitch } from '@/components/common/input/ToggleSwitch';
 import { TextInput } from '@/components/common/input/TextInput';
 import { Dropdown } from '@/components/common/input/Dropdown';
 import { Badge } from '@/components/common/feedback/Badge';
+import { TagInput } from '@/components/common/input/TagInput';
+import { Slider } from '@/components/common/input/Slider';
+import { SegmentedControl } from '@/components/common/input/SegmentedControl';
 
 export interface BotModulesAccordionDeckProps {
   modules: Record<string, BotModuleValues>;
@@ -109,6 +112,29 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
     const label = resolveFieldLabel(fieldName, fieldDef);
     const description = fieldDef?.description;
     const fieldType = (fieldDef?.type || 'STRING').toUpperCase();
+    const defaultVal = fieldDef?.default !== undefined && fieldDef.default !== null ? String(fieldDef.default) : 'none';
+
+    if (fieldDef?.options && fieldDef.options.length >= 2 && fieldDef.options.length <= 4) {
+      const segOptions = fieldDef.options.map((opt) => ({
+        label: opt,
+        value: opt,
+      }));
+      return (
+        <div className="flex flex-col gap-1.5 w-full">
+          <SegmentedControl
+            label={label}
+            options={segOptions}
+            value={typeof rawValue === 'string' ? rawValue : String(rawValue ?? '')}
+            onChange={(val) => onFieldChange(modKey, fieldName, val)}
+            disabled={fieldDisabled || disabled}
+            size="sm"
+          />
+          {description ? (
+            <span className="text-[11px] text-text-tertiary">{description}</span>
+          ) : null}
+        </div>
+      );
+    }
 
     if (fieldDef?.options && fieldDef.options.length > 0) {
       const dropdownOptions = fieldDef.options.map((opt) => ({
@@ -152,8 +178,64 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
       );
     }
 
+    const isArrayField = Array.isArray(rawValue) || fieldType === 'ARRAY' || Array.isArray(fieldDef?.default);
+    if (isArrayField) {
+      const tags = Array.isArray(rawValue)
+        ? (rawValue as unknown[]).map(String)
+        : typeof rawValue === 'string' && rawValue.trim().startsWith('[')
+          ? (() => {
+              try {
+                const parsed = JSON.parse(rawValue);
+                return Array.isArray(parsed) ? parsed.map(String) : [];
+              } catch {
+                return [];
+              }
+            })()
+          : [];
+
+      return (
+        <div className="flex flex-col gap-1.5 w-full">
+          <TagInput
+            label={label}
+            value={tags}
+            onChange={(newTags) => onFieldChange(modKey, fieldName, newTags)}
+            disabled={fieldDisabled || disabled}
+            placeholder={`default: ${defaultVal}, type: ARRAY`}
+          />
+          {description ? (
+            <span className="text-[11px] text-text-tertiary">{description}</span>
+          ) : null}
+        </div>
+      );
+    }
+
+    if (
+      (fieldType === 'INTEGER' || fieldType === 'FLOAT' || typeof rawValue === 'number') &&
+      typeof fieldDef?.min === 'number' &&
+      typeof fieldDef?.max === 'number'
+    ) {
+      const numVal = typeof rawValue === 'number' ? rawValue : (fieldDef.min ?? 0);
+      const step = fieldType === 'FLOAT' ? 0.1 : 1;
+
+      return (
+        <div className="flex flex-col gap-1.5 w-full">
+          <Slider
+            label={label}
+            min={fieldDef.min}
+            max={fieldDef.max}
+            step={step}
+            value={numVal}
+            onChange={(val) => onFieldChange(modKey, fieldName, val)}
+            disabled={fieldDisabled || disabled}
+          />
+          {description ? (
+            <span className="text-[11px] text-text-tertiary">{description}</span>
+          ) : null}
+        </div>
+      );
+    }
+
     if (fieldType === 'INTEGER' || fieldType === 'FLOAT' || typeof rawValue === 'number') {
-      const defaultVal = fieldDef?.default !== undefined && fieldDef.default !== null ? String(fieldDef.default) : 'none';
       return (
         <TextInput
           type="number"
@@ -177,7 +259,6 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
       );
     }
 
-    const defaultVal = fieldDef?.default !== undefined && fieldDef.default !== null ? String(fieldDef.default) : 'none';
     return (
       <TextInput
         type="text"

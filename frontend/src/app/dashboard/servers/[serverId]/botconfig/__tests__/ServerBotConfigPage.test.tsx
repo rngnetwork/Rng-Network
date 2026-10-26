@@ -254,4 +254,109 @@ describe('ServerBotConfigPage (Server-Specific Accordion Deck)', () => {
     expect(screen.getByText('Mute Duration Seconds')).toBeInTheDocument();
     expect(screen.getByDisplayValue('300')).toBeInTheDocument();
   });
+
+  it('renders DiscordChannelSelect and DiscordRoleSelect for channel and role fields', async () => {
+    const mockDataWithRoleChannel = {
+      ...mockServerData,
+      schema: {
+        ...mockServerData.schema,
+        automod: {
+          ...mockServerData.schema.automod,
+          logChannel: { type: 'STRING' as const, label: 'Mod Log Channel' },
+          alertRole: { type: 'STRING' as const, label: 'Alert Ping Role' },
+        },
+      },
+      modules: {
+        ...mockServerData.modules,
+        automod: {
+          ...mockServerData.modules.automod,
+          values: {
+            ...mockServerData.modules.automod.values,
+            logChannel: '111',
+            alertRole: '222',
+          },
+        },
+      },
+    };
+
+    vi.mocked(botModuleApi.getServerEffectiveModules).mockResolvedValueOnce({
+      success: true,
+      data: mockDataWithRoleChannel,
+    });
+
+    renderWithToast(<ServerBotConfigPage />);
+
+    expect(await screen.findByText('Automated Moderation')).toBeInTheDocument();
+    const automodHeader = screen.getByRole('button', { name: /automated moderation/i });
+    fireEvent.click(automodHeader);
+
+    expect(await screen.findByText('Mod Log Channel')).toBeInTheDocument();
+    expect(screen.getByText('Alert Ping Role')).toBeInTheDocument();
+
+    const channelSelectBtn = screen.getByRole('button', { name: /mod log channel/i });
+    expect(channelSelectBtn).toBeInTheDocument();
+    expect(channelSelectBtn).toHaveAttribute('aria-haspopup', 'listbox');
+    expect(screen.getByText('general')).toBeInTheDocument();
+
+    const roleSelectBtn = screen.getByRole('button', { name: /alert ping role/i });
+    expect(roleSelectBtn).toBeInTheDocument();
+    expect(roleSelectBtn).toHaveAttribute('aria-haspopup', 'listbox');
+    expect(screen.getByText('Moderator')).toBeInTheDocument();
+  });
+
+  it('renders TagInput for array fields, Slider for bounded numbers, and SegmentedControl for small option lists', async () => {
+    const mockDataWithSpecializedInputs = {
+      ...mockServerData,
+      schema: {
+        ...mockServerData.schema,
+        automod: {
+          ...mockServerData.schema.automod,
+          badWords: { type: 'ARRAY' as const, label: 'Banned Words' },
+          punishment: { type: 'STRING' as const, label: 'Punishment Mode', options: ['delete', 'mute', 'kick', 'ban'] },
+          sensitivity: { type: 'INTEGER' as const, label: 'Detection Sensitivity', min: 1, max: 10 },
+        },
+      },
+      modules: {
+        ...mockServerData.modules,
+        automod: {
+          ...mockServerData.modules.automod,
+          values: {
+            ...mockServerData.modules.automod.values,
+            badWords: ['badword1', 'badword2'],
+            punishment: 'mute',
+            sensitivity: 7,
+          },
+        },
+      },
+    };
+
+    vi.mocked(botModuleApi.getServerEffectiveModules).mockResolvedValueOnce({
+      success: true,
+      data: mockDataWithSpecializedInputs,
+    });
+
+    renderWithToast(<ServerBotConfigPage />);
+
+    expect(await screen.findByText('Automated Moderation')).toBeInTheDocument();
+    const automodHeader = screen.getByRole('button', { name: /automated moderation/i });
+    fireEvent.click(automodHeader);
+
+    expect(await screen.findByText('Banned Words')).toBeInTheDocument();
+    expect(screen.getByText('badword1')).toBeInTheDocument();
+    expect(screen.getByText('badword2')).toBeInTheDocument();
+
+    expect(screen.getByText('Detection Sensitivity')).toBeInTheDocument();
+    const sliderInput = screen.getByRole('slider', { name: /detection sensitivity/i });
+    expect(sliderInput).toBeInTheDocument();
+    expect(sliderInput).toHaveAttribute('min', '1');
+    expect(sliderInput).toHaveAttribute('max', '10');
+    expect(sliderInput).toHaveAttribute('aria-valuenow', '7');
+
+    expect(screen.getByText('Punishment Mode')).toBeInTheDocument();
+    const radioGroup = screen.getByRole('radiogroup', { name: /punishment mode/i });
+    expect(radioGroup).toBeInTheDocument();
+    const muteOption = screen.getByRole('radio', { name: 'mute' });
+    expect(muteOption).toBeInTheDocument();
+    expect(muteOption).toHaveAttribute('aria-checked', 'true');
+  });
 });
