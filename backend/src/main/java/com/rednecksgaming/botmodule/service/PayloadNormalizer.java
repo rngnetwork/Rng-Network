@@ -14,10 +14,19 @@ import java.util.Map;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class PayloadNormalizer {
 
     private final ObjectMapper objectMapper;
+    private final NetworkKeyCategorizer networkKeyCategorizer;
+
+    public PayloadNormalizer(ObjectMapper objectMapper) {
+        this(objectMapper, new NetworkKeyCategorizer());
+    }
+
+    public PayloadNormalizer(ObjectMapper objectMapper, NetworkKeyCategorizer networkKeyCategorizer) {
+        this.objectMapper = objectMapper;
+        this.networkKeyCategorizer = networkKeyCategorizer != null ? networkKeyCategorizer : new NetworkKeyCategorizer();
+    }
 
     public Map<String, Object> unwrapEnvelope(Map<String, Object> response) {
         if (response == null) {
@@ -174,7 +183,22 @@ public class PayloadNormalizer {
 
         Object networkObj = unwrappedDefault.get("network");
         if (networkObj instanceof Map<?, ?> networkMap) {
-            result.put("network", normalizeValue(networkMap));
+            Map<String, Object> normalizedNet = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> entry : networkMap.entrySet()) {
+                String k = String.valueOf(entry.getKey());
+                Object v = normalizeValue(entry.getValue());
+                if (v instanceof Map<?, ?> valMap) {
+                    Map<String, Object> enrichedVal = new LinkedHashMap<>(safeCastMap(valMap));
+                    if (!enrichedVal.containsKey("category")) {
+                        String desc = enrichedVal.containsKey("label") ? String.valueOf(enrichedVal.get("label")) : "";
+                        enrichedVal.put("category", networkKeyCategorizer.categorize(k, desc));
+                    }
+                    normalizedNet.put(k, enrichedVal);
+                } else {
+                    normalizedNet.put(k, v);
+                }
+            }
+            result.put("network", normalizedNet);
         } else if (rawDefault != null && rawDefault.containsKey("network") && rawDefault.get("network") instanceof Map<?, ?> netMap) {
             result.put("network", normalizeValue(netMap));
         } else {
@@ -243,14 +267,23 @@ public class PayloadNormalizer {
                     if (!enrichedKeySchema.containsKey("label") || enrichedKeySchema.get("label") == null) {
                         enrichedKeySchema.put("label", formattedKeyTitle);
                     }
+                    String desc = enrichedKeySchema.containsKey("description") && enrichedKeySchema.get("description") != null
+                            ? String.valueOf(enrichedKeySchema.get("description"))
+                            : String.valueOf(enrichedKeySchema.get("label"));
+                    enrichedKeySchema.put("category", networkKeyCategorizer.categorize(keyName, desc));
                     enrichedKeys.put(keyName, enrichedKeySchema);
                 } else {
-                    enrichedKeys.put(keyName, keySchemaObj);
+                    Map<String, Object> enrichedKeySchema = new LinkedHashMap<>();
+                    enrichedKeySchema.put("displayName", formattedKeyTitle);
+                    enrichedKeySchema.put("label", formattedKeyTitle);
+                    enrichedKeySchema.put("category", networkKeyCategorizer.categorize(keyName, formattedKeyTitle));
+                    enrichedKeys.put(keyName, enrichedKeySchema);
                 }
             }
             enrichedSchema.put("networkKeys", enrichedKeys);
         }
         enrichedSchema.put("networkKeyDisplayNames", networkKeyDisplayNames);
+        enrichedSchema.put("networkKeyCategories", networkKeyCategorizer.getCategoryLabels());
 
         return enrichedSchema;
     }

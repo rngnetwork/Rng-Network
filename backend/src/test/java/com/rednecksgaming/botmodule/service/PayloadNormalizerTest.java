@@ -76,10 +76,16 @@ class PayloadNormalizerTest {
         assertThat(spRatioSchema.get("type")).isEqualTo("STRING");
         assertThat(spRatioSchema.get("displayName")).isEqualTo("SP Ratio");
         assertThat(spRatioSchema.get("label")).isEqualTo("SP Ratio");
+        assertThat(spRatioSchema.get("category")).isEqualTo("FINANCIAL");
 
         Map<String, Object> eventApprovalChannelSchema = (Map<String, Object>) networkKeys.get("event_approval_channel");
         assertThat(eventApprovalChannelSchema.get("displayName")).isEqualTo("Event Approval Channel");
         assertThat(eventApprovalChannelSchema.get("label")).isEqualTo("Event Approval Channel");
+        assertThat(eventApprovalChannelSchema.get("category")).isEqualTo("EVENTS");
+
+        assertThat(enriched).containsKey("networkKeyCategories");
+        Map<String, String> categories = (Map<String, String>) enriched.get("networkKeyCategories");
+        assertThat(categories).containsEntry("FINANCIAL", "Financial & Payouts");
     }
 
     @Test
