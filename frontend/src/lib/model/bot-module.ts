@@ -19,6 +19,7 @@ export interface NetworkKeySchema {
   label?: string;
   displayName?: string;
   description?: string;
+  category?: string;
   default?: unknown;
   uniform?: boolean;
   options?: string[];
@@ -31,6 +32,7 @@ export type BotModuleSchema =
       networkKeys?: Record<string, NetworkKeySchema>;
       moduleDisplayNames?: Record<string, string>;
       networkKeyDisplayNames?: Record<string, string>;
+      networkKeyCategories?: Record<string, string>;
       [key: string]: unknown;
     }
   | Record<string, unknown>;
@@ -64,6 +66,7 @@ export interface NetworkDefaultPayload {
     networkKeys?: Record<string, NetworkKeySchema>;
     moduleDisplayNames?: Record<string, string>;
     networkKeyDisplayNames?: Record<string, string>;
+    networkKeyCategories?: Record<string, string>;
   };
   modules?: Record<string, BotModuleValues>;
   network?: Record<string, unknown>;
@@ -72,4 +75,5 @@ export interface NetworkDefaultPayload {
 export interface BotModulePatchRequest {
   modules?: Record<string, Record<string, unknown>>;
   network?: Record<string, unknown>;
+  schema?: Record<string, unknown>;
 }
