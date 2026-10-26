@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, Bot, Globe, AlertCircle, Type, Sliders } from 'lucide-react';
+import { Search, Bot, Globe, AlertCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { getNetworkDefaultModules, patchNetworkDefaultModules } from '@/lib/api/bot-module';
 import { fetchUserManagedServers } from '@/lib/api/dashboard/servers';
 import type {
@@ -16,10 +17,8 @@ import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinne
 import { useToast } from '@/components/common/feedback/ToastProvider';
 import { BotModulesAccordionDeck } from './BotModulesAccordionDeck';
 import { NetworkParametersDeck } from './NetworkParametersDeck';
-import { ModuleDisplayNamesDeck } from './ModuleDisplayNamesDeck';
-import { NetworkKeyDisplayNamesDeck } from './NetworkKeyDisplayNamesDeck';
 
-export type BotConfigTab = 'modules' | 'network' | 'moduleDisplayNames' | 'networkKeyDisplayNames';
+export type BotConfigTab = 'modules' | 'network';
 
 export const NetworkBotConfigCoordinator: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -32,11 +31,6 @@ export const NetworkBotConfigCoordinator: React.FC = () => {
   const [currentModules, setCurrentModules] = useState<Record<string, BotModuleValues>>({});
   const [initialNetwork, setInitialNetwork] = useState<Record<string, unknown>>({});
   const [currentNetwork, setCurrentNetwork] = useState<Record<string, unknown>>({});
-
-  const [initialModuleDisplayNames, setInitialModuleDisplayNames] = useState<Record<string, string>>({});
-  const [currentModuleDisplayNames, setCurrentModuleDisplayNames] = useState<Record<string, string>>({});
-  const [initialNetworkKeyDisplayNames, setInitialNetworkKeyDisplayNames] = useState<Record<string, string>>({});
-  const [currentNetworkKeyDisplayNames, setCurrentNetworkKeyDisplayNames] = useState<Record<string, string>>({});
 
   const [managedServers, setManagedServers] = useState<ServerItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -112,14 +106,6 @@ export const NetworkBotConfigCoordinator: React.FC = () => {
           setCurrentModules(JSON.parse(JSON.stringify(modulesData)));
           setInitialNetwork(JSON.parse(JSON.stringify(networkData)));
           setCurrentNetwork(JSON.parse(JSON.stringify(networkData)));
-
-          const modNames = schemaData.moduleDisplayNames || {};
-          setInitialModuleDisplayNames(JSON.parse(JSON.stringify(modNames)));
-          setCurrentModuleDisplayNames(JSON.parse(JSON.stringify(modNames)));
-
-          const netNames = schemaData.networkKeyDisplayNames || {};
-          setInitialNetworkKeyDisplayNames(JSON.parse(JSON.stringify(netNames)));
-          setCurrentNetworkKeyDisplayNames(JSON.parse(JSON.stringify(netNames)));
         } else {
           const msg =
             modulesRes.status === 'fulfilled'
@@ -165,20 +151,6 @@ export const NetworkBotConfigCoordinator: React.FC = () => {
     }));
   }, []);
 
-  const handleModuleDisplayNameChange = useCallback((modKey: string, newDisplayName: string) => {
-    setCurrentModuleDisplayNames((prev) => ({
-      ...prev,
-      [modKey]: newDisplayName,
-    }));
-  }, []);
-
-  const handleNetworkKeyDisplayNameChange = useCallback((keyName: string, newDisplayName: string) => {
-    setCurrentNetworkKeyDisplayNames((prev) => ({
-      ...prev,
-      [keyName]: newDisplayName,
-    }));
-  }, []);
-
   const dirtyModules = useMemo(() => {
     const diff: Record<string, Record<string, unknown>> = {};
     for (const [modKey, modValues] of Object.entries(currentModules)) {
@@ -203,51 +175,27 @@ export const NetworkBotConfigCoordinator: React.FC = () => {
     return diff;
   }, [currentNetwork, initialNetwork]);
 
-  const dirtyModNames = useMemo(() => {
-    const diff: Record<string, string> = {};
-    for (const [k, v] of Object.entries(currentModuleDisplayNames)) {
-      if (initialModuleDisplayNames[k] !== v) {
-        diff[k] = v;
-      }
-    }
-    return diff;
-  }, [currentModuleDisplayNames, initialModuleDisplayNames]);
-
-  const dirtyNetNames = useMemo(() => {
-    const diff: Record<string, string> = {};
-    for (const [k, v] of Object.entries(currentNetworkKeyDisplayNames)) {
-      if (initialNetworkKeyDisplayNames[k] !== v) {
-        diff[k] = v;
-      }
-    }
-    return diff;
-  }, [currentNetworkKeyDisplayNames, initialNetworkKeyDisplayNames]);
-
   const dirtyCount = useMemo(() => {
     let count = 0;
     for (const fMap of Object.values(dirtyModules)) {
       count += Object.keys(fMap).length;
     }
     count += Object.keys(dirtyNetwork).length;
-    count += Object.keys(dirtyModNames).length;
-    count += Object.keys(dirtyNetNames).length;
     return count;
-  }, [dirtyModules, dirtyNetwork, dirtyModNames, dirtyNetNames]);
+  }, [dirtyModules, dirtyNetwork]);
 
   const isDirty = dirtyCount > 0;
 
   const handleReset = useCallback(() => {
     setCurrentModules(JSON.parse(JSON.stringify(initialModules)));
     setCurrentNetwork(JSON.parse(JSON.stringify(initialNetwork)));
-    setCurrentModuleDisplayNames(JSON.parse(JSON.stringify(initialModuleDisplayNames)));
-    setCurrentNetworkKeyDisplayNames(JSON.parse(JSON.stringify(initialNetworkKeyDisplayNames)));
     if (toast) {
       toast({
         title: 'Changes discarded',
         type: 'info',
       });
     }
-  }, [initialModules, initialNetwork, initialModuleDisplayNames, initialNetworkKeyDisplayNames, toast]);
+  }, [initialModules, initialNetwork, toast]);
 
   const handleSave = async () => {
     if (!isDirty) return;
@@ -266,25 +214,11 @@ export const NetworkBotConfigCoordinator: React.FC = () => {
         patchPayload.network = dirtyNetwork;
       }
 
-      if (Object.keys(dirtyModNames).length > 0 || Object.keys(dirtyNetNames).length > 0) {
-        patchPayload.schema = {
-          ...(Object.keys(dirtyModNames).length > 0 ? { moduleDisplayNames: currentModuleDisplayNames } : {}),
-          ...(Object.keys(dirtyNetNames).length > 0 ? { networkKeyDisplayNames: currentNetworkKeyDisplayNames } : {}),
-        };
-      }
-
       const res = await patchNetworkDefaultModules(patchPayload, token);
 
       if (res.success) {
         setInitialModules(JSON.parse(JSON.stringify(currentModules)));
         setInitialNetwork(JSON.parse(JSON.stringify(currentNetwork)));
-        setInitialModuleDisplayNames(JSON.parse(JSON.stringify(currentModuleDisplayNames)));
-        setInitialNetworkKeyDisplayNames(JSON.parse(JSON.stringify(currentNetworkKeyDisplayNames)));
-        setSchema((prev) => ({
-          ...prev,
-          moduleDisplayNames: currentModuleDisplayNames,
-          networkKeyDisplayNames: currentNetworkKeyDisplayNames,
-        }));
 
         if (toast) {
           toast({
@@ -318,13 +252,20 @@ export const NetworkBotConfigCoordinator: React.FC = () => {
     return new Set([...keysFromSchema, ...keysFromNetwork]).size;
   }, [schema, currentNetwork]);
 
-  const moduleDisplayNamesCount = useMemo(() => {
-    return Object.keys(currentModuleDisplayNames || {}).length;
-  }, [currentModuleDisplayNames]);
-
-  const networkKeyDisplayNamesCount = useMemo(() => {
-    return Object.keys(currentNetworkKeyDisplayNames || {}).length;
-  }, [currentNetworkKeyDisplayNames]);
+  const tabs = [
+    {
+      id: 'modules' as const,
+      label: 'Bot Modules',
+      icon: Bot,
+      count: moduleCount,
+    },
+    {
+      id: 'network' as const,
+      label: 'Network Parameters',
+      icon: Globe,
+      count: networkCount,
+    },
+  ];
 
   if (isLoading) {
     return (
@@ -365,8 +306,7 @@ export const NetworkBotConfigCoordinator: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 pb-28">
-      {/* Page Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-surface-border pb-6">
+      <div className="flex flex-col gap-5 border-b border-surface-border pb-6">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-apple-md bg-brand-red/10 border border-brand-red/20 text-brand-red">
@@ -381,102 +321,59 @@ export const NetworkBotConfigCoordinator: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          {/* View Switcher Tabs */}
-          <div className="flex items-center p-1 rounded-apple-lg bg-surface-canvas border border-surface-border shrink-0 overflow-x-auto scrollbar-none">
-            <button
-              type="button"
-              onClick={() => setActiveTab('modules')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-apple-md text-xs font-semibold transition-all shrink-0 cursor-pointer ${
-                activeTab === 'modules'
-                  ? 'bg-brand-red text-white shadow-apple-card'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.04]'
-              }`}
-            >
-              <Bot size={14} />
-              <span>Bot Modules</span>
-              <span
-                className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-                  activeTab === 'modules' ? 'bg-white/20 text-white' : 'bg-surface-elevated text-text-tertiary'
-                }`}
-              >
-                {moduleCount}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('network')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-apple-md text-xs font-semibold transition-all shrink-0 cursor-pointer ${
-                activeTab === 'network'
-                  ? 'bg-brand-red text-white shadow-apple-card'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.04]'
-              }`}
-            >
-              <Globe size={14} />
-              <span>Network Parameters</span>
-              <span
-                className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-                  activeTab === 'network' ? 'bg-white/20 text-white' : 'bg-surface-elevated text-text-tertiary'
-                }`}
-              >
-                {networkCount}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('moduleDisplayNames')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-apple-md text-xs font-semibold transition-all shrink-0 cursor-pointer ${
-                activeTab === 'moduleDisplayNames'
-                  ? 'bg-brand-red text-white shadow-apple-card'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.04]'
-              }`}
-            >
-              <Type size={14} />
-              <span>Module Display Names</span>
-              <span
-                className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-                  activeTab === 'moduleDisplayNames' ? 'bg-white/20 text-white' : 'bg-surface-elevated text-text-tertiary'
-                }`}
-              >
-                {moduleDisplayNamesCount}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('networkKeyDisplayNames')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-apple-md text-xs font-semibold transition-all shrink-0 cursor-pointer ${
-                activeTab === 'networkKeyDisplayNames'
-                  ? 'bg-brand-red text-white shadow-apple-card'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.04]'
-              }`}
-            >
-              <Sliders size={14} />
-              <span>Network Keys Display Names</span>
-              <span
-                className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-                  activeTab === 'networkKeyDisplayNames' ? 'bg-white/20 text-white' : 'bg-surface-elevated text-text-tertiary'
-                }`}
-              >
-                {networkKeyDisplayNamesCount}
-              </span>
-            </button>
-          </div>
+        <nav
+          aria-label="Bot configuration workspace tabs"
+          className="relative border-b border-white/[0.08] flex items-center gap-2 overflow-x-auto pb-2.5 scrollbar-none"
+        >
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
 
-          {/* Search Box */}
-          <div className="relative w-full sm:w-64">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search modules and settings..."
-              className="w-full pl-9 pr-3 py-1.5 rounded-apple-md bg-[#0E0E12] border border-surface-border text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-red/60 transition-colors"
-            />
-          </div>
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`relative flex items-center gap-2 px-4 py-2.5 text-xs md:text-sm font-semibold whitespace-nowrap rounded-apple-md transition-all duration-200 min-h-[44px] cursor-pointer ${
+                  isActive
+                    ? 'text-white bg-brand-red/10 border border-brand-red/30 shadow-crimson-glow'
+                    : 'text-zinc-400 hover:text-white hover:bg-white/[0.03] border border-transparent'
+                }`}
+              >
+                <Icon size={16} className={isActive ? 'text-brand-red' : 'text-zinc-500'} />
+                <span>{tab.label}</span>
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
+                    isActive ? 'bg-brand-red/20 text-brand-red' : 'bg-surface-elevated text-text-tertiary'
+                  }`}
+                >
+                  {tab.count}
+                </span>
+
+                {isActive && (
+                  <motion.div
+                    layoutId="botconfigActiveTabIndicator"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    className="absolute -bottom-2.5 left-2 right-2 h-0.5 bg-brand-red"
+                  />
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="relative w-full">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search modules and settings..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-apple-lg bg-[#0E0E12] border border-surface-border text-xs md:text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-red/60 focus:ring-1 focus:ring-brand-red/40 transition-all shadow-inner"
+          />
         </div>
       </div>
 
-      {/* Main Content View */}
       {activeTab === 'modules' && (
         <BotModulesAccordionDeck
           modules={currentModules}
@@ -498,27 +395,6 @@ export const NetworkBotConfigCoordinator: React.FC = () => {
         />
       )}
 
-      {activeTab === 'moduleDisplayNames' && (
-        <ModuleDisplayNamesDeck
-          moduleDisplayNames={currentModuleDisplayNames}
-          schema={schema}
-          searchQuery={searchQuery}
-          onChangeDisplayName={handleModuleDisplayNameChange}
-          disabled={isSaving}
-        />
-      )}
-
-      {activeTab === 'networkKeyDisplayNames' && (
-        <NetworkKeyDisplayNamesDeck
-          networkKeyDisplayNames={currentNetworkKeyDisplayNames}
-          schema={schema}
-          searchQuery={searchQuery}
-          onChangeDisplayName={handleNetworkKeyDisplayNameChange}
-          disabled={isSaving}
-        />
-      )}
-
-      {/* Bottom Sticky Unsaved Changes Bar */}
       <GlobalUnsavedChangesBar
         isDirty={isDirty}
         isSaving={isSaving}

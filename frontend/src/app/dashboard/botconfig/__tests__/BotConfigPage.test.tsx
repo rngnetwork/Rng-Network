@@ -427,38 +427,30 @@ describe('BotConfigPage (Network-Wide Bot Deck)', () => {
     expect(await screen.findByText('Automated Moderation')).toBeInTheDocument();
   });
 
-  it('renders Module Display Names subtab and allows editing display names', async () => {
+  it('renders only Bot Modules and Network Parameters tabs and excludes synthetic display name subtabs', async () => {
     renderWithToast(<BotConfigPage />);
 
     expect(await screen.findByText('Automated Moderation')).toBeInTheDocument();
 
-    const modNamesTab = screen.getByRole('button', { name: /module display names/i });
-    fireEvent.click(modNamesTab);
-
-    // Assert module display names deck is visible
-    expect((await screen.findAllByText(/module display names/i)).length).toBeGreaterThan(0);
-    expect(screen.getByText('automod')).toBeInTheDocument();
-
-    // Verify placeholder follows "default: $value$, type: STRING"
-    const input = screen.getByPlaceholderText(/default: automated moderation, type: string/i);
-    expect(input).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /bot modules/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /network parameters/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /module display names/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /network keys display names/i })).not.toBeInTheDocument();
   });
 
-  it('renders Network Keys Display Names subtab with backend categories and allows editing', async () => {
+  it('renders full-width search bar and renders untruncated description inside accordion body', async () => {
     renderWithToast(<BotConfigPage />);
 
     expect(await screen.findByText('Automated Moderation')).toBeInTheDocument();
 
-    const netKeysTab = screen.getByRole('button', { name: /network keys display names/i });
-    fireEvent.click(netKeysTab);
+    const searchInput = screen.getByPlaceholderText(/search modules and settings/i);
+    expect(searchInput).toBeInTheDocument();
+    expect(searchInput.className).toContain('w-full');
 
-    // Assert network keys display names deck is visible
-    expect(await screen.findByText('rivals_gp_log_channel')).toBeInTheDocument();
-    expect(screen.getByText('rt_role')).toBeInTheDocument();
+    const networkTabBtn = screen.getByRole('button', { name: /network parameters/i });
+    fireEvent.click(networkTabBtn);
 
-    // Verify placeholder format
-    const input = screen.getByPlaceholderText(/default: rivals gp log channel, type: string/i);
-    expect(input).toBeInTheDocument();
+    expect(await screen.findByText('Designated Discord channel for Rivals GP broadcast events')).toBeInTheDocument();
   });
 
   it('collapses all accordion items when clicking Collapse All', async () => {

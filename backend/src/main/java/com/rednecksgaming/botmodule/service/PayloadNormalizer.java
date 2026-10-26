@@ -217,14 +217,11 @@ public class PayloadNormalizer {
 
         Map<String, Object> enrichedSchema = new LinkedHashMap<>(rawSchema);
 
-        Map<String, String> moduleDisplayNames = new LinkedHashMap<>();
         Object modulesObj = rawSchema.get("modules");
         if (modulesObj instanceof Map<?, ?> modulesMap) {
             Map<String, Object> enrichedModules = new LinkedHashMap<>();
             for (Map.Entry<?, ?> modEntry : modulesMap.entrySet()) {
                 String modName = String.valueOf(modEntry.getKey());
-                String formattedModTitle = ModuleTextFormatter.format(modName);
-                moduleDisplayNames.put(modName, formattedModTitle);
 
                 Object modFieldsObj = modEntry.getValue();
                 if (modFieldsObj instanceof Map<?, ?> fieldsMap) {
@@ -251,16 +248,13 @@ public class PayloadNormalizer {
             }
             enrichedSchema.put("modules", enrichedModules);
         }
-        enrichedSchema.put("moduleDisplayNames", moduleDisplayNames);
 
-        Map<String, String> networkKeyDisplayNames = new LinkedHashMap<>();
         Object networkKeysObj = rawSchema.get("networkKeys");
         if (networkKeysObj instanceof Map<?, ?> networkKeysMap) {
             Map<String, Object> enrichedKeys = new LinkedHashMap<>();
             for (Map.Entry<?, ?> keyEntry : networkKeysMap.entrySet()) {
                 String keyName = String.valueOf(keyEntry.getKey());
                 String formattedKeyTitle = ModuleTextFormatter.format(keyName);
-                networkKeyDisplayNames.put(keyName, formattedKeyTitle);
 
                 Object keySchemaObj = keyEntry.getValue();
                 if (keySchemaObj instanceof Map<?, ?> keySchemaMap) {
@@ -284,7 +278,6 @@ public class PayloadNormalizer {
             }
             enrichedSchema.put("networkKeys", enrichedKeys);
         }
-        enrichedSchema.put("networkKeyDisplayNames", networkKeyDisplayNames);
         enrichedSchema.put("networkKeyCategories", networkKeyCategorizer.getCategoryLabels());
 
         return enrichedSchema;

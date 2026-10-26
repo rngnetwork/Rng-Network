@@ -99,9 +99,10 @@ export const NetworkParametersDeck: React.FC<NetworkParametersDeckProps> = ({
         key;
 
       const description =
-        typeof rawVal === 'object' && rawVal !== null && 'label' in rawVal && typeof (rawVal as { label?: unknown }).label === 'string'
-          ? (rawVal as { label: string }).label
-          : keyDef?.description;
+        keyDef?.description ||
+        (typeof rawVal === 'object' && rawVal !== null && 'description' in rawVal && typeof (rawVal as { description?: unknown }).description === 'string'
+          ? (rawVal as { description: string }).description
+          : undefined);
 
       const category = resolveCategory(key);
       const categoryLabel = categoriesMap[category] || category;
@@ -128,11 +129,6 @@ export const NetworkParametersDeck: React.FC<NetworkParametersDeckProps> = ({
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-brand-red/10 border border-brand-red/20 text-brand-red hidden sm:inline">
                 {categoryLabel}
               </span>
-              {description ? (
-                <span className="text-xs text-text-tertiary truncate max-w-[260px] hidden md:inline">
-                  {description}
-                </span>
-              ) : null}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {isUniform ? (

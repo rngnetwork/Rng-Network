@@ -136,6 +136,11 @@ export const NetworkKeyConfigCard: React.FC<NetworkKeyConfigCardProps> = ({
       )}
 
       {/* Structured Form Fields */}
+      {hideHeader && description ? (
+        <div className="p-3.5 rounded-apple-lg bg-surface-canvas/60 border border-surface-border text-xs text-text-secondary leading-relaxed">
+          {description}
+        </div>
+      ) : null}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Value Field */}
         <div className="flex flex-col gap-1.5">
