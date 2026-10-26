@@ -19,11 +19,11 @@ class NetworkKeyCategorizerTest {
     @DisplayName("categorizes telemetry keys starting with rt_ properly")
     void testTelemetryKeys() {
         assertThat(categorizer.categorize("rt_bonus_r1_role", null))
-                .isEqualTo(NetworkKeyCategorizer.CATEGORY_TELEMETRY);
+                .isEqualTo(NetworkKeyCategorizer.CATEGORY_RT);
         assertThat(categorizer.categorize("rt_rate", "Telemetry rate"))
-                .isEqualTo(NetworkKeyCategorizer.CATEGORY_TELEMETRY);
+                .isEqualTo(NetworkKeyCategorizer.CATEGORY_RT);
         assertThat(categorizer.categorize("rt_log_channel", null))
-                .isEqualTo(NetworkKeyCategorizer.CATEGORY_TELEMETRY);
+                .isEqualTo(NetworkKeyCategorizer.CATEGORY_RT);
     }
 
     @Test

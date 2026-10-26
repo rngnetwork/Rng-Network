@@ -14,7 +14,7 @@ public class NetworkKeyCategorizer {
 
     public static final String CATEGORY_FINANCIAL = "FINANCIAL";
     public static final String CATEGORY_MODERATION = "MODERATION";
-    public static final String CATEGORY_TELEMETRY = "TELEMETRY";
+    public static final String CATEGORY_RT = "RT";
     public static final String CATEGORY_CITIZENSHIP = "CITIZENSHIP";
     public static final String CATEGORY_EVENTS = "EVENTS";
     public static final String CATEGORY_RIVALS = "RIVALS";
@@ -26,7 +26,7 @@ public class NetworkKeyCategorizer {
     static {
         CATEGORY_LABELS.put(CATEGORY_FINANCIAL, "Financial & Payouts");
         CATEGORY_LABELS.put(CATEGORY_MODERATION, "Moderation & Security");
-        CATEGORY_LABELS.put(CATEGORY_TELEMETRY, "Roughnecks Telemetry (RT)");
+        CATEGORY_LABELS.put(CATEGORY_RT, "Rednecks Token (RT)");
         CATEGORY_LABELS.put(CATEGORY_CITIZENSHIP, "Citizenship & Community");
         CATEGORY_LABELS.put(CATEGORY_EVENTS, "Events & Competitions");
         CATEGORY_LABELS.put(CATEGORY_RIVALS, "Rivals Esports");
@@ -52,7 +52,7 @@ public class NetworkKeyCategorizer {
 
         // 1. Telemetry / RT: all keys starting with rt_
         if (normalizedKey.startsWith("rt_") || normalizedDesc.contains("roughnecks telemetry")) {
-            return CATEGORY_TELEMETRY;
+            return CATEGORY_RT;
         }
 
         // 2. Rivals Esports: all keys starting with rivals_
