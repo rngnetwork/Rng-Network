@@ -102,7 +102,7 @@ class WhitelistIntegrationTest {
                 .fullName("Agent 007")
                 .provider(AuthProvider.EMAIL)
                 .role("ROLE_USER")
-                .designations("Ministry of Internal affairs")
+                .designations("Ministry of Growth, GFX and External Relations")
                 .roles("Agent")
                 .status("ACTIVE")
                 .build());
@@ -178,7 +178,7 @@ class WhitelistIntegrationTest {
                 .email("imposter@rng.com")
                 .userName("Imposter")
                 .provider(AuthProvider.EMAIL)
-                .designations(List.of("Ministry of Internal affairs"))
+                .designations(List.of("Ministry of Growth, GFX and External Relations"))
                 .roles(List.of("Agent"))
                 .build();
 

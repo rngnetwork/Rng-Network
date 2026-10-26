@@ -67,7 +67,7 @@ class WhitelistControllerTest {
                 .userName("Agent Smith")
                 .provider("EMAIL")
                 .role("ROLE_USER")
-                .designations(List.of("Ministry of Internal affairs"))
+                .designations(List.of("Ministry of Growth, GFX and External Relations"))
                 .roles(List.of("Agent"))
                 .status("ACTIVE")
                 .build();

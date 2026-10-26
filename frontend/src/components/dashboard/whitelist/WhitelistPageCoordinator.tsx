@@ -28,26 +28,6 @@ import { AddPersonnelModal, WhitelistModalFormState } from './AddPersonnelModal'
 import { RankElevationModal } from './RankElevationModal';
 import { RevokePersonnelModal } from './RevokePersonnelModal';
 
-const FALLBACK_HIERARCHY: PersonnelHierarchyMap = {
-  Supreme: ['Chief High Command', 'High Command'],
-  'Ministry of Internal affairs': ['Minister', 'Secretary', 'Senior Agent', 'Agent'],
-  'Ministry of Personell': ['Minister', 'Secretary', 'Magister Officiorum', 'Tribunus', 'Legatus'],
-  'Ministry of Tech': ['Minister', 'Secretary', 'Tech Specialist', 'Senior Dev', 'Junior Dev'],
-  'Ministry of Finances': [
-    'Minister',
-    'Secretary',
-    'Digital assets officer',
-    'Regional treasurer',
-    'PayPal treasurer',
-  ],
-  'Ministry of Culture': ['Minister', 'Secretary'],
-  'Ministry of External affairs': ['Minister', 'Secretary'],
-  Chancellory: [
-    'Chancellor of Roughnuts',
-    'Chancellor of Rednecks Gaming',
-    'Chancellor of Rivals',
-  ],
-};
 
 export const WhitelistPageCoordinator: React.FC = () => {
   const { toast } = useToast();
@@ -159,8 +139,6 @@ export const WhitelistPageCoordinator: React.FC = () => {
           }
           if (hierRes.status === 'fulfilled' && hierRes.value.success && hierRes.value.data) {
             setHierarchy(hierRes.value.data);
-          } else {
-            setHierarchy(FALLBACK_HIERARCHY);
           }
           if (listRes.status === 'fulfilled' && listRes.value.success && listRes.value.data) {
             setWhitelistedUsers(listRes.value.data);
