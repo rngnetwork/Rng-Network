@@ -50,7 +50,7 @@ export const Avatar: React.FC<AvatarProps> = ({
     : alt.slice(0, 2).toUpperCase();
 
   return (
-    <div className={`relative inline-flex flex-shrink-0 select-none ${className}`}>
+    <div className={`relative inline-flex flex-shrink-0 select-none rounded-full ${className}`}>
       <div
         className={`${sizeConfig.box} rounded-full overflow-hidden bg-surface-elevated border border-surface-border flex items-center justify-center font-semibold text-text-primary ${sizeConfig.text}`}
       >

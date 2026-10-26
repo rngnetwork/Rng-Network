@@ -17,7 +17,7 @@ export interface UserProfileMenuProps {
 export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ initialUser = null }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<UserProfileData | null>(initialUser);
-    const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -52,7 +52,6 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ initialUser = 
           setUser(res.data);
         }
       } catch {
-        // Handled by global session guard
       }
     };
 
@@ -87,7 +86,6 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ initialUser = 
   }
 
   const avatarSrc = getDiscordAvatarUrl(activeProfile.discordId, activeProfile.discordAvatar);
-
   const fallbackName = activeProfile.fullName || activeProfile.email.split('@')[0];
 
   return (
@@ -105,7 +103,7 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ initialUser = 
           fallback={fallbackName}
           size="lg"
           status={activeProfile.status === 'OFFLINE' ? 'offline' : 'online'}
-          className="ring-1 ring-white/10"
+          className="ring-1 ring-white/10 rounded-full"
         />
       </button>
 
