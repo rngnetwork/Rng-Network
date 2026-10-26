@@ -130,20 +130,6 @@ export const ServerBotModulesAccordionDeck: React.FC<ServerBotModulesAccordionDe
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                {!isOverridden && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => onOverride(modKey)}
-                    disabled={isSaving}
-                    leftIcon={<Plus size={13} />}
-                  >
-                    Override Setting
-                  </Button>
-                )}
-              </div>
             </div>
 
             {/* Sub-Fields AST Controls */}
