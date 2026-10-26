@@ -46,6 +46,8 @@ public class BotModuleDocument {
 
     private Map<String, Object> network;
 
+    private Map<String, Object> schema;
+
     @Version
     private Long version;
 

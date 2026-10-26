@@ -22,9 +22,13 @@ public class BotModuleConfigRequest {
 
     private Map<String, Object> network;
 
+    private Map<String, Object> schema;
+
     @JsonIgnore
-    @AssertTrue(message = "modules or network payload must be provided")
+    @AssertTrue(message = "modules, network or schema payload must be provided")
     public boolean isValid() {
-        return (modules != null && !modules.isEmpty()) || (network != null && !network.isEmpty());
+        return (modules != null && !modules.isEmpty())
+                || (network != null && !network.isEmpty())
+                || (schema != null && !schema.isEmpty());
     }
 }
