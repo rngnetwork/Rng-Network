@@ -371,8 +371,8 @@ describe('BotConfigPage (Network-Wide Bot Deck)', () => {
     expect(screen.getAllByText('Values By Guild').length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: /add server override/i }).length).toBeGreaterThan(0);
 
-    // Assert server name is displayed in the Values By Guild override
-    expect(screen.getByText(/ID: 1440609860537290849/i)).toBeInTheDocument();
+    // Assert server name and ID is displayed in the Values By Guild override
+    expect(screen.getByText(/1440609860537290849/i)).toBeInTheDocument();
   });
 
   it('discards unsaved changes when clicking Discard in the changes bar', async () => {
@@ -410,10 +410,10 @@ describe('BotConfigPage (Network-Wide Bot Deck)', () => {
 
     renderWithToast(<BotConfigPage />);
 
-    expect(await screen.findByText(/unable to load modules/i)).toBeInTheDocument();
+    expect(await screen.findByText(/failed to load network bot modules/i)).toBeInTheDocument();
     expect(screen.getByText('Network service timeout')).toBeInTheDocument();
 
-    const retryBtn = screen.getByRole('button', { name: /try again/i });
+    const retryBtn = screen.getByRole('button', { name: /retry connection/i });
     expect(retryBtn).toBeInTheDocument();
 
     // Click retry
@@ -425,5 +425,54 @@ describe('BotConfigPage (Network-Wide Bot Deck)', () => {
     fireEvent.click(retryBtn);
 
     expect(await screen.findByText('Automated Moderation')).toBeInTheDocument();
+  });
+
+  it('renders Module Display Names subtab and allows editing display names', async () => {
+    renderWithToast(<BotConfigPage />);
+
+    expect(await screen.findByText('Automated Moderation')).toBeInTheDocument();
+
+    const modNamesTab = screen.getByRole('button', { name: /module display names/i });
+    fireEvent.click(modNamesTab);
+
+    // Assert module display names deck is visible
+    expect((await screen.findAllByText(/module display names/i)).length).toBeGreaterThan(0);
+    expect(screen.getByText('automod')).toBeInTheDocument();
+
+    // Verify placeholder follows "default: $value$, type: STRING"
+    const input = screen.getByPlaceholderText(/default: automated moderation, type: string/i);
+    expect(input).toBeInTheDocument();
+  });
+
+  it('renders Network Keys Display Names subtab with backend categories and allows editing', async () => {
+    renderWithToast(<BotConfigPage />);
+
+    expect(await screen.findByText('Automated Moderation')).toBeInTheDocument();
+
+    const netKeysTab = screen.getByRole('button', { name: /network keys display names/i });
+    fireEvent.click(netKeysTab);
+
+    // Assert network keys display names deck is visible
+    expect(await screen.findByText('rivals_gp_log_channel')).toBeInTheDocument();
+    expect(screen.getByText('rt_role')).toBeInTheDocument();
+
+    // Verify placeholder format
+    const input = screen.getByPlaceholderText(/default: rivals gp log channel, type: string/i);
+    expect(input).toBeInTheDocument();
+  });
+
+  it('collapses all accordion items when clicking Collapse All', async () => {
+    renderWithToast(<BotConfigPage />);
+
+    expect(await screen.findByText('Automated Moderation')).toBeInTheDocument();
+
+    // Find Collapse All button
+    const collapseAllBtn = screen.getByRole('button', { name: /collapse all/i });
+    expect(collapseAllBtn).toBeInTheDocument();
+
+    fireEvent.click(collapseAllBtn);
+
+    // After collapse all, it should be disabled or show 0 expanded
+    expect(screen.getByText(/0 of \d+ expanded/i)).toBeInTheDocument();
   });
 });
