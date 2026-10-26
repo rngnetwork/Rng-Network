@@ -11,6 +11,8 @@ export interface NetworkKeyConfigCardProps {
   keyName: string;
   displayName: string;
   description?: string;
+  dataType?: string;
+  defaultVal?: unknown;
   rawValue: unknown;
   onChange: (updatedVal: unknown) => void;
   servers: ServerItem[];
@@ -22,6 +24,8 @@ export const NetworkKeyConfigCard: React.FC<NetworkKeyConfigCardProps> = ({
   keyName,
   displayName,
   description,
+  dataType,
+  defaultVal,
   rawValue,
   onChange,
   servers,
@@ -39,12 +43,15 @@ export const NetworkKeyConfigCard: React.FC<NetworkKeyConfigCardProps> = ({
     ? (rawObj.value !== undefined ? rawObj.value : rawObj.default ?? '')
     : (rawValue ?? '');
 
-  const defaultValue = isObject && rawObj ? rawObj.default : undefined;
+  const defaultValue = isObject && rawObj ? rawObj.default : defaultVal;
   const isUniform = isObject && rawObj ? rawObj.uniform !== false : true;
   const serversCount = isObject && rawObj && typeof rawObj.servers === 'number' ? rawObj.servers : 0;
   const valuesByGuild = isObject && rawObj && rawObj.valuesByGuild && typeof rawObj.valuesByGuild === 'object'
     ? (rawObj.valuesByGuild as Record<string, string | number | boolean | null>)
     : {};
+
+  const resolvedType = (dataType || (typeof defaultValue === 'number' ? (Number.isInteger(defaultValue) ? 'INTEGER' : 'FLOAT') : typeof defaultValue === 'boolean' ? 'BOOLEAN' : 'STRING')).toUpperCase();
+  const defaultFormatted = defaultValue !== undefined && defaultValue !== null ? String(defaultValue) : 'none';
 
   const handleValueChange = useCallback((newVal: string) => {
     if (isObject && rawObj) {
@@ -137,7 +144,7 @@ export const NetworkKeyConfigCard: React.FC<NetworkKeyConfigCardProps> = ({
             value={currentValue != null ? String(currentValue) : ''}
             onChange={(e) => handleValueChange(e.target.value)}
             disabled={disabled}
-            placeholder="Enter configuration value..."
+            placeholder={`default: ${defaultFormatted}, type: ${resolvedType}`}
             helperText="Network-wide baseline value"
           />
         </div>
@@ -147,7 +154,7 @@ export const NetworkKeyConfigCard: React.FC<NetworkKeyConfigCardProps> = ({
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-medium text-text-secondary">Default</span>
             <span className="text-xs font-mono text-text-tertiary bg-surface-elevated px-2 py-0.5 rounded border border-surface-border">
-              {defaultValue !== undefined && defaultValue !== null ? String(defaultValue) : 'none'}
+              {defaultFormatted}
             </span>
           </div>
 
@@ -175,6 +182,8 @@ export const NetworkKeyConfigCard: React.FC<NetworkKeyConfigCardProps> = ({
           valuesByGuild={valuesByGuild}
           onChange={handleValuesByGuildChange}
           servers={servers}
+          defaultValue={defaultValue}
+          dataType={resolvedType}
           disabled={disabled}
         />
       </div>
