@@ -50,12 +50,23 @@ public class BotModuleController {
             @Valid @RequestBody BotModuleConfigRequest request
     ) {
         ActorDetails actor = resolveActorDetails(authentication);
-        Map<String, Object> result = botModuleService.updateNetworkDefaultModules(
-                actor.actorId(),
-                actor.actorName(),
-                request.getModules(),
-                request.getNetwork()
-        );
+        Map<String, Object> result;
+        if (request.getSchema() != null && !request.getSchema().isEmpty()) {
+            result = botModuleService.updateNetworkDefaultModules(
+                    actor.actorId(),
+                    actor.actorName(),
+                    request.getModules(),
+                    request.getNetwork(),
+                    request.getSchema()
+            );
+        } else {
+            result = botModuleService.updateNetworkDefaultModules(
+                    actor.actorId(),
+                    actor.actorName(),
+                    request.getModules(),
+                    request.getNetwork()
+            );
+        }
         return ResponseEntity.ok(ApiResponse.success(result, "Network default bot modules updated successfully"));
     }
 

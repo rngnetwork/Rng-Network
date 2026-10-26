@@ -171,6 +171,11 @@ public class BotModuleServiceImpl implements BotModuleService {
 
     @Override
     public Map<String, Object> updateNetworkDefaultModules(String actorId, String actorName, Map<String, Object> modules, Map<String, Object> network) {
+        return updateNetworkDefaultModules(actorId, actorName, modules, network, null);
+    }
+
+    @Override
+    public Map<String, Object> updateNetworkDefaultModules(String actorId, String actorName, Map<String, Object> modules, Map<String, Object> network, Map<String, Object> schema) {
         if (modules != null && !modules.isEmpty()) {
             schemaValidatorService.validateModules(modules);
         }
@@ -188,6 +193,7 @@ public class BotModuleServiceImpl implements BotModuleService {
                         .scope("NETWORK")
                         .modules(new HashMap<>())
                         .network(new HashMap<>())
+                        .schema(new HashMap<>())
                         .createdAt(Instant.now())
                         .build());
 
@@ -205,6 +211,12 @@ public class BotModuleServiceImpl implements BotModuleService {
             doc.setNetwork(currentNetwork);
         }
 
+        if (schema != null && !schema.isEmpty()) {
+            Map<String, Object> currentSchema = doc.getSchema() != null ? new HashMap<>(doc.getSchema()) : new HashMap<>();
+            currentSchema.putAll(schema);
+            doc.setSchema(currentSchema);
+        }
+
         doc.setUpdatedAt(Instant.now());
         doc.setLastModifiedBy(actorName != null ? actorName : actorId);
         botModuleRepository.save(doc);
@@ -216,6 +228,9 @@ public class BotModuleServiceImpl implements BotModuleService {
         }
         if (network != null) {
             auditPayload.put("network", network);
+        }
+        if (schema != null) {
+            auditPayload.put("schema", schema);
         }
         auditService.recordAuditLog("NETWORK", null, actorId, actorName, "UPDATE_NETWORK", null, auditPayload);
 

@@ -39,6 +39,11 @@ public interface BotModuleService {
     Map<String, Object> updateNetworkDefaultModules(String actorId, String actorName, Map<String, Object> modules, Map<String, Object> network);
 
     /**
+     * Updates network-wide defaults, network parameters, and schema metadata, persists to MongoDB, records audit event, and evicts dual keys.
+     */
+    Map<String, Object> updateNetworkDefaultModules(String actorId, String actorName, Map<String, Object> modules, Map<String, Object> network, Map<String, Object> schema);
+
+    /**
      * Updates server-specific modules, persists to MongoDB, records audit event, and evicts dual keys.
      */
     Map<String, Object> updateServerModules(String idOrSlug, String actorId, String actorName, Map<String, Object> patch);
