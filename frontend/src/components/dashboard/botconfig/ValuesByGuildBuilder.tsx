@@ -11,6 +11,8 @@ export interface ValuesByGuildBuilderProps {
   valuesByGuild?: Record<string, string | number | boolean | null>;
   onChange: (updated: Record<string, string | number | boolean | null>) => void;
   servers?: ServerItem[];
+  defaultValue?: unknown;
+  dataType?: string;
   disabled?: boolean;
 }
 
@@ -18,6 +20,8 @@ export const ValuesByGuildBuilder: React.FC<ValuesByGuildBuilderProps> = ({
   valuesByGuild = {},
   onChange,
   servers = [],
+  defaultValue,
+  dataType = 'STRING',
   disabled = false,
 }) => {
   const entries = useMemo(() => Object.entries(valuesByGuild || {}), [valuesByGuild]);
@@ -30,21 +34,22 @@ export const ValuesByGuildBuilder: React.FC<ValuesByGuildBuilderProps> = ({
 
   const serverOptions: DropdownOption[] = useMemo(() => {
     if (servers.length === 0) {
-      // If servers are still loading or unavailable, list existing guild IDs
       return entries.map(([guildId]) => ({
-        label: `Server ${guildId}`,
+        label: `${guildId}`,
         value: guildId,
       }));
     }
     return servers.map((s) => ({
-      label: s.name ? `${s.name} (${s.id.slice(-6)})` : s.id,
+      label: s.name ? `${s.name} ${s.id}` : s.id,
       value: s.id,
     }));
   }, [servers, entries]);
 
+  const defaultFormatted = defaultValue !== undefined && defaultValue !== null ? String(defaultValue) : 'none';
+  const typeFormatted = dataType.toUpperCase();
+
   const handleAddRow = () => {
     const currentKeys = new Set(Object.keys(valuesByGuild || {}));
-    // Pick the first server not yet overridden
     const unselectedServer = servers.find((s) => !currentKeys.has(s.id));
     const newGuildId = unselectedServer ? unselectedServer.id : `guild_${Date.now()}`;
 
@@ -120,7 +125,7 @@ export const ValuesByGuildBuilder: React.FC<ValuesByGuildBuilderProps> = ({
                 key={guildId}
                 className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 p-2 rounded-apple-md bg-surface-elevated border border-surface-border/80"
               >
-                {/* Server Select Menu (from the 13 servers) */}
+                {/* Server Select Menu with Search Bar */}
                 <div className="w-full sm:w-1/2">
                   <Dropdown
                     options={serverOptions}
@@ -128,18 +133,14 @@ export const ValuesByGuildBuilder: React.FC<ValuesByGuildBuilderProps> = ({
                     onChange={(newId) => handleServerChange(guildId, newId)}
                     disabled={disabled}
                     placeholder="Select Server"
+                    searchable={true}
                   />
-                  {serverName ? (
-                    <span className="text-[10px] font-mono text-text-tertiary px-1 mt-0.5 truncate block">
-                      ID: {guildId}
-                    </span>
-                  ) : null}
                 </div>
 
                 {/* Value's input field */}
                 <div className="flex-1">
                   <TextInput
-                    placeholder="Override Value"
+                    placeholder={`default: ${defaultFormatted}, type: ${typeFormatted}`}
                     value={val != null ? String(val) : ''}
                     onChange={(e) => handleValueChange(guildId, e.target.value)}
                     disabled={disabled}
