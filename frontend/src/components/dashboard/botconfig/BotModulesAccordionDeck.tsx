@@ -123,6 +123,7 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
             value={typeof rawValue === 'string' ? rawValue : String(rawValue ?? '')}
             onChange={(val) => onFieldChange(modKey, fieldName, val)}
             disabled={fieldDisabled || disabled}
+            searchable={true}
           />
           {description ? (
             <span className="text-[11px] text-text-tertiary">{description}</span>
@@ -152,12 +153,14 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
     }
 
     if (fieldType === 'INTEGER' || fieldType === 'FLOAT' || typeof rawValue === 'number') {
+      const defaultVal = fieldDef?.default !== undefined && fieldDef.default !== null ? String(fieldDef.default) : 'none';
       return (
         <TextInput
           type="number"
           label={label}
           helperText={description}
           value={rawValue !== undefined && rawValue !== null ? String(rawValue) : ''}
+          placeholder={`default: ${defaultVal}, type: ${fieldType}`}
           onChange={(e) => {
             const strVal = e.target.value;
             if (strVal === '') {
@@ -174,12 +177,14 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
       );
     }
 
+    const defaultVal = fieldDef?.default !== undefined && fieldDef.default !== null ? String(fieldDef.default) : 'none';
     return (
       <TextInput
         type="text"
         label={label}
         helperText={description}
         value={rawValue !== undefined && rawValue !== null ? String(rawValue) : ''}
+        placeholder={`default: ${defaultVal}, type: ${fieldType}`}
         onChange={(e) => onFieldChange(modKey, fieldName, e.target.value)}
         disabled={fieldDisabled || disabled}
       />
@@ -231,7 +236,7 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
             <div className="flex items-center justify-between p-3.5 rounded-apple-lg bg-surface-canvas border border-surface-border">
               <div className="flex flex-col gap-0.5">
                 <span className="text-xs font-bold text-text-primary uppercase tracking-wider">
-                  Master Module Activation
+                  Module Activation
                 </span>
                 <span className="text-[11px] text-text-secondary">
                   Enable or disable all automated background features for {displayName}
@@ -306,6 +311,7 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
       key={searchQuery ? `modules-search-${searchQuery}` : 'modules-default'}
       items={accordionItems}
       allowMultiple={true}
+      showCollapseAll={true}
       defaultOpenIds={searchQuery ? filteredModules : (moduleKeys[0] ? [moduleKeys[0]] : [])}
       className="rounded-apple-xl border-surface-border bg-surface-elevated shadow-apple-card overflow-hidden"
     />
