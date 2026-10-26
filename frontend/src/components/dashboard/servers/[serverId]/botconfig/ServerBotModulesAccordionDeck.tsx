@@ -219,6 +219,7 @@ export const ServerBotModulesAccordionDeck: React.FC<ServerBotModulesAccordionDe
       key={searchQuery ? `server-modules-search-${searchQuery}` : 'server-modules-default'}
       items={accordionItems}
       allowMultiple={true}
+      showCollapseAll={true}
       defaultOpenIds={searchQuery ? moduleKeys : (moduleKeys[0] ? [moduleKeys[0]] : [])}
       className="rounded-apple-xl border-surface-border bg-surface-elevated shadow-apple-card overflow-hidden"
     />

@@ -510,6 +510,7 @@ export const ServerGeneralConfigForm: React.FC<ServerGeneralConfigFormProps> = (
 
   return (
     <Accordion
+      showCollapseAll={true}
       items={accordionItems}
       allowMultiple={true}
       defaultOpenIds={['overview', 'automation', 'routing']}

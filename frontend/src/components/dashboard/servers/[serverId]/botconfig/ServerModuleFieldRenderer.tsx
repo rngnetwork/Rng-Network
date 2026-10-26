@@ -4,28 +4,27 @@ import React from 'react';
 import type { BotModuleFieldSchema } from '@/lib/model/bot-module';
 import { ToggleSwitch } from '@/components/common/input/ToggleSwitch';
 import { TextInput } from '@/components/common/input/TextInput';
-import { Dropdown } from '@/components/common/input/Dropdown';
+import { Dropdown, type DropdownOption } from '@/components/common/input/Dropdown';
 
 export interface ServerModuleFieldRendererProps {
   modKey: string;
   fieldName: string;
-  fieldDef: BotModuleFieldSchema | undefined;
+  fieldDef?: BotModuleFieldSchema;
   rawValue: unknown;
   fieldDisabled: boolean;
   isSaving: boolean;
-  serverChannels: Array<{ id: string; name: string; type: number }>;
-  serverRoles: Array<{ id: string; name: string; color?: string; position: number; assignableByBot?: boolean }>;
-  channelOptions: Array<{ label: string; value: string }>;
-  roleOptions: Array<{ label: string; value: string }>;
+  serverChannels: Array<{ id: string; name: string; type?: number }>;
+  serverRoles: Array<{ id: string; name: string; color?: string; position?: number; assignableByBot?: boolean }>;
+  channelOptions: DropdownOption[];
+  roleOptions: DropdownOption[];
   onFieldChange: (modKey: string, fieldName: string, value: unknown) => void;
 }
 
-function resolveFieldLabel(fieldKey: string, fieldDef?: BotModuleFieldSchema): string {
-  if (fieldDef?.displayName) return fieldDef.displayName;
-  if (fieldDef?.label) return fieldDef.label;
-
-  const spaced = fieldKey.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ');
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1).trim();
+function resolveFieldLabel(
+  fieldName: string,
+  fieldDef?: BotModuleFieldSchema
+): string {
+  return fieldDef?.label || fieldDef?.displayName || fieldName;
 }
 
 export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps> = ({
@@ -48,6 +47,8 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
   const isChannelField = fieldName.toLowerCase().includes('channel');
   const isRoleField = fieldName.toLowerCase().includes('role');
 
+  const defaultFormatted = fieldDef?.default !== undefined && fieldDef.default !== null ? String(fieldDef.default) : 'none';
+
   if (isChannelField && serverChannels.length > 0) {
     return (
       <div className="flex flex-col gap-1.5 w-full">
@@ -58,6 +59,7 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
           onChange={(val) => onFieldChange(modKey, fieldName, val === 'none' ? null : val)}
           disabled={fieldDisabled || isSaving}
           placeholder="Select Channel"
+          searchable={true}
         />
         {description ? (
           <span className="text-[11px] text-text-tertiary">{description}</span>
@@ -76,6 +78,7 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
           onChange={(val) => onFieldChange(modKey, fieldName, val === 'none' ? null : val)}
           disabled={fieldDisabled || isSaving}
           placeholder="Select Role"
+          searchable={true}
         />
         {description ? (
           <span className="text-[11px] text-text-tertiary">{description}</span>
@@ -97,6 +100,7 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
           value={typeof rawValue === 'string' ? rawValue : String(rawValue ?? '')}
           onChange={(val) => onFieldChange(modKey, fieldName, val)}
           disabled={fieldDisabled || isSaving}
+          searchable={true}
         />
         {description ? (
           <span className="text-[11px] text-text-tertiary">{description}</span>
@@ -137,7 +141,7 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
             onFieldChange(modKey, fieldName, parsed);
           }}
           disabled={fieldDisabled || isSaving}
-          placeholder={fieldDef?.default !== undefined ? `Default: ${fieldDef.default}` : 'Enter number'}
+          placeholder={`default: ${defaultFormatted}, type: ${fieldType}`}
           min={fieldDef?.min}
           max={fieldDef?.max}
         />
@@ -153,6 +157,8 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
       typeof rawValue === 'object' && rawValue !== null
         ? JSON.stringify(rawValue, null, 2)
         : String(rawValue ?? '');
+
+    const jsonDefault = fieldDef?.default !== undefined && fieldDef.default !== null ? JSON.stringify(fieldDef.default) : 'none';
 
     return (
       <div className="flex flex-col gap-1.5 w-full">
@@ -170,7 +176,7 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
           disabled={fieldDisabled || isSaving}
           rows={3}
           className="w-full px-3 py-2 rounded-apple-md bg-surface-canvas border border-surface-border text-xs font-mono text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-red/60 disabled:opacity-50 transition-colors"
-          placeholder="{}"
+          placeholder={`default: ${jsonDefault}, type: ${fieldType}`}
         />
         {description ? (
           <span className="text-[11px] text-text-tertiary">{description}</span>
@@ -187,7 +193,7 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
         value={typeof rawValue === 'string' ? rawValue : String(rawValue ?? '')}
         onChange={(e) => onFieldChange(modKey, fieldName, e.target.value)}
         disabled={fieldDisabled || isSaving}
-        placeholder={fieldDef?.default !== undefined ? `Default: ${fieldDef.default}` : 'Enter value'}
+        placeholder={`default: ${defaultFormatted}, type: ${fieldType}`}
       />
       {description ? (
         <span className="text-[11px] text-text-tertiary">{description}</span>

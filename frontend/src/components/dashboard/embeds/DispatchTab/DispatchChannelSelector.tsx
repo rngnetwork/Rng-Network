@@ -48,7 +48,7 @@ export const DispatchChannelSelector: React.FC<
           ? 'Select a server to view channels'
           : 'Select destination text channel...'
       }
-      searchable={options.length > 5}
+      searchable={true}
       disabled={disabled || loading || options.length === 0}
     />
   );
