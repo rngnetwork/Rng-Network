@@ -27,7 +27,7 @@ export const DiscordChannelSelect: React.FC<DiscordChannelSelectProps> = ({
   disabled = false,
   isNetworkDeck = false,
   label,
-  placeholder = 'Select a channel...',
+  placeholder = 'None (Unset)',
   className = '',
 }) => {
   const [isOpen, setIsOpen] = useState(false);

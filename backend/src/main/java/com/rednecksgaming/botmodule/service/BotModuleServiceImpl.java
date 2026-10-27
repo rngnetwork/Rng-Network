@@ -199,7 +199,17 @@ public class BotModuleServiceImpl implements BotModuleService {
 
         if (modules != null && !modules.isEmpty()) {
             Map<String, Object> currentModules = doc.getModules() != null ? new HashMap<>(doc.getModules()) : new HashMap<>();
-            currentModules.putAll(modules);
+            for (Map.Entry<String, Object> entry : modules.entrySet()) {
+                String modKey = entry.getKey();
+                Object modVal = entry.getValue();
+                if (modVal instanceof Map<?, ?> patchModMap && currentModules.get(modKey) instanceof Map<?, ?> existingModMap) {
+                    Map<String, Object> mergedMod = new HashMap<>(safeCastMap(existingModMap));
+                    mergedMod.putAll(safeCastMap(patchModMap));
+                    currentModules.put(modKey, mergedMod);
+                } else {
+                    currentModules.put(modKey, modVal);
+                }
+            }
             doc.setModules(currentModules);
         } else if (doc.getModules() == null) {
             doc.setModules(new HashMap<>());
@@ -260,7 +270,19 @@ public class BotModuleServiceImpl implements BotModuleService {
                         .build());
 
         Map<String, Object> currentModules = doc.getModules() != null ? new HashMap<>(doc.getModules()) : new HashMap<>();
-        currentModules.putAll(patch);
+        if (patch != null) {
+            for (Map.Entry<String, Object> entry : patch.entrySet()) {
+                String modKey = entry.getKey();
+                Object modVal = entry.getValue();
+                if (modVal instanceof Map<?, ?> patchModMap && currentModules.get(modKey) instanceof Map<?, ?> existingModMap) {
+                    Map<String, Object> mergedMod = new HashMap<>(safeCastMap(existingModMap));
+                    mergedMod.putAll(safeCastMap(patchModMap));
+                    currentModules.put(modKey, mergedMod);
+                } else {
+                    currentModules.put(modKey, modVal);
+                }
+            }
+        }
         doc.setModules(currentModules);
         doc.setUpdatedAt(Instant.now());
         doc.setLastModifiedBy(actorName != null ? actorName : actorId);

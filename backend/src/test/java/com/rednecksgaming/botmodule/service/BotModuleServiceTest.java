@@ -289,5 +289,20 @@ class BotModuleServiceTest {
         assertThatThrownBy(() -> schemaValidatorService.validateModules(badRoleSnowflake))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("Invalid Discord snowflake ID");
+
+        Map<String, Object> validLevelModule = new java.util.HashMap<>();
+        Map<String, Object> levelData = new java.util.HashMap<>();
+        levelData.put("enabled", true);
+        levelData.put("minXp", 15);
+        levelData.put("maxXp", 25);
+        levelData.put("cooldown", 60);
+        levelData.put("channelId", null);
+        levelData.put("announceEnabled", true);
+        levelData.put("message", "Nice {mention}, you just advanced to **level {level}**!");
+        levelData.put("ignoredChannels", List.of("123456789012345678"));
+        levelData.put("levelRoles", Map.of("5", "123456789012345678"));
+        validLevelModule.put("level", levelData);
+
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> schemaValidatorService.validateModules(validLevelModule));
     }
 }

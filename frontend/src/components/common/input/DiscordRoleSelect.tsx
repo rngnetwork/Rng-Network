@@ -45,7 +45,7 @@ export const DiscordRoleSelect: React.FC<DiscordRoleSelectProps> = ({
   roles = [],
   disabled = false,
   label,
-  placeholder = 'Select a role...',
+  placeholder = 'None (Unset)',
   className = '',
 }) => {
   const [isOpen, setIsOpen] = useState(false);

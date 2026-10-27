@@ -15,8 +15,8 @@ export interface ServerBotModulesAccordionDeckProps {
   moduleDisplayNames: Record<string, string>;
   currentModules: Record<string, BotModuleValues>;
   overriddenMap: Record<string, boolean>;
-  serverChannels: Array<{ id: string; name: string; type: number }>;
-  serverRoles: Array<{ id: string; name: string; color?: string; position: number; assignableByBot?: boolean }>;
+  serverChannels: Array<{ id: string; name: string; type?: number }>;
+  serverRoles: Array<{ id: string; name: string; color?: string; position?: number; assignableByBot?: boolean }>;
   channelOptions: Array<{ label: string; value: string }>;
   roleOptions: Array<{ label: string; value: string }>;
   searchQuery: string;
@@ -109,7 +109,6 @@ export const ServerBotModulesAccordionDeck: React.FC<ServerBotModulesAccordionDe
         ),
         content: (
           <div className="flex flex-col gap-6 py-2">
-            {/* Master Activation & Override Control Banner */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3.5 rounded-apple-lg bg-surface-canvas border border-surface-border">
               <div className="flex items-center gap-3">
                 <ToggleSwitch
@@ -130,9 +129,20 @@ export const ServerBotModulesAccordionDeck: React.FC<ServerBotModulesAccordionDe
                 </div>
               </div>
 
+              {!isOverridden ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => onOverride(modKey)}
+                  disabled={isSaving}
+                  aria-label={`Override setting for ${displayName}`}
+                >
+                  <Plus size={13} className="mr-1" />
+                  Override Setting
+                </Button>
+              ) : null}
             </div>
 
-            {/* Sub-Fields AST Controls */}
             {subFieldEntries.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {subFieldEntries.map(([fKey, fDef]) => (
