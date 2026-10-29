@@ -32,12 +32,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -254,10 +259,10 @@ public class ServerService {
             try {
                 List<DiscordChannelDto> channels = discordClient.getGuildChannels(server.getId());
                 if (channels != null && !channels.isEmpty()) {
-                    return channels.stream()
+                    List<ChannelDto> dtos = channels.stream()
                             .map(discordServerMapper::toChannelDto)
-                            .sorted(Comparator.comparingInt(c -> c.getPosition() != null ? c.getPosition() : 0))
                             .toList();
+                    return sortChannelsHierarchically(dtos);
                 }
             } catch (Exception e) {
                 log.warn("Discord REST client channel retrieval failed for {}: {}", server.getId(), e.getMessage());
@@ -268,13 +273,69 @@ public class ServerService {
         if (jda.isPresent() && jda.get().getStatus() == JDA.Status.CONNECTED) {
             Guild jdaGuild = jda.get().getGuildById(server.getId());
             if (jdaGuild != null) {
-                return jdaGuild.getChannels().stream()
+                List<ChannelDto> dtos = jdaGuild.getChannels().stream()
                         .map(discordServerMapper::toChannelDto)
                         .toList();
+                return sortChannelsHierarchically(dtos);
             }
         }
 
         return List.of();
+    }
+
+    private List<ChannelDto> sortChannelsHierarchically(List<ChannelDto> rawChannels) {
+        if (rawChannels == null || rawChannels.isEmpty()) {
+            return List.of();
+        }
+
+        Comparator<ChannelDto> channelComparator = Comparator
+                .comparingInt((ChannelDto c) -> getChannelTypePrecedence(c.getType()))
+                .thenComparingInt(c -> c.getPosition() != null ? c.getPosition() : 0)
+                .thenComparing(c -> c.getName() != null ? c.getName() : "");
+
+        List<ChannelDto> categories = rawChannels.stream()
+                .filter(c -> c.getType() != null && c.getType() == 4)
+                .sorted(Comparator.comparingInt(c -> c.getPosition() != null ? c.getPosition() : 0))
+                .toList();
+
+        Set<String> categoryIds = categories.stream()
+                .map(ChannelDto::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        List<ChannelDto> uncategorized = rawChannels.stream()
+                .filter(c -> (c.getType() == null || c.getType() != 4) && (c.getParentId() == null || c.getParentId().isBlank() || !categoryIds.contains(c.getParentId())))
+                .sorted(channelComparator)
+                .toList();
+
+        Map<String, List<ChannelDto>> groupedByParent = rawChannels.stream()
+                .filter(c -> (c.getType() == null || c.getType() != 4) && c.getParentId() != null && !c.getParentId().isBlank() && categoryIds.contains(c.getParentId()))
+                .sorted(channelComparator)
+                .collect(Collectors.groupingBy(ChannelDto::getParentId, LinkedHashMap::new, Collectors.toList()));
+
+        List<ChannelDto> result = new ArrayList<>(rawChannels.size());
+        result.addAll(uncategorized);
+
+        for (ChannelDto category : categories) {
+            result.add(category);
+            List<ChannelDto> children = groupedByParent.get(category.getId());
+            if (children != null) {
+                result.addAll(children);
+            }
+        }
+
+        return Collections.unmodifiableList(result);
+    }
+
+    private int getChannelTypePrecedence(Integer type) {
+        if (type == null) {
+            return 0;
+        }
+        return switch (type) {
+            case 0, 5, 15, 16 -> 0;
+            case 2, 13 -> 1;
+            default -> 2;
+        };
     }
 
     @Cacheable(value = "guild:roles", key = "#idOrSlug")
@@ -349,7 +410,7 @@ public class ServerService {
         }
 
         String bannerPayload = null;
-        if (request.getBanner() != null && request.getBanner().startsWith("data:")) {
+        if (request.getBanner() != null && !request.getBanner().isBlank() && request.getBanner().startsWith("data:")) {
             bannerPayload = request.getBanner();
         }
 

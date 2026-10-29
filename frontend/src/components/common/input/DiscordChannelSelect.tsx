@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useId } from 'react';
-import { ChevronDown, Check, Hash } from 'lucide-react';
+import { ChevronDown, Check, Hash, Folder, Volume2 } from 'lucide-react';
 
 export interface DiscordChannelOption {
   id: string;
   name: string;
   type?: number;
+  position?: number | null;
+  parentId?: string | null;
 }
 
 export interface DiscordChannelSelectProps {
@@ -18,6 +20,7 @@ export interface DiscordChannelSelectProps {
   label?: string;
   placeholder?: string;
   className?: string;
+  channelTypeFilter?: 'all' | 'text' | 'category' | 'voice';
 }
 
 export const DiscordChannelSelect: React.FC<DiscordChannelSelectProps> = ({
@@ -29,6 +32,7 @@ export const DiscordChannelSelect: React.FC<DiscordChannelSelectProps> = ({
   label,
   placeholder = 'None (Unset)',
   className = '',
+  channelTypeFilter = 'all',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -86,6 +90,55 @@ export const DiscordChannelSelect: React.FC<DiscordChannelSelectProps> = ({
     );
   }
 
+  const renderTriggerIcon = () => {
+    if (selectedChannel) {
+      if (selectedChannel.type === 4) {
+        return <Folder size={13} className="text-zinc-500 shrink-0" />;
+      }
+      if (selectedChannel.type === 2 || selectedChannel.type === 13) {
+        return <Volume2 size={13} className="text-zinc-500 shrink-0" />;
+      }
+      return <Hash size={13} className="text-zinc-500 shrink-0" />;
+    }
+    if (channelTypeFilter === 'category') {
+      return <Folder size={13} className="text-zinc-500 shrink-0" />;
+    }
+    if (channelTypeFilter === 'voice') {
+      return <Volume2 size={13} className="text-zinc-500 shrink-0" />;
+    }
+    return <Hash size={13} className="text-zinc-500 shrink-0" />;
+  };
+
+  const isChannelMatchingFilter = (c: DiscordChannelOption): boolean => {
+    if (channelTypeFilter === 'category') {
+      return c.type === 4;
+    }
+    if (c.type === 4) {
+      return false;
+    }
+    if (channelTypeFilter === 'voice') {
+      return c.type === 2 || c.type === 13;
+    }
+    if (channelTypeFilter === 'text') {
+      return c.type === 0 || c.type === 5 || c.type === 15 || c.type === 16 || c.type === undefined;
+    }
+    return true;
+  };
+
+  const categories = channels.filter((c) => c.type === 4);
+  const categoryIds = new Set(categories.map((c) => c.id));
+
+  const uncategorizedChannels = channels.filter(
+    (c) => isChannelMatchingFilter(c) && (!c.parentId || !categoryIds.has(c.parentId))
+  );
+
+  const categorizedGroups = categories
+    .map((cat) => ({
+      category: cat,
+      channels: channels.filter((c) => isChannelMatchingFilter(c) && c.parentId === cat.id),
+    }))
+    .filter((group) => group.channels.length > 0);
+
   return (
     <div ref={containerRef} className={`relative flex flex-col gap-1.5 w-full ${className}`}>
       {label ? (
@@ -121,7 +174,7 @@ export const DiscordChannelSelect: React.FC<DiscordChannelSelectProps> = ({
         }`}
       >
         <div className="flex items-center gap-1.5 truncate">
-          <Hash size={13} className="text-zinc-500 shrink-0" />
+          {renderTriggerIcon()}
           {selectedChannel ? (
             <span className="text-text-primary font-medium truncate">
               {selectedChannel.name}
@@ -156,32 +209,99 @@ export const DiscordChannelSelect: React.FC<DiscordChannelSelectProps> = ({
             onClick={() => handleSelect(null)}
             className="flex items-center justify-between w-full px-3 py-1.5 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800/60 transition-colors duration-100 text-left cursor-pointer"
           >
-            <span>None (Unset)</span>
+            <span>{placeholder}</span>
             {!value ? <Check size={12} className="text-brand-red" /> : null}
           </button>
 
-          {channels.map((channel) => {
-            const isSelected = channel.id === value;
+          {channelTypeFilter === 'category' ? (
+            categories.map((cat) => {
+              const isSelected = cat.id === value;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  onClick={() => handleSelect(cat.id)}
+                  className={`flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-zinc-800/60 transition-colors duration-100 text-left cursor-pointer ${
+                    isSelected ? 'text-white font-medium bg-zinc-800/40' : 'text-zinc-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 truncate">
+                    <Folder size={12} className="text-zinc-500 shrink-0" />
+                    <span className="truncate">{cat.name}</span>
+                  </div>
+                  {isSelected ? <Check size={12} className="text-brand-red shrink-0" /> : null}
+                </button>
+              );
+            })
+          ) : (
+            <>
+              {uncategorizedChannels.map((channel) => {
+                const isSelected = channel.id === value;
+                const isVoice = channel.type === 2 || channel.type === 13;
 
-            return (
-              <button
-                key={channel.id}
-                type="button"
-                role="option"
-                aria-selected={isSelected}
-                onClick={() => handleSelect(channel.id)}
-                className={`flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-zinc-800/60 transition-colors duration-100 text-left cursor-pointer ${
-                  isSelected ? 'text-white font-medium bg-zinc-800/40' : 'text-zinc-300'
-                }`}
-              >
-                <div className="flex items-center gap-1.5 truncate">
-                  <Hash size={12} className="text-zinc-500 shrink-0" />
-                  <span className="truncate">{channel.name}</span>
+                return (
+                  <button
+                    key={channel.id}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    onClick={() => handleSelect(channel.id)}
+                    className={`flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-zinc-800/60 transition-colors duration-100 text-left cursor-pointer ${
+                      isSelected ? 'text-white font-medium bg-zinc-800/40' : 'text-zinc-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 truncate">
+                      {isVoice ? (
+                        <Volume2 size={12} className="text-zinc-500 shrink-0" />
+                      ) : (
+                        <Hash size={12} className="text-zinc-500 shrink-0" />
+                      )}
+                      <span className="truncate">{channel.name}</span>
+                    </div>
+                    {isSelected ? <Check size={12} className="text-brand-red shrink-0" /> : null}
+                  </button>
+                );
+              })}
+
+              {categorizedGroups.map((group) => (
+                <div key={group.category.id} className="flex flex-col">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-zinc-500 uppercase tracking-wider select-none">
+                    <Folder size={11} className="shrink-0 text-zinc-600" />
+                    <span className="truncate">{group.category.name}</span>
+                  </div>
+                  {group.channels.map((channel) => {
+                    const isSelected = channel.id === value;
+                    const isVoice = channel.type === 2 || channel.type === 13;
+
+                    return (
+                      <button
+                        key={channel.id}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => handleSelect(channel.id)}
+                        className={`flex items-center justify-between w-full pl-6 pr-3 py-1.5 text-xs hover:bg-zinc-800/60 transition-colors duration-100 text-left cursor-pointer ${
+                          isSelected ? 'text-white font-medium bg-zinc-800/40' : 'text-zinc-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 truncate">
+                          {isVoice ? (
+                            <Volume2 size={12} className="text-zinc-500 shrink-0" />
+                          ) : (
+                            <Hash size={12} className="text-zinc-500 shrink-0" />
+                          )}
+                          <span className="truncate">{channel.name}</span>
+                        </div>
+                        {isSelected ? <Check size={12} className="text-brand-red shrink-0" /> : null}
+                      </button>
+                    );
+                  })}
                 </div>
-                {isSelected ? <Check size={12} className="text-brand-red shrink-0" /> : null}
-              </button>
-            );
-          })}
+              ))}
+            </>
+          )}
         </div>
       ) : null}
     </div>

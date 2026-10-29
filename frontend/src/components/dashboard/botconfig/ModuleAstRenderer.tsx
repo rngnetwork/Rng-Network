@@ -82,7 +82,7 @@ export const ModuleAstRenderer: React.FC<ModuleAstRendererProps> = ({
                 disabled={effectiveDisabled}
               />
             ) : fieldSchema.type === 'STRING' ? (
-              lowerName.endsWith('channelid') ? (
+              lowerName.endsWith('channelid') || lowerName.endsWith('categoryid') ? (
                 <DiscordChannelSelect
                   value={typeof rawValue === 'string' ? rawValue : null}
                   onChange={(channelId) => onChange(moduleName, fieldName, channelId)}
@@ -90,6 +90,8 @@ export const ModuleAstRenderer: React.FC<ModuleAstRendererProps> = ({
                   isNetworkDeck={isNetworkDeck}
                   disabled={effectiveDisabled}
                   label={label}
+                  channelTypeFilter={lowerName.endsWith('categoryid') ? 'category' : 'text'}
+                  placeholder={lowerName.endsWith('categoryid') ? 'None (Unset Category)' : 'None (Unset)'}
                 />
               ) : lowerName.endsWith('roleid') ? (
                 <DiscordRoleSelect

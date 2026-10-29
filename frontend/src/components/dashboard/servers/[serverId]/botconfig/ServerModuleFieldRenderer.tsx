@@ -10,7 +10,7 @@ import { DiscordChannelSelect, type DiscordChannelOption } from '@/components/co
 import { TagInput } from '@/components/common/input/TagInput';
 import { Slider } from '@/components/common/input/Slider';
 import { SegmentedControl } from '@/components/common/input/SegmentedControl';
-import { Hash, Plus, Trash2, X, ChevronDown, Check } from 'lucide-react';
+import { Hash, Plus, Trash2, X, ChevronDown, Check, Folder, Volume2 } from 'lucide-react';
 
 export interface ServerModuleFieldRendererProps {
   modKey: string;
@@ -128,6 +128,20 @@ const MultiChannelPicker: React.FC<MultiChannelPickerProps> = ({
     setIsOpen(false);
   };
 
+  const categories = channels.filter((c) => c.type === 4);
+  const categoryIds = new Set(categories.map((c) => c.id));
+
+  const uncategorized = channels.filter(
+    (c) => c.type !== 4 && (!c.parentId || !categoryIds.has(c.parentId))
+  );
+
+  const categorizedGroups = categories
+    .map((cat) => ({
+      category: cat,
+      channels: channels.filter((c) => c.type !== 4 && c.parentId === cat.id),
+    }))
+    .filter((group) => group.channels.length > 0);
+
   return (
     <div ref={containerRef} className="relative flex flex-col gap-1.5 w-full">
       <div className="flex items-center justify-between">
@@ -149,18 +163,23 @@ const MultiChannelPicker: React.FC<MultiChannelPickerProps> = ({
         ) : (
           selectedIds.map((id) => {
             const ch = channels.find((c) => c.id === id);
+            const isVoice = ch?.type === 2 || ch?.type === 13;
             return (
               <span
                 key={id}
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-apple-sm bg-zinc-800 text-xs text-text-primary border border-surface-border truncate max-w-[200px]"
               >
-                <Hash size={11} className="text-zinc-400 shrink-0" />
+                {isVoice ? (
+                  <Volume2 size={11} className="text-zinc-400 shrink-0" />
+                ) : (
+                  <Hash size={11} className="text-zinc-400 shrink-0" />
+                )}
                 <span className="truncate">{ch?.name || `ID: ${id}`}</span>
                 {!disabled ? (
                   <button
                     type="button"
                     onClick={() => removeChannel(id)}
-                    className="text-zinc-400 hover:text-white shrink-0 ml-0.5"
+                    className="text-zinc-400 hover:text-white shrink-0 ml-0.5 cursor-pointer"
                     aria-label={`Remove channel ${ch?.name || id}`}
                   >
                     <X size={12} />
@@ -188,8 +207,9 @@ const MultiChannelPicker: React.FC<MultiChannelPickerProps> = ({
 
       {isOpen && !disabled ? (
         <div className="absolute top-full left-0 z-50 w-full mt-1 max-h-56 overflow-y-auto rounded-apple-md bg-zinc-900 border border-surface-border shadow-elevated py-1">
-          {channels.map((channel) => {
+          {uncategorized.map((channel) => {
             const isSelected = selectedIds.includes(channel.id);
+            const isVoice = channel.type === 2 || channel.type === 13;
             return (
               <button
                 key={channel.id}
@@ -200,13 +220,50 @@ const MultiChannelPicker: React.FC<MultiChannelPickerProps> = ({
                 }`}
               >
                 <div className="flex items-center gap-1.5 truncate">
-                  <Hash size={12} className="text-zinc-500 shrink-0" />
+                  {isVoice ? (
+                    <Volume2 size={12} className="text-zinc-500 shrink-0" />
+                  ) : (
+                    <Hash size={12} className="text-zinc-500 shrink-0" />
+                  )}
                   <span className="truncate">{channel.name}</span>
                 </div>
                 {isSelected ? <Check size={12} className="text-brand-red shrink-0" /> : null}
               </button>
             );
           })}
+
+          {categorizedGroups.map((group) => (
+            <div key={group.category.id} className="flex flex-col">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-zinc-500 uppercase tracking-wider select-none">
+                <Folder size={11} className="shrink-0 text-zinc-600" />
+                <span className="truncate">{group.category.name}</span>
+              </div>
+              {group.channels.map((channel) => {
+                const isSelected = selectedIds.includes(channel.id);
+                const isVoice = channel.type === 2 || channel.type === 13;
+                return (
+                  <button
+                    key={channel.id}
+                    type="button"
+                    onClick={() => toggleChannel(channel.id)}
+                    className={`flex items-center justify-between w-full pl-6 pr-3 py-1.5 text-xs text-left hover:bg-zinc-800/60 transition-colors cursor-pointer ${
+                      isSelected ? 'text-white font-medium bg-zinc-800/40' : 'text-zinc-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 truncate">
+                      {isVoice ? (
+                        <Volume2 size={12} className="text-zinc-500 shrink-0" />
+                      ) : (
+                        <Hash size={12} className="text-zinc-500 shrink-0" />
+                      )}
+                      <span className="truncate">{channel.name}</span>
+                    </div>
+                    {isSelected ? <Check size={12} className="text-brand-red shrink-0" /> : null}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
       ) : null}
 
@@ -521,7 +578,12 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
   const isMultiRole = lowerName.includes('roles') || lowerName.includes('roleids');
   const isLevelRoles = lowerName === 'levelroles' || lowerName.endsWith('levelroles');
 
-  const isSingleChannel = (lowerName.endsWith('channel') || lowerName.endsWith('channelid') || lowerName.endsWith('categoryid')) && !isMultiChannel;
+  const isCategory = lowerName.endsWith('category') || lowerName.endsWith('categoryid');
+  const isVoice = lowerName.endsWith('voicechannel') || lowerName.endsWith('voicechannelid');
+  const channelTypeFilter: 'category' | 'voice' | 'text' = isCategory ? 'category' : isVoice ? 'voice' : 'text';
+  const channelPlaceholder = isCategory ? 'None (Unset Category)' : 'None (Unset)';
+
+  const isSingleChannel = (lowerName.endsWith('channel') || lowerName.endsWith('channelid') || isCategory) && !isMultiChannel;
   const isSingleRole = (lowerName.endsWith('role') || lowerName.endsWith('roleid')) && !isMultiRole && !isLevelRoles;
 
   const defaultFormatted = fieldDef?.default !== undefined && fieldDef.default !== null ? String(fieldDef.default) : 'none';
@@ -580,7 +642,8 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
             value={channelVal}
             onChange={(val) => onFieldChange(modKey, fieldName, val)}
             disabled={fieldDisabled || isSaving}
-            placeholder="None (Unset)"
+            placeholder={channelPlaceholder}
+            channelTypeFilter={channelTypeFilter}
           />
           {description ? (
             <span className="text-[11px] text-text-tertiary">{description}</span>
@@ -589,15 +652,19 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
       );
     }
 
+    const filteredOptions = isCategory
+      ? channelOptions.filter((opt) => opt.value === 'none' || opt.label.startsWith('📁'))
+      : channelOptions;
+
     return (
       <div className="flex flex-col gap-1.5 w-full">
         <Dropdown
           label={label}
-          options={channelOptions}
+          options={filteredOptions}
           value={channelVal || 'none'}
           onChange={(val) => onFieldChange(modKey, fieldName, val === 'none' ? null : val)}
           disabled={fieldDisabled || isSaving}
-          placeholder="None (Unset)"
+          placeholder={channelPlaceholder}
         />
         {description ? (
           <span className="text-[11px] text-text-tertiary">{description}</span>

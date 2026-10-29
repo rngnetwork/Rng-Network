@@ -15,7 +15,7 @@ export interface ServerBotModulesAccordionDeckProps {
   moduleDisplayNames: Record<string, string>;
   currentModules: Record<string, BotModuleValues>;
   overriddenMap: Record<string, boolean>;
-  serverChannels: Array<{ id: string; name: string; type?: number }>;
+  serverChannels: import('@/components/common/input/DiscordChannelSelect').DiscordChannelOption[];
   serverRoles: Array<{ id: string; name: string; color?: string; position?: number; assignableByBot?: boolean }>;
   channelOptions: Array<{ label: string; value: string }>;
   roleOptions: Array<{ label: string; value: string }>;

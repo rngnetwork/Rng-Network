@@ -20,6 +20,7 @@ import type {
 import { GlobalUnsavedChangesBar } from '@/components/dashboard/layout/GlobalUnsavedChangesBar';
 import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { useToast } from '@/components/common/feedback/ToastProvider';
+import type { DiscordChannelOption } from '@/components/common/input/DiscordChannelSelect';
 import { ServerBotModulesAccordionDeck } from './ServerBotModulesAccordionDeck';
 
 function resolveModuleTitle(
@@ -73,7 +74,7 @@ export const ServerBotConfigCoordinator: React.FC = () => {
   const [overriddenMap, setOverriddenMap] = useState<Record<string, boolean>>({});
   const [networkDefaults, setNetworkDefaults] = useState<Record<string, BotModuleValues>>({});
 
-  const [serverChannels, setServerChannels] = useState<Array<{ id: string; name: string; type: number }>>([]);
+  const [serverChannels, setServerChannels] = useState<DiscordChannelOption[]>([]);
   const [serverRoles, setServerRoles] = useState<Array<{ id: string; name: string; color?: string; position: number; assignableByBot?: boolean }>>([]);
 
   useEffect(() => {
@@ -172,6 +173,8 @@ export const ServerBotConfigCoordinator: React.FC = () => {
               id: c.id,
               name: c.name,
               type: c.type,
+              position: c.position,
+              parentId: c.parentId,
             }))
           );
         }
@@ -361,7 +364,7 @@ export const ServerBotConfigCoordinator: React.FC = () => {
     return [
       { label: 'None (Disabled)', value: 'none' },
       ...serverChannels.map((c) => ({
-        label: `#${c.name}`,
+        label: c.type === 4 ? `📁 ${c.name}` : c.type === 2 || c.type === 13 ? `🔊 ${c.name}` : `#${c.name}`,
         value: c.id,
       })),
     ];
