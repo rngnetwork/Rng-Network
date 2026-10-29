@@ -107,11 +107,11 @@ export const Accordion: React.FC<AccordionProps> = ({
                   : 'text-text-primary hover:bg-white/[0.04]'
               } ${headerClassName}`}
             >
-              <div className="flex items-center gap-3 min-w-0 pr-4">
+              <div className="flex items-center gap-3 min-w-0 pr-4 flex-1">
                 {item.icon ? (
                   <span className="text-text-secondary flex items-center shrink-0">{item.icon}</span>
                 ) : null}
-                <div className="min-w-0">{item.title}</div>
+                <div className="min-w-0 flex-1">{item.title}</div>
               </div>
               <svg
                 className={`w-5 h-5 text-text-tertiary transition-transform duration-200 shrink-0 ${

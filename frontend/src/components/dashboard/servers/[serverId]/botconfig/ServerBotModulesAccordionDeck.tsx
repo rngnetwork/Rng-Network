@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import type { BotModuleFieldSchema, BotModuleValues } from '@/lib/model/bot-module';
 import { Accordion, type AccordionItem } from '@/components/common/navigation/Accordion';
 import { ToggleSwitch } from '@/components/common/input/ToggleSwitch';
@@ -67,8 +67,19 @@ export const ServerBotModulesAccordionDeck: React.FC<ServerBotModulesAccordionDe
   onOverride,
   onRevert,
 }) => {
+  const [openIds, setOpenIds] = useState<string[]>(() =>
+    searchQuery ? moduleKeys : (moduleKeys[0] ? [moduleKeys[0]] : [])
+  );
+
+  useEffect(() => {
+    if (searchQuery) {
+      setOpenIds(moduleKeys);
+    }
+  }, [searchQuery, moduleKeys]);
+
   const accordionItems: AccordionItem[] = useMemo(() => {
     return moduleKeys.map((modKey) => {
+      const isOpen = openIds.includes(modKey);
       const displayName = resolveModuleTitle(modKey, schemaModules, moduleDisplayNames);
       const modValues = currentModules[modKey] || {};
       const modSchema = resolveModuleFields(schemaModules?.[modKey]);
@@ -92,7 +103,7 @@ export const ServerBotModulesAccordionDeck: React.FC<ServerBotModulesAccordionDe
         title: (
           <div className="flex items-center justify-between w-full pr-2 gap-4">
             <div className="flex items-center gap-3 min-w-0">
-              <span className="text-sm md:text-base font-bold text-text-primary tracking-tight truncate">
+              <span className={`text-sm md:text-base font-bold text-text-primary tracking-tight ${isOpen ? 'whitespace-normal break-words sm:truncate' : 'truncate'}`}>
                 {displayName}
               </span>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-canvas border border-surface-border text-text-tertiary hidden sm:inline">
@@ -100,15 +111,24 @@ export const ServerBotModulesAccordionDeck: React.FC<ServerBotModulesAccordionDe
               </span>
             </div>
 
-            <ServerModuleInheritanceBadge
-              isOverridden={isOverridden}
-              isEnabled={isEnabled}
-              totalFieldsCount={totalFieldsCount}
-            />
+            <div className={isOpen ? 'hidden sm:flex items-center shrink-0' : 'flex items-center shrink-0'}>
+              <ServerModuleInheritanceBadge
+                isOverridden={isOverridden}
+                isEnabled={isEnabled}
+                totalFieldsCount={totalFieldsCount}
+              />
+            </div>
           </div>
         ),
         content: (
           <div className="flex flex-col gap-6 py-2">
+            <div className="flex sm:hidden items-center gap-2">
+              <ServerModuleInheritanceBadge
+                isOverridden={isOverridden}
+                isEnabled={isEnabled}
+              />
+            </div>
+
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3.5 rounded-apple-lg bg-surface-canvas border border-surface-border">
               <div className="flex items-center gap-3">
                 <ToggleSwitch
@@ -168,6 +188,7 @@ export const ServerBotModulesAccordionDeck: React.FC<ServerBotModulesAccordionDe
     serverRoles,
     channelOptions,
     roleOptions,
+    openIds,
     isSaving,
     onFieldChange,
     onOverride,
@@ -192,7 +213,8 @@ export const ServerBotModulesAccordionDeck: React.FC<ServerBotModulesAccordionDe
       items={accordionItems}
       allowMultiple={true}
       showCollapseAll={true}
-      defaultOpenIds={searchQuery ? moduleKeys : (moduleKeys[0] ? [moduleKeys[0]] : [])}
+      openIds={openIds}
+      onOpenIdsChange={setOpenIds}
       className="rounded-apple-xl border-surface-border bg-surface-elevated shadow-apple-card overflow-hidden"
     />
   );

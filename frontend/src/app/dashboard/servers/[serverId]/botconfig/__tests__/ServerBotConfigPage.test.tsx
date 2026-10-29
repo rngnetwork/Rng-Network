@@ -111,7 +111,7 @@ describe('ServerBotConfigPage (Server-Specific Accordion Deck)', () => {
     const antinukeToggle = await screen.findByRole('switch', { name: /master enable toggle for anti-nuke protection/i });
     fireEvent.click(antinukeToggle);
 
-    expect(screen.getAllByText('Custom Server Override').length).toBe(2);
+    expect(screen.getAllByText('Custom Server Override').length).toBeGreaterThanOrEqual(2);
   });
 
   it('does not render Revert to Default button in the UI for overridden modules', async () => {
@@ -123,6 +123,21 @@ describe('ServerBotConfigPage (Server-Specific Accordion Deck)', () => {
     fireEvent.click(automodHeader);
 
     expect(screen.queryByRole('button', { name: /revert to default/i })).not.toBeInTheDocument();
+  });
+
+  it('renders mobile badges inside the accordion section body when open', async () => {
+    renderWithToast(<ServerBotConfigPage />);
+
+    expect(await screen.findByText('Automated Moderation')).toBeInTheDocument();
+
+    const automodHeader = screen.getByRole('button', { name: /automated moderation/i });
+    fireEvent.click(automodHeader);
+
+    const mobileBodyBadges = document.querySelectorAll('.flex.sm\\:hidden');
+    expect(mobileBodyBadges.length).toBeGreaterThan(0);
+    const combinedText = Array.from(mobileBodyBadges).map((el) => el.textContent).join(' ');
+    expect(combinedText).toContain('Custom Server Override');
+    expect(combinedText).toContain('Active');
   });
 
   it('tracks dirty modifications and saves server modules with patchServerModules', async () => {
