@@ -103,16 +103,14 @@ describe('ServerBotConfigPage (Server-Specific Accordion Deck)', () => {
     expect(screen.getAllByText(/network default/i).length).toBeGreaterThan(0);
   });
 
-  it('marks inherited module for custom override when clicking Override Setting', async () => {
+  it('marks inherited module for custom override when modifying settings', async () => {
     renderWithToast(<ServerBotConfigPage />);
 
     expect(await screen.findByText('Anti-Nuke Protection')).toBeInTheDocument();
 
-    // Antinuke is the first module alphabetically, so its accordion content is open by default.
-    const overrideButton = await screen.findByRole('button', { name: /override setting/i });
-    fireEvent.click(overrideButton);
+    const antinukeToggle = await screen.findByRole('switch', { name: /master enable toggle for anti-nuke protection/i });
+    fireEvent.click(antinukeToggle);
 
-    // After clicking override, both modules show Custom Server Override badge
     expect(screen.getAllByText('Custom Server Override').length).toBe(2);
   });
 
