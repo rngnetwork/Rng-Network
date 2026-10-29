@@ -128,19 +128,6 @@ export const ServerBotModulesAccordionDeck: React.FC<ServerBotModulesAccordionDe
                   </span>
                 </div>
               </div>
-
-              {!isOverridden ? (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => onOverride(modKey)}
-                  disabled={isSaving}
-                  aria-label={`Override setting for ${displayName}`}
-                >
-                  <Plus size={13} className="mr-1" />
-                  Override Setting
-                </Button>
-              ) : null}
             </div>
 
             {subFieldEntries.length > 0 ? (
