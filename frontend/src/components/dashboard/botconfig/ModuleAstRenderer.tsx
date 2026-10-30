@@ -9,6 +9,7 @@ import { SegmentedControl } from '@/components/common/input/SegmentedControl';
 import { TagInput } from '@/components/common/input/TagInput';
 import { DiscordRoleSelect, type DiscordRoleOption } from '@/components/common/input/DiscordRoleSelect';
 import { DiscordChannelSelect, type DiscordChannelOption } from '@/components/common/input/DiscordChannelSelect';
+import { DiscordMarkdownEditor } from '@/components/common/input/DiscordMarkdownEditor';
 import { KeyValueRowBuilder } from './KeyValueRowBuilder';
 
 export interface ModuleAstRendererProps {
@@ -114,6 +115,14 @@ export const ModuleAstRenderer: React.FC<ModuleAstRendererProps> = ({
                   disabled={effectiveDisabled}
                   label={label}
                   size="sm"
+                />
+              ) : lowerName.includes('description') || (typeof fieldSchema.label === 'string' && fieldSchema.label.toLowerCase().includes('description')) ? (
+                <DiscordMarkdownEditor
+                  label={label}
+                  value={typeof rawValue === 'string' ? rawValue : ''}
+                  onChange={(val) => onChange(moduleName, fieldName, val)}
+                  disabled={effectiveDisabled}
+                  placeholder={`Enter ${label.toLowerCase()}...`}
                 />
               ) : (
                 <TextInput

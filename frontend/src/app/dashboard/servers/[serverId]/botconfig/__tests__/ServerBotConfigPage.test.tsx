@@ -357,4 +357,52 @@ describe('ServerBotConfigPage (Server-Specific Accordion Deck)', () => {
     expect(muteOption).toBeInTheDocument();
     expect(muteOption).toHaveAttribute('aria-checked', 'true');
   });
+
+  it('renders DiscordMarkdownEditor for description fields with write and preview tabs', async () => {
+    vi.mocked(botModuleApi.getServerEffectiveModules).mockResolvedValueOnce({
+      success: true,
+      data: {
+        serverSlug: 'rng-testing-server',
+        guildId: '1526076781247987762',
+        schema: {
+          ticket: {
+            enabled: { type: 'BOOLEAN' as const, label: 'Master Enable' },
+            panelDescription: { type: 'STRING' as const, label: 'Panel Description' },
+          },
+          moduleDisplayNames: {
+            ticket: 'Ticket Support',
+          },
+        },
+        modules: {
+          ticket: {
+            isOverridden: true,
+            values: {
+              enabled: true,
+              panelDescription: '> Need help?\\n> Open a ticket',
+            },
+            networkDefault: {
+              enabled: true,
+              panelDescription: '> Need help?\\n> Open a ticket',
+            },
+          },
+        },
+      },
+    });
+
+    renderWithToast(<ServerBotConfigPage />);
+
+    expect(await screen.findByText('Ticket Support')).toBeInTheDocument();
+
+    const ticketHeader = screen.getByRole('button', { name: /ticket support/i });
+    if (ticketHeader.getAttribute('aria-expanded') !== 'true') {
+      fireEvent.click(ticketHeader);
+    }
+
+    expect(await screen.findByText('Panel Description')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /write/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /preview/i })).toBeInTheDocument();
+
+    const textarea = document.querySelector('textarea');
+    expect(textarea).toHaveValue('> Need help?\n> Open a ticket');
+  });
 });

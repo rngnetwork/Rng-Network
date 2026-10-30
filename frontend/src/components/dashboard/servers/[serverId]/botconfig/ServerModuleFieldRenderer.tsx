@@ -10,6 +10,7 @@ import { DiscordChannelSelect, type DiscordChannelOption } from '@/components/co
 import { TagInput } from '@/components/common/input/TagInput';
 import { Slider } from '@/components/common/input/Slider';
 import { SegmentedControl } from '@/components/common/input/SegmentedControl';
+import { DiscordMarkdownEditor } from '@/components/common/input/DiscordMarkdownEditor';
 import { Hash, Plus, Trash2, X, ChevronDown, Check, Folder, Volume2 } from 'lucide-react';
 
 export interface ServerModuleFieldRendererProps {
@@ -873,6 +874,38 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
         {description ? (
           <span className="text-[11px] text-text-tertiary">{description}</span>
         ) : null}
+      </div>
+    );
+  }
+
+  const isDescription =
+    !isMultiChannel &&
+    !isMultiRole &&
+    !isLevelRoles &&
+    !isSingleChannel &&
+    !isSingleRole &&
+    fieldType !== 'BOOLEAN' &&
+    fieldType !== 'INTEGER' &&
+    fieldType !== 'FLOAT' &&
+    (
+      lowerName.includes('description') ||
+      (typeof fieldDef?.label === 'string' && fieldDef.label.toLowerCase().includes('description')) ||
+      (typeof fieldDef?.displayName === 'string' && fieldDef.displayName.toLowerCase().includes('description')) ||
+      fieldType === 'MARKDOWN' ||
+      fieldType === 'TEXTAREA'
+    );
+
+  if (isDescription) {
+    return (
+      <div className="flex flex-col gap-1.5 w-full md:col-span-2">
+        <DiscordMarkdownEditor
+          label={label}
+          helperText={description}
+          value={typeof rawValue === 'string' ? rawValue : String(rawValue ?? '')}
+          onChange={(val) => onFieldChange(modKey, fieldName, val)}
+          disabled={fieldDisabled || isSaving}
+          placeholder={`default: ${defaultFormatted}, type: ${fieldType}`}
+        />
       </div>
     );
   }

@@ -13,6 +13,7 @@ import { TextInput } from '@/components/common/input/TextInput';
 import { Dropdown } from '@/components/common/input/Dropdown';
 import { Badge } from '@/components/common/feedback/Badge';
 import { TagInput } from '@/components/common/input/TagInput';
+import { DiscordMarkdownEditor } from '@/components/common/input/DiscordMarkdownEditor';
 import { Slider } from '@/components/common/input/Slider';
 import { SegmentedControl } from '@/components/common/input/SegmentedControl';
 
@@ -259,6 +260,27 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
       );
     }
 
+    const lowerName = fieldName.toLowerCase();
+    const isDescription =
+      lowerName.includes('description') ||
+      (typeof fieldDef?.label === 'string' && fieldDef.label.toLowerCase().includes('description')) ||
+      (typeof fieldDef?.displayName === 'string' && fieldDef.displayName.toLowerCase().includes('description')) ||
+      fieldType === 'MARKDOWN' ||
+      fieldType === 'TEXTAREA';
+
+    if (isDescription) {
+      return (
+        <DiscordMarkdownEditor
+          label={label}
+          helperText={description}
+          value={typeof rawValue === 'string' ? rawValue : String(rawValue ?? '')}
+          placeholder={`default: ${defaultVal}, type: ${fieldType}`}
+          onChange={(val) => onFieldChange(modKey, fieldName, val)}
+          disabled={fieldDisabled || disabled}
+        />
+      );
+    }
+
     return (
       <TextInput
         type="text"
@@ -340,17 +362,28 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
             {/* Sub-settings form grid */}
             {fieldKeys.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {fieldKeys.map((fName) => (
-                  <div key={fName} className="flex flex-col justify-end">
-                    {renderFieldControl(
-                      modKey,
-                      fName,
-                      fields[fName],
-                      modValues[fName],
-                      !isEnabled
-                    )}
-                  </div>
-                ))}
+                {fieldKeys.map((fName) => {
+                  const fDef = fields[fName];
+                  const lower = fName.toLowerCase();
+                  const isDesc =
+                    lower.includes('description') ||
+                    (typeof fDef?.label === 'string' && fDef.label.toLowerCase().includes('description')) ||
+                    (typeof fDef?.displayName === 'string' && fDef.displayName.toLowerCase().includes('description')) ||
+                    fDef?.type?.toUpperCase() === 'MARKDOWN' ||
+                    fDef?.type?.toUpperCase() === 'TEXTAREA';
+
+                  return (
+                    <div key={fName} className={`flex flex-col justify-end ${isDesc ? 'md:col-span-2' : ''}`}>
+                      {renderFieldControl(
+                        modKey,
+                        fName,
+                        fields[fName],
+                        modValues[fName],
+                        !isEnabled
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="py-4 text-center text-xs text-text-tertiary font-mono">

@@ -74,6 +74,8 @@ export const ServerBotModulesAccordionDeck: React.FC<ServerBotModulesAccordionDe
   useEffect(() => {
     if (searchQuery) {
       setOpenIds(moduleKeys);
+    } else if (moduleKeys.length > 0) {
+      setOpenIds((prev) => (prev.length === 0 ? [moduleKeys[0]] : prev));
     }
   }, [searchQuery, moduleKeys]);
 
