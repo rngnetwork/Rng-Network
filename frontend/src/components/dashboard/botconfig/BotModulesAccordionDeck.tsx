@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import { Shield, Bot } from 'lucide-react';
 import type {
   BotModuleFieldSchema,
@@ -102,6 +102,18 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
       return nameMatch || fieldMatch;
     });
   }, [moduleKeys, schema, searchQuery]);
+
+  const [openIds, setOpenIds] = useState<string[]>(() =>
+    searchQuery ? filteredModules : (moduleKeys[0] ? [moduleKeys[0]] : [])
+  );
+
+  useEffect(() => {
+    if (searchQuery) {
+      setOpenIds(filteredModules);
+    } else if (moduleKeys.length > 0) {
+      setOpenIds((prev) => (prev.length === 0 ? [moduleKeys[0]] : prev));
+    }
+  }, [searchQuery, filteredModules, moduleKeys]);
 
   const renderFieldControl = useCallback((
     modKey: string,
@@ -296,6 +308,7 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
 
   const accordionItems: AccordionItem[] = useMemo(() => {
     return filteredModules.map((modKey) => {
+      const isOpen = openIds.includes(modKey);
       const displayName = resolveModuleTitle(modKey, schema);
       const fields = resolveModuleFields(schema?.modules?.[modKey]);
       const modValues = modules[modKey] || {};
@@ -308,8 +321,8 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
         icon: <Shield size={18} className="text-brand-red shrink-0" />,
         title: (
           <div className="flex items-center justify-between w-full pr-2 gap-4">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="text-sm md:text-base font-bold text-text-primary tracking-tight truncate">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <span className={`text-sm md:text-base font-bold text-text-primary tracking-tight ${isOpen ? 'whitespace-normal break-words' : 'truncate'}`}>
                 {displayName}
               </span>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-canvas border border-surface-border text-text-tertiary hidden sm:inline">
@@ -317,7 +330,7 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
               </span>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className={isOpen ? 'hidden sm:flex items-center gap-2 shrink-0' : 'flex items-center gap-2 shrink-0'}>
               {isEnabled ? (
                 <Badge variant="brand" size="sm">
                   Active
@@ -335,6 +348,18 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
         ),
         content: (
           <div className="flex flex-col gap-6 py-2">
+            <div className="flex sm:hidden items-center gap-2">
+              {isEnabled ? (
+                <Badge variant="brand" size="sm">
+                  Active
+                </Badge>
+              ) : (
+                <Badge variant="neutral" size="sm">
+                  Disabled
+                </Badge>
+              )}
+            </div>
+
             {/* Master Module Enable Switch Banner */}
             <div className="flex items-center justify-between p-3.5 rounded-apple-lg bg-surface-canvas border border-surface-border">
               <div className="flex flex-col gap-0.5">
@@ -394,7 +419,7 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
         ),
       };
     });
-  }, [filteredModules, schema, modules, renderFieldControl, onFieldChange, disabled]);
+  }, [filteredModules, schema, modules, openIds, renderFieldControl, onFieldChange, disabled]);
 
   if (moduleKeys.length === 0) {
     return (
@@ -426,7 +451,8 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
       items={accordionItems}
       allowMultiple={true}
       showCollapseAll={true}
-      defaultOpenIds={searchQuery ? filteredModules : (moduleKeys[0] ? [moduleKeys[0]] : [])}
+      openIds={openIds}
+      onOpenIdsChange={setOpenIds}
       className="rounded-apple-xl border-surface-border bg-surface-elevated shadow-apple-card overflow-hidden"
     />
   );

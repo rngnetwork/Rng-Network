@@ -132,6 +132,15 @@ const discordRules: SimpleMarkdown.ParserRules & SimpleMarkdown.OutputRules<Simp
 
   codeBlock: {
     ...SimpleMarkdown.defaultRules.codeBlock,
+    match: () => null,
+  },
+
+  fence: {
+    ...SimpleMarkdown.defaultRules.fence,
+    parse: (capture: SimpleMarkdown.Capture) => ({
+      lang: capture[2] || undefined,
+      content: capture[3],
+    }),
     react: (node: SimpleMarkdown.SingleASTNode, _output: SimpleMarkdown.Output<React.ReactNode>, state: SimpleMarkdown.State) => (
       <pre
         key={state.key}

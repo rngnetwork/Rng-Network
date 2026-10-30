@@ -104,8 +104,8 @@ export const ServerBotModulesAccordionDeck: React.FC<ServerBotModulesAccordionDe
         icon: <Shield size={18} className="text-brand-red shrink-0" />,
         title: (
           <div className="flex items-center justify-between w-full pr-2 gap-4">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className={`text-sm md:text-base font-bold text-text-primary tracking-tight ${isOpen ? 'whitespace-normal break-words sm:truncate' : 'truncate'}`}>
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <span className={`text-sm md:text-base font-bold text-text-primary tracking-tight ${isOpen ? 'whitespace-normal break-words' : 'truncate'}`}>
                 {displayName}
               </span>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-canvas border border-surface-border text-text-tertiary hidden sm:inline">

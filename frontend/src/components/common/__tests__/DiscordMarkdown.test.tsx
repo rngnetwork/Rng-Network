@@ -78,4 +78,32 @@ describe('DiscordMarkdown', () => {
     const code = container.querySelector('code');
     expect(code?.textContent).toBe('const x = 10;');
   });
+
+  it('does not parse indented text or indented list items as a code block', () => {
+    const markdown = [
+      '> When opening a ticket:',
+      '>',
+      '>        • Clearly describe your issue.',
+      '>',
+      '>        • Be patient while waiting for a response.',
+    ].join('\n');
+
+    const { container } = render(<DiscordMarkdown content={markdown} />);
+
+    expect(container.querySelector('pre')).not.toBeInTheDocument();
+    expect(container.querySelector('code')).not.toBeInTheDocument();
+    expect(screen.getByText(/Clearly describe your issue/i)).toBeInTheDocument();
+    expect(screen.getByText(/Be patient while waiting for a response/i)).toBeInTheDocument();
+  });
+
+  it('renders fenced code blocks correctly', () => {
+    const markdown = '```js\nconst status = "operational";\n```';
+    const { container } = render(<DiscordMarkdown content={markdown} />);
+
+    const pre = container.querySelector('pre');
+    expect(pre).toBeInTheDocument();
+    const code = pre?.querySelector('code');
+    expect(code).toBeInTheDocument();
+    expect(code?.textContent).toContain('const status = "operational";');
+  });
 });
