@@ -10,6 +10,7 @@ import {
   type DiscordSelectComponent,
 } from '@/lib/model/embed';
 import { TextInput } from '@/components/common/input/TextInput';
+import { DiscordMarkdownEditor } from '@/components/common/input/DiscordMarkdownEditor';
 import { ContainerHeader } from './ContainerHeader';
 import { ContainerFields } from './ContainerFields';
 import { ComponentItemRenderer } from './ComponentItemRenderer';
@@ -56,7 +57,6 @@ export interface ContainerItemCardProps {
     select: DiscordSelectComponent
   ) => void;
   onOpenPaletteModal: (cIdx: number) => void;
-  // Drag and drop handlers
   onContainerDragStart?: (e: React.DragEvent, cIdx: number) => void;
   onContainerDragOver?: (e: React.DragEvent, cIdx: number) => void;
   onContainerDrop?: (e: React.DragEvent, cIdx: number) => void;
@@ -113,7 +113,6 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
       }}
       className="rounded-apple-xl bg-surface-card/90 backdrop-blur-xl border border-white/10 border-l-4 p-5 flex flex-col gap-4 shadow-apple-card transition-all"
     >
-      {/* 1. Container Header */}
       <ContainerHeader
         cIdx={cIdx}
         totalContainers={totalContainers}
@@ -128,7 +127,6 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
         onDragStart={(e) => onContainerDragStart?.(e, cIdx)}
       />
 
-      {/* 2. Optional Author Bar */}
       {!isAuthorCollapsed && (
         <TextInput
           placeholder="Author Name (e.g. Server Announcements)"
@@ -138,7 +136,6 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
         />
       )}
 
-      {/* 3. Title & Description */}
       <div className="flex flex-col gap-3">
         <TextInput
           label="Container Title"
@@ -148,23 +145,15 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
             onUpdateContainer(cIdx, { title: e.target.value })
           }
         />
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-zinc-300">
-            Container Description / Body (Markdown)
-          </label>
-          <textarea
-            value={container.description || ''}
-            rows={2}
-            placeholder="Container Description / Body Markdown text..."
-            onChange={(e) =>
-              onUpdateContainer(cIdx, { description: e.target.value })
-            }
-            className="w-full px-3.5 py-2.5 rounded-apple-md bg-[#0E0E12] border border-surface-border hover:border-white/20 focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 text-xs sm:text-sm text-white font-sans outline-none transition-all resize-y leading-relaxed"
-          />
-        </div>
+        <DiscordMarkdownEditor
+          label="Container Description / Body"
+          value={container.description || ''}
+          rows={3}
+          placeholder="Container Description / Body Markdown text..."
+          onChange={(val) => onUpdateContainer(cIdx, { description: val })}
+        />
       </div>
 
-      {/* 4. Embed Fields */}
       <ContainerFields
         cIdx={cIdx}
         fields={container.fields}
@@ -173,7 +162,6 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
         onRemoveField={onRemoveField}
       />
 
-      {/* 5. Nested Components List */}
       <div className="flex flex-col gap-2 pt-1 border-t border-white/[0.08]">
         {container.components.length === 0 ? (
           <div className="py-4 rounded-apple-lg border border-dashed border-white/10 text-center text-xs text-zinc-500">
@@ -211,7 +199,6 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
         )}
       </div>
 
-      {/* 7. Footer Subtext (Strictly positioned at container bottom) */}
       {!isAuthorCollapsed && (
         <TextInput
           placeholder="Footer Text"
