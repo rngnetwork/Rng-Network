@@ -14,6 +14,8 @@ export * from './input/TagInput';
 export * from './input/DiscordRoleSelect';
 export * from './input/DiscordChannelSelect';
 export * from './input/ModuleInheritanceIndicator';
+export * from './input/DiscordMarkdownEditor';
+export * from './display/DiscordMarkdown';
 
 export * from './navigation/Navbar';
 export * from './navigation/HamburgerMenu';
