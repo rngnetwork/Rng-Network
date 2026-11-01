@@ -131,9 +131,10 @@ export const ServerBotConfigCoordinator: React.FC = () => {
             ) {
               continue;
             }
-            const effective = (modInfo.effectiveConfig ?? modInfo.values ?? {}) as BotModuleValues;
+            const hasEffective = modInfo.effectiveConfig != null || modInfo.values != null;
+            const effective = (hasEffective ? (modInfo.effectiveConfig ?? modInfo.values) : { enabled: false }) as BotModuleValues;
             initialValuesMap[modName] = JSON.parse(JSON.stringify(effective));
-            overrides[modName] = Boolean(modInfo.isOverridden);
+            overrides[modName] = hasEffective ? Boolean(modInfo.isOverridden) : false;
             defaults[modName] = modInfo.networkDefault ? JSON.parse(JSON.stringify(modInfo.networkDefault)) : {};
           }
 
@@ -274,7 +275,13 @@ export const ServerBotConfigCoordinator: React.FC = () => {
 
     for (const [modKey, modValues] of Object.entries(currentModules)) {
       const initModValues = initialModules[modKey] || {};
+      const modSchema = schemaModules[modKey];
       for (const [fName, fVal] of Object.entries(modValues)) {
+        const fieldDef = modSchema?.[fName];
+        if (fieldDef?.readOnly === true) {
+          continue;
+        }
+
         const initVal = initModValues[fName];
         if (JSON.stringify(fVal) !== JSON.stringify(initVal)) {
           if (!dirty[modKey]) {
@@ -291,7 +298,7 @@ export const ServerBotConfigCoordinator: React.FC = () => {
       dirtyCount: count,
       isDirty: count > 0,
     };
-  }, [currentModules, initialModules]);
+  }, [currentModules, initialModules, schemaModules]);
 
   const handleResetAll = useCallback(() => {
     setCurrentModules(JSON.parse(JSON.stringify(initialModules)));

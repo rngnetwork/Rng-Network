@@ -556,6 +556,220 @@ const LevelRolesEditor: React.FC<LevelRolesEditorProps> = ({
   );
 };
 
+export interface RoleMappingItem {
+  roleKey: string;
+  roleId: string;
+  kind: 'ministry' | 'position' | 'rank';
+  ministry?: string | null;
+  position?: string | null;
+  rank?: number | null;
+}
+
+function parseRoleMappings(value: unknown): RoleMappingItem[] {
+  if (!value) return [];
+  let parsed = value;
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed.map((item) => {
+    if (typeof item !== 'object' || item === null) {
+      return {
+        roleKey: String(item || ''),
+        roleId: '',
+        kind: 'rank',
+      };
+    }
+    const raw = item as Record<string, unknown>;
+    return {
+      roleKey: String(raw.roleKey ?? ''),
+      roleId: String(raw.roleId ?? ''),
+      kind: (raw.kind === 'ministry' || raw.kind === 'position' || raw.kind === 'rank') ? raw.kind : 'rank',
+      ministry: raw.ministry != null ? String(raw.ministry) : null,
+      position: raw.position != null ? String(raw.position) : null,
+      rank: raw.rank !== undefined && raw.rank !== null ? Number(raw.rank) : null,
+    };
+  });
+}
+
+interface RoleMappingsEditorProps {
+  label: string;
+  description?: string;
+  mappings: RoleMappingItem[];
+  serverRoles: DiscordRoleOption[];
+  disabled: boolean;
+  onChange: (updated: RoleMappingItem[]) => void;
+}
+
+const RoleMappingsEditor: React.FC<RoleMappingsEditorProps> = ({
+  label,
+  description,
+  mappings,
+  serverRoles,
+  disabled,
+  onChange,
+}) => {
+  const handleItemChange = (index: number, patch: Partial<RoleMappingItem>) => {
+    if (disabled) return;
+    const next = [...mappings];
+    next[index] = { ...next[index], ...patch };
+    onChange(next);
+  };
+
+  const handleDelete = (index: number) => {
+    if (disabled) return;
+    const next = mappings.filter((_, i) => i !== index);
+    onChange(next);
+  };
+
+  const handleAdd = () => {
+    if (disabled) return;
+    const defaultRoleId = serverRoles[0]?.id || '';
+    const nextItem: RoleMappingItem = {
+      roleKey: `role_${mappings.length + 1}`,
+      roleId: defaultRoleId,
+      kind: 'rank',
+      ministry: null,
+      position: null,
+      rank: 1,
+    };
+    onChange([...mappings, nextItem]);
+  };
+
+  return (
+    <div className="flex flex-col gap-3 w-full col-span-1 md:col-span-2 p-3.5 rounded-apple-lg bg-surface-canvas border border-surface-border">
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col">
+          <span className="text-xs font-bold text-text-primary tracking-tight">{label}</span>
+          {description ? (
+            <span className="text-[11px] text-text-tertiary">{description}</span>
+          ) : null}
+        </div>
+        {!disabled ? (
+          <button
+            type="button"
+            onClick={handleAdd}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-apple-md bg-brand-red/10 border border-brand-red/30 text-xs font-medium text-brand-red hover:bg-brand-red/20 transition-colors cursor-pointer"
+          >
+            <Plus size={12} />
+            <span>Add Role Mapping</span>
+          </button>
+        ) : null}
+      </div>
+
+      {mappings.length === 0 ? (
+        <div className="py-3 text-center text-xs text-text-tertiary">
+          No role mappings configured.
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3 mt-1">
+          {mappings.map((item, idx) => (
+            <div
+              key={idx}
+              className="flex flex-col lg:flex-row items-start lg:items-center gap-2 p-2.5 rounded-apple-md bg-zinc-900/60 border border-surface-border/60 w-full"
+            >
+              <div className="flex-1 w-full lg:w-40 min-w-0">
+                <input
+                  type="text"
+                  value={item.roleKey}
+                  disabled={disabled}
+                  placeholder="roleKey (e.g. dev_agent)"
+                  aria-label={`Role key for mapping ${idx + 1}`}
+                  onChange={(e) => handleItemChange(idx, { roleKey: e.target.value })}
+                  className="w-full px-2.5 py-1.5 rounded-apple-md bg-zinc-900 border border-surface-border text-xs text-text-primary placeholder:text-zinc-500 focus:outline-none focus:border-brand-red/50 disabled:cursor-not-allowed"
+                />
+              </div>
+
+              <div className="flex-1 w-full lg:w-56 min-w-0">
+                <DiscordRoleSelect
+                  roles={serverRoles}
+                  value={item.roleId}
+                  onChange={(newRoleId) => handleItemChange(idx, { roleId: newRoleId ?? '' })}
+                  disabled={disabled}
+                  placeholder="Select Discord Role"
+                />
+              </div>
+
+              <div className="w-full lg:w-28 shrink-0">
+                <select
+                  value={item.kind}
+                  disabled={disabled}
+                  aria-label={`Kind for mapping ${idx + 1}`}
+                  onChange={(e) =>
+                    handleItemChange(idx, {
+                      kind: e.target.value as 'ministry' | 'position' | 'rank',
+                    })
+                  }
+                  className="w-full px-2 py-1.5 rounded-apple-md bg-zinc-900 border border-surface-border text-xs text-text-primary focus:outline-none focus:border-brand-red/50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <option value="rank">rank</option>
+                  <option value="position">position</option>
+                  <option value="ministry">ministry</option>
+                </select>
+              </div>
+
+              <div className="flex-1 w-full lg:w-32 min-w-0">
+                <input
+                  type="text"
+                  value={item.ministry ?? ''}
+                  disabled={disabled}
+                  placeholder="Ministry"
+                  aria-label={`Ministry for mapping ${idx + 1}`}
+                  onChange={(e) => handleItemChange(idx, { ministry: e.target.value || null })}
+                  className="w-full px-2 py-1.5 rounded-apple-md bg-zinc-900 border border-surface-border text-xs text-text-primary placeholder:text-zinc-500 focus:outline-none focus:border-brand-red/50 disabled:cursor-not-allowed"
+                />
+              </div>
+
+              <div className="flex-1 w-full lg:w-32 min-w-0">
+                <input
+                  type="text"
+                  value={item.position ?? ''}
+                  disabled={disabled}
+                  placeholder="Position"
+                  aria-label={`Position for mapping ${idx + 1}`}
+                  onChange={(e) => handleItemChange(idx, { position: e.target.value || null })}
+                  className="w-full px-2 py-1.5 rounded-apple-md bg-zinc-900 border border-surface-border text-xs text-text-primary placeholder:text-zinc-500 focus:outline-none focus:border-brand-red/50 disabled:cursor-not-allowed"
+                />
+              </div>
+
+              <div className="w-full lg:w-20 shrink-0">
+                <input
+                  type="number"
+                  value={item.rank ?? ''}
+                  disabled={disabled}
+                  placeholder="Rank"
+                  aria-label={`Rank for mapping ${idx + 1}`}
+                  onChange={(e) =>
+                    handleItemChange(idx, {
+                      rank: e.target.value ? Number(e.target.value) : null,
+                    })
+                  }
+                  className="w-full px-2 py-1.5 rounded-apple-md bg-zinc-900 border border-surface-border text-xs text-text-primary placeholder:text-zinc-500 focus:outline-none focus:border-brand-red/50 disabled:cursor-not-allowed text-center"
+                />
+              </div>
+
+              {!disabled ? (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(idx)}
+                  className="p-1.5 rounded-apple-md text-text-tertiary hover:text-brand-red hover:bg-zinc-800/60 transition-colors cursor-pointer shrink-0"
+                  aria-label={`Remove role mapping ${item.roleKey}`}
+                >
+                  <Trash2 size={14} />
+                </button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps> = ({
   modKey,
   fieldName,
@@ -573,11 +787,14 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
   const description = fieldDef?.description;
   const rawType = typeof fieldDef?.type === 'string' ? fieldDef.type : 'STRING';
   const fieldType = rawType.toUpperCase();
+  const isReadOnly = Boolean(fieldDef?.readOnly);
+  const effectiveDisabled = fieldDisabled || isSaving || isReadOnly;
 
   const lowerName = fieldName.toLowerCase();
   const isMultiChannel = lowerName.includes('channels') || lowerName.includes('channelids');
   const isMultiRole = lowerName.includes('roles') || lowerName.includes('roleids');
   const isLevelRoles = lowerName === 'levelroles' || lowerName.endsWith('levelroles');
+  const isRoleMappings = lowerName === 'rolemappings' || fieldType === 'ARRAY<OBJECT>';
 
   const isCategory = lowerName.endsWith('category') || lowerName.endsWith('categoryid');
   const isVoice = lowerName.endsWith('voicechannel') || lowerName.endsWith('voicechannelid');
@@ -597,7 +814,21 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
         description={description}
         levelRolesMap={levelRolesMap}
         serverRoles={serverRoles}
-        disabled={fieldDisabled || isSaving}
+        disabled={effectiveDisabled}
+        onChange={(updated) => onFieldChange(modKey, fieldName, updated)}
+      />
+    );
+  }
+
+  if (isRoleMappings) {
+    const mappings = parseRoleMappings(rawValue);
+    return (
+      <RoleMappingsEditor
+        label={label}
+        description={description}
+        mappings={mappings}
+        serverRoles={serverRoles}
+        disabled={effectiveDisabled}
         onChange={(updated) => onFieldChange(modKey, fieldName, updated)}
       />
     );
@@ -611,7 +842,7 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
         description={description}
         selectedIds={selectedChannelIds}
         channels={serverChannels}
-        disabled={fieldDisabled || isSaving}
+        disabled={effectiveDisabled}
         onChange={(ids) => onFieldChange(modKey, fieldName, ids)}
       />
     );
@@ -625,7 +856,7 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
         description={description}
         selectedIds={selectedRoleIds}
         roles={serverRoles}
-        disabled={fieldDisabled || isSaving}
+        disabled={effectiveDisabled}
         onChange={(ids) => onFieldChange(modKey, fieldName, ids)}
       />
     );
@@ -642,7 +873,7 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
             channels={serverChannels}
             value={channelVal}
             onChange={(val) => onFieldChange(modKey, fieldName, val)}
-            disabled={fieldDisabled || isSaving}
+            disabled={effectiveDisabled}
             placeholder={channelPlaceholder}
             channelTypeFilter={channelTypeFilter}
           />
@@ -664,14 +895,14 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
           options={filteredOptions}
           value={channelVal || 'none'}
           onChange={(val) => onFieldChange(modKey, fieldName, val === 'none' ? null : val)}
-          disabled={fieldDisabled || isSaving}
+          disabled={effectiveDisabled}
           placeholder={channelPlaceholder}
         />
-        {description ? (
-          <span className="text-[11px] text-text-tertiary">{description}</span>
-        ) : null}
-      </div>
-    );
+          {description ? (
+            <span className="text-[11px] text-text-tertiary">{description}</span>
+          ) : null}
+        </div>
+      );
   }
 
   if (isSingleRole) {
@@ -685,7 +916,7 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
             roles={serverRoles}
             value={roleVal}
             onChange={(val) => onFieldChange(modKey, fieldName, val)}
-            disabled={fieldDisabled || isSaving}
+            disabled={effectiveDisabled}
             placeholder="None (Unset)"
           />
           {description ? (
@@ -702,7 +933,7 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
           options={roleOptions}
           value={roleVal || 'none'}
           onChange={(val) => onFieldChange(modKey, fieldName, val === 'none' ? null : val)}
-          disabled={fieldDisabled || isSaving}
+          disabled={effectiveDisabled}
           placeholder="None (Unset)"
         />
         {description ? (
@@ -722,7 +953,7 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
           label={label}
           value={tags}
           onChange={(newTags) => onFieldChange(modKey, fieldName, newTags)}
-          disabled={fieldDisabled || isSaving}
+          disabled={effectiveDisabled}
           placeholder={`default: ${defaultFormatted}, type: ARRAY`}
         />
         {description ? (
@@ -744,7 +975,7 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
           options={segOptions}
           value={typeof rawValue === 'string' ? rawValue : String(rawValue ?? '')}
           onChange={(val) => onFieldChange(modKey, fieldName, val)}
-          disabled={fieldDisabled || isSaving}
+          disabled={effectiveDisabled}
           size="sm"
         />
         {description ? (
@@ -766,7 +997,7 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
           options={dropdownOptions}
           value={typeof rawValue === 'string' ? rawValue : String(rawValue ?? '')}
           onChange={(val) => onFieldChange(modKey, fieldName, val)}
-          disabled={fieldDisabled || isSaving}
+          disabled={effectiveDisabled}
           searchable={true}
         />
         {description ? (
@@ -788,7 +1019,7 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
         <ToggleSwitch
           checked={Boolean(rawValue)}
           onChange={(checked) => onFieldChange(modKey, fieldName, checked)}
-          disabled={fieldDisabled || isSaving}
+          disabled={effectiveDisabled}
           aria-label={label}
         />
       </div>
@@ -812,7 +1043,7 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
           step={step}
           value={numVal}
           onChange={(val) => onFieldChange(modKey, fieldName, val)}
-          disabled={fieldDisabled || isSaving}
+          disabled={effectiveDisabled}
         />
         {description ? (
           <span className="text-[11px] text-text-tertiary">{description}</span>
@@ -827,13 +1058,14 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
         <label className="text-xs font-medium text-text-secondary select-none">{label}</label>
         <TextInput
           type="number"
+          aria-label={label}
           value={rawValue !== undefined && rawValue !== null ? String(rawValue) : ''}
           onChange={(e) => {
             const valStr = e.target.value;
             const parsed = valStr === '' ? null : Number(valStr);
             onFieldChange(modKey, fieldName, parsed);
           }}
-          disabled={fieldDisabled || isSaving}
+          disabled={effectiveDisabled}
           placeholder={`default: ${defaultFormatted}, type: ${fieldType}`}
           min={fieldDef?.min}
           max={fieldDef?.max}
@@ -866,7 +1098,7 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
               onFieldChange(modKey, fieldName, e.target.value);
             }
           }}
-          disabled={fieldDisabled || isSaving}
+          disabled={effectiveDisabled}
           rows={3}
           className="w-full px-3 py-2 rounded-apple-md bg-surface-canvas border border-surface-border text-xs font-mono text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-red/60 disabled:opacity-50 transition-colors"
           placeholder={`default: ${jsonDefault}, type: ${fieldType}`}
@@ -882,6 +1114,7 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
     !isMultiChannel &&
     !isMultiRole &&
     !isLevelRoles &&
+    !isRoleMappings &&
     !isSingleChannel &&
     !isSingleRole &&
     fieldType !== 'BOOLEAN' &&
@@ -903,7 +1136,7 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
           helperText={description}
           value={typeof rawValue === 'string' ? rawValue : String(rawValue ?? '')}
           onChange={(val) => onFieldChange(modKey, fieldName, val)}
-          disabled={fieldDisabled || isSaving}
+          disabled={effectiveDisabled}
           placeholder={`default: ${defaultFormatted}, type: ${fieldType}`}
         />
       </div>
@@ -915,9 +1148,10 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
       <label className="text-xs font-medium text-text-secondary select-none">{label}</label>
       <TextInput
         type="text"
+        aria-label={label}
         value={typeof rawValue === 'string' ? rawValue : String(rawValue ?? '')}
         onChange={(e) => onFieldChange(modKey, fieldName, e.target.value)}
-        disabled={fieldDisabled || isSaving}
+        disabled={effectiveDisabled}
         placeholder={`default: ${defaultFormatted}, type: ${fieldType}`}
       />
       {description ? (

@@ -312,7 +312,14 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
       const displayName = resolveModuleTitle(modKey, schema);
       const fields = resolveModuleFields(schema?.modules?.[modKey]);
       const modValues = modules[modKey] || {};
-      const isEnabled = modValues.enabled !== false;
+      const isMasterReadOnly = Boolean(fields?.enabled?.readOnly);
+      const isEnabled = Boolean(
+        modValues.enabled !== undefined
+          ? modValues.enabled
+          : fields?.enabled?.default !== undefined
+            ? fields.enabled.default
+            : false
+      );
       const fieldKeys = Object.keys(fields).filter((k) => k !== 'enabled');
       const totalFieldsCount = Object.keys(fields).length;
 
@@ -377,7 +384,7 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
                 <ToggleSwitch
                   checked={isEnabled}
                   onChange={(checked) => onFieldChange(modKey, 'enabled', checked)}
-                  disabled={disabled}
+                  disabled={disabled || isMasterReadOnly}
                   size="md"
                   aria-label={`Master enable toggle for ${displayName}`}
                 />

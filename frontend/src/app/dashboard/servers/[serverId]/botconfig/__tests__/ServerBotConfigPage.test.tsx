@@ -405,4 +405,141 @@ describe('ServerBotConfigPage (Server-Specific Accordion Deck)', () => {
     const textarea = document.querySelector('textarea');
     expect(textarea).toHaveValue('> Need help?\n> Open a ticket');
   });
+
+  it('correctly evaluates null server module as disabled without setting active toggle ON (BUG-012)', async () => {
+    vi.mocked(botModuleApi.getServerEffectiveModules).mockResolvedValueOnce({
+      success: true,
+      data: {
+        serverSlug: 'rng-testing-server',
+        guildId: '1526076781247987762',
+        schema: {
+          vanityRoles: {
+            enabled: { type: 'BOOLEAN' as const, label: 'Master Enable', default: false },
+            roleId: { type: 'STRING' as const, label: 'Vanity Role' },
+          },
+          moduleDisplayNames: {
+            vanityRoles: 'Vanity Roles',
+          },
+        },
+        modules: {
+          vanityRoles: {
+            isOverridden: false,
+            values: null as any,
+            effectiveConfig: null as any,
+            networkDefault: null as any,
+          },
+        },
+      },
+    });
+
+    renderWithToast(<ServerBotConfigPage />);
+
+    expect(await screen.findByText('Vanity Roles')).toBeInTheDocument();
+    const toggle = screen.getByRole('switch', { name: /master enable toggle for vanity roles/i });
+    expect(toggle).not.toBeChecked();
+    expect(screen.getByText('Module Disabled')).toBeInTheDocument();
+  });
+
+  it('disables master toggle when module enabled is readOnly and disables readOnly fields (BUG-013)', async () => {
+    vi.mocked(botModuleApi.getServerEffectiveModules).mockResolvedValueOnce({
+      success: true,
+      data: {
+        serverSlug: 'rng-testing-server',
+        guildId: '1526076781247987762',
+        schema: {
+          jobs: {
+            enabled: { type: 'BOOLEAN' as const, label: 'Master Enable', readOnly: true },
+            effectiveDate: { type: 'STRING' as const, label: 'Effective Date', readOnly: true },
+            rolesEnforce: { type: 'BOOLEAN' as const, label: 'Enforce Roles' },
+          },
+          moduleDisplayNames: {
+            jobs: 'Staff Jobs & Clearance',
+          },
+        },
+        modules: {
+          jobs: {
+            isOverridden: true,
+            values: {
+              enabled: false,
+              effectiveDate: '2026-08-01',
+              rolesEnforce: false,
+            },
+          },
+        },
+      },
+    });
+
+    renderWithToast(<ServerBotConfigPage />);
+
+    expect(await screen.findByText('Staff Jobs & Clearance')).toBeInTheDocument();
+    const jobsHeader = screen.getByRole('button', { name: /staff jobs & clearance/i });
+    if (jobsHeader.getAttribute('aria-expanded') !== 'true') {
+      fireEvent.click(jobsHeader);
+    }
+
+    const masterToggle = screen.getByRole('switch', { name: /master enable toggle for staff jobs & clearance/i });
+    expect(masterToggle).toBeDisabled();
+
+    const effectiveDateInput = screen.getByRole('textbox', { name: /effective date/i });
+    expect(effectiveDateInput).toBeDisabled();
+  });
+
+  it('renders structured RoleMappingsEditor for ARRAY<OBJECT> roleMappings field with readOnly support (BUG-014)', async () => {
+    vi.mocked(botModuleApi.getServerEffectiveModules).mockResolvedValueOnce({
+      success: true,
+      data: {
+        serverSlug: 'rng-testing-server',
+        guildId: '1526076781247987762',
+        schema: {
+          jobs: {
+            enabled: { type: 'BOOLEAN' as const, label: 'Master Enable' },
+            roleMappings: {
+              type: 'ARRAY<OBJECT>' as any,
+              label: 'Role Mappings',
+              readOnly: true,
+              items: {
+                roleKey: { type: 'STRING', nullable: false },
+                roleId: { type: 'STRING', nullable: false },
+                kind: { type: 'STRING', enum: ['ministry', 'position', 'rank'] },
+              },
+            },
+          },
+          moduleDisplayNames: {
+            jobs: 'Staff Jobs & Clearance',
+          },
+        },
+        modules: {
+          jobs: {
+            isOverridden: true,
+            values: {
+              enabled: true,
+              roleMappings: [
+                {
+                  roleKey: 'high_command',
+                  roleId: '222',
+                  kind: 'rank',
+                  ministry: 'Supreme',
+                  position: 'Chief',
+                  rank: 1,
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+
+    renderWithToast(<ServerBotConfigPage />);
+
+    expect(await screen.findByText('Staff Jobs & Clearance')).toBeInTheDocument();
+    const jobsHeader = screen.getByRole('button', { name: /staff jobs & clearance/i });
+    if (jobsHeader.getAttribute('aria-expanded') !== 'true') {
+      fireEvent.click(jobsHeader);
+    }
+
+    expect(await screen.findByText('Role Mappings')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/type: ARRAY/i)).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue('high_command')).toBeInTheDocument();
+    expect(screen.getByText('Moderator')).toBeInTheDocument();
+  });
 });

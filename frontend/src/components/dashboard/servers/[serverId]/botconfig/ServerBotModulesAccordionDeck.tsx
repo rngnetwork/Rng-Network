@@ -85,7 +85,14 @@ export const ServerBotModulesAccordionDeck: React.FC<ServerBotModulesAccordionDe
       const displayName = resolveModuleTitle(modKey, schemaModules, moduleDisplayNames);
       const modValues = currentModules[modKey] || {};
       const modSchema = resolveModuleFields(schemaModules?.[modKey]);
-      const isEnabled = Boolean(modValues.enabled !== false);
+      const isMasterReadOnly = Boolean(modSchema?.enabled?.readOnly);
+      const isEnabled = Boolean(
+        modValues.enabled !== undefined
+          ? modValues.enabled
+          : modSchema?.enabled?.default !== undefined
+            ? modSchema.enabled.default
+            : false
+      );
       const isOverridden = Boolean(overriddenMap[modKey]);
 
       const subFieldEntries = Object.entries(modSchema).filter(([k]) => k !== 'enabled');
@@ -136,7 +143,7 @@ export const ServerBotModulesAccordionDeck: React.FC<ServerBotModulesAccordionDe
                 <ToggleSwitch
                   checked={isEnabled}
                   onChange={(checked) => onFieldChange(modKey, 'enabled', checked)}
-                  disabled={isSaving}
+                  disabled={isSaving || isMasterReadOnly}
                   aria-label={`Master enable toggle for ${displayName}`}
                 />
                 <div className="flex flex-col">

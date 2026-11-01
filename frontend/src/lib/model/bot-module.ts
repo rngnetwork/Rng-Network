@@ -1,4 +1,4 @@
-export type BotModuleFieldType = 'BOOLEAN' | 'INTEGER' | 'FLOAT' | 'STRING' | 'JSON' | 'TEXT' | 'ARRAY';
+export type BotModuleFieldType = 'BOOLEAN' | 'INTEGER' | 'FLOAT' | 'STRING' | 'JSON' | 'TEXT' | 'ARRAY' | 'ARRAY<OBJECT>' | string;
 
 export interface BotModuleFieldSchema {
   type: BotModuleFieldType;
@@ -8,9 +8,12 @@ export interface BotModuleFieldSchema {
   min?: number;
   max?: number;
   default?: unknown;
+  nullable?: boolean;
+  readOnly?: boolean;
   options?: string[];
-  items?: {
+  items?: Record<string, unknown> | {
     type?: string;
+    [key: string]: unknown;
   };
 }
 

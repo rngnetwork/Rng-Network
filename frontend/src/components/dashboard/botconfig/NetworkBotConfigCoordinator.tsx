@@ -155,7 +155,12 @@ export const NetworkBotConfigCoordinator: React.FC = () => {
     const diff: Record<string, Record<string, unknown>> = {};
     for (const [modKey, modValues] of Object.entries(currentModules)) {
       const initialMod = initialModules[modKey] || {};
+      const modSchema = (schema as any)?.modules?.[modKey] || (schema as any)?.[modKey];
       for (const [fName, fVal] of Object.entries(modValues)) {
+        const fieldDef = modSchema?.[fName];
+        if (fieldDef?.readOnly === true) {
+          continue;
+        }
         if (JSON.stringify(initialMod[fName]) !== JSON.stringify(fVal)) {
           if (!diff[modKey]) diff[modKey] = {};
           diff[modKey][fName] = fVal;
@@ -163,7 +168,7 @@ export const NetworkBotConfigCoordinator: React.FC = () => {
       }
     }
     return diff;
-  }, [currentModules, initialModules]);
+  }, [currentModules, initialModules, schema]);
 
   const dirtyNetwork = useMemo(() => {
     const diff: Record<string, unknown> = {};
