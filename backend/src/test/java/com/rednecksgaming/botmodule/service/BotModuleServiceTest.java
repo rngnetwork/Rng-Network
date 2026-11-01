@@ -154,6 +154,38 @@ class BotModuleServiceTest {
     }
 
     @Test
+    @DisplayName("getServerEffectiveModules marks server-only null modules as isOverridden=false")
+    @SuppressWarnings("unchecked")
+    void getServerEffectiveModules_serverOnlyNullModule_isNotOverridden() {
+        Server server = Server.builder()
+                .id("123456789012345678")
+                .slug("roughnuts")
+                .name("Roughnuts Server")
+                .build();
+        when(serverRepository.findByIdOrSlug("roughnuts")).thenReturn(Optional.of(server));
+
+        when(valueOperations.get("bot:config:default")).thenReturn(null);
+        when(guildApiClient.getDefaultModules()).thenReturn(Map.of(
+                "automod", Map.of("antiSpam", true)
+        ));
+
+        when(valueOperations.get("bot:guild:123456789012345678:modules")).thenReturn(null);
+        java.util.Map<String, Object> serverModules = new java.util.HashMap<>();
+        serverModules.put("vanityRoles", null);
+        when(guildApiClient.getGuildModules("123456789012345678")).thenReturn(serverModules);
+        when(guildApiClient.getGuildConfig()).thenReturn(Map.of("schema", Map.of("version", "1.0")));
+
+        Map<String, Object> response = botModuleService.getServerEffectiveModules("roughnuts");
+        Map<String, Object> modules = (Map<String, Object>) response.get("modules");
+
+        assertThat(modules).containsKey("vanityRoles");
+        Map<String, Object> vanityStatus = (Map<String, Object>) modules.get("vanityRoles");
+        assertThat(vanityStatus.get("isOverridden")).isEqualTo(false);
+        assertThat(vanityStatus.get("effectiveConfig")).isNull();
+        assertThat(vanityStatus.get("values")).isNull();
+    }
+
+    @Test
     @DisplayName("updateNetworkDefaultModules validates, updates upstream, stores in mongo, and evicts dual keys")
     void updateNetworkDefaultModules_atomicDualKeyEviction() {
         Map<String, Object> patch = Map.of("automod", Map.of("antiSpam", true));

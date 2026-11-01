@@ -218,12 +218,12 @@ class GuildApiClientTest {
     }
 
     @Test
-    @DisplayName("deleteGuildModule sends DELETE to guild module endpoint")
+    @DisplayName("deleteGuildModule sends DELETE to guild module endpoint without /modules/ infix")
     void deleteGuildModule_success() {
         String jsonResponse = "{\"ok\":true,\"data\":{\"status\":\"deleted\"}}";
 
         when(restTemplate.exchange(
-                eq("http://mock-guild-api:8790/v1/guild/123456789/modules/automod"),
+                eq("http://mock-guild-api:8790/v1/guild/123456789/automod"),
                 eq(HttpMethod.DELETE),
                 any(HttpEntity.class),
                 eq(String.class)
@@ -231,6 +231,95 @@ class GuildApiClientTest {
 
         Map<String, Object> result = guildApiClient.deleteGuildModule("123456789", "automod");
         assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("patchGuildModules serializes outbound text array fields into JSON strings")
+    void patchGuildModules_serializesOutboundTextArrayFields() {
+        String jsonResponse = "{\"ok\":true,\"data\":{\"status\":\"ok\"}}";
+
+        when(restTemplate.exchange(
+                eq("http://mock-guild-api:8790/v1/guild/123456789"),
+                eq(HttpMethod.PATCH),
+                argThat((HttpEntity<?> entity) -> {
+                    Map<?, ?> body = (Map<?, ?>) entity.getBody();
+                    Map<?, ?> modules = (Map<?, ?>) body.get("modules");
+                    Map<?, ?> ticket = (Map<?, ?>) modules.get("ticket");
+                    return "[\"1395381163585175724\"]".equals(ticket.get("additionalRoleIds"));
+                }),
+                eq(String.class)
+        )).thenReturn(new ResponseEntity<>(jsonResponse, HttpStatus.OK));
+
+        Map<String, Object> patch = Map.of(
+                "ticket", Map.of(
+                        "enabled", true,
+                        "additionalRoleIds", List.of("1395381163585175724")
+                )
+        );
+        Map<String, Object> result = guildApiClient.patchGuildModules("123456789", patch);
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("patchGuildModules throws UpstreamServiceException when upstream returns module error in 200 OK")
+    void patchGuildModules_throwsUpstreamServiceExceptionOnModuleError() {
+        String jsonResponse = """
+            {
+                "ok": true,
+                "data": {
+                    "guildId": "123456789",
+                    "modules": {
+                        "ticket": {
+                            "error": "string violation: additionalRoleIds cannot be an array or an object"
+                        }
+                    }
+                }
+            }
+            """;
+
+        when(restTemplate.exchange(
+                eq("http://mock-guild-api:8790/v1/guild/123456789"),
+                eq(HttpMethod.PATCH),
+                any(HttpEntity.class),
+                eq(String.class)
+        )).thenReturn(new ResponseEntity<>(jsonResponse, HttpStatus.OK));
+
+        Map<String, Object> patch = Map.of("ticket", Map.of("enabled", true));
+
+        assertThatThrownBy(() -> guildApiClient.patchGuildModules("123456789", patch))
+                .isInstanceOf(UpstreamServiceException.class)
+                .hasMessageContaining("string violation: additionalRoleIds cannot be an array or an object");
+    }
+
+    @Test
+    @DisplayName("patchGuildModules throws UpstreamServiceException when upstream returns enabledError in 200 OK")
+    void patchGuildModules_throwsUpstreamServiceExceptionOnEnabledError() {
+        String jsonResponse = """
+            {
+                "ok": true,
+                "data": {
+                    "guildId": "123456789",
+                    "modules": {
+                        "jobs": {
+                            "enabledError": "jobs: going live is governed — use /jobs launch"
+                        }
+                    }
+                }
+            }
+            """;
+
+        when(restTemplate.exchange(
+                eq("http://mock-guild-api:8790/v1/guild/123456789"),
+                eq(HttpMethod.PATCH),
+                any(HttpEntity.class),
+                eq(String.class)
+        )).thenReturn(new ResponseEntity<>(jsonResponse, HttpStatus.OK));
+
+        Map<String, Object> patch = Map.of("jobs", Map.of("enabled", true));
+
+        assertThatThrownBy(() -> guildApiClient.patchGuildModules("123456789", patch))
+                .isInstanceOf(UpstreamServiceException.class)
+                .hasMessageContaining("jobs: going live is governed");
     }
 
     @Test

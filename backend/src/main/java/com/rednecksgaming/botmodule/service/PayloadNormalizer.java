@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 
 @Slf4j
@@ -20,6 +21,15 @@ public class PayloadNormalizer {
     private final ObjectMapper objectMapper;
     private final NetworkKeyCategorizer networkKeyCategorizer;
 
+    private static final Set<String> STRINGIFIED_TEXT_FIELDS = Set.of(
+            "additionalroleids",
+            "ignoredchannels",
+            "ignoredroles",
+            "levelroles",
+            "badwords",
+            "exemptroleids"
+    );
+
     public PayloadNormalizer(ObjectMapper objectMapper) {
         this(objectMapper, new NetworkKeyCategorizer());
     }
@@ -28,6 +38,42 @@ public class PayloadNormalizer {
     public PayloadNormalizer(ObjectMapper objectMapper, NetworkKeyCategorizer networkKeyCategorizer) {
         this.objectMapper = objectMapper;
         this.networkKeyCategorizer = networkKeyCategorizer != null ? networkKeyCategorizer : new NetworkKeyCategorizer();
+    }
+
+    public Map<String, Object> serializeOutgoingModules(Map<String, Object> modules) {
+        if (modules == null) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, Object> serialized = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : modules.entrySet()) {
+            String modName = entry.getKey();
+            Object modVal = entry.getValue();
+
+            if (modVal instanceof Map<?, ?> modMap) {
+                Map<String, Object> serializedMod = new LinkedHashMap<>();
+                for (Map.Entry<?, ?> fieldEntry : modMap.entrySet()) {
+                    String fieldName = String.valueOf(fieldEntry.getKey());
+                    Object fieldValue = fieldEntry.getValue();
+
+                    if (fieldValue != null && STRINGIFIED_TEXT_FIELDS.contains(fieldName.toLowerCase())) {
+                        if (fieldValue instanceof List<?> || fieldValue instanceof Map<?, ?>) {
+                            try {
+                                serializedMod.put(fieldName, objectMapper.writeValueAsString(fieldValue));
+                                continue;
+                            } catch (Exception e) {
+                                log.warn("Failed to serialize field '{}' to JSON string: {}", fieldName, e.getMessage());
+                            }
+                        }
+                    }
+                    serializedMod.put(fieldName, fieldValue);
+                }
+                serialized.put(modName, serializedMod);
+            } else {
+                serialized.put(modName, modVal);
+            }
+        }
+        return serialized;
     }
 
     public Map<String, Object> unwrapEnvelope(Map<String, Object> response) {

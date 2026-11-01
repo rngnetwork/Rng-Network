@@ -137,7 +137,8 @@ public class BotModuleServiceImpl implements BotModuleService {
             String moduleName = entry.getKey();
             if (!compositeModules.containsKey(moduleName)) {
                 Map<String, Object> moduleStatus = new LinkedHashMap<>();
-                moduleStatus.put("isOverridden", true);
+                boolean isOverridden = entry.getValue() != null;
+                moduleStatus.put("isOverridden", isOverridden);
                 moduleStatus.put("effectiveConfig", entry.getValue());
                 moduleStatus.put("values", entry.getValue());
                 moduleStatus.put("networkDefault", null);

@@ -6,6 +6,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -136,5 +137,48 @@ class PayloadNormalizerTest {
         Map<String, Object> schema = (Map<String, Object>) result.get("schema");
         assertThat(schema).containsKey("moduleDisplayNames");
         assertThat(schema).containsKey("networkKeyDisplayNames");
+    }
+
+    @Test
+    @DisplayName("serializeOutgoingModules serializes known text array and map fields into JSON strings")
+    @SuppressWarnings("unchecked")
+    void serializeOutgoingModules_serializesTextArrayAndMapFieldsToJsonStrings() {
+        Map<String, Object> input = Map.of(
+                "ticket", Map.of(
+                        "enabled", true,
+                        "additionalRoleIds", List.of("1395381163585175724")
+                ),
+                "level", Map.of(
+                        "enabled", true,
+                        "ignoredChannels", List.of("111222333"),
+                        "levelRoles", Map.of("1", "role_1")
+                ),
+                "automod", Map.of(
+                        "badWords", List.of("bad1", "bad2"),
+                        "exemptRoleIds", List.of("role_999")
+                ),
+                "jobs", Map.of(
+                        "rolesEnforce", true,
+                        "roleMappings", List.of(Map.of("roleKey", "mod", "roleId", "123456789012345678", "kind", "rank"))
+                )
+        );
+
+        Map<String, Object> serialized = payloadNormalizer.serializeOutgoingModules(input);
+
+        Map<String, Object> ticket = (Map<String, Object>) serialized.get("ticket");
+        assertThat(ticket.get("enabled")).isEqualTo(true);
+        assertThat(ticket.get("additionalRoleIds")).isEqualTo("[\"1395381163585175724\"]");
+
+        Map<String, Object> level = (Map<String, Object>) serialized.get("level");
+        assertThat(level.get("ignoredChannels")).isEqualTo("[\"111222333\"]");
+        assertThat(level.get("levelRoles")).isEqualTo("{\"1\":\"role_1\"}");
+
+        Map<String, Object> automod = (Map<String, Object>) serialized.get("automod");
+        assertThat(automod.get("badWords")).isEqualTo("[\"bad1\",\"bad2\"]");
+        assertThat(automod.get("exemptRoleIds")).isEqualTo("[\"role_999\"]");
+
+        Map<String, Object> jobs = (Map<String, Object>) serialized.get("jobs");
+        assertThat(jobs.get("rolesEnforce")).isEqualTo(true);
+        assertThat(jobs.get("roleMappings")).isInstanceOf(List.class);
     }
 }

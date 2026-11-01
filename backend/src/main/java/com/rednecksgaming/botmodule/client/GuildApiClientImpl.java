@@ -111,7 +111,7 @@ public class GuildApiClientImpl implements GuildApiClient {
         Map<String, Object> payload = new HashMap<>();
         payload.put("actorId", actorId);
         if (modules != null) {
-            payload.put("modules", modules);
+            payload.put("modules", payloadNormalizer.serializeOutgoingModules(modules));
         }
         if (network != null) {
             payload.put("network", network);
@@ -122,13 +122,13 @@ public class GuildApiClientImpl implements GuildApiClient {
     @Override
     public Map<String, Object> patchGuildModules(String guildId, Map<String, Object> modules) {
         String url = baseUrl + "/guild/" + guildId;
-        Map<String, Object> payload = Map.of("modules", modules);
+        Map<String, Object> payload = Map.of("modules", payloadNormalizer.serializeOutgoingModules(modules));
         return executeRequest(url, HttpMethod.PATCH, payload);
     }
 
     @Override
     public Map<String, Object> deleteGuildModule(String guildId, String moduleName) {
-        String url = baseUrl + "/guild/" + guildId + "/modules/" + moduleName;
+        String url = baseUrl + "/guild/" + guildId + "/" + moduleName;
         return executeRequest(url, HttpMethod.DELETE, null);
     }
 
@@ -149,7 +149,11 @@ public class GuildApiClientImpl implements GuildApiClient {
                 return Collections.emptyMap();
             }
 
-            return objectMapper.readValue(response.getBody(), new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> bodyMap = objectMapper.readValue(response.getBody(), new TypeReference<Map<String, Object>>() {});
+            checkForUpstreamErrors(bodyMap);
+            return bodyMap;
+        } catch (UpstreamServiceException e) {
+            throw e;
         } catch (ResourceAccessException e) {
             log.error("Timeout or connection refusal contacting upstream Guild API at {}: {}", url, e.getMessage());
             throw new UpstreamServiceException("Upstream Guild API connection timed out: " + e.getMessage(), e);
@@ -159,6 +163,36 @@ public class GuildApiClientImpl implements GuildApiClient {
         } catch (Exception e) {
             log.error("Unexpected error executing {} to {}: {}", method, url, e.getMessage(), e);
             throw new UpstreamServiceException("Failed communicating with upstream Guild API: " + e.getMessage(), e);
+        }
+    }
+
+    private void checkForUpstreamErrors(Map<String, Object> bodyMap) {
+        if (bodyMap == null) {
+            return;
+        }
+        if (bodyMap.containsKey("error") && bodyMap.get("error") != null) {
+            throw new UpstreamServiceException(String.valueOf(bodyMap.get("error")));
+        }
+        Object dataObj = bodyMap.get("data");
+        if (dataObj instanceof Map<?, ?> dataMap) {
+            if (dataMap.containsKey("error") && dataMap.get("error") != null) {
+                throw new UpstreamServiceException(String.valueOf(dataMap.get("error")));
+            }
+            Object modulesObj = dataMap.get("modules");
+            if (modulesObj instanceof Map<?, ?> modulesMap) {
+                for (Map.Entry<?, ?> modEntry : modulesMap.entrySet()) {
+                    if (modEntry.getValue() instanceof Map<?, ?> modData) {
+                        if (modData.containsKey("error") && modData.get("error") != null) {
+                            throw new UpstreamServiceException(
+                                    "Upstream Guild API module error in '" + modEntry.getKey() + "': " + modData.get("error"));
+                        }
+                        if (modData.containsKey("enabledError") && modData.get("enabledError") != null) {
+                            throw new UpstreamServiceException(
+                                    "Upstream Guild API module error in '" + modEntry.getKey() + "': " + modData.get("enabledError"));
+                        }
+                    }
+                }
+            }
         }
     }
 }
