@@ -9,6 +9,7 @@ import type {
 } from '@/lib/model/bot-module';
 import { Accordion, type AccordionItem } from '@/components/common/navigation/Accordion';
 import { ToggleSwitch } from '@/components/common/input/ToggleSwitch';
+import { CheckMarkField } from '@/components/common/input/CheckMarkField';
 import { TextInput } from '@/components/common/input/TextInput';
 import { Dropdown } from '@/components/common/input/Dropdown';
 import { Badge } from '@/components/common/feedback/Badge';
@@ -22,6 +23,7 @@ export interface BotModulesAccordionDeckProps {
   schema?: NetworkDefaultPayload['schema'];
   searchQuery: string;
   onFieldChange: (modKey: string, fieldName: string, value: unknown) => void;
+  onExecuteAction?: (modKey: string, fieldName: string) => Promise<void>;
   disabled?: boolean;
 }
 
@@ -73,6 +75,7 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
   schema,
   searchQuery,
   onFieldChange,
+  onExecuteAction,
   disabled = false,
 }) => {
   const moduleKeys = useMemo(() => {
@@ -168,6 +171,30 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
             <span className="text-[11px] text-text-tertiary">{description}</span>
           ) : null}
         </div>
+      );
+    }
+
+    const isAction = fieldType === 'ACTION' || Boolean(fieldDef?.action);
+    if (isAction) {
+      return (
+        <CheckMarkField
+          label={label}
+          description={description}
+          disabled={fieldDisabled || disabled}
+          onExecute={
+            onExecuteAction
+              ? () => onExecuteAction(modKey, fieldName)
+              : async () => {
+                  onFieldChange(modKey, fieldName, true);
+                }
+          }
+          onCancel={() => {
+            onFieldChange(modKey, fieldName, false);
+          }}
+          onChange={(val) => {
+            onFieldChange(modKey, fieldName, val);
+          }}
+        />
       );
     }
 

@@ -278,7 +278,7 @@ export const ServerBotConfigCoordinator: React.FC = () => {
       const modSchema = schemaModules[modKey];
       for (const [fName, fVal] of Object.entries(modValues)) {
         const fieldDef = modSchema?.[fName];
-        if (fieldDef?.readOnly === true) {
+        if (fieldDef?.readOnly === true || fieldDef?.type === 'ACTION' || fieldDef?.action === true) {
           continue;
         }
 
@@ -303,6 +303,27 @@ export const ServerBotConfigCoordinator: React.FC = () => {
   const handleResetAll = useCallback(() => {
     setCurrentModules(JSON.parse(JSON.stringify(initialModules)));
   }, [initialModules]);
+
+  const handleExecuteAction = useCallback(async (modKey: string, fieldName: string) => {
+    try {
+      const token = localStorage.getItem('accessToken') || undefined;
+      const res = await patchServerModules(serverId, { [modKey]: { [fieldName]: true } }, token);
+      if (res.success) {
+        toast?.({
+          title: `Action executed for ${resolveModuleTitle(modKey, schemaModules, moduleDisplayNames)}.`,
+          type: 'success',
+        });
+      } else {
+        toast?.({
+          title: res.message || `Failed to execute action ${fieldName}.`,
+          type: 'error',
+        });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Action execution failed';
+      toast?.({ title: msg, type: 'error' });
+    }
+  }, [serverId, schemaModules, moduleDisplayNames, toast]);
 
   const handleSave = useCallback(async () => {
     if (!isDirty || isSaving) return;
@@ -466,6 +487,7 @@ export const ServerBotConfigCoordinator: React.FC = () => {
         onFieldChange={handleFieldChange}
         onOverride={handleOverrideModule}
         onRevert={handleRevertModule}
+        onExecuteAction={handleExecuteAction}
       />
 
       {/* Sticky Bottom Unsaved Changes Bar */}

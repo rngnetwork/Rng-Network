@@ -3,6 +3,7 @@
 import React from 'react';
 import type { BotModuleFieldSchema } from '@/lib/model/bot-module';
 import { ToggleSwitch } from '@/components/common/input/ToggleSwitch';
+import { CheckMarkField } from '@/components/common/input/CheckMarkField';
 import { Slider } from '@/components/common/input/Slider';
 import { TextInput } from '@/components/common/input/TextInput';
 import { SegmentedControl } from '@/components/common/input/SegmentedControl';
@@ -61,7 +62,22 @@ export const ModuleAstRenderer: React.FC<ModuleAstRendererProps> = ({
             key={fieldName}
             className="flex flex-col gap-1.5 py-2.5 border-b border-border/40 last:border-b-0"
           >
-            {fieldSchema.type === 'BOOLEAN' ? (
+            {fieldSchema.type === 'ACTION' || fieldSchema.action === true ? (
+              <CheckMarkField
+                label={label}
+                description={fieldSchema.description}
+                disabled={effectiveDisabled}
+                onExecute={async () => {
+                  onChange(moduleName, fieldName, true);
+                }}
+                onCancel={() => {
+                  onChange(moduleName, fieldName, false);
+                }}
+                onChange={(val) => {
+                  onChange(moduleName, fieldName, val);
+                }}
+              />
+            ) : fieldSchema.type === 'BOOLEAN' ? (
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-text-secondary select-none">
                   {label}

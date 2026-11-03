@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { BotModuleFieldSchema } from '@/lib/model/bot-module';
 import { ToggleSwitch } from '@/components/common/input/ToggleSwitch';
+import { CheckMarkField } from '@/components/common/input/CheckMarkField';
 import { TextInput } from '@/components/common/input/TextInput';
 import { Dropdown, type DropdownOption } from '@/components/common/input/Dropdown';
 import { DiscordRoleSelect, type DiscordRoleOption } from '@/components/common/input/DiscordRoleSelect';
@@ -25,6 +26,7 @@ export interface ServerModuleFieldRendererProps {
   channelOptions: DropdownOption[];
   roleOptions: DropdownOption[];
   onFieldChange: (modKey: string, fieldName: string, value: unknown) => void;
+  onExecuteAction?: (modKey: string, fieldName: string) => Promise<void>;
 }
 
 function resolveFieldLabel(
@@ -782,6 +784,7 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
   channelOptions,
   roleOptions,
   onFieldChange,
+  onExecuteAction,
 }) => {
   const label = resolveFieldLabel(fieldName, typeof fieldDef === 'object' && fieldDef !== null ? fieldDef : undefined);
   const description = fieldDef?.description;
@@ -1004,6 +1007,31 @@ export const ServerModuleFieldRenderer: React.FC<ServerModuleFieldRendererProps>
           <span className="text-[11px] text-text-tertiary">{description}</span>
         ) : null}
       </div>
+    );
+  }
+
+  const isAction = fieldType === 'ACTION' || Boolean(fieldDef?.action);
+
+  if (isAction) {
+    return (
+      <CheckMarkField
+        label={label}
+        description={description}
+        disabled={effectiveDisabled}
+        onExecute={
+          onExecuteAction
+            ? () => onExecuteAction(modKey, fieldName)
+            : async () => {
+                onFieldChange(modKey, fieldName, true);
+              }
+        }
+        onCancel={() => {
+          onFieldChange(modKey, fieldName, false);
+        }}
+        onChange={(val) => {
+          onFieldChange(modKey, fieldName, val);
+        }}
+      />
     );
   }
 

@@ -542,4 +542,71 @@ describe('ServerBotConfigPage (Server-Specific Accordion Deck)', () => {
     expect(screen.getByDisplayValue('high_command')).toBeInTheDocument();
     expect(screen.getByText('Moderator')).toBeInTheDocument();
   });
+
+  it('renders CheckMarkField for ACTION type fields and executes action without dirtying form', async () => {
+    const mockDataWithAction = {
+      ...mockServerData,
+      schema: {
+        ...mockServerData.schema,
+        ticket: {
+          enabled: { type: 'BOOLEAN' as const, label: 'Ticket System' },
+          sendPanel: {
+            type: 'ACTION' as const,
+            action: true,
+            label: 'Send Panel',
+            default: false,
+            nullable: true,
+            description: 'send true to post / re-post the panel in the panel channel (not stored)',
+          },
+        },
+      },
+      modules: {
+        ...mockServerData.modules,
+        ticket: {
+          isOverridden: true,
+          values: {
+            enabled: true,
+            sendPanel: false,
+          },
+        },
+      },
+    };
+
+    vi.mocked(botModuleApi.getServerEffectiveModules).mockResolvedValueOnce({
+      success: true,
+      data: mockDataWithAction,
+    });
+    vi.mocked(botModuleApi.patchServerModules).mockResolvedValueOnce({
+      success: true,
+      data: mockDataWithAction,
+    });
+
+    renderWithToast(<ServerBotConfigPage />);
+
+    expect(await screen.findByText('Ticket')).toBeInTheDocument();
+    const ticketHeader = screen.getByRole('button', { name: /ticket/i });
+    if (ticketHeader.getAttribute('aria-expanded') !== 'true') {
+      fireEvent.click(ticketHeader);
+    }
+
+    expect(await screen.findByText('Send Panel')).toBeInTheDocument();
+    expect(screen.getByText('send true to post / re-post the panel in the panel channel (not stored)')).toBeInTheDocument();
+
+    const executeBtn = screen.getByRole('button', { name: 'Send Panel - execute' });
+    const cancelBtn = screen.getByRole('button', { name: 'Send Panel - cancel' });
+    expect(executeBtn).toBeInTheDocument();
+    expect(cancelBtn).toBeInTheDocument();
+
+    fireEvent.click(executeBtn);
+
+    await waitFor(() => {
+      expect(botModuleApi.patchServerModules).toHaveBeenCalledWith(
+        'rng-testing-server',
+        { ticket: { sendPanel: true } },
+        undefined
+      );
+    });
+
+    expect(screen.queryByText(/You have unsaved changes/i)).not.toBeInTheDocument();
+  });
 });

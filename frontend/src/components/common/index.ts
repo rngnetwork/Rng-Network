@@ -5,6 +5,7 @@ export * from './input/TextInput';
 export * from './input/Dropdown';
 export * from './input/Slider';
 export * from './input/ToggleSwitch';
+export * from './input/CheckMarkField';
 export * from './input/DateTimePicker';
 export * from './input/Stepper';
 export * from './input/ColorPicker';

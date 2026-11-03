@@ -523,4 +523,62 @@ describe('BotConfigPage (Network-Wide Bot Deck)', () => {
     expect(screen.getByText('netbad1')).toBeInTheDocument();
     expect(screen.getByText('netbad2')).toBeInTheDocument();
   });
+
+  it('renders CheckMarkField for ACTION type fields in network-wide bot config and executes action', async () => {
+    const payloadWithAction: NetworkDefaultPayload = {
+      ...mockNetworkPayload,
+      schema: {
+        ...mockNetworkPayload.schema,
+        modules: {
+          ...mockNetworkPayload.schema?.modules,
+          ticket: {
+            enabled: { type: 'BOOLEAN', label: 'Ticket System' },
+            sendPanel: {
+              type: 'ACTION',
+              action: true,
+              label: 'Send Panel',
+              default: false,
+              nullable: true,
+              description: 'send true to post / re-post the panel in the panel channel (not stored)',
+            },
+          },
+        },
+      },
+      modules: {
+        ...mockNetworkPayload.modules,
+        ticket: {
+          enabled: true,
+          sendPanel: false,
+        },
+      },
+    };
+
+    vi.mocked(botModuleApi.getNetworkDefaultModules).mockResolvedValueOnce({
+      success: true,
+      data: payloadWithAction,
+    });
+    vi.mocked(botModuleApi.patchNetworkDefaultModules).mockResolvedValueOnce({
+      success: true,
+      data: payloadWithAction,
+    });
+
+    renderWithToast(<BotConfigPage />);
+
+    expect(await screen.findByText('Support Tickets System')).toBeInTheDocument();
+    const ticketAccordion = screen.getByRole('button', { name: /support tickets system/i });
+    fireEvent.click(ticketAccordion);
+
+    expect(await screen.findByText('Send Panel')).toBeInTheDocument();
+    expect(screen.getByText('send true to post / re-post the panel in the panel channel (not stored)')).toBeInTheDocument();
+
+    const executeBtn = screen.getByRole('button', { name: 'Send Panel - execute' });
+    fireEvent.click(executeBtn);
+
+    await waitFor(() => {
+      expect(botModuleApi.patchNetworkDefaultModules).toHaveBeenCalledWith(
+        { modules: { ticket: { sendPanel: true } } },
+        undefined
+      );
+    });
+  });
 });

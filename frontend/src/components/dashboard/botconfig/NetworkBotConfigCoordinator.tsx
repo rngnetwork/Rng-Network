@@ -3,7 +3,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Search, Bot, Globe, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { getNetworkDefaultModules, patchNetworkDefaultModules } from '@/lib/api/bot-module';
+import {
+  getNetworkDefaultModules,
+  patchNetworkDefaultModules,
+} from '@/lib/api/bot-module';
 import { fetchUserManagedServers } from '@/lib/api/dashboard/servers';
 import type {
   BotModuleFieldSchema,
@@ -158,7 +161,7 @@ export const NetworkBotConfigCoordinator: React.FC = () => {
       const modSchema = (schema as any)?.modules?.[modKey] || (schema as any)?.[modKey];
       for (const [fName, fVal] of Object.entries(modValues)) {
         const fieldDef = modSchema?.[fName];
-        if (fieldDef?.readOnly === true) {
+        if (fieldDef?.readOnly === true || fieldDef?.type === 'ACTION' || fieldDef?.action === true) {
           continue;
         }
         if (JSON.stringify(initialMod[fName]) !== JSON.stringify(fVal)) {
@@ -201,6 +204,37 @@ export const NetworkBotConfigCoordinator: React.FC = () => {
       });
     }
   }, [initialModules, initialNetwork, toast]);
+
+  const handleExecuteAction = useCallback(
+    async (modKey: string, fieldName: string) => {
+      try {
+        const token = localStorage.getItem('accessToken') || undefined;
+        const res = await patchNetworkDefaultModules(
+          { modules: { [modKey]: { [fieldName]: true } } },
+          token
+        );
+        const displayName =
+          schema?.moduleDisplayNames?.[modKey] ||
+          (schema?.modules?.[modKey] as any)?.displayName ||
+          modKey;
+        if (res.success) {
+          toast?.({
+            title: `Action executed for ${displayName}.`,
+            type: 'success',
+          });
+        } else {
+          toast?.({
+            title: res.message || `Failed to execute action ${fieldName}.`,
+            type: 'error',
+          });
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Action execution failed';
+        toast?.({ title: msg, type: 'error' });
+      }
+    },
+    [schema, toast]
+  );
 
   const handleSave = async () => {
     if (!isDirty) return;
@@ -385,6 +419,7 @@ export const NetworkBotConfigCoordinator: React.FC = () => {
           schema={schema}
           searchQuery={searchQuery}
           onFieldChange={handleModuleFieldChange}
+          onExecuteAction={handleExecuteAction}
           disabled={isSaving}
         />
       )}

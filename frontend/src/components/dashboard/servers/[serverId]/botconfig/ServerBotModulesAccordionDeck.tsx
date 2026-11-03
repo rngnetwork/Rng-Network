@@ -24,6 +24,7 @@ export interface ServerBotModulesAccordionDeckProps {
   onFieldChange: (modKey: string, fieldName: string, value: unknown) => void;
   onOverride: (modKey: string) => void;
   onRevert?: (modKey: string) => void;
+  onExecuteAction?: (modKey: string, fieldName: string) => Promise<void>;
 }
 
 function resolveModuleTitle(
@@ -66,6 +67,7 @@ export const ServerBotModulesAccordionDeck: React.FC<ServerBotModulesAccordionDe
   onFieldChange,
   onOverride,
   onRevert,
+  onExecuteAction,
 }) => {
   const [openIds, setOpenIds] = useState<string[]>(() =>
     searchQuery ? moduleKeys : (moduleKeys[0] ? [moduleKeys[0]] : [])
@@ -175,6 +177,7 @@ export const ServerBotModulesAccordionDeck: React.FC<ServerBotModulesAccordionDe
                     channelOptions={channelOptions}
                     roleOptions={roleOptions}
                     onFieldChange={onFieldChange}
+                    onExecuteAction={onExecuteAction}
                   />
                 ))}
               </div>
