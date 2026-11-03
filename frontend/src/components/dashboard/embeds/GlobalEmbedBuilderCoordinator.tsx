@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   type DiscordButtonComponent,
   type DiscordSelectComponent,
@@ -108,6 +109,22 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
       document.removeEventListener('selectionchange', handleSelectionChange);
     };
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isEmojiPickerOpen) {
+        e.stopPropagation();
+        setIsEmojiPickerOpen(false);
+        setActiveEmojiCallback(null);
+      }
+    };
+    if (isEmojiPickerOpen) {
+      window.addEventListener('keydown', handleKeyDown, true);
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [isEmojiPickerOpen]);
 
   const handleInsertEmoji = (token: string) => {
     if (activeEmojiCallback) {
@@ -887,23 +904,24 @@ export const GlobalEmbedBuilderCoordinator: React.FC = () => {
       />
 
       {/* Bottom-Right Floating Discord Emoji Picker Popover */}
-      {isEmojiPickerOpen && (
+      {isEmojiPickerOpen && typeof document !== 'undefined' && createPortal(
         <>
           {/* Invisible click-outside dismisser - NO BLUR, NO BACKDROP */}
           <div
-            className="fixed inset-0 z-[59] bg-transparent"
+            className="fixed inset-0 z-[99] bg-transparent"
             onClick={() => {
               setIsEmojiPickerOpen(false);
               setActiveEmojiCallback(null);
             }}
           />
           {/* Floating Discord Emoji Picker Popover */}
-          <div className="fixed bottom-14 right-6 z-[60] w-[390px] h-[440px] max-w-[calc(100vw-2rem)] rounded-[8px] bg-[#2b2d31] border border-white/10 shadow-2xl overflow-hidden flex flex-col animate-in fade-in duration-150">
+          <div className="fixed bottom-14 right-6 z-[100] w-[390px] h-[440px] max-w-[calc(100vw-2rem)] rounded-[8px] bg-[#2b2d31] border border-white/10 shadow-2xl overflow-hidden flex flex-col animate-in fade-in duration-150">
             <DiscordBotEmojiPicker
               onSelectEmojiToken={handleInsertEmoji}
             />
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );
