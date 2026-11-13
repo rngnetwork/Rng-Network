@@ -1,3 +1,6 @@
+// Written By: RachitSWE
+// LICENSE: All rights reserved
+// Year: 2026
 package com.rednecksgaming.security.jwt;
 
 import lombok.extern.slf4j.Slf4j;

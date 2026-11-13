@@ -1,18 +1,20 @@
+
 #!/usr/bin/env bash
-# ==============================================================================
-# RNG Full-Stack Environment Automation (Linux / macOS / Codespaces)
-#
-# Modes:
-#   --dev, -d   : Development mode
-#                 - Instantiates the 3 Docker datastores (PostgreSQL, Redis, MongoDB)
-#                 - Uses backend/.env and frontend/.env.local (auto-seeded if missing)
-#                 - Runs Spring Boot (mvn spring-boot:run) and Next.js (npm run dev with HMR) locally
-#
-#   --prod, -p  : Production mode (Default)
-#                 - Instantiates ALL 5 services in Docker (PostgreSQL, Redis, MongoDB, Backend, Frontend)
-#                 - Uses root .env file (auto-seeded from .env.example if missing)
-#                 - Streams container logs with graceful shutdown on Ctrl+C
-# ==============================================================================
+# ========================================================================================================|
+# RNG Full-Stack Environment Automation (Linux / macOS / Codespaces)                                      |
+#                                                                                                         |
+# Modes:                                                                                                  |
+#   --dev, -d   : Development mode                                                                        |
+#                 - Instantiates the 3 Docker datastores (PostgreSQL, Redis, MongoDB)                     |
+#                 - Uses backend/.env and frontend/.env.local (auto-seeded if missing)                    |
+#                 - Runs Spring Boot (mvn spring-boot:run) and Next.js (npm run dev with HMR) locally     |
+#                                                                                                         |
+#   --prod, -p  : Production mode (Default)                                                               |
+#                 - Instantiates ALL 5 services in Docker                                                 |
+#                 - Uses root .env file (auto-seeded from .env.example if missing)                        |
+#                 - Runs containers in detached mode                                                      |
+#                 - Containers remain running after the script exits or Ctrl+C                            |
+# ========================================================================================================|
 
 set -e
 
@@ -21,6 +23,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 cd "$REPO_ROOT"
 
 MODE="prod"
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --dev|-d)
@@ -54,11 +57,13 @@ echo ""
 # 1. Docker Status Verification
 # ------------------------------------------------------------------------------
 echo "[1/4] Verifying Docker daemon status..."
+
 if docker info >/dev/null 2>&1; then
     echo "  [x] Docker daemon is running and accessible."
     DOCKER_AVAILABLE=true
 else
     echo "  [!] ERROR: Docker daemon is not running or not accessible."
+
     if [ "$MODE" = "prod" ]; then
         echo "  [!] Docker is strictly required to run production container stack. Aborting."
         exit 1
@@ -72,34 +77,46 @@ fi
 # MODE: PRODUCTION (Full Containerized Stack in Docker)
 # ==============================================================================
 if [ "$MODE" = "prod" ]; then
+
     echo ""
     echo "[2/4] Verifying production environment configuration..."
+
     if [ ! -f .env ] && [ -f .env.example ]; then
         echo "  -> Root .env not found. Initializing from .env.example..."
         cp .env.example .env
         echo "  [x] Root .env initialized."
     elif [ -f .env ]; then
         echo "  [x] Root .env configuration found."
+    else
+        echo "  [!] ERROR: Neither .env nor .env.example exists."
+        exit 1
     fi
 
     echo ""
     echo "[3/4] Building and launching full Docker Compose stack (5 services)..."
+
     docker compose up -d --build --wait
 
     echo ""
     echo "======================================================================"
     echo "   RNG PRODUCTION STACK DEPLOYED SUCCESSFULLY IN DOCKER               "
     echo "     * Mode:        PRODUCTION (Containerized)                        "
-    echo "     * Frontend UI: http://localhost:3000                             "
-    echo "     * Backend API: http://localhost:8080/api/v1                      "
-    echo "     * Datastores:  PostgreSQL (5432), Redis (6379), MongoDB (27017)  "
+    echo "     * Frontend UI: https://rednecksgaming.com                        "
+    echo "     * Backend API: https://backend.rednecksgaming.com/api/v1         "
+    echo "     * Game Server: https://race.rednecksgaming.com                   "
     echo "                                                                      "
-    echo "   Streaming container logs below. Press [Ctrl+C] to stop all services."
+    echo "   All containers are running in detached mode.                       "
+    echo "   They will remain running after this script exits.                  "
+    echo "                                                                      "
+    echo "   Useful commands:                                                   "
+    echo "     * View status: docker compose ps                                 "
+    echo "     * View logs:   docker compose logs -f                            "
+    echo "     * Stop stack:  docker compose stop                               "
     echo "======================================================================"
     echo ""
 
-    trap 'echo ""; echo "Shutting down Docker containers..."; docker compose stop; echo "  [x] All containers stopped."; exit 0' EXIT INT TERM
-    docker compose logs -f
+    docker compose ps
+
     exit 0
 fi
 
@@ -145,6 +162,7 @@ fi
 # ------------------------------------------------------------------------------
 echo ""
 echo "[3/4] Verifying development toolchains & pre-flight compilation..."
+
 if command -v java >/dev/null 2>&1; then
     JAVA_VER=$(java -version 2>&1 | head -n 1)
     echo "  [x] Java: $JAVA_VER"
@@ -162,18 +180,22 @@ else
 fi
 
 echo "  -> Compiling backend Java classes (mvn compile -q)..."
+
 (
     cd "$REPO_ROOT/backend"
     chmod +x ./mvnw 2>/dev/null || true
     ./mvnw compile -q
 )
+
 echo "  [x] Backend Java classes compiled cleanly."
 
 echo "  -> Verifying frontend TypeScript types (npx tsc --noEmit)..."
+
 (
     cd "$REPO_ROOT/frontend"
     npx tsc --noEmit
 )
+
 echo "  [x] Frontend TypeScript type check passed."
 
 # ------------------------------------------------------------------------------
@@ -185,16 +207,19 @@ FRONTEND_PID=""
 cleanup_dev() {
     echo ""
     echo "Shutting down local development processes..."
+
     if [ -n "$BACKEND_PID" ]; then
         echo "  -> Stopping Spring Boot backend (PID: ${BACKEND_PID})..."
         kill -TERM "$BACKEND_PID" 2>/dev/null || true
         pkill -P "$BACKEND_PID" 2>/dev/null || true
     fi
+
     if [ -n "$FRONTEND_PID" ]; then
         echo "  -> Stopping Next.js frontend (PID: ${FRONTEND_PID})..."
         kill -TERM "$FRONTEND_PID" 2>/dev/null || true
         pkill -P "$FRONTEND_PID" 2>/dev/null || true
     fi
+
     echo "  [x] All development services stopped."
 }
 
@@ -208,12 +233,14 @@ echo "[4/4] Launching Spring Boot backend and Next.js frontend concurrently..."
     chmod +x ./mvnw 2>/dev/null || true
     exec ./mvnw spring-boot:run
 ) &
+
 BACKEND_PID=$!
 
 (
     cd "$REPO_ROOT/frontend"
     exec npm run dev
 ) &
+
 FRONTEND_PID=$!
 
 echo ""

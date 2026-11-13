@@ -1,3 +1,6 @@
+// Written By: RachitSWE
+// LICENSE: All rights reserved
+// Year: 2026
 package com.rednecksgaming.embed.execution;
 
 import net.dv8tion.jda.api.entities.Guild;

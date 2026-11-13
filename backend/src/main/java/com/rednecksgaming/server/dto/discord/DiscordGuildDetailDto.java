@@ -1,3 +1,6 @@
+// Written By: RachitSWE
+// LICENSE: All rights reserved
+// Year: 2026
 package com.rednecksgaming.server.dto.discord;
 
 import com.fasterxml.jackson.annotation.JsonProperty;

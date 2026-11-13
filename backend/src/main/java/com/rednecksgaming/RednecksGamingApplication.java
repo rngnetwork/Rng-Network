@@ -1,3 +1,6 @@
+// Written By: RachitSWE
+// LICENSE: All rights reserved
+// Year: 2026
 package com.rednecksgaming;
 
 import com.rednecksgaming.common.config.DotenvLoader;

@@ -1,3 +1,6 @@
+// Written By: RachitSWE
+// LICENSE: All rights reserved
+// Year: 2026
 package com.rednecksgaming.embed.config;
 
 import com.rednecksgaming.botmodule.model.BotModuleAuditLogDocument;

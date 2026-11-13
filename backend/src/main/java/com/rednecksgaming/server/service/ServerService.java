@@ -1,3 +1,6 @@
+// Written By: RachitSWE
+// LICENSE: All rights reserved
+// Year: 2026
 package com.rednecksgaming.server.service;
 
 import com.rednecksgaming.common.exception.ResourceNotFoundException;
