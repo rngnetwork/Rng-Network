@@ -18,6 +18,7 @@ import type { ServerItem } from '@/lib/model/server';
 import { GlobalUnsavedChangesBar } from '@/components/dashboard/layout/GlobalUnsavedChangesBar';
 import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { useToast } from '@/components/common/feedback/ToastProvider';
+import { TabStrip, type TabItem } from '@/components/common';
 import { BotModulesAccordionDeck } from './BotModulesAccordionDeck';
 import { NetworkParametersDeck } from './NetworkParametersDeck';
 
@@ -295,15 +296,15 @@ export const NetworkBotConfigCoordinator: React.FC = () => {
     return new Set([...keysFromSchema, ...keysFromNetwork]).size;
   }, [schema, currentNetwork]);
 
-  const tabs = [
+  const tabs: TabItem[] = [
     {
-      id: 'modules' as const,
+      id: 'modules',
       label: 'Bot Modules',
       icon: Bot,
       count: moduleCount,
     },
     {
-      id: 'network' as const,
+      id: 'network',
       label: 'Network Parameters',
       icon: Globe,
       count: networkCount,
@@ -364,46 +365,13 @@ export const NetworkBotConfigCoordinator: React.FC = () => {
           </p>
         </div>
 
-        <nav
-          aria-label="Bot configuration workspace tabs"
-          className="relative border-b border-white/[0.08] flex items-center gap-2 overflow-x-auto pb-2.5 scrollbar-none"
-        >
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`relative flex items-center gap-2 px-4 py-2.5 text-xs md:text-sm font-semibold whitespace-nowrap rounded-apple-md transition-all duration-200 min-h-[44px] cursor-pointer ${
-                  isActive
-                    ? 'text-white bg-brand-red/10 border border-brand-red/30 shadow-crimson-glow'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/[0.03] border border-transparent'
-                }`}
-              >
-                <Icon size={16} className={isActive ? 'text-brand-red' : 'text-zinc-500'} />
-                <span>{tab.label}</span>
-                <span
-                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
-                    isActive ? 'bg-brand-red/20 text-brand-red' : 'bg-surface-elevated text-text-tertiary'
-                  }`}
-                >
-                  {tab.count}
-                </span>
-
-                {isActive && (
-                  <motion.div
-                    layoutId="botconfigActiveTabIndicator"
-                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                    className="absolute -bottom-2.5 left-2 right-2 h-0.5 bg-brand-red"
-                  />
-                )}
-              </button>
-            );
-          })}
-        </nav>
+        <TabStrip
+          tabs={tabs}
+          activeTab={activeTab}
+          onTabChange={(tabId) => setActiveTab(tabId as BotConfigTab)}
+          layoutId="botconfigActiveTabIndicator"
+          ariaLabel="Bot configuration workspace tabs"
+        />
 
         <div className="relative w-full">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none" />
