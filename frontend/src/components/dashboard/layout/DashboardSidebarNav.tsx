@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   Server,
   User,
+  Users,
   Boxes,
   Bot,
   LogOut,
@@ -99,6 +100,12 @@ export const DashboardSidebarNav: React.FC<DashboardSidebarNavProps> = ({
       icon: ShieldCheck,
       show: canAccessWhitelist,
       badge: isHighCommand ? 'Admin' : 'Scoped',
+    },
+    {
+      label: 'Personnel',
+      href: '/dashboard/personnel',
+      icon: Users,
+      show: true,
     },
     {
       label: 'Account',

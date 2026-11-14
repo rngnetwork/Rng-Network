@@ -9,6 +9,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   servers: 'Servers',
   embeds: 'Embed Builder',
   whitelist: 'Whitelist',
+  personnel: 'Personnel',
   account: 'Account Profile',
   settings: 'Settings',
   botconfig: 'Bot Modules',

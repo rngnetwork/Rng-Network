@@ -501,9 +501,9 @@ export const WhitelistPageCoordinator: React.FC = () => {
               </h1>
               <Badge variant={isHighCommand ? 'crimson' : 'warning'}>
                 {isChiefHighCommand
-                  ? 'Chief High Command Master'
+                  ? 'Chief High Command'
                   : isHighCommand
-                  ? 'High Command Master'
+                  ? 'High Command'
                   : ministerMinistries.join(' & ') || 'Ministry Scoped'}
               </Badge>
             </div>
