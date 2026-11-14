@@ -497,7 +497,7 @@ export const WhitelistPageCoordinator: React.FC = () => {
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
-                Personnel Whitelist
+                Whitelist Management
               </h1>
               <Badge variant={isHighCommand ? 'crimson' : 'warning'}>
                 {isChiefHighCommand
