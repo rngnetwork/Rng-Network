@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Sliders, Search, Layers } from 'lucide-react';
 import type { ServerItem } from '@/lib/model/server';
 import type { NetworkDefaultPayload } from '@/lib/model/bot-module';
@@ -47,15 +47,18 @@ export const NetworkParametersDeck: React.FC<NetworkParametersDeckProps> = ({
     };
   }, [schema]);
 
-  const resolveCategory = (key: string): string => {
-    const fromSchema = schema?.networkKeys?.[key]?.category;
-    if (fromSchema) return fromSchema;
-    const rawVal = network[key];
-    if (typeof rawVal === 'object' && rawVal !== null && 'category' in rawVal) {
-      return String((rawVal as { category?: string }).category);
-    }
-    return 'MISC';
-  };
+  const resolveCategory = useCallback(
+    (key: string): string => {
+      const fromSchema = schema?.networkKeys?.[key]?.category;
+      if (fromSchema) return fromSchema;
+      const rawVal = network[key];
+      if (typeof rawVal === 'object' && rawVal !== null && 'category' in rawVal) {
+        return String((rawVal as { category?: string }).category);
+      }
+      return 'MISC';
+    },
+    [schema, network]
+  );
 
   const filteredKeys = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -87,7 +90,7 @@ export const NetworkParametersDeck: React.FC<NetworkParametersDeckProps> = ({
         category.toLowerCase().includes(query)
       );
     });
-  }, [allKeys, schema, network, searchQuery, selectedCategory]);
+  }, [allKeys, schema, network, searchQuery, selectedCategory, resolveCategory]);
 
   const accordionItems: AccordionItem[] = useMemo(() => {
     return filteredKeys.map((key) => {
@@ -161,7 +164,7 @@ export const NetworkParametersDeck: React.FC<NetworkParametersDeckProps> = ({
         ),
       };
     });
-  }, [filteredKeys, network, schema, onFieldChange, servers, disabled, categoriesMap]);
+  }, [filteredKeys, network, schema, onFieldChange, servers, disabled, categoriesMap, resolveCategory]);
 
   if (allKeys.length === 0) {
     return (

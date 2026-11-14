@@ -5,6 +5,7 @@ import ServerBotConfigPage from '../page';
 import * as botModuleApi from '@/lib/api/bot-module';
 import * as settingsApi from '@/lib/api/dashboard/servers/[serverId]/settings';
 import { ToastProvider } from '@/components/common/feedback/ToastProvider';
+import type { BotModuleValues } from '@/lib/model/bot-module';
 
 vi.mock('next/navigation', () => ({
   useParams: () => ({ serverId: 'rng-testing-server' }),
@@ -424,9 +425,9 @@ describe('ServerBotConfigPage (Server-Specific Accordion Deck)', () => {
         modules: {
           vanityRoles: {
             isOverridden: false,
-            values: null as any,
-            effectiveConfig: null as any,
-            networkDefault: null as any,
+            values: null as unknown as BotModuleValues,
+            effectiveConfig: null as unknown as BotModuleValues,
+            networkDefault: null as unknown as BotModuleValues,
           },
         },
       },
@@ -494,7 +495,7 @@ describe('ServerBotConfigPage (Server-Specific Accordion Deck)', () => {
           jobs: {
             enabled: { type: 'BOOLEAN' as const, label: 'Master Enable' },
             roleMappings: {
-              type: 'ARRAY<OBJECT>' as any,
+              type: 'ARRAY<OBJECT>' as const,
               label: 'Role Mappings',
               readOnly: true,
               items: {

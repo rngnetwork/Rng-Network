@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { BotModuleFieldSchema, BotModuleValues } from '@/lib/model/bot-module';
 import { Accordion, type AccordionItem } from '@/components/common/navigation/Accordion';
 import { ToggleSwitch } from '@/components/common/input/ToggleSwitch';
-import { Button } from '@/components/common/input/Button';
-import { Bot, Shield, Plus } from 'lucide-react';
+import { Bot, Shield } from 'lucide-react';
 import { ServerModuleInheritanceBadge } from './ServerModuleInheritanceBadge';
 import { ServerModuleFieldRenderer } from './ServerModuleFieldRenderer';
 
@@ -65,21 +64,19 @@ export const ServerBotModulesAccordionDeck: React.FC<ServerBotModulesAccordionDe
   searchQuery,
   isSaving,
   onFieldChange,
-  onOverride,
-  onRevert,
   onExecuteAction,
 }) => {
-  const [openIds, setOpenIds] = useState<string[]>(() =>
-    searchQuery ? moduleKeys : (moduleKeys[0] ? [moduleKeys[0]] : [])
-  );
+  const [userOpenIds, setUserOpenIds] = useState<string[] | null>(null);
 
-  useEffect(() => {
+  const openIds = useMemo(() => {
     if (searchQuery) {
-      setOpenIds(moduleKeys);
-    } else if (moduleKeys.length > 0) {
-      setOpenIds((prev) => (prev.length === 0 ? [moduleKeys[0]] : prev));
+      return moduleKeys;
     }
-  }, [searchQuery, moduleKeys]);
+    if (userOpenIds !== null) {
+      return userOpenIds;
+    }
+    return moduleKeys.length > 0 ? [moduleKeys[0]] : [];
+  }, [searchQuery, moduleKeys, userOpenIds]);
 
   const accordionItems: AccordionItem[] = useMemo(() => {
     return moduleKeys.map((modKey) => {
@@ -203,8 +200,7 @@ export const ServerBotModulesAccordionDeck: React.FC<ServerBotModulesAccordionDe
     openIds,
     isSaving,
     onFieldChange,
-    onOverride,
-    onRevert,
+    onExecuteAction,
   ]);
 
   if (accordionItems.length === 0) {
@@ -226,7 +222,7 @@ export const ServerBotModulesAccordionDeck: React.FC<ServerBotModulesAccordionDe
       allowMultiple={true}
       showCollapseAll={true}
       openIds={openIds}
-      onOpenIdsChange={setOpenIds}
+      onOpenIdsChange={setUserOpenIds}
       className="rounded-apple-xl border-surface-border bg-surface-elevated shadow-apple-card overflow-hidden"
     />
   );

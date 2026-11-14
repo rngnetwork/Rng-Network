@@ -431,7 +431,7 @@ describe('DiscordMarkdown', () => {
     });
 
     it('renders user, role, and channel mentions cleanly', () => {
-      const { container } = render(
+      render(
         <DiscordMarkdown content="Contact <@123456789> or <@&987654321> in <#555666777>" />
       );
 

@@ -158,7 +158,10 @@ export const NetworkBotConfigCoordinator: React.FC = () => {
     const diff: Record<string, Record<string, unknown>> = {};
     for (const [modKey, modValues] of Object.entries(currentModules)) {
       const initialMod = initialModules[modKey] || {};
-      const modSchema = (schema as any)?.modules?.[modKey] || (schema as any)?.[modKey];
+      const schemaRecord = schema as Record<string, unknown> | undefined;
+      const modSchema =
+        schema?.modules?.[modKey] ||
+        (schemaRecord?.[modKey] as Record<string, BotModuleFieldSchema> | undefined);
       for (const [fName, fVal] of Object.entries(modValues)) {
         const fieldDef = modSchema?.[fName];
         if (fieldDef?.readOnly === true || fieldDef?.type === 'ACTION' || fieldDef?.action === true) {
@@ -213,9 +216,10 @@ export const NetworkBotConfigCoordinator: React.FC = () => {
           { modules: { [modKey]: { [fieldName]: true } } },
           token
         );
+        const modMeta = schema?.modules?.[modKey] as { displayName?: string } | undefined;
         const displayName =
           schema?.moduleDisplayNames?.[modKey] ||
-          (schema?.modules?.[modKey] as any)?.displayName ||
+          modMeta?.displayName ||
           modKey;
         if (res.success) {
           toast?.({

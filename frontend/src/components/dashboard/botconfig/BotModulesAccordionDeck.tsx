@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useCallback, useState, useEffect } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import { Shield, Bot } from 'lucide-react';
 import type {
   BotModuleFieldSchema,
@@ -106,17 +106,17 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
     });
   }, [moduleKeys, schema, searchQuery]);
 
-  const [openIds, setOpenIds] = useState<string[]>(() =>
-    searchQuery ? filteredModules : (moduleKeys[0] ? [moduleKeys[0]] : [])
-  );
+  const [userOpenIds, setUserOpenIds] = useState<string[] | null>(null);
 
-  useEffect(() => {
+  const openIds = useMemo(() => {
     if (searchQuery) {
-      setOpenIds(filteredModules);
-    } else if (moduleKeys.length > 0) {
-      setOpenIds((prev) => (prev.length === 0 ? [moduleKeys[0]] : prev));
+      return filteredModules;
     }
-  }, [searchQuery, filteredModules, moduleKeys]);
+    if (userOpenIds !== null) {
+      return userOpenIds;
+    }
+    return moduleKeys.length > 0 ? [moduleKeys[0]] : [];
+  }, [searchQuery, filteredModules, userOpenIds, moduleKeys]);
 
   const renderFieldControl = useCallback((
     modKey: string,
@@ -331,7 +331,7 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
         disabled={fieldDisabled || disabled}
       />
     );
-  }, [onFieldChange, disabled]);
+  }, [onFieldChange, disabled, onExecuteAction]);
 
   const accordionItems: AccordionItem[] = useMemo(() => {
     return filteredModules.map((modKey) => {
@@ -486,7 +486,7 @@ export const BotModulesAccordionDeck: React.FC<BotModulesAccordionDeckProps> = (
       allowMultiple={true}
       showCollapseAll={true}
       openIds={openIds}
-      onOpenIdsChange={setOpenIds}
+      onOpenIdsChange={setUserOpenIds}
       className="rounded-apple-xl border-surface-border bg-surface-elevated shadow-apple-card overflow-hidden"
     />
   );

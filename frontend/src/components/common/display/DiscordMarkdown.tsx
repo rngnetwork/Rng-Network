@@ -5,6 +5,7 @@ import Image from 'next/image';
 import ReactMarkdown, { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { visit } from 'unist-util-visit';
+import type { Node, Parent } from 'unist';
 
 export interface DiscordMarkdownProps {
   content: string;
@@ -32,10 +33,21 @@ const DiscordSpoiler: React.FC<{ children: React.ReactNode }> = ({ children }) =
   );
 };
 
-function processChildrenForSpoilers(children: any[]): any[] {
-  const result: any[] = [];
+interface MdastNode extends Node {
+  value?: string;
+  children?: MdastNode[];
+  lang?: string;
+  data?: {
+    hName?: string;
+    hProperties?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
+}
+
+function processChildrenForSpoilers(children: MdastNode[]): MdastNode[] {
+  const result: MdastNode[] = [];
   let inSpoiler = false;
-  let spoilerChildren: any[] = [];
+  let spoilerChildren: MdastNode[] = [];
 
   for (let i = 0; i < children.length; i++) {
     const child = children[i];
@@ -50,7 +62,7 @@ function processChildrenForSpoilers(children: any[]): any[] {
         continue;
       }
 
-      let textValue: string = child.value;
+      let textValue: string = child.value || '';
       while (textValue.length > 0) {
         if (!inSpoiler) {
           const openIdx = textValue.indexOf('||');
@@ -92,7 +104,7 @@ function processChildrenForSpoilers(children: any[]): any[] {
         continue;
       }
 
-      let textValue: string = child.value;
+      let textValue: string = child.value || '';
       while (textValue.length > 0) {
         if (inSpoiler) {
           const closeIdx = textValue.indexOf('||');
@@ -141,15 +153,17 @@ function processChildrenForSpoilers(children: any[]): any[] {
 
 function createRemarkDiscordSyntax(rawContent: string) {
   return function remarkDiscordSyntax() {
-    return (tree: any) => {
-      visit(tree, 'code', (node, index, parent) => {
-        if (!parent || typeof index !== 'number') return;
-        const start = node.position?.start?.offset ?? 0;
+    return (tree: Node) => {
+      // Pass 1: Indented code blocks transformation
+      visit(tree, 'code', (node: Node, index?: number, parent?: Parent) => {
+        if (!parent || !Array.isArray(parent.children) || typeof index !== 'number') return;
+        const codeNode = node as MdastNode;
+        const start = codeNode.position?.start?.offset ?? 0;
         const slice = rawContent.slice(start, start + 30);
-        const isFenced = Boolean(node.lang) || /^\s*(>*\s*)*(`{3,}|~{3,})/.test(slice);
+        const isFenced = Boolean(codeNode.lang) || /^\s*(>*\s*)*(`{3,}|~{3,})/.test(slice);
 
         if (!isFenced) {
-          parent.children[index] = {
+          (parent.children as MdastNode[])[index] = {
             type: 'paragraph',
             data: {
               hName: 'div',
@@ -158,19 +172,21 @@ function createRemarkDiscordSyntax(rawContent: string) {
             children: [
               {
                 type: 'text',
-                value: node.value,
+                value: codeNode.value,
               },
             ],
           };
         }
       });
 
-      visit(tree, 'strong', (node) => {
-        if (node.position?.start?.offset !== undefined) {
-          const start = node.position.start.offset;
+      // Pass 2: Underline vs Bold detection
+      visit(tree, 'strong', (node: Node) => {
+        const strongNode = node as MdastNode;
+        if (strongNode.position?.start?.offset !== undefined) {
+          const start = strongNode.position.start.offset;
           if (rawContent.slice(start, start + 2) === '__') {
-            node.data = {
-              ...node.data,
+            strongNode.data = {
+              ...strongNode.data,
               hName: 'u',
               hProperties: { className: 'underline decoration-1 underline-offset-2' },
             };
@@ -178,21 +194,25 @@ function createRemarkDiscordSyntax(rawContent: string) {
         }
       });
 
-      if (tree.children) {
-        tree.children = processChildrenForSpoilers(tree.children);
+      // Pass 3: Sibling-aware spoilers
+      const rootNode = tree as MdastNode;
+      if (rootNode.children) {
+        rootNode.children = processChildrenForSpoilers(rootNode.children);
       }
 
-      visit(tree, 'text', (node, index, parent) => {
-        if (!parent || typeof index !== 'number') return;
+      // Pass 4: Emojis and mentions
+      visit(tree, 'text', (node: Node, index?: number, parent?: Parent) => {
+        if (!parent || !Array.isArray(parent.children) || typeof index !== 'number') return;
         if (parent.type === 'code' || parent.type === 'inlineCode') return;
 
-        const value: string = node.value;
+        const textNode = node as MdastNode;
+        const value: string = textNode.value || '';
         const regex =
           /(<(a)?:([a-zA-Z0-9_]+):([0-9]+)>)|(<@!?([0-9]+)>)|(<@&([0-9]+)>)|(<#([0-9]+)>)/g;
 
         let match: RegExpExecArray | null;
         let lastIndex = 0;
-        const newNodes: any[] = [];
+        const newNodes: MdastNode[] = [];
 
         while ((match = regex.exec(value)) !== null) {
           if (match.index > lastIndex) {
@@ -259,7 +279,7 @@ function createRemarkDiscordSyntax(rawContent: string) {
               value: value.slice(lastIndex),
             });
           }
-          parent.children.splice(index, 1, ...newNodes);
+          (parent.children as MdastNode[]).splice(index, 1, ...newNodes);
           return index + newNodes.length;
         }
       });
@@ -267,26 +287,28 @@ function createRemarkDiscordSyntax(rawContent: string) {
   };
 }
 
-const discordComponents: Components & Record<string, React.ComponentType<any>> = {
-  'discord-spoiler': ({ children }: { children: React.ReactNode }) => (
+type DiscordCustomProps = Record<string, unknown> & { children?: React.ReactNode };
+
+const discordComponents: Components & Record<string, React.ComponentType<DiscordCustomProps>> = {
+  'discord-spoiler': ({ children }: DiscordCustomProps) => (
     <DiscordSpoiler>{children}</DiscordSpoiler>
   ),
-  'discord-emoji': ({ animated, name, id }: { animated: string; name: string; id: string }) => (
+  'discord-emoji': ({ animated, name, id }: DiscordCustomProps) => (
     <Image
-      src={`https://cdn.discordapp.com/emojis/${id}.${animated === 'true' ? 'gif' : 'webp'}?size=48&quality=lossless`}
-      alt={`:${name}:`}
-      title={`:${name}:`}
+      src={`https://cdn.discordapp.com/emojis/${String(id)}.${animated === 'true' ? 'gif' : 'webp'}?size=48&quality=lossless`}
+      alt={`:${String(name)}:`}
+      title={`:${String(name)}:`}
       width={20}
       height={20}
       unoptimized
       className="inline-block w-5 h-5 align-middle mx-0.5 object-contain"
     />
   ),
-  'discord-mention': ({ type, id }: { type: 'user' | 'role' | 'channel'; id: string }) => {
+  'discord-mention': ({ type, id }: DiscordCustomProps) => {
     const prefix = type === 'channel' ? '#' : '@';
     return (
       <span className="px-1 py-0.5 rounded bg-[#5865F2]/15 hover:bg-[#5865F2]/25 text-[#C9CDFB] font-medium transition-colors inline-block align-baseline">
-        {prefix}{id}
+        {prefix}{String(id)}
       </span>
     );
   },
@@ -363,4 +385,3 @@ export const DiscordMarkdown: React.FC<DiscordMarkdownProps> = ({ content, class
     </div>
   );
 };
-
