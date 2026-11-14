@@ -10,10 +10,23 @@ const SEGMENT_LABELS: Record<string, string> = {
   embeds: 'Embed Builder',
   whitelist: 'Whitelist',
   personnel: 'Personnel',
+  roles: 'Role Hierarchy',
+  perms: 'Permission Management',
   account: 'Account Profile',
   settings: 'Settings',
   botconfig: 'Bot Modules',
   analytics: 'Analytics & Audit',
+};
+
+const formatSegmentLabel = (segment: string): string => {
+  if (SEGMENT_LABELS[segment]) {
+    return SEGMENT_LABELS[segment];
+  }
+  const decoded = decodeURIComponent(segment);
+  return decoded
+    .split(/[-_]/)
+    .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : ''))
+    .join(' ');
 };
 
 export const DashboardRouteBreadcrumbs: React.FC = () => {
@@ -28,7 +41,7 @@ export const DashboardRouteBreadcrumbs: React.FC = () => {
     return segments.map((segment, index) => {
       const href = '/' + segments.slice(0, index + 1).join('/');
       const isLast = index === segments.length - 1;
-      const label = SEGMENT_LABELS[segment] ?? decodeURIComponent(segment);
+      const label = formatSegmentLabel(segment);
       return {
         label,
         href: isLast ? undefined : href,

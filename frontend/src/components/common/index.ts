@@ -24,6 +24,7 @@ export * from './navigation/Breadcrumbs';
 export * from './navigation/Pagination';
 export * from './navigation/Sidebar';
 export * from './navigation/Accordion';
+export * from './navigation/TabStrip';
 
 export * from './feedback/Modal';
 export * from './feedback/Toast';
