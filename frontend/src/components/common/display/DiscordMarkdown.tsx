@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Image from 'next/image';
 import ReactMarkdown, { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -32,80 +32,248 @@ const DiscordSpoiler: React.FC<{ children: React.ReactNode }> = ({ children }) =
   );
 };
 
-function remarkDiscordSyntax() {
-  return (tree: any) => {
-    visit(tree, 'strong', (node, index, parent) => {
-      if (node.position && parent && typeof index === 'number') {
-        node.data = {
-          ...node.data,
-          hName: 'u',
-          hProperties: { className: 'underline decoration-1 underline-offset-2' },
-        };
+function processChildrenForSpoilers(children: any[]): any[] {
+  const result: any[] = [];
+  let inSpoiler = false;
+  let spoilerChildren: any[] = [];
+
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+
+    if (child.children && child.type !== 'discordSpoiler') {
+      child.children = processChildrenForSpoilers(child.children);
+    }
+
+    if (!inSpoiler) {
+      if (child.type !== 'text') {
+        result.push(child);
+        continue;
       }
-    });
 
-    visit(tree, 'text', (node, index, parent) => {
-      if (!parent || typeof index !== 'number') return;
-
-      const value: string = node.value;
-      const regex = /(\|\|[\s\S]+?\|\|)|(<(a)?:([a-zA-Z0-9_]+):([0-9]+)>)/g;
-      let match: RegExpExecArray | null;
-      let lastIndex = 0;
-      const newNodes: any[] = [];
-
-      while ((match = regex.exec(value)) !== null) {
-        if (match.index > lastIndex) {
-          newNodes.push({
-            type: 'text',
-            value: value.slice(lastIndex, match.index),
-          });
-        }
-
-        if (match[1]) {
-          const spoilerContent = match[1].slice(2, -2);
-          newNodes.push({
+      let textValue: string = child.value;
+      while (textValue.length > 0) {
+        if (!inSpoiler) {
+          const openIdx = textValue.indexOf('||');
+          if (openIdx === -1) {
+            result.push({ type: 'text', value: textValue });
+            break;
+          }
+          if (openIdx > 0) {
+            result.push({ type: 'text', value: textValue.slice(0, openIdx) });
+          }
+          inSpoiler = true;
+          spoilerChildren = [];
+          textValue = textValue.slice(openIdx + 2);
+        } else {
+          const closeIdx = textValue.indexOf('||');
+          if (closeIdx === -1) {
+            if (textValue.length > 0) {
+              spoilerChildren.push({ type: 'text', value: textValue });
+            }
+            break;
+          }
+          const inside = textValue.slice(0, closeIdx);
+          if (inside.length > 0) {
+            spoilerChildren.push({ type: 'text', value: inside });
+          }
+          result.push({
             type: 'discordSpoiler',
             data: { hName: 'discord-spoiler' },
-            children: [{ type: 'text', value: spoilerContent }],
+            children: spoilerChildren,
           });
-        } else if (match[2]) {
-          newNodes.push({
-            type: 'discordEmoji',
+          inSpoiler = false;
+          spoilerChildren = [];
+          textValue = textValue.slice(closeIdx + 2);
+        }
+      }
+    } else {
+      if (child.type !== 'text') {
+        spoilerChildren.push(child);
+        continue;
+      }
+
+      let textValue: string = child.value;
+      while (textValue.length > 0) {
+        if (inSpoiler) {
+          const closeIdx = textValue.indexOf('||');
+          if (closeIdx === -1) {
+            spoilerChildren.push({ type: 'text', value: textValue });
+            break;
+          }
+          const inside = textValue.slice(0, closeIdx);
+          if (inside.length > 0) {
+            spoilerChildren.push({ type: 'text', value: inside });
+          }
+          result.push({
+            type: 'discordSpoiler',
+            data: { hName: 'discord-spoiler' },
+            children: spoilerChildren,
+          });
+          inSpoiler = false;
+          spoilerChildren = [];
+          textValue = textValue.slice(closeIdx + 2);
+        } else {
+          const openIdx = textValue.indexOf('||');
+          if (openIdx === -1) {
+            result.push({ type: 'text', value: textValue });
+            break;
+          }
+          if (openIdx > 0) {
+            result.push({ type: 'text', value: textValue.slice(0, openIdx) });
+          }
+          inSpoiler = true;
+          spoilerChildren = [];
+          textValue = textValue.slice(openIdx + 2);
+        }
+      }
+    }
+  }
+
+  if (inSpoiler) {
+    result.push({ type: 'text', value: '||' });
+    for (const sc of spoilerChildren) {
+      result.push(sc);
+    }
+  }
+
+  return result;
+}
+
+function createRemarkDiscordSyntax(rawContent: string) {
+  return function remarkDiscordSyntax() {
+    return (tree: any) => {
+      visit(tree, 'code', (node, index, parent) => {
+        if (!parent || typeof index !== 'number') return;
+        const start = node.position?.start?.offset ?? 0;
+        const slice = rawContent.slice(start, start + 30);
+        const isFenced = Boolean(node.lang) || /^\s*(>*\s*)*(`{3,}|~{3,})/.test(slice);
+
+        if (!isFenced) {
+          parent.children[index] = {
+            type: 'paragraph',
             data: {
-              hName: 'discord-emoji',
-              hProperties: {
-                animated: match[3] === 'a' ? 'true' : 'false',
-                name: match[4],
-                id: match[5],
-              },
+              hName: 'div',
+              hProperties: { className: 'whitespace-pre-wrap' },
             },
-          });
+            children: [
+              {
+                type: 'text',
+                value: node.value,
+              },
+            ],
+          };
         }
+      });
 
-        lastIndex = regex.lastIndex;
+      visit(tree, 'strong', (node) => {
+        if (node.position?.start?.offset !== undefined) {
+          const start = node.position.start.offset;
+          if (rawContent.slice(start, start + 2) === '__') {
+            node.data = {
+              ...node.data,
+              hName: 'u',
+              hProperties: { className: 'underline decoration-1 underline-offset-2' },
+            };
+          }
+        }
+      });
+
+      if (tree.children) {
+        tree.children = processChildrenForSpoilers(tree.children);
       }
 
-      if (newNodes.length > 0) {
-        if (lastIndex < value.length) {
-          newNodes.push({
-            type: 'text',
-            value: value.slice(lastIndex),
-          });
+      visit(tree, 'text', (node, index, parent) => {
+        if (!parent || typeof index !== 'number') return;
+        if (parent.type === 'code' || parent.type === 'inlineCode') return;
+
+        const value: string = node.value;
+        const regex =
+          /(<(a)?:([a-zA-Z0-9_]+):([0-9]+)>)|(<@!?([0-9]+)>)|(<@&([0-9]+)>)|(<#([0-9]+)>)/g;
+
+        let match: RegExpExecArray | null;
+        let lastIndex = 0;
+        const newNodes: any[] = [];
+
+        while ((match = regex.exec(value)) !== null) {
+          if (match.index > lastIndex) {
+            newNodes.push({
+              type: 'text',
+              value: value.slice(lastIndex, match.index),
+            });
+          }
+
+          if (match[1]) {
+            newNodes.push({
+              type: 'discordEmoji',
+              data: {
+                hName: 'discord-emoji',
+                hProperties: {
+                  animated: match[2] === 'a' ? 'true' : 'false',
+                  name: match[3],
+                  id: match[4],
+                },
+              },
+            });
+          } else if (match[5]) {
+            newNodes.push({
+              type: 'discordMention',
+              data: {
+                hName: 'discord-mention',
+                hProperties: {
+                  type: 'user',
+                  id: match[6],
+                },
+              },
+            });
+          } else if (match[7]) {
+            newNodes.push({
+              type: 'discordMention',
+              data: {
+                hName: 'discord-mention',
+                hProperties: {
+                  type: 'role',
+                  id: match[8],
+                },
+              },
+            });
+          } else if (match[9]) {
+            newNodes.push({
+              type: 'discordMention',
+              data: {
+                hName: 'discord-mention',
+                hProperties: {
+                  type: 'channel',
+                  id: match[10],
+                },
+              },
+            });
+          }
+
+          lastIndex = regex.lastIndex;
         }
-        parent.children.splice(index, 1, ...newNodes);
-        return index + newNodes.length;
-      }
-    });
+
+        if (newNodes.length > 0) {
+          if (lastIndex < value.length) {
+            newNodes.push({
+              type: 'text',
+              value: value.slice(lastIndex),
+            });
+          }
+          parent.children.splice(index, 1, ...newNodes);
+          return index + newNodes.length;
+        }
+      });
+    };
   };
 }
 
-const discordComponents: Components & Record<string, any> = {
+const discordComponents: Components & Record<string, React.ComponentType<any>> = {
   'discord-spoiler': ({ children }: { children: React.ReactNode }) => (
     <DiscordSpoiler>{children}</DiscordSpoiler>
   ),
   'discord-emoji': ({ animated, name, id }: { animated: string; name: string; id: string }) => (
     <Image
-      src={`https://discordapp.com{id}.${animated === 'true' ? 'gif' : 'webp'}?size=48&quality=lossless`}
+      src={`https://cdn.discordapp.com/emojis/${id}.${animated === 'true' ? 'gif' : 'webp'}?size=48&quality=lossless`}
       alt={`:${name}:`}
       title={`:${name}:`}
       width={20}
@@ -113,6 +281,17 @@ const discordComponents: Components & Record<string, any> = {
       unoptimized
       className="inline-block w-5 h-5 align-middle mx-0.5 object-contain"
     />
+  ),
+  'discord-mention': ({ type, id }: { type: 'user' | 'role' | 'channel'; id: string }) => {
+    const prefix = type === 'channel' ? '#' : '@';
+    return (
+      <span className="px-1 py-0.5 rounded bg-[#5865F2]/15 hover:bg-[#5865F2]/25 text-[#C9CDFB] font-medium transition-colors inline-block align-baseline">
+        {prefix}{id}
+      </span>
+    );
+  },
+  u: ({ children }) => (
+    <u className="underline decoration-1 underline-offset-2">{children}</u>
   ),
   s: ({ children }) => <s className="line-through text-text-tertiary">{children}</s>,
   del: ({ children }) => <s className="line-through text-text-tertiary">{children}</s>,
@@ -163,15 +342,20 @@ const discordComponents: Components & Record<string, any> = {
     <h3 className="text-sm md:text-base font-bold text-white mt-1 mb-0.5">{children}</h3>
   ),
   p: ({ children }) => <div className="min-h-[1.25rem]">{children}</div>,
+  ul: ({ children }) => <ul className="list-disc list-inside space-y-0.5 my-1">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal list-inside space-y-0.5 my-1">{children}</ol>,
+  li: ({ children }) => <li className="text-[#DBDEE1]">{children}</li>,
 };
 
 export const DiscordMarkdown: React.FC<DiscordMarkdownProps> = ({ content, className = '' }) => {
+  const remarkDiscordPlugin = useMemo(() => createRemarkDiscordSyntax(content), [content]);
+
   if (!content) return null;
 
   return (
     <div className={`text-[14px] leading-[1.375rem] text-[#DBDEE1] break-words ${className}`}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkDiscordSyntax]}
+        remarkPlugins={[remarkGfm, remarkDiscordPlugin]}
         components={discordComponents}
       >
         {content}
@@ -179,3 +363,4 @@ export const DiscordMarkdown: React.FC<DiscordMarkdownProps> = ({ content, class
     </div>
   );
 };
+
