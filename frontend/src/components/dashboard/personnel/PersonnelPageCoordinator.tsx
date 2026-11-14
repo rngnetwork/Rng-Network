@@ -5,6 +5,7 @@ import { ShieldCheck } from 'lucide-react';
 import { fetchCurrentUser } from '@/lib/api/auth/session';
 import type { UserProfileData } from '@/lib/model/user';
 import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
+import { PersonnelNavigationTabStrip } from './PersonnelNavigationTabStrip';
 
 export const PersonnelPageCoordinator: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserProfileData | null>(null);
@@ -99,7 +100,7 @@ export const PersonnelPageCoordinator: React.FC = () => {
             </h1>
             <p className="text-xs md:text-sm text-zinc-400">
               {isHighCommand
-                ? 'Manage system-wide personnel credentials, designations, and permissions.'
+                ? 'Authoritative command hierarchy, ministry designations, and granular access permissions.'
                 : `Scoped access: Manage personnel strictly within ${
                     ministerMinistries.join(' & ') || 'your assigned ministries'
                   }.`}
@@ -107,6 +108,8 @@ export const PersonnelPageCoordinator: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <PersonnelNavigationTabStrip />
 
       <div className="w-full flex-1 min-h-0 flex flex-col gap-6" />
     </div>
