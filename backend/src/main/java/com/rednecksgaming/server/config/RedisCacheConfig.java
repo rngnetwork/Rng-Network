@@ -1,3 +1,6 @@
+// Written By: RachitSWE
+// LICENSE: All rights reserved
+// Year: 2026
 package com.rednecksgaming.server.config;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;

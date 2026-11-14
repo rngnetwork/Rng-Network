@@ -1,0 +1,387 @@
+'use client';
+
+import React, { useMemo, useState } from 'react';
+import Image from 'next/image';
+import ReactMarkdown, { Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { visit } from 'unist-util-visit';
+import type { Node, Parent } from 'unist';
+
+export interface DiscordMarkdownProps {
+  content: string;
+  className?: string;
+}
+
+const DiscordSpoiler: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [revealed, setRevealed] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => setRevealed(!revealed)}
+      aria-label="Spoiler"
+      data-revealed={String(revealed)}
+      className={`px-1 py-0.5 rounded transition-all cursor-pointer inline-block text-left align-baseline ${
+        revealed
+          ? 'bg-white/10 text-[#DBDEE1]'
+          : 'bg-[#1E1F22] hover:bg-[#2B2D31] text-transparent select-none'
+      }`}
+    >
+      <span className={revealed ? 'opacity-100' : 'opacity-0 select-none pointer-events-none'}>
+        {children}
+      </span>
+    </button>
+  );
+};
+
+interface MdastNode extends Node {
+  value?: string;
+  children?: MdastNode[];
+  lang?: string;
+  data?: {
+    hName?: string;
+    hProperties?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
+}
+
+function processChildrenForSpoilers(children: MdastNode[]): MdastNode[] {
+  const result: MdastNode[] = [];
+  let inSpoiler = false;
+  let spoilerChildren: MdastNode[] = [];
+
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+
+    if (child.children && child.type !== 'discordSpoiler') {
+      child.children = processChildrenForSpoilers(child.children);
+    }
+
+    if (!inSpoiler) {
+      if (child.type !== 'text') {
+        result.push(child);
+        continue;
+      }
+
+      let textValue: string = child.value || '';
+      while (textValue.length > 0) {
+        if (!inSpoiler) {
+          const openIdx = textValue.indexOf('||');
+          if (openIdx === -1) {
+            result.push({ type: 'text', value: textValue });
+            break;
+          }
+          if (openIdx > 0) {
+            result.push({ type: 'text', value: textValue.slice(0, openIdx) });
+          }
+          inSpoiler = true;
+          spoilerChildren = [];
+          textValue = textValue.slice(openIdx + 2);
+        } else {
+          const closeIdx = textValue.indexOf('||');
+          if (closeIdx === -1) {
+            if (textValue.length > 0) {
+              spoilerChildren.push({ type: 'text', value: textValue });
+            }
+            break;
+          }
+          const inside = textValue.slice(0, closeIdx);
+          if (inside.length > 0) {
+            spoilerChildren.push({ type: 'text', value: inside });
+          }
+          result.push({
+            type: 'discordSpoiler',
+            data: { hName: 'discord-spoiler' },
+            children: spoilerChildren,
+          });
+          inSpoiler = false;
+          spoilerChildren = [];
+          textValue = textValue.slice(closeIdx + 2);
+        }
+      }
+    } else {
+      if (child.type !== 'text') {
+        spoilerChildren.push(child);
+        continue;
+      }
+
+      let textValue: string = child.value || '';
+      while (textValue.length > 0) {
+        if (inSpoiler) {
+          const closeIdx = textValue.indexOf('||');
+          if (closeIdx === -1) {
+            spoilerChildren.push({ type: 'text', value: textValue });
+            break;
+          }
+          const inside = textValue.slice(0, closeIdx);
+          if (inside.length > 0) {
+            spoilerChildren.push({ type: 'text', value: inside });
+          }
+          result.push({
+            type: 'discordSpoiler',
+            data: { hName: 'discord-spoiler' },
+            children: spoilerChildren,
+          });
+          inSpoiler = false;
+          spoilerChildren = [];
+          textValue = textValue.slice(closeIdx + 2);
+        } else {
+          const openIdx = textValue.indexOf('||');
+          if (openIdx === -1) {
+            result.push({ type: 'text', value: textValue });
+            break;
+          }
+          if (openIdx > 0) {
+            result.push({ type: 'text', value: textValue.slice(0, openIdx) });
+          }
+          inSpoiler = true;
+          spoilerChildren = [];
+          textValue = textValue.slice(openIdx + 2);
+        }
+      }
+    }
+  }
+
+  if (inSpoiler) {
+    result.push({ type: 'text', value: '||' });
+    for (const sc of spoilerChildren) {
+      result.push(sc);
+    }
+  }
+
+  return result;
+}
+
+function createRemarkDiscordSyntax(rawContent: string) {
+  return function remarkDiscordSyntax() {
+    return (tree: Node) => {
+      // Pass 1: Indented code blocks transformation
+      visit(tree, 'code', (node: Node, index?: number, parent?: Parent) => {
+        if (!parent || !Array.isArray(parent.children) || typeof index !== 'number') return;
+        const codeNode = node as MdastNode;
+        const start = codeNode.position?.start?.offset ?? 0;
+        const slice = rawContent.slice(start, start + 30);
+        const isFenced = Boolean(codeNode.lang) || /^\s*(>*\s*)*(`{3,}|~{3,})/.test(slice);
+
+        if (!isFenced) {
+          (parent.children as MdastNode[])[index] = {
+            type: 'paragraph',
+            data: {
+              hName: 'div',
+              hProperties: { className: 'whitespace-pre-wrap' },
+            },
+            children: [
+              {
+                type: 'text',
+                value: codeNode.value,
+              },
+            ],
+          };
+        }
+      });
+
+      // Pass 2: Underline vs Bold detection
+      visit(tree, 'strong', (node: Node) => {
+        const strongNode = node as MdastNode;
+        if (strongNode.position?.start?.offset !== undefined) {
+          const start = strongNode.position.start.offset;
+          if (rawContent.slice(start, start + 2) === '__') {
+            strongNode.data = {
+              ...strongNode.data,
+              hName: 'u',
+              hProperties: { className: 'underline decoration-1 underline-offset-2' },
+            };
+          }
+        }
+      });
+
+      // Pass 3: Sibling-aware spoilers
+      const rootNode = tree as MdastNode;
+      if (rootNode.children) {
+        rootNode.children = processChildrenForSpoilers(rootNode.children);
+      }
+
+      // Pass 4: Emojis and mentions
+      visit(tree, 'text', (node: Node, index?: number, parent?: Parent) => {
+        if (!parent || !Array.isArray(parent.children) || typeof index !== 'number') return;
+        if (parent.type === 'code' || parent.type === 'inlineCode') return;
+
+        const textNode = node as MdastNode;
+        const value: string = textNode.value || '';
+        const regex =
+          /(<(a)?:([a-zA-Z0-9_]+):([0-9]+)>)|(<@!?([0-9]+)>)|(<@&([0-9]+)>)|(<#([0-9]+)>)/g;
+
+        let match: RegExpExecArray | null;
+        let lastIndex = 0;
+        const newNodes: MdastNode[] = [];
+
+        while ((match = regex.exec(value)) !== null) {
+          if (match.index > lastIndex) {
+            newNodes.push({
+              type: 'text',
+              value: value.slice(lastIndex, match.index),
+            });
+          }
+
+          if (match[1]) {
+            newNodes.push({
+              type: 'discordEmoji',
+              data: {
+                hName: 'discord-emoji',
+                hProperties: {
+                  animated: match[2] === 'a' ? 'true' : 'false',
+                  name: match[3],
+                  id: match[4],
+                },
+              },
+            });
+          } else if (match[5]) {
+            newNodes.push({
+              type: 'discordMention',
+              data: {
+                hName: 'discord-mention',
+                hProperties: {
+                  type: 'user',
+                  id: match[6],
+                },
+              },
+            });
+          } else if (match[7]) {
+            newNodes.push({
+              type: 'discordMention',
+              data: {
+                hName: 'discord-mention',
+                hProperties: {
+                  type: 'role',
+                  id: match[8],
+                },
+              },
+            });
+          } else if (match[9]) {
+            newNodes.push({
+              type: 'discordMention',
+              data: {
+                hName: 'discord-mention',
+                hProperties: {
+                  type: 'channel',
+                  id: match[10],
+                },
+              },
+            });
+          }
+
+          lastIndex = regex.lastIndex;
+        }
+
+        if (newNodes.length > 0) {
+          if (lastIndex < value.length) {
+            newNodes.push({
+              type: 'text',
+              value: value.slice(lastIndex),
+            });
+          }
+          (parent.children as MdastNode[]).splice(index, 1, ...newNodes);
+          return index + newNodes.length;
+        }
+      });
+    };
+  };
+}
+
+type DiscordCustomProps = Record<string, unknown> & { children?: React.ReactNode };
+
+const discordComponents: Components & Record<string, React.ComponentType<DiscordCustomProps>> = {
+  'discord-spoiler': ({ children }: DiscordCustomProps) => (
+    <DiscordSpoiler>{children}</DiscordSpoiler>
+  ),
+  'discord-emoji': ({ animated, name, id }: DiscordCustomProps) => (
+    <Image
+      src={`https://cdn.discordapp.com/emojis/${String(id)}.${animated === 'true' ? 'gif' : 'webp'}?size=48&quality=lossless`}
+      alt={`:${String(name)}:`}
+      title={`:${String(name)}:`}
+      width={20}
+      height={20}
+      unoptimized
+      className="inline-block w-5 h-5 align-middle mx-0.5 object-contain"
+    />
+  ),
+  'discord-mention': ({ type, id }: DiscordCustomProps) => {
+    const prefix = type === 'channel' ? '#' : '@';
+    return (
+      <span className="px-1 py-0.5 rounded bg-[#5865F2]/15 hover:bg-[#5865F2]/25 text-[#C9CDFB] font-medium transition-colors inline-block align-baseline">
+        {prefix}{String(id)}
+      </span>
+    );
+  },
+  u: ({ children }) => (
+    <u className="underline decoration-1 underline-offset-2">{children}</u>
+  ),
+  s: ({ children }) => <s className="line-through text-text-tertiary">{children}</s>,
+  del: ({ children }) => <s className="line-through text-text-tertiary">{children}</s>,
+  strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+  em: ({ children }) => <em className="italic text-[#DBDEE1]">{children}</em>,
+  a: ({ href, children }) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-[#00A8FC] hover:underline cursor-pointer"
+    >
+      {children}
+    </a>
+  ),
+  code: ({ className, children, ...props }) => {
+    const isBlock = /language-(\w+)/.test(className || '') || String(children).includes('\n');
+    if (isBlock) {
+      return (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      );
+    }
+    return (
+      <code className="px-1.5 py-0.5 rounded bg-[#1E1F22] text-[#DBDEE1] font-mono text-[12px]">
+        {children}
+      </code>
+    );
+  },
+  pre: ({ children }) => (
+    <pre className="p-3 my-1.5 rounded-apple-md bg-[#1E1F22] border border-white/5 font-mono text-xs text-[#DBDEE1] overflow-x-auto leading-relaxed">
+      {children}
+    </pre>
+  ),
+  blockquote: ({ children }) => (
+    <blockquote className="pl-3.5 my-1 border-l-4 border-[#4E5058] text-[#B5BAC1]">
+      {children}
+    </blockquote>
+  ),
+  h1: ({ children }) => (
+    <h1 className="text-lg md:text-xl font-bold text-white mt-2 mb-1">{children}</h1>
+  ),
+  h2: ({ children }) => (
+    <h2 className="text-base md:text-lg font-bold text-white mt-1.5 mb-1">{children}</h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="text-sm md:text-base font-bold text-white mt-1 mb-0.5">{children}</h3>
+  ),
+  p: ({ children }) => <div className="min-h-[1.25rem]">{children}</div>,
+  ul: ({ children }) => <ul className="list-disc list-inside space-y-0.5 my-1">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal list-inside space-y-0.5 my-1">{children}</ol>,
+  li: ({ children }) => <li className="text-[#DBDEE1]">{children}</li>,
+};
+
+export const DiscordMarkdown: React.FC<DiscordMarkdownProps> = ({ content, className = '' }) => {
+  const remarkDiscordPlugin = useMemo(() => createRemarkDiscordSyntax(content), [content]);
+
+  if (!content) return null;
+
+  return (
+    <div className={`text-[14px] leading-[1.375rem] text-[#DBDEE1] break-words ${className}`}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkDiscordPlugin]}
+        components={discordComponents}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+};

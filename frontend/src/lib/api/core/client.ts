@@ -223,6 +223,15 @@ export class HttpClient {
     return res.data;
   }
 
+  public async patch<T>(
+    url: string,
+    data?: unknown,
+    config?: AxiosRequestConfig
+  ): Promise<ApiResponse<T>> {
+    const res = await this.instance.patch<ApiResponse<T>>(url, data, config);
+    return res.data;
+  }
+
   public async delete<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
     const res = await this.instance.delete<ApiResponse<T>>(url, config);
     return res.data;

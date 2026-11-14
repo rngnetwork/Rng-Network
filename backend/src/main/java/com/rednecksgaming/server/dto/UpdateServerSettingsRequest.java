@@ -1,3 +1,6 @@
+// Written By: RachitSWE
+// LICENSE: All rights reserved
+// Year: 2026
 package com.rednecksgaming.server.dto;
 
 import jakarta.validation.constraints.NotBlank;
@@ -17,7 +20,7 @@ public class UpdateServerSettingsRequest {
     @Size(min = 2, max = 100, message = "Server name must be between 2 and 100 characters")
     private String name;
 
-    @Size(max = 120, message = "Description must not exceed 120 characters")
+    @Size(max = 300, message = "Description must not exceed 300 characters")
     private String description;
 
     private String icon;

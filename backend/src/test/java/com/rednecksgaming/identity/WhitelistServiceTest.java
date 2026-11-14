@@ -1,3 +1,6 @@
+// Written By: RachitSWE
+// LICENSE: All rights reserved
+// Year: 2026
 package com.rednecksgaming.identity;
 
 import com.rednecksgaming.common.exception.ConflictException;
@@ -121,7 +124,7 @@ class WhitelistServiceTest {
                 .fullName("Agent")
                 .provider(AuthProvider.EMAIL)
                 .role("ROLE_USER")
-                .designations("Ministry of Internal affairs")
+                .designations("Ministry of Growth, GFX and External Relations")
                 .roles("Agent")
                 .build();
 
@@ -192,7 +195,7 @@ class WhitelistServiceTest {
                 .fullName("Internal Agent")
                 .provider(AuthProvider.EMAIL)
                 .role("ROLE_USER")
-                .designations("Ministry of Internal affairs")
+                .designations("Ministry of Growth, GFX and External Relations")
                 .roles("Agent")
                 .build();
 
@@ -459,7 +462,7 @@ class WhitelistServiceTest {
                 .email("test@rng.com")
                 .userName("Test User")
                 .provider(AuthProvider.EMAIL)
-                .designations(List.of("Ministry of Internal affairs"))
+                .designations(List.of("Ministry of Growth, GFX and External Relations"))
                 .roles(List.of("Agent"))
                 .build();
 
@@ -491,7 +494,7 @@ class WhitelistServiceTest {
                 .email("test@rng.com")
                 .userName("Test User")
                 .designations(List.of("Ministry of Tech"))
-                .roles(List.of("Ministry of Internal affairs:Agent"))
+                .roles(List.of("Ministry of Growth, GFX and External Relations:Agent"))
                 .build();
 
         when(userRepository.findById(2L)).thenReturn(Optional.of(ministerTechUser));
@@ -806,13 +809,13 @@ class WhitelistServiceTest {
                 .id(30L)
                 .email("internal@rng.com")
                 .role("ROLE_USER")
-                .designations("Ministry of Internal affairs")
+                .designations("Ministry of Growth, GFX and External Relations")
                 .roles("Agent")
                 .build();
 
         UpdateWhitelistedUserRequest req = UpdateWhitelistedUserRequest.builder()
                 .userName("Test")
-                .designations(List.of("Ministry of Internal affairs"))
+                .designations(List.of("Ministry of Growth, GFX and External Relations"))
                 .roles(List.of("Agent"))
                 .build();
 
@@ -1170,7 +1173,7 @@ class WhitelistServiceTest {
                 .id(40L)
                 .email("internal@rng.com")
                 .role("ROLE_USER")
-                .designations("Ministry of Internal affairs")
+                .designations("Ministry of Growth, GFX and External Relations")
                 .roles("Agent")
                 .build();
 

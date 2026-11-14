@@ -10,6 +10,7 @@ export interface ToggleSwitchProps {
   disabled?: boolean;
   size?: 'sm' | 'md';
   className?: string;
+  'aria-label'?: string;
 }
 
 export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
@@ -20,6 +21,7 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
   disabled = false,
   size = 'md',
   className = '',
+  'aria-label': ariaLabel,
 }) => {
   const isSm = size === 'sm';
 
@@ -57,6 +59,7 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
       <button
         type="button"
         role="switch"
+        aria-label={ariaLabel || label}
         aria-checked={checked}
         disabled={disabled}
         onClick={(e) => handleToggle(e)}

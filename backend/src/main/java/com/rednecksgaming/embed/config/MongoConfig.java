@@ -1,3 +1,6 @@
+// Written By: RachitSWE
+// LICENSE: All rights reserved
+// Year: 2026
 package com.rednecksgaming.embed.config;
 
 import org.springframework.beans.BeansException;
@@ -13,7 +16,10 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
  * MongoDB repository and auditing configuration for the embed module.
  */
 @Configuration
-@EnableMongoRepositories(basePackages = "com.rednecksgaming.embed.repository")
+@EnableMongoRepositories(basePackages = {
+    "com.rednecksgaming.embed.repository",
+    "com.rednecksgaming.botmodule.repository"
+})
 @EnableMongoAuditing
 public class MongoConfig {
 

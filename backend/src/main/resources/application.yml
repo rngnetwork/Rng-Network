@@ -80,3 +80,8 @@ app:
   discord:
     redirect-uri: ${DISCORD_REDIRECT_URI:${NEXT_PUBLIC_DISCORD_REDIRECT_URI:http://localhost:3000/auth/discord/callback}}
     bot-token: ${DISCORD_BOT_TOKEN:}
+  guild-api:
+    base-url: ${GUILD_API_BASE_URL:http://185.223.31.168:8790/v1}
+    api-token: ${GUILD_API_TOKEN:}
+    connect-timeout-ms: ${GUILD_API_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${GUILD_API_READ_TIMEOUT_MS:8000}

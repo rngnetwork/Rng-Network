@@ -1,5 +1,9 @@
+// Written By: RachitSWE
+// LICENSE: All rights reserved
+// Year: 2026
 package com.rednecksgaming.embed.config;
 
+import com.rednecksgaming.botmodule.model.BotModuleAuditLogDocument;
 import com.rednecksgaming.embed.domain.DispatchLog;
 import com.rednecksgaming.embed.domain.EmbedAction;
 import com.rednecksgaming.embed.domain.InteractionLog;
@@ -45,6 +49,7 @@ public class MongoIndexReconciliationConfig implements CommandLineRunner {
         dropObsoleteIndex(template, EmbedAction.class, "idx_server_action");
         reconcileTtl(template, InteractionLog.class, "createdAt");
         reconcileTtl(template, DispatchLog.class, "timestamp");
+        reconcileTtl(template, BotModuleAuditLogDocument.class, "timestamp");
     }
 
     public void dropObsoleteIndex(Class<?> entityClass, String indexName) {

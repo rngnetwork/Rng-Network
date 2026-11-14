@@ -1,3 +1,6 @@
+// Written By: RachitSWE
+// LICENSE: All rights reserved
+// Year: 2026
 package com.rednecksgaming.security.config;
 
 import com.rednecksgaming.common.security.SecurityConstants;
@@ -87,7 +90,9 @@ public class SecurityConfig {
                 "http://localhost:3000",
                 "http://localhost:8080",
                 "https://*.github.dev",
-                "https://*.app.github.dev"
+                "https://*.app.github.dev",
+                "https://rednecksgaming.com",
+                "https://www.rednecksgaming.com"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));

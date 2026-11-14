@@ -24,7 +24,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-RUN npm run build
+RUN node -e "console.log('Node:', process.version, process.arch)" \
+    && node -e "require('next'); console.log('Next.js loaded')" \
+    && node -e "require('next/dist/build/swc').loadBindings().then(() => console.log('SWC loaded')).catch(e => { console.error(e); process.exit(1); })"
+
+    RUN npm run build
 
 # ------------------------------------------------------------------------------
 # Stage 3: Minimal Production Standalone Runtime

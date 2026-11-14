@@ -1,3 +1,6 @@
+// Written By: RachitSWE
+// LICENSE: All rights reserved
+// Year: 2026
 package com.rednecksgaming.server;
 
 import com.rednecksgaming.common.exception.ResourceNotFoundException;
@@ -248,6 +251,30 @@ class ServerServiceTest {
         assertThat(channels.get(0).getType()).isEqualTo(0);
         assertThat(channels.get(1).getName()).isEqualTo("Voice Lounge");
         assertThat(channels.get(1).getType()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("getServerChannels sorts channels hierarchically with categories, children, and uncategorized channels")
+    void testGetServerChannelsHierarchicalSorting() {
+        when(serverRepository.findByIdOrSlug("100000000000000001")).thenReturn(Optional.of(sampleServer));
+        when(discordClient.getGuildChannels(sampleServer.getId())).thenReturn(List.of(
+                DiscordChannelDto.builder().id("cat-comm").name("COMMUNITY").type(4).position(0).build(),
+                DiscordChannelDto.builder().id("c-giveaway").name("giveaway").type(0).position(5).parentId("cat-comm").build(),
+                DiscordChannelDto.builder().id("c-rules").name("rules").type(0).position(0).parentId("cat-comm").build(),
+                DiscordChannelDto.builder().id("cat-logs").name("LOGS").type(4).position(2).build(),
+                DiscordChannelDto.builder().id("c-modlogs").name("mod-logs").type(0).position(0).parentId("cat-logs").build(),
+                DiscordChannelDto.builder().id("c-welcome").name("welcome").type(0).position(0).build()
+        ));
+
+        var channels = serverService.getServerChannels("100000000000000001");
+        assertThat(channels.stream().map(ChannelDto::getName).toList()).containsExactly(
+                "welcome",
+                "COMMUNITY",
+                "rules",
+                "giveaway",
+                "LOGS",
+                "mod-logs"
+        );
     }
 
     @Test

@@ -14,7 +14,10 @@ export interface AccordionProps {
   items: AccordionItem[];
   defaultOpenId?: string;
   defaultOpenIds?: string[];
+  openIds?: string[];
+  onOpenIdsChange?: (openIds: string[]) => void;
   allowMultiple?: boolean;
+  showCollapseAll?: boolean;
   className?: string;
   itemClassName?: string;
   headerClassName?: string;
@@ -25,34 +28,71 @@ export const Accordion: React.FC<AccordionProps> = ({
   items,
   defaultOpenId,
   defaultOpenIds,
+  openIds: controlledOpenIds,
+  onOpenIdsChange,
   allowMultiple = false,
+  showCollapseAll = false,
   className = '',
   itemClassName = '',
   headerClassName = '',
   contentClassName = '',
 }) => {
-  const [openIds, setOpenIds] = useState<string[]>(() => {
+  const isControlled = controlledOpenIds !== undefined;
+  const [internalOpenIds, setInternalOpenIds] = useState<string[]>(() => {
     if (defaultOpenIds && defaultOpenIds.length > 0) {
       return defaultOpenIds;
     }
     return defaultOpenId ? [defaultOpenId] : [];
   });
 
+  const activeOpenIds = isControlled ? controlledOpenIds : internalOpenIds;
+
+  const updateOpenIds = (next: string[]) => {
+    if (!isControlled) {
+      setInternalOpenIds(next);
+    }
+    onOpenIdsChange?.(next);
+  };
+
   const handleToggle = (id: string, disabled?: boolean) => {
     if (disabled) return;
     if (allowMultiple) {
-      setOpenIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
+      const next = activeOpenIds.includes(id)
+        ? activeOpenIds.filter((i) => i !== id)
+        : [...activeOpenIds, id];
+      updateOpenIds(next);
     } else {
-      setOpenIds((prev) => (prev.includes(id) ? [] : [id]));
+      const next = activeOpenIds.includes(id) ? [] : [id];
+      updateOpenIds(next);
     }
+  };
+
+  const handleCollapseAll = () => {
+    updateOpenIds([]);
   };
 
   return (
     <div
       className={`flex flex-col divide-y divide-surface-border rounded-apple-xl border border-surface-border bg-surface-elevated overflow-hidden ${className}`}
     >
+      {showCollapseAll && items.length > 0 && (
+        <div className="flex items-center justify-between px-4 py-2.5 bg-surface-canvas/60 border-b border-surface-border">
+          <span className="text-xs font-mono text-text-tertiary">
+            {activeOpenIds.length} of {items.length} expanded
+          </span>
+          <button
+            type="button"
+            onClick={handleCollapseAll}
+            disabled={activeOpenIds.length === 0}
+            className="text-xs font-medium text-brand-red hover:text-brand-red-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors select-none"
+            aria-label="Collapse all accordion panels"
+          >
+            Collapse All
+          </button>
+        </div>
+      )}
       {items.map((item) => {
-        const isOpen = openIds.includes(item.id);
+        const isOpen = activeOpenIds.includes(item.id);
 
         return (
           <div key={item.id} className={`flex flex-col ${itemClassName}`}>
@@ -67,11 +107,11 @@ export const Accordion: React.FC<AccordionProps> = ({
                   : 'text-text-primary hover:bg-white/[0.04]'
               } ${headerClassName}`}
             >
-              <div className="flex items-center gap-3 min-w-0 pr-4">
+              <div className="flex items-center gap-3 min-w-0 pr-4 flex-1">
                 {item.icon ? (
                   <span className="text-text-secondary flex items-center shrink-0">{item.icon}</span>
                 ) : null}
-                <div className="min-w-0">{item.title}</div>
+                <div className="min-w-0 flex-1">{item.title}</div>
               </div>
               <svg
                 className={`w-5 h-5 text-text-tertiary transition-transform duration-200 shrink-0 ${

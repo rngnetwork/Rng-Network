@@ -108,13 +108,13 @@ export const ServerGeneralConfigForm: React.FC<ServerGeneralConfigFormProps> = (
                   Server Description
                 </label>
                 <span className="text-xs text-zinc-500 font-mono">
-                  {formData.description.length}/120
+                  {formData.description.length}/300
                 </span>
               </div>
               <textarea
                 value={formData.description}
-                maxLength={120}
-                rows={2}
+                maxLength={300}
+                rows={3}
                 onChange={(e) =>
                   onChangeFormData((prev) => ({
                     ...prev,
@@ -142,7 +142,7 @@ export const ServerGeneralConfigForm: React.FC<ServerGeneralConfigFormProps> = (
                   </p>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="relative w-16 h-16 rounded-apple-lg overflow-hidden border border-brand-red/30 bg-black shrink-0 flex items-center justify-center shadow-crimson-glow">
                     {formData.icon ? (
                       <Image
@@ -169,7 +169,7 @@ export const ServerGeneralConfigForm: React.FC<ServerGeneralConfigFormProps> = (
                       }
                       className="hidden"
                     />
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Button
                         type="button"
                         variant="secondary"
@@ -235,7 +235,7 @@ export const ServerGeneralConfigForm: React.FC<ServerGeneralConfigFormProps> = (
                   </p>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="relative w-28 h-16 rounded-apple-md overflow-hidden border border-white/10 bg-black shrink-0 flex items-center justify-center">
                     {formData.banner ? (
                       <Image
@@ -263,7 +263,7 @@ export const ServerGeneralConfigForm: React.FC<ServerGeneralConfigFormProps> = (
                       }
                       className="hidden"
                     />
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Button
                         type="button"
                         variant="secondary"
@@ -510,6 +510,7 @@ export const ServerGeneralConfigForm: React.FC<ServerGeneralConfigFormProps> = (
 
   return (
     <Accordion
+      showCollapseAll={true}
       items={accordionItems}
       allowMultiple={true}
       defaultOpenIds={['overview', 'automation', 'routing']}

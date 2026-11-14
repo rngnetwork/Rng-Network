@@ -32,7 +32,7 @@ export const DispatchServerSelector: React.FC<DispatchServerSelectorProps> = ({
       value={selectedServerId}
       onChange={onSelectServer}
       placeholder={loading ? 'Loading managed servers...' : 'Select target guild...'}
-      searchable={options.length > 4}
+      searchable={true}
       disabled={loading || options.length === 0}
     />
   );

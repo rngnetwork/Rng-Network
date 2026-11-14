@@ -1,3 +1,6 @@
+// Written By: RachitSWE
+// LICENSE: All rights reserved
+// Year: 2026
 package com.rednecksgaming.identity.controller;
 
 import com.rednecksgaming.common.dto.ApiResponse;

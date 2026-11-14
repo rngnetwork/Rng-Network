@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import { Image as ImageIcon } from 'lucide-react';
 import type { DiscordSectionComponent, DiscordThumbnailComponent } from '@/lib/model/embed';
 import { Modal } from '@/components/common/feedback/Modal';
 import { TextInput } from '@/components/common/input/TextInput';
 import { Button } from '@/components/common/input/Button';
-import { MarkdownToolbar } from '../EditTab/MarkdownToolbar';
+import { DiscordMarkdownEditor } from '@/components/common/input/DiscordMarkdownEditor';
 
 export interface SectionConfigModalProps {
   isOpen: boolean;
@@ -20,7 +20,6 @@ export interface SectionConfigModalProps {
 export const SectionConfigModal: React.FC<SectionConfigModalProps> = ({
   isOpen,
   section,
-  onOpenEmojiPicker,
   onClose,
   onSave,
 }) => {
@@ -44,16 +43,6 @@ export const SectionConfigModal: React.FC<SectionConfigModalProps> = ({
   const [customId, setCustomId] = useState(section?.id || '');
   const [text, setText] = useState(initialText);
   const [thumbnailUrl, setThumbnailUrl] = useState(initialUrl);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const historyRef = useRef<string[]>([initialText]);
-  const historyIndexRef = useRef<number>(0);
-
-  useEffect(() => {
-    historyRef.current = [initialText];
-    historyIndexRef.current = 0;
-  }, [section, initialText]);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   if (section !== prevSection) {
     setPrevSection(section);
@@ -61,91 +50,6 @@ export const SectionConfigModal: React.FC<SectionConfigModalProps> = ({
     setText(initialText);
     setThumbnailUrl(initialUrl);
   }
-
-  const pushHistory = (newVal: string) => {
-    const nextHistory = historyRef.current.slice(0, historyIndexRef.current + 1);
-    nextHistory.push(newVal);
-    if (nextHistory.length > 50) nextHistory.shift();
-    historyRef.current = nextHistory;
-    historyIndexRef.current = nextHistory.length - 1;
-  };
-
-  const updateTextWithHistory = (newVal: string) => {
-    if (newVal === text) return;
-    pushHistory(newVal);
-    setText(newVal);
-  };
-
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newVal = e.target.value;
-    setText(newVal);
-
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-    typingTimeoutRef.current = setTimeout(() => {
-      pushHistory(newVal);
-    }, 350);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    const isMac = typeof navigator !== 'undefined' && navigator.platform?.toUpperCase().indexOf('MAC') >= 0;
-    const cmdKey = isMac ? e.metaKey : e.ctrlKey;
-
-    if (cmdKey && e.key.toLowerCase() === 'z' && !e.shiftKey) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (historyIndexRef.current > 0) {
-        historyIndexRef.current -= 1;
-        const target = historyRef.current[historyIndexRef.current];
-        setText(target);
-      }
-    } else if (cmdKey && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (historyIndexRef.current < historyRef.current.length - 1) {
-        historyIndexRef.current += 1;
-        const target = historyRef.current[historyIndexRef.current];
-        setText(target);
-      }
-    }
-  };
-
-  const handleApplyMarkdown = (prefix: string, suffix: string) => {
-    const el = textareaRef.current;
-    if (!el) {
-      updateTextWithHistory(`${text}${prefix}${suffix}`);
-      return;
-    }
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const selected = text.slice(start, end);
-
-    let replacement = '';
-    if (prefix === '> ') {
-      if (selected.length === 0) {
-        replacement = '> ';
-      } else {
-        const lines = selected.split(/\r?\n/);
-        replacement = lines
-          .map((line) => (line.startsWith('> ') ? line : `> ${line}`))
-          .join('\n');
-      }
-    } else {
-      replacement = prefix + selected + suffix;
-    }
-
-    const newText = text.slice(0, start) + replacement + text.slice(end);
-    updateTextWithHistory(newText);
-    setTimeout(() => {
-      el.focus();
-      if (start === end) {
-        el.setSelectionRange(start + replacement.length, start + replacement.length);
-      } else {
-        el.setSelectionRange(start, start + replacement.length);
-      }
-    }, 0);
-  };
 
   const handleSave = () => {
     if (!section) return;
@@ -198,7 +102,6 @@ export const SectionConfigModal: React.FC<SectionConfigModalProps> = ({
       }
     >
       <div className="flex flex-col gap-4">
-        {/* Custom ID */}
         <TextInput
           label="Custom ID (Unique Identifier)"
           value={customId}
@@ -206,31 +109,14 @@ export const SectionConfigModal: React.FC<SectionConfigModalProps> = ({
           onChange={(e) => setCustomId(e.target.value)}
         />
 
-        {/* Markdown Text Area with MarkdownToolbar */}
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-semibold text-zinc-300">
-              Markdown Text Content
-            </label>
-            <MarkdownToolbar
-              onApplyMarkdown={handleApplyMarkdown}
-              onOpenEmojiPicker={onOpenEmojiPicker}
-              showEmojiPicker={Boolean(onOpenEmojiPicker)}
-            />
-          </div>
+        <DiscordMarkdownEditor
+          label="Markdown Text Content"
+          value={text}
+          onChange={setText}
+          rows={4}
+          placeholder="Enter markdown content for this section..."
+        />
 
-          <textarea
-            ref={textareaRef}
-            value={text}
-            rows={4}
-            onChange={handleTextChange}
-            onKeyDown={handleKeyDown}
-            placeholder="Enter markdown content for this section..."
-            className="w-full px-3.5 py-2.5 rounded-apple-md bg-[#0E0E12] border border-surface-border hover:border-white/20 focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 text-xs sm:text-sm text-white font-sans outline-none transition-all resize-y leading-relaxed"
-          />
-        </div>
-
-        {/* Accessory Thumbnail URL & Preview */}
         <div className="flex flex-col gap-2">
           <label className="text-xs font-semibold text-zinc-300">
             Accessory Thumbnail URL
@@ -263,4 +149,3 @@ export const SectionConfigModal: React.FC<SectionConfigModalProps> = ({
     </Modal>
   );
 };
-

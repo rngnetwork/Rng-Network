@@ -1,5 +1,9 @@
+// Written By: RachitSWE
+// LICENSE: All rights reserved
+// Year: 2026
 package com.rednecksgaming.embed.config;
 
+import com.rednecksgaming.botmodule.model.BotModuleAuditLogDocument;
 import com.rednecksgaming.embed.domain.DispatchLog;
 import com.rednecksgaming.embed.domain.EmbedAction;
 import com.rednecksgaming.embed.domain.InteractionLog;
@@ -38,6 +42,8 @@ class MongoIndexReconciliationConfigTest {
 
     @Mock
     private IndexOperations embedActionIndexOps;
+    @Mock
+    private IndexOperations botModuleAuditIndexOps;
 
     @InjectMocks
     private MongoIndexReconciliationConfig reconciliationConfig;
@@ -47,6 +53,8 @@ class MongoIndexReconciliationConfigTest {
         lenient().when(mongoTemplate.indexOps(InteractionLog.class)).thenReturn(interactionIndexOps);
         lenient().when(mongoTemplate.indexOps(DispatchLog.class)).thenReturn(dispatchIndexOps);
         lenient().when(mongoTemplate.indexOps(EmbedAction.class)).thenReturn(embedActionIndexOps);
+        lenient().when(mongoTemplate.indexOps(BotModuleAuditLogDocument.class)).thenReturn(botModuleAuditIndexOps);
+        lenient().when(botModuleAuditIndexOps.getIndexInfo()).thenReturn(List.of());
     }
 
     @Test

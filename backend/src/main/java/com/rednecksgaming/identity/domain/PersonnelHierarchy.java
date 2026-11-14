@@ -1,3 +1,6 @@
+// Written By: RachitSWE
+// LICENSE: All rights reserved
+// Year: 2026
 package com.rednecksgaming.identity.domain;
 
 import java.util.*;
@@ -13,7 +16,7 @@ public final class PersonnelHierarchy {
     public static final String SUPREME = "Supreme";
     public static final String CHANCELLORY = "Chancellory";
 
-    public static final String MINISTRY_INTERNAL_AFFAIRS = "Ministry of Internal affairs";
+    public static final String MINISTRY_INTERNAL_AFFAIRS = "Ministry of Growth, GFX and External Relations";
     public static final String MINISTRY_PERSONELL = "Ministry of Personell";
     public static final String MINISTRY_TECH = "Ministry of Tech";
     public static final String MINISTRY_FINANCES = "Ministry of Finances";

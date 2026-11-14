@@ -1,3 +1,6 @@
+// Written By: RachitSWE
+// LICENSE: All rights reserved
+// Year: 2026
 package com.rednecksgaming.common.exception;
 
 import com.rednecksgaming.common.dto.ApiResponse;
@@ -167,6 +170,18 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isFalse();
         assertThat(response.getBody().getMessage()).isEqualTo("Redis script execution error");
+    }
+
+    @Test
+    @DisplayName("handleUpstreamServiceException maps UpstreamServiceException to 502 BAD_GATEWAY")
+    void handleUpstreamServiceException_mapsTo502() {
+        UpstreamServiceException ex = new UpstreamServiceException("Upstream Guild API connection timed out");
+        ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleUpstreamServiceException(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isFalse();
+        assertThat(response.getBody().getMessage()).isEqualTo("Upstream Guild API connection timed out");
     }
 
     @Test

@@ -74,7 +74,7 @@ export const SaveTemplateModal: React.FC<SaveTemplateModalProps> = ({
     return () => {
       active = false;
     };
-  }, [isOpen]);
+  }, [isOpen, serverId]);
 
   const handleToggleServer = (id: string) => {
     setSelectedServerIds((prev) =>
