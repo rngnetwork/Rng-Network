@@ -94,12 +94,12 @@ export const ServersPageCoordinator: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="p-2.5 rounded-apple-lg bg-brand-red/15 border border-brand-red/30 text-brand-red shadow-crimson-glow">
-            <Server size={26} />
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-apple-md bg-brand-red/10 border border-brand-red/20 text-brand-red">
+            <Server size={24} />
           </div>
           <div>
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
                 Server Management
               </h1>

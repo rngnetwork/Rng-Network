@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { User } from 'lucide-react';
 import { fetchUserProfile, fetchActiveSessions, revokeSession } from '@/lib/api/dashboard/account';
 import { fetchPersonnelHierarchy } from '@/lib/api/dashboard/whitelist';
 import type { UserProfileData, ActiveSessionItem } from '@/lib/model/user';
@@ -100,15 +100,11 @@ export const AccountPageCoordinator: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard/servers"
-            className="p-2.5 rounded-apple-md bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-400 hover:text-white transition-colors"
-            title="Return to Servers"
-          >
-            <ArrowLeft size={18} />
-          </Link>
+          <div className="p-2.5 rounded-apple-md bg-brand-red/10 border border-brand-red/20 text-brand-red">
+            <User size={24} />
+          </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
               Account Profile

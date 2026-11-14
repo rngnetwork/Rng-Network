@@ -349,31 +349,32 @@ export const NetworkBotConfigCoordinator: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col gap-6 pb-28">
-      <div className="flex flex-col gap-5 border-b border-surface-border pb-6">
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-apple-md bg-brand-red/10 border border-brand-red/20 text-brand-red">
-              <Bot size={20} />
-            </div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-text-primary">
+    <div className="flex flex-col gap-6 pb-28 w-full max-w-7xl mx-auto">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-apple-md bg-brand-red/10 border border-brand-red/20 text-brand-red">
+            <Bot size={24} />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
               Network Bot Modules
             </h1>
+            <p className="text-xs md:text-sm text-zinc-400">
+              Authoritative baseline configurations and network parameters synchronized across all connected servers.
+            </p>
           </div>
-          <p className="text-xs text-text-secondary">
-            Authoritative baseline configurations and network parameters synchronized across all connected servers.
-          </p>
         </div>
+      </div>
 
-        <TabStrip
-          tabs={tabs}
-          activeTab={activeTab}
-          onTabChange={(tabId) => setActiveTab(tabId as BotConfigTab)}
-          layoutId="botconfigActiveTabIndicator"
-          ariaLabel="Bot configuration workspace tabs"
-        />
+      <TabStrip
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={(tabId) => setActiveTab(tabId as BotConfigTab)}
+        layoutId="botconfigActiveTabIndicator"
+        ariaLabel="Bot configuration workspace tabs"
+      />
 
-        <div className="relative w-full">
+      <div className="relative w-full">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none" />
           <input
             type="text"
@@ -383,7 +384,6 @@ export const NetworkBotConfigCoordinator: React.FC = () => {
             className="w-full pl-10 pr-4 py-2.5 rounded-apple-lg bg-[#0E0E12] border border-surface-border text-xs md:text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-red/60 focus:ring-1 focus:ring-brand-red/40 transition-all shadow-inner"
           />
         </div>
-      </div>
 
       {activeTab === 'modules' && (
         <BotModulesAccordionDeck
