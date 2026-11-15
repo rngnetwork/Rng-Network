@@ -163,7 +163,8 @@ export const AddPersonnelModal: React.FC<AddPersonnelModalProps> = ({
                           isMinister &&
                             (role === 'Minister' ||
                               role === 'High Command' ||
-                              role === 'Chief High Command')
+                              role === 'Chief High Command' ||
+                              role.toLowerCase().startsWith('chancellor'))
                         );
                         const isSelected = isRoleSelectedInDept(des, role);
 
