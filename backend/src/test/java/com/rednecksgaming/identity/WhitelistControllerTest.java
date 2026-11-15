@@ -15,6 +15,7 @@ import com.rednecksgaming.identity.dto.UpdateWhitelistedUserRequest;
 import com.rednecksgaming.identity.dto.WhitelistUserRequest;
 import com.rednecksgaming.identity.dto.WhitelistedUserDto;
 import com.rednecksgaming.identity.service.WhitelistService;
+import com.rednecksgaming.personnel.roles.service.DesignationRoleService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
@@ -47,6 +49,9 @@ class WhitelistControllerTest {
 
     @Mock
     private WhitelistService whitelistService;
+
+    @Mock
+    private DesignationRoleService designationRoleService;
 
     @InjectMocks
     private WhitelistController whitelistController;
@@ -151,9 +156,9 @@ class WhitelistControllerTest {
     void testCreateWhitelistedUser_validationError() throws Exception {
         WhitelistUserRequest invalidRequest = WhitelistUserRequest.builder()
                 .email("invalid-email-format")
-                .userName("") // Blank name
-                .designations(List.of()) // Empty designations
-                .roles(List.of()) // Empty roles
+                .userName("")
+                .designations(List.of())
+                .roles(List.of())
                 .build();
 
         mockMvc.perform(post("/api/v1/whitelist")
@@ -224,8 +229,8 @@ class WhitelistControllerTest {
     void testUpdateWhitelistedUser_validationError() throws Exception {
         UpdateWhitelistedUserRequest invalidRequest = UpdateWhitelistedUserRequest.builder()
                 .userName("Updated Name")
-                .designations(List.of()) // Empty designations
-                .roles(List.of()) // Empty roles
+                .designations(List.of())
+                .roles(List.of())
                 .build();
 
         mockMvc.perform(put("/api/v1/whitelist/20")
@@ -308,6 +313,11 @@ class WhitelistControllerTest {
     @Test
     @DisplayName("GET /api/v1/whitelist/hierarchy returns canonical designations and roles mapping")
     void testGetPersonnelHierarchy() throws Exception {
+        when(designationRoleService.getDesignationRolesMap()).thenReturn(Map.of(
+                "Supreme", List.of("Chief High Command", "High Command"),
+                "Ministry of Tech", List.of("Minister", "Secretary", "Senior Dev")
+        ));
+
         mockMvc.perform(get("/api/v1/whitelist/hierarchy")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
