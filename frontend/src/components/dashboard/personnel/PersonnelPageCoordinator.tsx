@@ -1,13 +1,16 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { ShieldCheck } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { ShieldCheck, KeyRound } from 'lucide-react';
 import { fetchCurrentUser } from '@/lib/api/auth/session';
 import type { UserProfileData } from '@/lib/model/user';
 import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { PersonnelNavigationTabStrip } from './PersonnelNavigationTabStrip';
+import { RoleHierarchyCoordinator } from './roles/RoleHierarchyCoordinator';
 
 export const PersonnelPageCoordinator: React.FC = () => {
+  const pathname = usePathname();
   const [currentUser, setCurrentUser] = useState<UserProfileData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -111,7 +114,17 @@ export const PersonnelPageCoordinator: React.FC = () => {
 
       <PersonnelNavigationTabStrip />
 
-      <div className="w-full flex-1 min-h-0 flex flex-col gap-6" />
+      {pathname?.includes('/perms') ? (
+        <div className="p-8 rounded-apple-xl bg-zinc-900/60 border border-white/10 text-center flex flex-col items-center justify-center min-h-[300px] gap-3">
+          <KeyRound size={32} className="text-brand-red" />
+          <h3 className="text-lg font-bold text-white">Permission Management</h3>
+          <p className="text-xs md:text-sm text-zinc-400 max-w-md">
+            Granular access controls, ministry clearance policies, and action permissions registry.
+          </p>
+        </div>
+      ) : (
+        <RoleHierarchyCoordinator />
+      )}
     </div>
   );
 };

@@ -8,6 +8,7 @@ export interface TooltipProps {
   position?: 'top' | 'bottom' | 'left' | 'right';
   delay?: number;
   className?: string;
+  onlyWhenTruncated?: boolean;
 }
 
 const positionClasses = {
@@ -23,16 +24,35 @@ export const Tooltip: React.FC<TooltipProps> = ({
   position = 'top',
   delay = 200,
   className = '',
+  onlyWhenTruncated = false,
 }) => {
   const [isVisible, setIsVisible] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const checkIsTruncated = (): boolean => {
+    if (!containerRef.current) return false;
+    const target =
+      (containerRef.current.querySelector('.truncate') as HTMLElement) ||
+      (containerRef.current.firstElementChild as HTMLElement) ||
+      containerRef.current;
+    return target.scrollWidth > target.clientWidth;
+  };
+
   const showTooltip = () => {
+    if (onlyWhenTruncated && !checkIsTruncated()) {
+      return;
+    }
+
     if (delay <= 0) {
       setIsVisible(true);
       return;
     }
     timeoutRef.current = setTimeout(() => {
+      if (onlyWhenTruncated && !checkIsTruncated()) {
+        setIsVisible(false);
+        return;
+      }
       setIsVisible(true);
     }, delay);
   };
@@ -46,7 +66,8 @@ export const Tooltip: React.FC<TooltipProps> = ({
 
   return (
     <div
-      className={`relative inline-flex ${className}`}
+      ref={containerRef}
+      className={`relative inline-flex overflow-visible ${className}`}
       onMouseEnter={showTooltip}
       onMouseLeave={hideTooltip}
       onFocus={showTooltip}
