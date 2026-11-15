@@ -226,7 +226,7 @@ public class EmbedDispatchService {
                 .orElseThrow(() -> new UnauthorizedException("Authenticated operator not found."));
 
         boolean isAuthor = String.valueOf(operatorUserId).equals(logEntry.getUserId());
-        boolean isHighCommand = com.rednecksgaming.identity.domain.PersonnelHierarchy.isHighCommand(operator);
+        boolean isHighCommand = operator.isHighCommand();
 
         if (!isAuthor && !isHighCommand) {
             throw new ForbiddenException("Only the author or High Command may cancel a scheduled dispatch.");
