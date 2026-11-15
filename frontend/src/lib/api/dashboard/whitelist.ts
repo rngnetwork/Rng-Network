@@ -113,3 +113,18 @@ export async function fetchPersonnelHierarchy(
     withTokenConfig(accessToken)
   );
 }
+
+export interface DynamicDesignationRoleItem {
+  id: string;
+  name: string;
+  roles: string[];
+}
+
+export async function fetchDesignationRoles(
+  accessToken?: string
+): Promise<ApiResponse<{ designations: DynamicDesignationRoleItem[] }>> {
+  return httpClient.get<{ designations: DynamicDesignationRoleItem[] }>(
+    '/personnel/hierarchy/designation-roles',
+    withTokenConfig(accessToken)
+  );
+}
