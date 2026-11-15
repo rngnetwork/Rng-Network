@@ -146,8 +146,8 @@ public class EmbedTemplateService {
                     operator.getEmail().equalsIgnoreCase(template.getAuthorId())
                     || operator.getEmail().equalsIgnoreCase(template.getAuthorName())));
 
-        boolean isHighCommand = com.rednecksgaming.identity.domain.PersonnelHierarchy.isHighCommand(operator)
-                || com.rednecksgaming.identity.domain.PersonnelHierarchy.isChiefHighCommand(operator)
+        boolean isHighCommand = operator.isHighCommand()
+
                 || (operator.getRole() != null && (
                     operator.getRole().contains("HIGH_COMMAND")
                     || operator.getRole().contains("SUPER_ADMIN")
@@ -234,8 +234,8 @@ public class EmbedTemplateService {
                     operator.getEmail().equalsIgnoreCase(template.getAuthorId())
                     || operator.getEmail().equalsIgnoreCase(template.getAuthorName())));
 
-        boolean isHighCommand = com.rednecksgaming.identity.domain.PersonnelHierarchy.isHighCommand(operator)
-                || com.rednecksgaming.identity.domain.PersonnelHierarchy.isChiefHighCommand(operator)
+        boolean isHighCommand = operator.isHighCommand()
+
                 || (operator.getRole() != null && (
                     operator.getRole().contains("HIGH_COMMAND")
                     || operator.getRole().contains("SUPER_ADMIN")
