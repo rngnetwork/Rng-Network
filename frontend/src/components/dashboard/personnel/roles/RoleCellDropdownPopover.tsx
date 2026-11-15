@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { X, Plus } from 'lucide-react';
+import { Pencil, Trash2, Plus } from 'lucide-react';
 import { Button, Tooltip } from '@/components/common';
 import type { PopoverRoleItem } from '@/lib/api/dashboard/personnel';
 
@@ -15,6 +15,7 @@ export interface RoleCellDropdownPopoverProps {
   onClose: () => void;
   triggerRef?: React.RefObject<HTMLButtonElement | null>;
   onDeleteRole: (roleId: string) => void;
+  onEditRole?: (role: PopoverRoleItem) => void;
   onAddAnother: () => void;
 }
 
@@ -26,6 +27,7 @@ export const RoleCellDropdownPopover: React.FC<RoleCellDropdownPopoverProps> = (
   onClose,
   triggerRef,
   onDeleteRole,
+  onEditRole,
   onAddAnother,
 }) => {
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -100,14 +102,29 @@ export const RoleCellDropdownPopover: React.FC<RoleCellDropdownPopoverProps> = (
                 </span>
               </Tooltip>
             </div>
-            <button
-              type="button"
-              onClick={() => onDeleteRole(role.id)}
-              className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-all cursor-pointer shrink-0"
-              title="Remove role from this cell"
-            >
-              <X size={12} />
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onEditRole?.(role);
+                }}
+                className="p-1 text-zinc-400 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer"
+                title="Edit role name"
+                aria-label="Edit role name"
+              >
+                <Pencil size={12} />
+              </button>
+              <button
+                type="button"
+                onClick={() => onDeleteRole(role.id)}
+                className="p-1 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
+                title="Remove role from this cell"
+                aria-label="Remove role from this cell"
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
           </div>
         ))}
       </div>
