@@ -14,7 +14,6 @@ export interface MatrixDesignationItem {
 export interface PopoverRoleItem {
   id: string;
   name: string;
-  discordRoleId?: string;
 }
 
 export interface RoleHierarchyMatrixPayload {
@@ -37,13 +36,12 @@ export async function addRoleToMatrix(
     rankWeight: number;
     designationId: string;
     name: string;
-    discordRoleId?: string;
   },
   accessToken?: string
 ): Promise<ApiResponse<RoleHierarchyMatrixPayload>> {
   return httpClient.post<RoleHierarchyMatrixPayload>(
-    '/personnel/hierarchy/matrix',
-    { type: 'ADD_ROLE', ...payload },
+    '/personnel/hierarchy/matrix/roles',
+    payload,
     withTokenConfig(accessToken)
   );
 }
@@ -53,8 +51,8 @@ export async function addDesignationToMatrix(
   accessToken?: string
 ): Promise<ApiResponse<RoleHierarchyMatrixPayload>> {
   return httpClient.post<RoleHierarchyMatrixPayload>(
-    '/personnel/hierarchy/matrix',
-    { type: 'ADD_DESIGNATION', ...payload },
+    '/personnel/hierarchy/matrix/designations',
+    payload,
     withTokenConfig(accessToken)
   );
 }
@@ -68,20 +66,20 @@ export async function addRankToMatrix(
   accessToken?: string
 ): Promise<ApiResponse<RoleHierarchyMatrixPayload>> {
   return httpClient.post<RoleHierarchyMatrixPayload>(
-    '/personnel/hierarchy/matrix',
-    { type: 'ADD_RANK', ...payload },
+    '/personnel/hierarchy/matrix/ranks',
+    payload,
     withTokenConfig(accessToken)
   );
 }
 
 export async function updateRoleInMatrix(
   roleId: string,
-  payload: { name?: string; discordRoleId?: string },
+  payload: { name: string },
   accessToken?: string
 ): Promise<ApiResponse<RoleHierarchyMatrixPayload>> {
-  return httpClient.post<RoleHierarchyMatrixPayload>(
-    '/personnel/hierarchy/matrix',
-    { type: 'UPDATE_ROLE', roleId, ...payload },
+  return httpClient.patch<RoleHierarchyMatrixPayload>(
+    `/personnel/hierarchy/matrix/roles/${roleId}`,
+    payload,
     withTokenConfig(accessToken)
   );
 }
@@ -91,21 +89,21 @@ export async function updateDesignationInMatrix(
   payload: { name: string },
   accessToken?: string
 ): Promise<ApiResponse<RoleHierarchyMatrixPayload>> {
-  return httpClient.post<RoleHierarchyMatrixPayload>(
-    '/personnel/hierarchy/matrix',
-    { type: 'UPDATE_DESIGNATION', designationId, ...payload },
+  return httpClient.patch<RoleHierarchyMatrixPayload>(
+    `/personnel/hierarchy/matrix/designations/${designationId}`,
+    payload,
     withTokenConfig(accessToken)
   );
 }
 
 export async function updateRankInMatrix(
   rankWeight: number,
-  payload: { code?: string; weight?: number },
+  payload: { code: string; weight: number },
   accessToken?: string
 ): Promise<ApiResponse<RoleHierarchyMatrixPayload>> {
-  return httpClient.post<RoleHierarchyMatrixPayload>(
-    '/personnel/hierarchy/matrix',
-    { type: 'UPDATE_RANK', rankWeight, ...payload },
+  return httpClient.patch<RoleHierarchyMatrixPayload>(
+    `/personnel/hierarchy/matrix/ranks/${rankWeight}`,
+    payload,
     withTokenConfig(accessToken)
   );
 }
@@ -114,9 +112,8 @@ export async function deleteRoleFromMatrix(
   roleId: string,
   accessToken?: string
 ): Promise<ApiResponse<RoleHierarchyMatrixPayload>> {
-  return httpClient.post<RoleHierarchyMatrixPayload>(
-    '/personnel/hierarchy/matrix',
-    { type: 'DELETE_ROLE', roleId },
+  return httpClient.delete<RoleHierarchyMatrixPayload>(
+    `/personnel/hierarchy/matrix/roles/${roleId}`,
     withTokenConfig(accessToken)
   );
 }
@@ -125,9 +122,8 @@ export async function deleteDesignationFromMatrix(
   designationId: string,
   accessToken?: string
 ): Promise<ApiResponse<RoleHierarchyMatrixPayload>> {
-  return httpClient.post<RoleHierarchyMatrixPayload>(
-    '/personnel/hierarchy/matrix',
-    { type: 'DELETE_DESIGNATION', designationId },
+  return httpClient.delete<RoleHierarchyMatrixPayload>(
+    `/personnel/hierarchy/matrix/designations/${designationId}`,
     withTokenConfig(accessToken)
   );
 }
@@ -136,9 +132,8 @@ export async function deleteRankFromMatrix(
   rankWeight: number,
   accessToken?: string
 ): Promise<ApiResponse<RoleHierarchyMatrixPayload>> {
-  return httpClient.post<RoleHierarchyMatrixPayload>(
-    '/personnel/hierarchy/matrix',
-    { type: 'DELETE_RANK', rankWeight },
+  return httpClient.delete<RoleHierarchyMatrixPayload>(
+    `/personnel/hierarchy/matrix/ranks/${rankWeight}`,
     withTokenConfig(accessToken)
   );
 }

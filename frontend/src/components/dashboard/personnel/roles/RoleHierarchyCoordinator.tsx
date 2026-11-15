@@ -7,6 +7,9 @@ import {
   addRoleToMatrix,
   addDesignationToMatrix,
   addRankToMatrix,
+  updateRoleInMatrix,
+  updateDesignationInMatrix,
+  updateRankInMatrix,
   deleteRoleFromMatrix,
   deleteDesignationFromMatrix,
   deleteRankFromMatrix,
@@ -17,8 +20,16 @@ import {
 import { RoleMatrixToolbar } from './RoleMatrixToolbar';
 import { RoleMatrixTable } from './RoleMatrixTable';
 import { AddRoleModal } from './AddRoleModal';
+import { EditRoleModal } from './EditRoleModal';
 import { AddDesignationModal } from './AddDesignationModal';
+import { EditDesignationModal } from './EditDesignationModal';
 import { AddRankModal } from './AddRankModal';
+import { EditRankModal } from './EditRankModal';
+
+export type MatrixSelection =
+  | { type: 'none' }
+  | { type: 'rank'; weight: number; code: string }
+  | { type: 'designation'; id: string; name: string };
 
 export const RoleHierarchyCoordinator: React.FC = () => {
   const { toast } = useToast();
@@ -28,7 +39,10 @@ export const RoleHierarchyCoordinator: React.FC = () => {
   const [cells, setCells] = useState<Record<string, PopoverRoleItem[]>>({});
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Modals state
+  // Interactive Selection State
+  const [selection, setSelection] = useState<MatrixSelection>({ type: 'none' });
+
+  // Creation Modals state
   const [addRoleModal, setAddRoleModal] = useState<{
     isOpen: boolean;
     rankWeight: number;
@@ -45,6 +59,31 @@ export const RoleHierarchyCoordinator: React.FC = () => {
 
   const [addDesignationModalOpen, setAddDesignationModalOpen] = useState(false);
   const [addRankModalOpen, setAddRankModalOpen] = useState(false);
+
+  // Edit Modals state
+  const [editRoleModal, setEditRoleModal] = useState<{
+    isOpen: boolean;
+    role: PopoverRoleItem | null;
+  }>({
+    isOpen: false,
+    role: null,
+  });
+
+  const [editDesignationModal, setEditDesignationModal] = useState<{
+    isOpen: boolean;
+    designation: MatrixDesignationItem | null;
+  }>({
+    isOpen: false,
+    designation: null,
+  });
+
+  const [editRankModal, setEditRankModal] = useState<{
+    isOpen: boolean;
+    rank: MatrixRankItem | null;
+  }>({
+    isOpen: false,
+    rank: null,
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -76,6 +115,24 @@ export const RoleHierarchyCoordinator: React.FC = () => {
     return Object.values(cells).reduce((acc, list) => acc + list.length, 0);
   }, [cells]);
 
+  // Selection Toggles
+  const handleSelectRank = (weight: number, code: string) => {
+    setSelection((prev) =>
+      prev.type === 'rank' && prev.weight === weight
+        ? { type: 'none' }
+        : { type: 'rank', weight, code }
+    );
+  };
+
+  const handleSelectDesignation = (id: string, name: string) => {
+    setSelection((prev) =>
+      prev.type === 'designation' && prev.id === id
+        ? { type: 'none' }
+        : { type: 'designation', id, name }
+    );
+  };
+
+  // Add / Create Handlers
   const handleOpenAddModal = (
     rankWeight: number,
     rankCode: string,
@@ -118,34 +175,6 @@ export const RoleHierarchyCoordinator: React.FC = () => {
       title: 'Role Added',
       description: `${roleName} registered at weight ${rankWeight}.`,
     });
-  };
-
-  const handleDeleteRole = async (roleId: string) => {
-    let deletedName = '';
-    setCells((prev) => {
-      const next: Record<string, PopoverRoleItem[]> = {};
-      for (const [key, list] of Object.entries(prev)) {
-        const found = list.find((r) => r.id === roleId);
-        if (found) deletedName = found.name;
-        next[key] = list.filter((r) => r.id !== roleId);
-      }
-      return next;
-    });
-
-    try {
-      const token = localStorage.getItem('accessToken') || undefined;
-      await deleteRoleFromMatrix(roleId, token);
-    } catch {
-      // Optimistic update retained
-    }
-
-    if (deletedName) {
-      toast({
-        type: 'info',
-        title: 'Role Removed',
-        description: `${deletedName} removed from matrix.`,
-      });
-    }
   };
 
   const handleAddDesignation = async (name: string) => {
@@ -195,6 +224,123 @@ export const RoleHierarchyCoordinator: React.FC = () => {
     });
   };
 
+  // Edit / Update Handlers (PATCH)
+  const handleUpdateRole = async (roleId: string, name: string) => {
+    setCells((prev) => {
+      const next: Record<string, PopoverRoleItem[]> = {};
+      for (const [key, list] of Object.entries(prev)) {
+        next[key] = list.map((r) => (r.id === roleId ? { ...r, name } : r));
+      }
+      return next;
+    });
+
+    try {
+      const token = localStorage.getItem('accessToken') || undefined;
+      await updateRoleInMatrix(roleId, { name }, token);
+    } catch {
+      // Optimistic update retained
+    }
+
+    toast({
+      type: 'success',
+      title: 'Role Updated',
+      description: `Role renamed to "${name}".`,
+    });
+  };
+
+  const handleUpdateDesignation = async (designationId: string, name: string) => {
+    setDesignations((prev) =>
+      prev.map((d) => (d.id === designationId ? { ...d, name } : d))
+    );
+
+    try {
+      const token = localStorage.getItem('accessToken') || undefined;
+      await updateDesignationInMatrix(designationId, { name }, token);
+    } catch {
+      // Optimistic update retained
+    }
+
+    toast({
+      type: 'success',
+      title: 'Designation Updated',
+      description: `Column renamed to "${name}".`,
+    });
+  };
+
+  const handleUpdateRank = async (
+    originalWeight: number,
+    code: string,
+    newWeight: number
+  ) => {
+    setRanks((prev) => {
+      const updated = prev.map((r) =>
+        r.weight === originalWeight ? { code, weight: newWeight } : r
+      );
+      return updated.sort((a, b) => b.weight - a.weight);
+    });
+
+    if (originalWeight !== newWeight) {
+      setCells((prev) => {
+        const next: Record<string, PopoverRoleItem[]> = {};
+        for (const [key, list] of Object.entries(prev)) {
+          if (key.startsWith(`${originalWeight}_`)) {
+            const desId = key.split('_')[1];
+            next[`${newWeight}_${desId}`] = list;
+          } else {
+            next[key] = list;
+          }
+        }
+        return next;
+      });
+    }
+
+    try {
+      const token = localStorage.getItem('accessToken') || undefined;
+      await updateRankInMatrix(
+        originalWeight,
+        { code, weight: newWeight },
+        token
+      );
+    } catch {
+      // Optimistic update retained
+    }
+
+    toast({
+      type: 'success',
+      title: 'Rank Tier Updated',
+      description: `Tier updated to ${code} (weight ${newWeight}).`,
+    });
+  };
+
+  // Delete Handlers
+  const handleDeleteRole = async (roleId: string) => {
+    let deletedName = '';
+    setCells((prev) => {
+      const next: Record<string, PopoverRoleItem[]> = {};
+      for (const [key, list] of Object.entries(prev)) {
+        const found = list.find((r) => r.id === roleId);
+        if (found) deletedName = found.name;
+        next[key] = list.filter((r) => r.id !== roleId);
+      }
+      return next;
+    });
+
+    try {
+      const token = localStorage.getItem('accessToken') || undefined;
+      await deleteRoleFromMatrix(roleId, token);
+    } catch {
+      // Optimistic update retained
+    }
+
+    if (deletedName) {
+      toast({
+        type: 'info',
+        title: 'Role Removed',
+        description: `${deletedName} removed from matrix.`,
+      });
+    }
+  };
+
   const handleDeleteDesignation = async (designationId: string) => {
     const des = designations.find((d) => d.id === designationId);
     setDesignations((prev) => prev.filter((d) => d.id !== designationId));
@@ -207,6 +353,10 @@ export const RoleHierarchyCoordinator: React.FC = () => {
       }
       return next;
     });
+
+    if (selection.type === 'designation' && selection.id === designationId) {
+      setSelection({ type: 'none' });
+    }
 
     try {
       const token = localStorage.getItem('accessToken') || undefined;
@@ -235,6 +385,10 @@ export const RoleHierarchyCoordinator: React.FC = () => {
       return next;
     });
 
+    if (selection.type === 'rank' && selection.weight === rankWeight) {
+      setSelection({ type: 'none' });
+    }
+
     try {
       const token = localStorage.getItem('accessToken') || undefined;
       await deleteRankFromMatrix(rankWeight, token);
@@ -257,6 +411,9 @@ export const RoleHierarchyCoordinator: React.FC = () => {
     );
   }
 
+  const selectedRankWeight = selection.type === 'rank' ? selection.weight : undefined;
+  const selectedDesignationId = selection.type === 'designation' ? selection.id : undefined;
+
   return (
     <div className="flex flex-col gap-4 w-full">
       <RoleMatrixToolbar
@@ -273,13 +430,21 @@ export const RoleHierarchyCoordinator: React.FC = () => {
         designations={designations}
         cells={cells}
         searchQuery={searchQuery}
+        selectedRankWeight={selectedRankWeight}
+        selectedDesignationId={selectedDesignationId}
+        onSelectRank={handleSelectRank}
+        onSelectDesignation={handleSelectDesignation}
         onOpenAddModal={handleOpenAddModal}
         onOpenAddDesignationModal={() => setAddDesignationModalOpen(true)}
         onDeleteRole={handleDeleteRole}
+        onEditRole={(role) => setEditRoleModal({ isOpen: true, role })}
         onDeleteRank={handleDeleteRank}
+        onEditRank={(rank) => setEditRankModal({ isOpen: true, rank })}
         onDeleteDesignation={handleDeleteDesignation}
+        onEditDesignation={(des) => setEditDesignationModal({ isOpen: true, designation: des })}
       />
 
+      {/* Creation Modals */}
       <AddRoleModal
         isOpen={addRoleModal.isOpen}
         onClose={() => setAddRoleModal((p) => ({ ...p, isOpen: false }))}
@@ -300,6 +465,28 @@ export const RoleHierarchyCoordinator: React.FC = () => {
         isOpen={addRankModalOpen}
         onClose={() => setAddRankModalOpen(false)}
         onAddRank={handleAddRank}
+      />
+
+      {/* Edit Modals (PATCH) */}
+      <EditRoleModal
+        isOpen={editRoleModal.isOpen}
+        onClose={() => setEditRoleModal({ isOpen: false, role: null })}
+        role={editRoleModal.role}
+        onUpdateRole={handleUpdateRole}
+      />
+
+      <EditDesignationModal
+        isOpen={editDesignationModal.isOpen}
+        onClose={() => setEditDesignationModal({ isOpen: false, designation: null })}
+        designation={editDesignationModal.designation}
+        onUpdateDesignation={handleUpdateDesignation}
+      />
+
+      <EditRankModal
+        isOpen={editRankModal.isOpen}
+        onClose={() => setEditRankModal({ isOpen: false, rank: null })}
+        rank={editRankModal.rank}
+        onUpdateRank={handleUpdateRank}
       />
     </div>
   );
