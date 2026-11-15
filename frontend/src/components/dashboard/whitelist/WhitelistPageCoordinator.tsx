@@ -82,15 +82,17 @@ export const WhitelistPageCoordinator: React.FC = () => {
     const hasMinisterRole =
       currentUser?.roleList?.some((r) => {
         const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
-        return pure.toLowerCase() === 'minister';
-      }) || currentUser?.roles?.toLowerCase().includes('minister');
+        return pure.toLowerCase() === 'minister' || pure.toLowerCase().startsWith('chancellor');
+      }) ||
+      currentUser?.roles?.toLowerCase().includes('minister') ||
+      currentUser?.roles?.toLowerCase().includes('chancellor');
     return Boolean(currentUser?.role === 'ROLE_MINISTER' || hasMinisterRole);
   }, [currentUser, isHighCommand]);
 
   const ministerMinistries = useMemo(() => {
     if (!isMinister || !currentUser) return [];
     const list = currentUser.designationList || [];
-    return list.filter((d) => d.startsWith('Ministry of'));
+    return list.filter((d) => d.startsWith('Ministry of') || d.toLowerCase() === 'chancellory');
   }, [isMinister, currentUser]);
 
   const canManage = isHighCommand || isMinister;
@@ -251,7 +253,10 @@ export const WhitelistPageCoordinator: React.FC = () => {
     if (
       isMinister &&
       !isEditingSelf &&
-      (role === 'Minister' || role === 'High Command' || role === 'Chief High Command')
+      (role === 'Minister' ||
+        role === 'High Command' ||
+        role === 'Chief High Command' ||
+        role.toLowerCase().startsWith('chancellor'))
     ) {
       return;
     }
@@ -423,7 +428,7 @@ export const WhitelistPageCoordinator: React.FC = () => {
         member.role === 'ROLE_MINISTER' ||
         member.roles.some((r) => {
           const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
-          return pure.toLowerCase() === 'minister';
+          return pure.toLowerCase() === 'minister' || pure.toLowerCase().startsWith('chancellor');
         });
       if (isMemberMinister) return false;
       return member.designations.some((d) => ministerMinistries.includes(d));
@@ -457,7 +462,7 @@ export const WhitelistPageCoordinator: React.FC = () => {
         member.role === 'ROLE_MINISTER' ||
         member.roles.some((r) => {
           const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
-          return pure.toLowerCase() === 'minister';
+          return pure.toLowerCase() === 'minister' || pure.toLowerCase().startsWith('chancellor');
         });
       if (isMemberMinister) return false;
       return member.designations.some((d) => ministerMinistries.includes(d));
