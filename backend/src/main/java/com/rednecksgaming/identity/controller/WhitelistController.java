@@ -4,15 +4,16 @@
 package com.rednecksgaming.identity.controller;
 
 import com.rednecksgaming.common.dto.ApiResponse;
-import com.rednecksgaming.identity.domain.PersonnelHierarchy;
 import com.rednecksgaming.identity.dto.UpdateWhitelistedUserRequest;
 import com.rednecksgaming.identity.dto.WhitelistUserRequest;
 import com.rednecksgaming.identity.dto.WhitelistedUserDto;
 import com.rednecksgaming.identity.service.WhitelistService;
+import com.rednecksgaming.personnel.roles.service.DesignationRoleService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,6 +26,7 @@ import java.util.Map;
 public class WhitelistController {
 
     private final WhitelistService whitelistService;
+    private final DesignationRoleService designationRoleService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<WhitelistedUserDto>>> getWhitelistedUsers(
@@ -65,7 +67,8 @@ public class WhitelistController {
     }
 
     @GetMapping("/hierarchy")
+    @PreAuthorize("hasAnyRole('HIGH_COMMAND', 'CHIEF_HIGH_COMMAND', 'MINISTER')")
     public ResponseEntity<ApiResponse<Map<String, List<String>>>> getPersonnelHierarchy() {
-        return ResponseEntity.ok(ApiResponse.success(PersonnelHierarchy.DESIGNATION_ROLES_MAP));
+        return ResponseEntity.ok(ApiResponse.success(designationRoleService.getDesignationRolesMap()));
     }
 }
