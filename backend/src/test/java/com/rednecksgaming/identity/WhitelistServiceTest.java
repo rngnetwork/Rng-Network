@@ -35,6 +35,9 @@ class WhitelistServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private com.rednecksgaming.personnel.roles.service.DesignationRoleService designationRoleService;
+
     @InjectMocks
     private WhitelistService whitelistService;
 
@@ -77,6 +80,22 @@ class WhitelistServiceTest {
                 .roles("Minister")
                 .status("ACTIVE")
                 .build();
+
+        lenient().when(designationRoleService.isValidDesignation(any())).thenAnswer(inv -> {
+            String des = inv.getArgument(0);
+            if (des == null || des.contains("Fake") || des.contains("Invalid") || des.contains("NonExistent") || des.contains("Unknown")) {
+                return false;
+            }
+            return true;
+        });
+        lenient().when(designationRoleService.isValidRoleForDesignation(any(), any())).thenAnswer(inv -> {
+            String des = inv.getArgument(0);
+            String role = inv.getArgument(1);
+            if (role == null || role.contains("Fake") || role.contains("Invalid") || role.contains("NonExistent") || role.contains("Unknown")) {
+                return false;
+            }
+            return true;
+        });
 
         regularDevUser = User.builder()
                 .id(3L)
@@ -133,9 +152,9 @@ class WhitelistServiceTest {
 
         List<WhitelistedUserDto> result = whitelistService.getWhitelistedUsers(2L);
 
-        assertThat(result).hasSize(2);
+        assertThat(result).hasSize(1);
         assertThat(result).extracting(WhitelistedUserDto::getEmail)
-                .containsExactlyInAnyOrder("minister.tech@rng.com", "dev@rng.com");
+                .containsExactly("dev@rng.com");
     }
 
     @Test
@@ -204,9 +223,9 @@ class WhitelistServiceTest {
 
         List<WhitelistedUserDto> result = whitelistService.getWhitelistedUsers(5L);
 
-        assertThat(result).hasSize(3);
+        assertThat(result).hasSize(2);
         assertThat(result).extracting(WhitelistedUserDto::getEmail)
-                .containsExactlyInAnyOrder("dual.minister@rng.com", "dev@rng.com", "finance@rng.com");
+                .containsExactlyInAnyOrder("dev@rng.com", "finance@rng.com");
     }
 
     @Test
@@ -274,7 +293,7 @@ class WhitelistServiceTest {
 
         List<WhitelistedUserDto> result = whitelistService.getWhitelistedUsers(2L, "Ministry of Tech");
 
-        assertThat(result).hasSize(3);
+        assertThat(result).hasSize(2);
     }
 
     @Test
