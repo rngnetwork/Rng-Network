@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useToast, RngLoadingSpinner } from '@/components/common';
+import { getStoredAccessToken } from '@/lib/api/core/client';
 import {
   fetchRoleHierarchyMatrix,
   addRoleToMatrix,
@@ -90,15 +91,32 @@ export const RoleHierarchyCoordinator: React.FC = () => {
 
     const loadMatrix = async () => {
       try {
-        const token = localStorage.getItem('accessToken') || undefined;
+        const token = getStoredAccessToken() || undefined;
         const res = await fetchRoleHierarchyMatrix(token);
-        if (isMounted && res.success && res.data) {
-          setRanks(res.data.ranks || []);
-          setDesignations(res.data.designations || []);
-          setCells(res.data.cells || {});
+        if (isMounted) {
+          if (res.success && res.data) {
+            setRanks(res.data.ranks || []);
+            setDesignations(res.data.designations || []);
+            setCells(res.data.cells || {});
+          } else {
+            toast({
+              type: 'error',
+              title: 'Failed to Load Hierarchy Matrix',
+              description: 'Server returned an unsuccessful response while loading roles.',
+            });
+          }
         }
-      } catch {
-        // Fallback or error handled gracefully
+      } catch (err: unknown) {
+        if (isMounted) {
+          toast({
+            type: 'error',
+            title: 'Failed to Synchronize Matrix',
+            description:
+              err instanceof Error
+                ? err.message
+                : 'Network failure encountered while loading role hierarchy matrix.',
+          });
+        }
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -132,6 +150,16 @@ export const RoleHierarchyCoordinator: React.FC = () => {
     );
   };
 
+  const syncServerMatrix = (data: {
+    ranks?: MatrixRankItem[];
+    designations?: MatrixDesignationItem[];
+    cells?: Record<string, PopoverRoleItem[]>;
+  }) => {
+    if (data.ranks) setRanks(data.ranks);
+    if (data.designations) setDesignations(data.designations);
+    if (data.cells) setCells(data.cells);
+  };
+
   // Add / Create Handlers
   const handleOpenAddModal = (
     rankWeight: number,
@@ -149,6 +177,7 @@ export const RoleHierarchyCoordinator: React.FC = () => {
   };
 
   const handleAddRole = async (rankWeight: number, designationId: string, roleName: string) => {
+    const prevCells = cells;
     const cellKey = `${rankWeight}_${designationId}`;
     const newRole: PopoverRoleItem = {
       id: `role_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -161,43 +190,91 @@ export const RoleHierarchyCoordinator: React.FC = () => {
     }));
 
     try {
-      const token = localStorage.getItem('accessToken') || undefined;
-      await addRoleToMatrix(
+      const token = getStoredAccessToken() || undefined;
+      const res = await addRoleToMatrix(
         { rankWeight, designationId, name: roleName },
         token
       );
-    } catch {
-      // Optimistic update retained
+      if (res.success && res.data) {
+        syncServerMatrix(res.data);
+        toast({
+          type: 'success',
+          title: 'Role Added',
+          description: `${roleName} registered at weight ${rankWeight}.`,
+        });
+      } else {
+        setCells(prevCells);
+        toast({
+          type: 'error',
+          title: 'Failed to Add Role',
+          description: 'Server rejected the role creation request.',
+        });
+      }
+    } catch (err: unknown) {
+      setCells(prevCells);
+      toast({
+        type: 'error',
+        title: 'Failed to Add Role',
+        description: err instanceof Error ? err.message : 'An error occurred while adding the role.',
+      });
+      try {
+        const token = getStoredAccessToken() || undefined;
+        const refreshRes = await fetchRoleHierarchyMatrix(token);
+        if (refreshRes.success && refreshRes.data) {
+          syncServerMatrix(refreshRes.data);
+        }
+      } catch {
+        // Safe against offline network drop
+      }
     }
-
-    toast({
-      type: 'success',
-      title: 'Role Added',
-      description: `${roleName} registered at weight ${rankWeight}.`,
-    });
   };
 
   const handleAddDesignation = async (name: string) => {
+    const prevDesignations = designations;
     const newId = `des_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}_${Date.now()}`;
     const newDes: MatrixDesignationItem = { id: newId, name };
 
     setDesignations((prev) => [...prev, newDes]);
 
     try {
-      const token = localStorage.getItem('accessToken') || undefined;
-      await addDesignationToMatrix({ name }, token);
-    } catch {
-      // Optimistic update retained
+      const token = getStoredAccessToken() || undefined;
+      const res = await addDesignationToMatrix({ name }, token);
+      if (res.success && res.data) {
+        syncServerMatrix(res.data);
+        toast({
+          type: 'success',
+          title: 'Designation Column Added',
+          description: `Column "${name}" created across all rank tiers.`,
+        });
+      } else {
+        setDesignations(prevDesignations);
+        toast({
+          type: 'error',
+          title: 'Failed to Add Designation',
+          description: 'Server rejected the designation creation request.',
+        });
+      }
+    } catch (err: unknown) {
+      setDesignations(prevDesignations);
+      toast({
+        type: 'error',
+        title: 'Failed to Add Designation',
+        description: err instanceof Error ? err.message : 'An error occurred while adding designation.',
+      });
+      try {
+        const token = getStoredAccessToken() || undefined;
+        const refreshRes = await fetchRoleHierarchyMatrix(token);
+        if (refreshRes.success && refreshRes.data) {
+          syncServerMatrix(refreshRes.data);
+        }
+      } catch {
+        // Safe against offline network drop
+      }
     }
-
-    toast({
-      type: 'success',
-      title: 'Designation Column Added',
-      description: `Column "${name}" created across all rank tiers.`,
-    });
   };
 
   const handleAddRank = async (code: string, weight: number, position: 'prepend' | 'append') => {
+    const prevRanks = ranks;
     const newRank: MatrixRankItem = { code, weight };
 
     setRanks((prev) => {
@@ -211,21 +288,45 @@ export const RoleHierarchyCoordinator: React.FC = () => {
     });
 
     try {
-      const token = localStorage.getItem('accessToken') || undefined;
-      await addRankToMatrix({ code, weight, position }, token);
-    } catch {
-      // Optimistic update retained
+      const token = getStoredAccessToken() || undefined;
+      const res = await addRankToMatrix({ code, weight, position }, token);
+      if (res.success && res.data) {
+        syncServerMatrix(res.data);
+        toast({
+          type: 'success',
+          title: 'Rank Row Added',
+          description: `Tier ${code} (weight ${weight}) inserted.`,
+        });
+      } else {
+        setRanks(prevRanks);
+        toast({
+          type: 'error',
+          title: 'Failed to Add Rank',
+          description: 'Server rejected the rank creation request.',
+        });
+      }
+    } catch (err: unknown) {
+      setRanks(prevRanks);
+      toast({
+        type: 'error',
+        title: 'Failed to Add Rank',
+        description: err instanceof Error ? err.message : 'An error occurred while adding rank tier.',
+      });
+      try {
+        const token = getStoredAccessToken() || undefined;
+        const refreshRes = await fetchRoleHierarchyMatrix(token);
+        if (refreshRes.success && refreshRes.data) {
+          syncServerMatrix(refreshRes.data);
+        }
+      } catch {
+        // Safe against offline network drop
+      }
     }
-
-    toast({
-      type: 'success',
-      title: 'Rank Row Added',
-      description: `Tier ${code} (weight ${weight}) inserted.`,
-    });
   };
 
   // Edit / Update Handlers (PATCH)
   const handleUpdateRole = async (roleId: string, name: string) => {
+    const prevCells = cells;
     setCells((prev) => {
       const next: Record<string, PopoverRoleItem[]> = {};
       for (const [key, list] of Object.entries(prev)) {
@@ -235,36 +336,83 @@ export const RoleHierarchyCoordinator: React.FC = () => {
     });
 
     try {
-      const token = localStorage.getItem('accessToken') || undefined;
-      await updateRoleInMatrix(roleId, { name }, token);
-    } catch {
-      // Optimistic update retained
+      const token = getStoredAccessToken() || undefined;
+      const res = await updateRoleInMatrix(roleId, { name }, token);
+      if (res.success && res.data) {
+        syncServerMatrix(res.data);
+        toast({
+          type: 'success',
+          title: 'Role Updated',
+          description: `Role renamed to "${name}".`,
+        });
+      } else {
+        setCells(prevCells);
+        toast({
+          type: 'error',
+          title: 'Failed to Update Role',
+          description: 'Server rejected the role update request.',
+        });
+      }
+    } catch (err: unknown) {
+      setCells(prevCells);
+      toast({
+        type: 'error',
+        title: 'Failed to Update Role',
+        description: err instanceof Error ? err.message : 'An error occurred while updating role.',
+      });
+      try {
+        const token = getStoredAccessToken() || undefined;
+        const refreshRes = await fetchRoleHierarchyMatrix(token);
+        if (refreshRes.success && refreshRes.data) {
+          syncServerMatrix(refreshRes.data);
+        }
+      } catch {
+        // Safe against offline network drop
+      }
     }
-
-    toast({
-      type: 'success',
-      title: 'Role Updated',
-      description: `Role renamed to "${name}".`,
-    });
   };
 
   const handleUpdateDesignation = async (designationId: string, name: string) => {
+    const prevDesignations = designations;
     setDesignations((prev) =>
       prev.map((d) => (d.id === designationId ? { ...d, name } : d))
     );
 
     try {
-      const token = localStorage.getItem('accessToken') || undefined;
-      await updateDesignationInMatrix(designationId, { name }, token);
-    } catch {
-      // Optimistic update retained
+      const token = getStoredAccessToken() || undefined;
+      const res = await updateDesignationInMatrix(designationId, { name }, token);
+      if (res.success && res.data) {
+        syncServerMatrix(res.data);
+        toast({
+          type: 'success',
+          title: 'Designation Updated',
+          description: `Column renamed to "${name}".`,
+        });
+      } else {
+        setDesignations(prevDesignations);
+        toast({
+          type: 'error',
+          title: 'Failed to Update Designation',
+          description: 'Server rejected the designation update request.',
+        });
+      }
+    } catch (err: unknown) {
+      setDesignations(prevDesignations);
+      toast({
+        type: 'error',
+        title: 'Failed to Update Designation',
+        description: err instanceof Error ? err.message : 'An error occurred while updating designation.',
+      });
+      try {
+        const token = getStoredAccessToken() || undefined;
+        const refreshRes = await fetchRoleHierarchyMatrix(token);
+        if (refreshRes.success && refreshRes.data) {
+          syncServerMatrix(refreshRes.data);
+        }
+      } catch {
+        // Safe against offline network drop
+      }
     }
-
-    toast({
-      type: 'success',
-      title: 'Designation Updated',
-      description: `Column renamed to "${name}".`,
-    });
   };
 
   const handleUpdateRank = async (
@@ -272,6 +420,9 @@ export const RoleHierarchyCoordinator: React.FC = () => {
     code: string,
     newWeight: number
   ) => {
+    const prevRanks = ranks;
+    const prevCells = cells;
+
     setRanks((prev) => {
       const updated = prev.map((r) =>
         r.weight === originalWeight ? { code, weight: newWeight } : r
@@ -295,25 +446,51 @@ export const RoleHierarchyCoordinator: React.FC = () => {
     }
 
     try {
-      const token = localStorage.getItem('accessToken') || undefined;
-      await updateRankInMatrix(
+      const token = getStoredAccessToken() || undefined;
+      const res = await updateRankInMatrix(
         originalWeight,
         { code, weight: newWeight },
         token
       );
-    } catch {
-      // Optimistic update retained
+      if (res.success && res.data) {
+        syncServerMatrix(res.data);
+        toast({
+          type: 'success',
+          title: 'Rank Tier Updated',
+          description: `Tier updated to ${code} (weight ${newWeight}).`,
+        });
+      } else {
+        setRanks(prevRanks);
+        setCells(prevCells);
+        toast({
+          type: 'error',
+          title: 'Failed to Update Rank',
+          description: 'Server rejected the rank update request.',
+        });
+      }
+    } catch (err: unknown) {
+      setRanks(prevRanks);
+      setCells(prevCells);
+      toast({
+        type: 'error',
+        title: 'Failed to Update Rank',
+        description: err instanceof Error ? err.message : 'An error occurred while updating rank tier.',
+      });
+      try {
+        const token = getStoredAccessToken() || undefined;
+        const refreshRes = await fetchRoleHierarchyMatrix(token);
+        if (refreshRes.success && refreshRes.data) {
+          syncServerMatrix(refreshRes.data);
+        }
+      } catch {
+        // Safe against offline network drop
+      }
     }
-
-    toast({
-      type: 'success',
-      title: 'Rank Tier Updated',
-      description: `Tier updated to ${code} (weight ${newWeight}).`,
-    });
   };
 
   // Delete Handlers
   const handleDeleteRole = async (roleId: string) => {
+    const prevCells = cells;
     let deletedName = '';
     setCells((prev) => {
       const next: Record<string, PopoverRoleItem[]> = {};
@@ -326,22 +503,47 @@ export const RoleHierarchyCoordinator: React.FC = () => {
     });
 
     try {
-      const token = localStorage.getItem('accessToken') || undefined;
-      await deleteRoleFromMatrix(roleId, token);
-    } catch {
-      // Optimistic update retained
-    }
-
-    if (deletedName) {
+      const token = getStoredAccessToken() || undefined;
+      const res = await deleteRoleFromMatrix(roleId, token);
+      if (res.success && res.data) {
+        syncServerMatrix(res.data);
+        if (deletedName) {
+          toast({
+            type: 'info',
+            title: 'Role Removed',
+            description: `${deletedName} removed from matrix.`,
+          });
+        }
+      } else {
+        setCells(prevCells);
+        toast({
+          type: 'error',
+          title: 'Failed to Delete Role',
+          description: 'Server rejected the role deletion request.',
+        });
+      }
+    } catch (err: unknown) {
+      setCells(prevCells);
       toast({
-        type: 'info',
-        title: 'Role Removed',
-        description: `${deletedName} removed from matrix.`,
+        type: 'error',
+        title: 'Failed to Delete Role',
+        description: err instanceof Error ? err.message : 'An error occurred while deleting role.',
       });
+      try {
+        const token = getStoredAccessToken() || undefined;
+        const refreshRes = await fetchRoleHierarchyMatrix(token);
+        if (refreshRes.success && refreshRes.data) {
+          syncServerMatrix(refreshRes.data);
+        }
+      } catch {
+        // Safe against offline network drop
+      }
     }
   };
 
   const handleDeleteDesignation = async (designationId: string) => {
+    const prevDesignations = designations;
+    const prevCells = cells;
     const des = designations.find((d) => d.id === designationId);
     setDesignations((prev) => prev.filter((d) => d.id !== designationId));
     setCells((prev) => {
@@ -359,20 +561,47 @@ export const RoleHierarchyCoordinator: React.FC = () => {
     }
 
     try {
-      const token = localStorage.getItem('accessToken') || undefined;
-      await deleteDesignationFromMatrix(designationId, token);
-    } catch {
-      // Optimistic update retained
+      const token = getStoredAccessToken() || undefined;
+      const res = await deleteDesignationFromMatrix(designationId, token);
+      if (res.success && res.data) {
+        syncServerMatrix(res.data);
+        toast({
+          type: 'success',
+          title: 'Designation Column Deleted',
+          description: `Column "${des?.name || designationId}" and its roles removed.`,
+        });
+      } else {
+        setDesignations(prevDesignations);
+        setCells(prevCells);
+        toast({
+          type: 'error',
+          title: 'Failed to Delete Designation',
+          description: 'Server rejected the designation deletion request.',
+        });
+      }
+    } catch (err: unknown) {
+      setDesignations(prevDesignations);
+      setCells(prevCells);
+      toast({
+        type: 'error',
+        title: 'Failed to Delete Designation',
+        description: err instanceof Error ? err.message : 'An error occurred while deleting designation.',
+      });
+      try {
+        const token = getStoredAccessToken() || undefined;
+        const refreshRes = await fetchRoleHierarchyMatrix(token);
+        if (refreshRes.success && refreshRes.data) {
+          syncServerMatrix(refreshRes.data);
+        }
+      } catch {
+        // Safe against offline network drop
+      }
     }
-
-    toast({
-      type: 'success',
-      title: 'Designation Column Deleted',
-      description: `Column "${des?.name || designationId}" and its roles removed.`,
-    });
   };
 
   const handleDeleteRank = async (rankWeight: number) => {
+    const prevRanks = ranks;
+    const prevCells = cells;
     const rank = ranks.find((r) => r.weight === rankWeight);
     setRanks((prev) => prev.filter((r) => r.weight !== rankWeight));
     setCells((prev) => {
@@ -390,17 +619,42 @@ export const RoleHierarchyCoordinator: React.FC = () => {
     }
 
     try {
-      const token = localStorage.getItem('accessToken') || undefined;
-      await deleteRankFromMatrix(rankWeight, token);
-    } catch {
-      // Optimistic update retained
+      const token = getStoredAccessToken() || undefined;
+      const res = await deleteRankFromMatrix(rankWeight, token);
+      if (res.success && res.data) {
+        syncServerMatrix(res.data);
+        toast({
+          type: 'success',
+          title: 'Rank Row Deleted',
+          description: `Tier ${rank?.code || rankWeight} removed from matrix.`,
+        });
+      } else {
+        setRanks(prevRanks);
+        setCells(prevCells);
+        toast({
+          type: 'error',
+          title: 'Failed to Delete Rank',
+          description: 'Server rejected the rank deletion request.',
+        });
+      }
+    } catch (err: unknown) {
+      setRanks(prevRanks);
+      setCells(prevCells);
+      toast({
+        type: 'error',
+        title: 'Failed to Delete Rank',
+        description: err instanceof Error ? err.message : 'An error occurred while deleting rank tier.',
+      });
+      try {
+        const token = getStoredAccessToken() || undefined;
+        const refreshRes = await fetchRoleHierarchyMatrix(token);
+        if (refreshRes.success && refreshRes.data) {
+          syncServerMatrix(refreshRes.data);
+        }
+      } catch {
+        // Safe against offline network drop
+      }
     }
-
-    toast({
-      type: 'success',
-      title: 'Rank Row Deleted',
-      description: `Tier ${rank?.code || rankWeight} removed from matrix.`,
-    });
   };
 
   if (loading) {
