@@ -22,8 +22,17 @@ import org.springframework.data.web.config.EnableSpringDataWebSupport;
         scanBasePackages = "com.rednecksgaming",
         exclude = {DataRedisRepositoriesAutoConfiguration.class}
 )
-@EntityScan(basePackages = {"com.rednecksgaming.common.domain", "com.rednecksgaming.identity.domain", "com.rednecksgaming.server.domain"})
-@EnableJpaRepositories(basePackages = {"com.rednecksgaming.identity.repository", "com.rednecksgaming.server.repository"})
+@EntityScan(basePackages = {
+        "com.rednecksgaming.common.domain",
+        "com.rednecksgaming.identity.domain",
+        "com.rednecksgaming.server.domain",
+        "com.rednecksgaming.personnel.roles.domain"
+})
+@EnableJpaRepositories(basePackages = {
+        "com.rednecksgaming.identity.repository",
+        "com.rednecksgaming.server.repository",
+        "com.rednecksgaming.personnel.roles.repository"
+})
 public class RednecksGamingApplication {
 
     public static void main(String[] args) {
