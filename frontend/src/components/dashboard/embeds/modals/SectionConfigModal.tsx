@@ -2,12 +2,13 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { Image as ImageIcon } from 'lucide-react';
+import { Image as ImageIcon, Upload, Loader2 } from 'lucide-react';
 import type { DiscordSectionComponent, DiscordThumbnailComponent } from '@/lib/model/embed';
 import { Modal } from '@/components/common/feedback/Modal';
 import { TextInput } from '@/components/common/input/TextInput';
 import { Button } from '@/components/common/input/Button';
 import { DiscordMarkdownEditor } from '@/components/common/input/DiscordMarkdownEditor';
+import { uploadImageFile } from '@/lib/api/upload';
 
 export interface SectionConfigModalProps {
   isOpen: boolean;
@@ -43,13 +44,32 @@ export const SectionConfigModal: React.FC<SectionConfigModalProps> = ({
   const [customId, setCustomId] = useState(section?.id || '');
   const [text, setText] = useState(initialText);
   const [thumbnailUrl, setThumbnailUrl] = useState(initialUrl);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   if (section !== prevSection) {
     setPrevSection(section);
     setCustomId(section?.id || '');
     setText(initialText);
     setThumbnailUrl(initialUrl);
+    setUploadError(null);
   }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadError(null);
+    setIsUploading(true);
+    try {
+      const publicUrl = await uploadImageFile(file);
+      setThumbnailUrl(publicUrl);
+    } catch (err: unknown) {
+      setUploadError(err instanceof Error ? err.message : 'Image upload failed.');
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
+    }
+  };
 
   const handleSave = () => {
     if (!section) return;
@@ -118,16 +138,44 @@ export const SectionConfigModal: React.FC<SectionConfigModalProps> = ({
         />
 
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold text-zinc-300">
-            Accessory Thumbnail URL
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-zinc-300">
+              Accessory Thumbnail URL
+            </label>
+            <label className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-apple-sm bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-[11px] font-medium text-zinc-200 transition-colors cursor-pointer">
+              {isUploading ? (
+                <>
+                  <Loader2 size={12} className="animate-spin text-brand-red" />
+                  <span>Uploading...</span>
+                </>
+              ) : (
+                <>
+                  <Upload size={12} className="text-cyan-400" />
+                  <span>+ Upload</span>
+                </>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                disabled={isUploading}
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </label>
+          </div>
           <div className="flex items-start gap-3">
             <div className="flex-1 min-w-0">
               <TextInput
                 value={thumbnailUrl}
                 placeholder="https://images.unsplash.com/... or image URL"
-                onChange={(e) => setThumbnailUrl(e.target.value)}
+                onChange={(e) => {
+                  setThumbnailUrl(e.target.value);
+                  setUploadError(null);
+                }}
               />
+              {uploadError && (
+                <p className="mt-1 text-[11px] text-red-400 font-sans">{uploadError}</p>
+              )}
             </div>
 
             <div className="relative w-16 h-16 rounded-apple-md bg-surface-canvas border border-white/15 flex items-center justify-center overflow-hidden shrink-0 shadow-apple-card">

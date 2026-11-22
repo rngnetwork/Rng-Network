@@ -74,17 +74,19 @@ export async function deleteServerAction(
 
 export async function fetchServerEmojis(
   idOrSlug: string,
-  token?: string
+  token?: string,
+  refresh: boolean = false
 ): Promise<ApiResponse<DiscordEmojiData[]>> {
-  return httpClient.get<DiscordEmojiData[]>(
-    `/servers/${encodeURIComponent(idOrSlug)}/emojis`,
-    withTokenConfig(token)
-  );
+  const url = refresh
+    ? `/servers/${encodeURIComponent(idOrSlug)}/emojis?refresh=true`
+    : `/servers/${encodeURIComponent(idOrSlug)}/emojis`;
+  return httpClient.get<DiscordEmojiData[]>(url, withTokenConfig(token));
 }
 
 export async function fetchServerGuildEmojis(
   serverId: string,
-  token?: string
+  token?: string,
+  refresh: boolean = false
 ): Promise<ApiResponse<DiscordEmojiData[]>> {
-  return fetchServerEmojis(serverId, token);
+  return fetchServerEmojis(serverId, token, refresh);
 }

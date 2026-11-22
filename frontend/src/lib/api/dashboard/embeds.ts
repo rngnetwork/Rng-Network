@@ -312,8 +312,12 @@ export async function importEmbedTemplate(
   );
 }
 
-export async function fetchBotEmojis(token?: string): Promise<ApiResponse<DiscordEmojiData[]>> {
-  return httpClient.get<DiscordEmojiData[]>('/bot/emojis', withTokenConfig(token));
+export async function fetchBotEmojis(
+  token?: string,
+  refresh: boolean = false
+): Promise<ApiResponse<DiscordEmojiData[]>> {
+  const url = refresh ? '/bot/emojis?refresh=true' : '/bot/emojis';
+  return httpClient.get<DiscordEmojiData[]>(url, withTokenConfig(token));
 }
 
 export async function fetchActionTemplates(

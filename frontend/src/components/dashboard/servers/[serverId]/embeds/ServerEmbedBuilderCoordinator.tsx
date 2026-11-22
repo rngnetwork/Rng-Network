@@ -63,7 +63,13 @@ export const ServerEmbedBuilderCoordinator: React.FC<
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [activeEmojiCallback, setActiveEmojiCallback] = useState<((token: string) => void) | null>(null);
+  const [selectedContainerIdx, setSelectedContainerIdx] = useState(0);
   const [targetPaletteContainerIdx, setTargetPaletteContainerIdx] = useState(0);
+
+  const activeSelectedIdx = useMemo(() => {
+    if (state.type17Containers.length === 0) return 0;
+    return Math.max(0, Math.min(selectedContainerIdx, state.type17Containers.length - 1));
+  }, [selectedContainerIdx, state.type17Containers.length]);
 
   const lastFocusedInputRef = useRef<{
     element: HTMLInputElement | HTMLTextAreaElement;
@@ -228,7 +234,7 @@ export const ServerEmbedBuilderCoordinator: React.FC<
       })
       .catch(() => {});
 
-    fetchGlobalTemplates({ page: 0, size: 100 }, token)
+    fetchGlobalTemplates({ serverId, page: 0, size: 100 }, token)
       .then((res) => {
         if (isMounted && res.success && res.data) {
           setEmbedTemplates(res.data.content || []);
@@ -322,10 +328,14 @@ export const ServerEmbedBuilderCoordinator: React.FC<
         onChangeSubTab={(tab) => dispatch({ type: 'SET_ACTIVE_TAB', tab })}
         containerCount={state.type17Containers.length}
         totalComponents={validationReport.totalComponents}
-        onAddContainer={() => dispatch({ type: 'ADD_CONTAINER' })}
-        onAddActionRow={() => dispatch({ type: 'ADD_ACTION_ROW', containerIndex: 0 })}
+        onAddContainer={() => {
+          const newCnt = createDefaultContainer();
+          dispatch({ type: 'ADD_CONTAINER', container: newCnt });
+          setSelectedContainerIdx(state.type17Containers.length);
+        }}
+        onAddActionRow={() => dispatch({ type: 'ADD_ACTION_ROW', containerIndex: activeSelectedIdx })}
         onOpenPaletteModal={() => {
-          setTargetPaletteContainerIdx(0);
+          setTargetPaletteContainerIdx(activeSelectedIdx);
           setIsPaletteOpen(true);
         }}
         onOpenLoadModal={() => setIsLoadPresetOpen(true)}
@@ -343,10 +353,16 @@ export const ServerEmbedBuilderCoordinator: React.FC<
           <GlobalEditTabCoordinator
             messageContent={state.message.content}
             containers={state.type17Containers}
+            selectedContainerIdx={activeSelectedIdx}
+            onSelectContainer={setSelectedContainerIdx}
             onChangeMessageContent={(content) =>
               dispatch({ type: 'SET_MESSAGE_CONTENT', content })
             }
-            onAddContainer={() => dispatch({ type: 'ADD_CONTAINER' })}
+            onAddContainer={() => {
+              const newCnt = createDefaultContainer();
+              dispatch({ type: 'ADD_CONTAINER', container: newCnt });
+              setSelectedContainerIdx(state.type17Containers.length);
+            }}
             onUpdateContainer={(cIdx, updates) => {
               const targetId = state.type17Containers[cIdx]?.id;
               if (targetId) {
@@ -357,6 +373,9 @@ export const ServerEmbedBuilderCoordinator: React.FC<
               const targetId = state.type17Containers[cIdx]?.id;
               if (targetId) {
                 dispatch({ type: 'REMOVE_CONTAINER', containerId: targetId });
+                if (selectedContainerIdx >= cIdx) {
+                  setSelectedContainerIdx(Math.max(0, selectedContainerIdx - 1));
+                }
               }
             }}
             onMoveContainer={(fromIdx, direction) => {
@@ -426,6 +445,7 @@ export const ServerEmbedBuilderCoordinator: React.FC<
               setEditingSelectMenu({ cIdx, selectMenu })
             }
             onOpenPaletteModal={(cIdx) => {
+              setSelectedContainerIdx(cIdx);
               setTargetPaletteContainerIdx(cIdx);
               setIsPaletteOpen(true);
             }}
@@ -467,9 +487,11 @@ export const ServerEmbedBuilderCoordinator: React.FC<
         isOpen={isPaletteOpen}
         onClose={() => setIsPaletteOpen(false)}
         onSelectComponent={(componentType) => {
-          const targetId = state.type17Containers[targetPaletteContainerIdx]?.id;
-          if (targetId) {
-            dispatch({ type: 'ADD_COMPONENT', containerId: targetId, componentType });
+          const targetContainer =
+            state.type17Containers[targetPaletteContainerIdx] ||
+            state.type17Containers[activeSelectedIdx];
+          if (targetContainer) {
+            dispatch({ type: 'ADD_COMPONENT', containerId: targetContainer.id, componentType });
           }
         }}
       />
@@ -495,7 +517,9 @@ export const ServerEmbedBuilderCoordinator: React.FC<
           });
         }}
         onInsertComponent={(comp) => {
-          let targetContainer = state.type17Containers[state.type17Containers.length - 1];
+          let targetContainer =
+            state.type17Containers[targetPaletteContainerIdx] ||
+            state.type17Containers[activeSelectedIdx];
           if (!targetContainer) {
             const newCnt = createDefaultContainer();
             dispatch({ type: 'ADD_CONTAINER', container: newCnt });

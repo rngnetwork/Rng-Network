@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
-import { Sparkles } from 'lucide-react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { Sparkles, RefreshCw } from 'lucide-react';
 import {
   EmojiPicker,
   type CustomEmoji,
@@ -26,9 +26,9 @@ export const ServerDiscordEmojiPicker: React.FC<
 > = ({ serverId, onSelectEmojiToken, className = '' }) => {
   const [serverEmojis, setServerEmojis] = useState<DiscordEmojiData[]>([]);
   const [botEmojis, setBotEmojis] = useState<DiscordEmojiData[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
+  const loadEmojis = useCallback(async (refresh: boolean = false) => {
     const token =
       typeof window !== 'undefined'
         ? localStorage.getItem('rng_access_token') ||
@@ -36,31 +36,33 @@ export const ServerDiscordEmojiPicker: React.FC<
           undefined
         : undefined;
 
-    const loadEmojis = async () => {
-      try {
-        const [srvRes, botRes] = await Promise.allSettled([
-          fetchServerGuildEmojis(serverId, token),
-          fetchBotEmojis(token),
-        ]);
+    try {
+      if (refresh) setIsRefreshing(true);
+      const [srvRes, botRes] = await Promise.allSettled([
+        fetchServerGuildEmojis(serverId, token, refresh),
+        fetchBotEmojis(token, refresh),
+      ]);
 
-        if (isMounted) {
-          if (srvRes.status === 'fulfilled' && srvRes.value.success && Array.isArray(srvRes.value.data)) {
-            setServerEmojis(srvRes.value.data);
-          }
-          if (botRes.status === 'fulfilled' && botRes.value.success && Array.isArray(botRes.value.data)) {
-            setBotEmojis(botRes.value.data);
-          }
-        }
-      } catch {
-        // Fallback to unicode emojis
+      if (srvRes.status === 'fulfilled' && srvRes.value.success && Array.isArray(srvRes.value.data)) {
+        setServerEmojis(srvRes.value.data);
       }
-    };
+      if (botRes.status === 'fulfilled' && botRes.value.success && Array.isArray(botRes.value.data)) {
+        setBotEmojis(botRes.value.data);
+      }
+    } catch {
+      // Fallback to unicode emojis
+    } finally {
+      if (refresh) setIsRefreshing(false);
+    }
+  }, [serverId]);
 
-    void loadEmojis();
+  useEffect(() => {
+    let isMounted = true;
+    void loadEmojis(false);
     return () => {
       isMounted = false;
     };
-  }, [serverId]);
+  }, [loadEmojis]);
 
   const customCategories: EmojiCategory[] = useMemo(() => {
     const cats: EmojiCategory[] = [];
@@ -106,12 +108,22 @@ export const ServerDiscordEmojiPicker: React.FC<
 
   return (
     <div className={`flex flex-col w-full h-full ${className}`}>
-      {customCategories.length > 0 && (
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-white/[0.02] text-[10px] text-zinc-400 border-b border-white/[0.04] shrink-0">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-white/[0.02] text-[10px] text-zinc-400 border-b border-white/[0.04] shrink-0">
+        <div className="flex items-center gap-1.5">
           <Sparkles size={12} className="text-brand-red shrink-0" />
           <span>Server ({serverEmojis.length}) &amp; Bot ({botEmojis.length}) emojis active</span>
         </div>
-      )}
+        <button
+          type="button"
+          disabled={isRefreshing}
+          onClick={() => void loadEmojis(true)}
+          title="Force refresh Discord bot & server emojis from Discord REST API"
+          className="flex items-center gap-1 px-1.5 py-0.5 rounded-apple-sm text-zinc-400 hover:text-white hover:bg-white/[0.08] transition-colors disabled:opacity-40 cursor-pointer shrink-0 ml-2"
+        >
+          <RefreshCw size={11} className={isRefreshing ? 'animate-spin text-brand-red' : ''} />
+          <span className="text-[9px] font-medium">{isRefreshing ? 'Syncing...' : 'Sync'}</span>
+        </button>
+      </div>
 
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         <EmojiPicker

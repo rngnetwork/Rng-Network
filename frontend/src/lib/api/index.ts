@@ -16,6 +16,7 @@ export * from './dashboard/servers/[serverId]/botconfig';
 export * from './dashboard/servers/[serverId]/embeds';
 export * from './dashboard/servers/[serverId]/settings';
 export * from './bot-module';
+export * from './upload';
 
 import {
   login,

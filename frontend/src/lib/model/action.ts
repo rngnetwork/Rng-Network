@@ -1,4 +1,4 @@
-export type ActionType = 'ROLE' | 'TICKET' | 'REPLY' | 'DM';
+export type ActionType = 'ROLE' | 'ROLE_VERIFY' | 'TICKET' | 'REPLY' | 'DM';
 
 export type RoleSubtype = 'TOGGLE' | 'ADD' | 'REMOVE';
 
