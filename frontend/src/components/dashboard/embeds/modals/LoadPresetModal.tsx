@@ -49,7 +49,7 @@ export const LoadPresetModal: React.FC<LoadPresetModalProps> = ({
           ...(s.serverId ? [s.serverId] : []),
         ].filter(Boolean);
 
-        const isPublicOrGlobal = Boolean(s.isPublic) || templateSnowflakes.length === 0;
+        const isPublicOrGlobal = Boolean(s.isPublic ?? s.public) || templateSnowflakes.length === 0;
 
         if (!isPublicOrGlobal) {
           // Parse each template snowflake ID to serverSlug
@@ -57,7 +57,7 @@ export const LoadPresetModal: React.FC<LoadPresetModalProps> = ({
             (snowId) => snowflakeToSlugMap[snowId] || snowId
           );
 
-          const matchesSlug = Boolean(targetSlug) && parsedServerSlugs.includes(targetSlug!);
+          const matchesSlug = Boolean(targetSlug) && (parsedServerSlugs.includes(targetSlug!) || templateSnowflakes.includes(targetSlug!));
           const matchesSnowflake =
             Boolean(targetSnowflake) && templateSnowflakes.includes(targetSnowflake!);
 

@@ -5,6 +5,7 @@ import {
   Globe,
   Server as ServerIcon,
   Shield,
+  ShieldCheck,
   Ticket,
   MessageSquare,
   Mail,
@@ -37,6 +38,7 @@ export interface ActionTemplateModalProps {
 
 const ACTION_TYPE_OPTIONS: { label: string; value: ActionType }[] = [
   { label: 'Role Grant', value: 'ROLE' },
+  { label: 'Role Verify', value: 'ROLE_VERIFY' },
   { label: 'Private Ticket', value: 'TICKET' },
   { label: 'Bot Reply', value: 'REPLY' },
   { label: 'Bot DM', value: 'DM' },
@@ -84,6 +86,9 @@ export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
   const [roleSubtype, setRoleSubtype] = useState<RoleSubtype>(initialAction?.roleSubtype ?? 'TOGGLE');
   const [roleFeedback, setRoleFeedback] = useState(initialAction?.replyContent ?? '');
 
+  // Role Verify specific
+  const [roleVerifyId, setRoleVerifyId] = useState(initialAction?.roleId ?? '');
+
   // Ticket specific
   const [channelPrefix, setChannelPrefix] = useState(initialAction?.channelPrefix ?? 'ticket-');
   const [welcomeMessage, setWelcomeMessage] = useState(
@@ -91,7 +96,7 @@ export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
   );
   const [dmContent, setDmContent] = useState(initialAction?.dmContent ?? '');
 
-  // Shared Response & Follow-Up Configuration (Role & Ticket)
+  // Shared Response & Follow-Up Configuration (Role & Ticket & Role Verify)
   const [responseType, setResponseType] = useState<ResponseType>(
     initialAction?.responseType ?? 'PUBLIC_EMBED'
   );
@@ -139,6 +144,7 @@ export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
     setActionType(initialAction?.actionType ?? 'ROLE');
     setRoleSubtype(initialAction?.roleSubtype ?? 'TOGGLE');
     setRoleFeedback(initialAction?.replyContent ?? '');
+    setRoleVerifyId(initialAction?.roleId ?? '');
     setChannelPrefix(initialAction?.channelPrefix ?? 'ticket-');
     setWelcomeMessage(
       initialAction?.welcomeMessage ?? 'Welcome {user} to support!'
@@ -201,6 +207,10 @@ export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
     e.preventDefault();
     if (!name.trim()) return;
 
+    if (actionType === 'ROLE_VERIFY' && !roleVerifyId.trim()) {
+      return;
+    }
+
     setSubmitting(true);
     try {
       const assignedServers = isGlobal
@@ -230,6 +240,15 @@ export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
           responseType,
           responseEmbedTemplateId: responseEmbedTemplateId || undefined,
           requiredRole: true,
+        };
+      } else if (actionType === 'ROLE_VERIFY') {
+        finalPayload = {
+          ...basePayload,
+          roleId: roleVerifyId.trim(),
+          responseType,
+          responseEmbedTemplateId: responseEmbedTemplateId || undefined,
+          requiredRole: false,
+          requiredUser: false,
         };
       } else if (actionType === 'TICKET') {
         finalPayload = {
@@ -283,7 +302,7 @@ export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
             variant="primary"
             size="sm"
             loading={submitting}
-            disabled={!name.trim()}
+            disabled={!name.trim() || (actionType === 'ROLE_VERIFY' && !roleVerifyId.trim())}
             onClick={handleFormSubmit}
           >
             Save Template
@@ -393,10 +412,10 @@ export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
           </div>
         )}
 
-        {/* Action Type: Role Grant | Private Ticket | Bot Reply | Bot DM */}
+        {/* Action Type: Role Grant | Role Verify | Private Ticket | Bot Reply | Bot DM */}
         <div className="flex flex-col gap-2">
           <label className="text-xs font-semibold text-zinc-300">Action Type</label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
             {ACTION_TYPE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
@@ -409,6 +428,7 @@ export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
                 }`}
               >
                 {opt.value === 'ROLE' && <Shield size={14} />}
+                {opt.value === 'ROLE_VERIFY' && <ShieldCheck size={14} />}
                 {opt.value === 'TICKET' && <Ticket size={14} />}
                 {opt.value === 'REPLY' && <MessageSquare size={14} />}
                 {opt.value === 'DM' && <Mail size={14} />}
@@ -448,6 +468,46 @@ export const ActionTemplateModal: React.FC<ActionTemplateModalProps> = ({
               value={roleFeedback}
               onChange={(e) => setRoleFeedback(e.target.value)}
               placeholder="Variables supported: {targetUser}, {user}, {targetRole}, {server}, {channel}"
+            />
+
+            {/* Response Section */}
+            <div className="pt-3 border-t border-white/10 flex flex-col gap-3">
+              <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
+                <Layers size={14} className="text-brand-red" />
+                Response Section
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Dropdown
+                  label="Response Type"
+                  options={RESPONSE_TYPE_OPTIONS}
+                  value={responseType}
+                  onChange={(val) => setResponseType(val as ResponseType)}
+                />
+                <Dropdown
+                  label="Embed Template"
+                  options={templateOptions}
+                  value={responseEmbedTemplateId}
+                  onChange={setResponseEmbedTemplateId}
+                  placeholder="Select embed template..."
+                  searchable
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Conditional Sub-form: Role Verify */}
+        {actionType === 'ROLE_VERIFY' && (
+          <div className="p-4 rounded-apple-lg bg-black/40 border border-white/10 flex flex-col gap-4">
+            {/* Verification Role ID */}
+            <TextInput
+              label="Verification Role ID"
+              value={roleVerifyId}
+              onChange={(e) => setRoleVerifyId(e.target.value)}
+              placeholder="e.g. 110293847561829384"
+              maxLength={25}
+              required
+              helperText="Discord Snowflake Role ID granted to members when they click this verify button/option."
             />
 
             {/* Response Section */}
