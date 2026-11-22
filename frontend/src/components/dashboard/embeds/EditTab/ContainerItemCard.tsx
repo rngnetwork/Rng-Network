@@ -20,6 +20,8 @@ export interface ContainerItemCardProps {
   totalContainers: number;
   container: Type17Container;
   isAuthorCollapsed?: boolean;
+  isSelected?: boolean;
+  onSelect?: (cIdx: number) => void;
   onUpdateAccent: (cIdx: number, color: string) => void;
   onToggleSpoiler: (cIdx: number) => void;
   onToggleAuthorCollapse: (cIdx: number) => void;
@@ -75,6 +77,8 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
   totalContainers,
   container,
   isAuthorCollapsed = false,
+  isSelected = false,
+  onSelect,
   onUpdateAccent,
   onToggleSpoiler,
   onToggleAuthorCollapse,
@@ -105,13 +109,21 @@ export const ContainerItemCard: React.FC<ContainerItemCardProps> = ({
 }) => {
   return (
     <div
+      onClick={() => onSelect?.(cIdx)}
+      onFocusCapture={() => onSelect?.(cIdx)}
       onDragOver={(e) => onContainerDragOver?.(e, cIdx)}
       onDrop={(e) => onContainerDrop?.(e, cIdx)}
       style={{
         borderLeftColor: container.accentColor || '#E11D2E',
-        boxShadow: `0 8px 32px 0 rgba(0, 0, 0, 0.36), 0 0 16px ${container.accentColor || '#E11D2E'}15`,
+        boxShadow: isSelected
+          ? `0 12px 40px 0 rgba(0, 0, 0, 0.5), 0 0 24px rgba(225, 29, 46, 0.22)`
+          : `0 8px 32px 0 rgba(0, 0, 0, 0.36), 0 0 16px ${container.accentColor || '#E11D2E'}15`,
       }}
-      className="rounded-apple-xl bg-surface-card/90 backdrop-blur-xl border border-white/10 border-l-4 p-5 flex flex-col gap-4 shadow-apple-card transition-all"
+      className={`rounded-apple-xl bg-surface-card/90 backdrop-blur-xl border border-l-4 p-5 flex flex-col gap-4 shadow-apple-card transition-all ${
+        isSelected
+          ? 'border-brand-red/70 ring-2 ring-brand-red/60 shadow-[0_0_24px_rgba(225,29,46,0.22)]'
+          : 'border-white/10 hover:border-white/20'
+      }`}
     >
       <ContainerHeader
         cIdx={cIdx}

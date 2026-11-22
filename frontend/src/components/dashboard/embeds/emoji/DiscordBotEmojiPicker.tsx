@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
-import { Smile } from 'lucide-react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { Smile, RefreshCw } from 'lucide-react';
 import {
   EmojiPicker,
   type CustomEmoji,
@@ -48,33 +48,37 @@ export const DiscordBotEmojiPicker: React.FC<DiscordBotEmojiPickerProps> = ({
   const [botEmojis, setBotEmojis] = useState<DiscordEmojiData[]>(
     initialBotEmojis ?? []
   );
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const loadBotEmojis = useCallback(async (refresh: boolean = false) => {
+    if (initialBotEmojis) return;
+    const token =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('rng_access_token') ||
+          localStorage.getItem('accessToken') ||
+          undefined
+        : undefined;
+    try {
+      if (refresh) setIsRefreshing(true);
+      const res = await fetchBotEmojis(token, refresh);
+      if (res.success && Array.isArray(res.data)) {
+        setBotEmojis(res.data);
+      }
+    } catch {
+      // Fallback to standard unicode categories when bot emojis are unreachable
+    } finally {
+      if (refresh) setIsRefreshing(false);
+    }
+  }, [initialBotEmojis]);
 
   useEffect(() => {
     if (initialBotEmojis) return undefined;
     let isMounted = true;
-
-    const loadBotEmojis = async () => {
-      const token =
-        typeof window !== 'undefined'
-          ? localStorage.getItem('rng_access_token') ||
-            localStorage.getItem('accessToken') ||
-            undefined
-          : undefined;
-      try {
-        const res = await fetchBotEmojis(token);
-        if (isMounted && res.success && Array.isArray(res.data)) {
-          setBotEmojis(res.data);
-        }
-      } catch {
-        // Fallback to standard unicode categories when bot emojis are unreachable
-      }
-    };
-
-    void loadBotEmojis();
+    void loadBotEmojis(false);
     return () => {
       isMounted = false;
     };
-  }, [initialBotEmojis]);
+  }, [initialBotEmojis, loadBotEmojis]);
 
   const customCategories: EmojiCategory[] = useMemo(() => {
     if (botEmojis.length === 0) return [];
@@ -99,12 +103,24 @@ export const DiscordBotEmojiPicker: React.FC<DiscordBotEmojiPickerProps> = ({
 
   return (
     <div className={`flex flex-col w-full h-full ${className}`}>
-      {botEmojis.length > 0 && (
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-white/[0.02] text-[10px] text-zinc-400 border-b border-white/[0.04] shrink-0">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-white/[0.02] text-[10px] text-zinc-400 border-b border-white/[0.04] shrink-0">
+        <div className="flex items-center gap-1.5">
           <Smile size={12} className="text-brand-red shrink-0" />
           <span>{botEmojis.length} custom bot emojis loaded</span>
         </div>
-      )}
+        {!initialBotEmojis && (
+          <button
+            type="button"
+            disabled={isRefreshing}
+            onClick={() => void loadBotEmojis(true)}
+            title="Force refresh Discord bot emojis from Discord REST API"
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded-apple-sm text-zinc-400 hover:text-white hover:bg-white/[0.08] transition-colors disabled:opacity-40 cursor-pointer shrink-0 ml-2"
+          >
+            <RefreshCw size={11} className={isRefreshing ? 'animate-spin text-brand-red' : ''} />
+            <span className="text-[9px] font-medium">{isRefreshing ? 'Syncing...' : 'Sync'}</span>
+          </button>
+        )}
+      </div>
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         <EmojiPicker
           customCategories={customCategories}

@@ -15,6 +15,8 @@ import { ContainerItemCard } from './ContainerItemCard';
 export interface GlobalEditTabCoordinatorProps {
   messageContent?: string;
   containers: Type17Container[];
+  selectedContainerIdx?: number;
+  onSelectContainer?: (cIdx: number) => void;
   onChangeMessageContent?: (content: string) => void;
   onAddContainer: () => void;
   onUpdateContainer: (
@@ -59,6 +61,8 @@ export const GlobalEditTabCoordinator: React.FC<
   GlobalEditTabCoordinatorProps
 > = ({
   containers,
+  selectedContainerIdx = 0,
+  onSelectContainer,
   onAddContainer,
   onUpdateContainer,
   onRemoveContainer,
@@ -135,6 +139,8 @@ export const GlobalEditTabCoordinator: React.FC<
             cIdx={cIdx}
             totalContainers={containers.length}
             container={container}
+            isSelected={selectedContainerIdx === cIdx}
+            onSelect={onSelectContainer}
             isAuthorCollapsed={Boolean(collapsedAuthors[cIdx])}
             onUpdateAccent={(idx, color) => onUpdateContainer(idx, { accentColor: color })}
             onToggleSpoiler={(idx) => onUpdateContainer(idx, { isSpoiler: !container.isSpoiler })}
