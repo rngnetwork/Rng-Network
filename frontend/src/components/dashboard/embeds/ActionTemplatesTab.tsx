@@ -159,7 +159,7 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
     } catch {
       toast({
         type: 'error',
-        title: 'Action Creation Failed',
+        title: 'Creation Failed',
         description: 'Failed to create action template.',
       });
     }
@@ -194,9 +194,10 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
     }
   };
 
-  const handleDeleteAction = async (actionId: string, name: string) => {
-    const proceed = window.confirm(`Delete action template "${name}" (${actionId})?`);
-    if (!proceed) return;
+  const handleDeleteAction = async (actionId: string, actionName: string) => {
+    if (!window.confirm(`Delete action template "${actionName}"? This action cannot be undone.`)) {
+      return;
+    }
 
     const token =
       typeof window !== 'undefined'
@@ -243,10 +244,10 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Header Bar */}
-      <div className="p-5 rounded-apple-xl bg-surface-card border border-white/10 flex flex-wrap items-center justify-between gap-4 shadow-apple-card">
+      {/* Top Bar: Title & Create Button */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+          <h3 className="text-base font-bold text-white flex items-center gap-2">
             <Zap size={16} className="text-brand-red" />
             Action Templates Registry
           </h3>
@@ -297,7 +298,7 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
           </div>
 
           {/* Type Filter */}
-          {(['ALL', 'ROLE', 'TICKET', 'REPLY', 'DM'] as const).map((type) => (
+          {(['ALL', 'ROLE', 'ROLE_VERIFY', 'TICKET', 'REPLY', 'DM'] as const).map((type) => (
             <button
               key={type}
               type="button"
@@ -312,6 +313,8 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
                 ? 'All Types'
                 : type === 'ROLE'
                 ? 'Role Grant'
+                : type === 'ROLE_VERIFY'
+                ? 'Role Verify'
                 : type === 'TICKET'
                 ? 'Private Ticket'
                 : type === 'REPLY'
@@ -361,6 +364,8 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
                 ? action.roleSubtype
                   ? `ROLE · ${action.roleSubtype}`
                   : 'ROLE'
+                : action.actionType === 'ROLE_VERIFY'
+                ? 'ROLE VERIFY'
                 : action.actionType || 'ACTION';
 
             return (
@@ -378,7 +383,11 @@ export const ActionTemplatesTab: React.FC<ActionTemplatesTabProps> = ({
                       </h4>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-white/[0.05] border border-white/10 text-zinc-300">
+                      <span className={`px-2 py-0.5 rounded text-[11px] font-mono border ${
+                        action.actionType === 'ROLE_VERIFY'
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                          : 'bg-white/[0.05] border-white/10 text-zinc-300'
+                      }`}>
                         {actionTypeLabel}
                       </span>
                     </div>

@@ -88,7 +88,10 @@ export const ContainerHeader: React.FC<ContainerHeaderProps> = ({
           <button
             type="button"
             disabled={cIdx === 0}
-            onClick={() => onMoveContainer(cIdx, 'up')}
+            onClick={(e) => {
+              e.stopPropagation();
+              onMoveContainer(cIdx, 'up');
+            }}
             title="Move container up"
             className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
@@ -97,7 +100,10 @@ export const ContainerHeader: React.FC<ContainerHeaderProps> = ({
           <button
             type="button"
             disabled={cIdx === totalContainers - 1}
-            onClick={() => onMoveContainer(cIdx, 'down')}
+            onClick={(e) => {
+              e.stopPropagation();
+              onMoveContainer(cIdx, 'down');
+            }}
             title="Move container down"
             className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-l border-white/10"
           >
@@ -107,7 +113,10 @@ export const ContainerHeader: React.FC<ContainerHeaderProps> = ({
 
         <button
           type="button"
-          onClick={() => onRemoveContainer(cIdx)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemoveContainer(cIdx);
+          }}
           title="Remove container"
           className="p-1.5 rounded-apple-md text-red-400 bg-red-500/15 border border-red-500/30 hover:bg-red-500/25 hover:border-red-500/50 hover:text-red-300 transition-colors cursor-pointer"
         >

@@ -44,7 +44,8 @@ export const CYBER_NODES: CyberNode[] = [
     id: 'bot-module',
     name: 'Bot Module Configuration',
     subtitle: 'Autonomous Daemons & Event Sharding',
-    status: 'locked',
+    status: 'active',
+    route: '/dashboard/botconfig',
     icon: Bot,
     x: 50,
     y: 20,
@@ -131,8 +132,8 @@ export const CYBER_LINKS: CyberLink[] = [
   { from: 'whitelist-management', to: 'discord-server-module', status: 'active' },
 
   // Secondary network connections
-  { from: 'auth-security', to: 'bot-module', status: 'inactive' },
-  { from: 'whitelist-management', to: 'bot-module', status: 'inactive' },
+  { from: 'auth-security', to: 'bot-module', status: 'active' },
+  { from: 'whitelist-management', to: 'bot-module', status: 'active' },
   { from: 'bot-module', to: 'rng-finance', status: 'inactive' },
   { from: 'discord-server-module', to: 'rng-finance', status: 'inactive' },
   { from: 'embed-builder', to: 'rng-finance', status: 'inactive' },

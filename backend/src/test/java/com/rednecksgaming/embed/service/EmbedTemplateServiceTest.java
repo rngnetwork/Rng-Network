@@ -15,6 +15,8 @@ import com.rednecksgaming.embed.dto.UpdateTemplateRequest;
 import com.rednecksgaming.embed.repository.EmbedTemplateRepository;
 import com.rednecksgaming.identity.domain.User;
 import com.rednecksgaming.identity.repository.UserRepository;
+import com.rednecksgaming.server.domain.Server;
+import com.rednecksgaming.server.repository.ServerRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -92,29 +94,29 @@ class EmbedTemplateServiceTest {
     }
 
     @Test
-    @DisplayName("listTemplates with global serverId and category queries findGlobalAccessibleByCategory")
+    @DisplayName("listTemplates with global serverId and category queries findByCategoryIgnoreCase")
     void listTemplates_globalAndCategory() {
         Pageable pageable = PageRequest.of(0, 10);
-        when(templateRepository.findGlobalAccessibleByCategory(eq("1"), eq("onboarding"), eq(pageable)))
+        when(templateRepository.findByCategoryIgnoreCase(eq("onboarding"), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of()));
 
         Page<TemplateResponse> result = service.listTemplates(1L, "global", "Onboarding", pageable);
 
         assertThat(result).isNotNull();
-        verify(templateRepository).findGlobalAccessibleByCategory("1", "onboarding", pageable);
+        verify(templateRepository).findByCategoryIgnoreCase("onboarding", pageable);
     }
 
     @Test
-    @DisplayName("listTemplates with null serverId queries findGlobalAccessible")
+    @DisplayName("listTemplates with null serverId queries findAll")
     void listTemplates_globalOnly() {
         Pageable pageable = PageRequest.of(0, 10);
-        when(templateRepository.findGlobalAccessible(eq("1"), eq(pageable)))
+        when(templateRepository.findAll(eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of()));
 
         Page<TemplateResponse> result = service.listTemplates(1L, null, null, pageable);
 
         assertThat(result).isNotNull();
-        verify(templateRepository).findGlobalAccessible("1", pageable);
+        verify(templateRepository).findAll(pageable);
     }
 
     @Test
@@ -451,15 +453,15 @@ class EmbedTemplateServiceTest {
     }
 
     @Test
-    @DisplayName("listTemplates with null operatorUserId and blank serverId queries findGlobalAccessible with null authorId")
+    @DisplayName("listTemplates with null operatorUserId and blank serverId queries findAll")
     void listTemplates_nullUserAndBlankServer() {
         Pageable pageable = PageRequest.of(0, 10);
-        when(templateRepository.findGlobalAccessible(isNull(), eq(pageable)))
+        when(templateRepository.findAll(eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of()));
 
         Page<TemplateResponse> result = service.listTemplates(null, "   ", null, pageable);
         assertThat(result).isNotNull();
-        verify(templateRepository).findGlobalAccessible(isNull(), eq(pageable));
+        verify(templateRepository).findAll(pageable);
     }
 
     @Test
@@ -580,17 +582,17 @@ class EmbedTemplateServiceTest {
     @DisplayName("listTemplates covers null operator, blank serverId, and blank category")
     void listTemplates_nullOperatorAndBlankFilters() {
         Pageable pageable = PageRequest.of(0, 10);
-        when(templateRepository.findGlobalAccessible(isNull(), eq(pageable)))
+        when(templateRepository.findAll(eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of()));
         when(templateRepository.findAccessibleByServer(eq("srv_clean"), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of()));
 
-        // null operator and blank server/category -> findGlobalAccessible(null, pageable)
+        // null operator and blank server/category -> findAll(pageable)
         Page<TemplateResponse> r1 = service.listTemplates(null, "   ", "   ", pageable);
         assertThat(r1).isNotNull();
-        verify(templateRepository).findGlobalAccessible(isNull(), eq(pageable));
+        verify(templateRepository).findAll(pageable);
 
-        // null operator and global serverId -> findGlobalAccessible(null, pageable)
+        // null operator and global serverId -> findAll(pageable)
         Page<TemplateResponse> r2 = service.listTemplates(null, "global", null, pageable);
         assertThat(r2).isNotNull();
 
@@ -598,6 +600,23 @@ class EmbedTemplateServiceTest {
         Page<TemplateResponse> r3 = service.listTemplates(1L, " srv_clean ", "   ", pageable);
         assertThat(r3).isNotNull();
         verify(templateRepository).findAccessibleByServer("srv_clean", pageable);
+    }
+
+    @Test
+    @DisplayName("listTemplates with ServerRepository resolves snowflake and slug")
+    void listTemplates_withServerRepositoryResolution() {
+        ServerRepository mockServerRepo = mock(ServerRepository.class);
+        EmbedTemplateService serviceWithRepo = new EmbedTemplateService(templateRepository, userRepository, validatorService, mockServerRepo);
+        Pageable pageable = PageRequest.of(0, 10);
+
+        Server srv = Server.builder().id("123456789").slug("test-slug").name("Test Server").build();
+        when(mockServerRepo.findByIdOrSlug("test-slug")).thenReturn(Optional.of(srv));
+        when(templateRepository.findAccessibleByServer(eq("123456789"), eq("test-slug"), eq(pageable)))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        Page<TemplateResponse> res = serviceWithRepo.listTemplates(1L, "test-slug", null, pageable);
+        assertThat(res).isNotNull();
+        verify(templateRepository).findAccessibleByServer("123456789", "test-slug", pageable);
     }
 
     @Test

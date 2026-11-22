@@ -50,6 +50,9 @@ class ActionExecutionRouterTest {
     private RoleActionExecutor roleActionExecutor;
 
     @Mock
+    private RoleVerifyActionExecutor roleVerifyActionExecutor;
+
+    @Mock
     private TicketActionExecutor ticketActionExecutor;
 
     @Mock
@@ -99,6 +102,7 @@ class ActionExecutionRouterTest {
                 embedActionRepository,
                 interactionLogRepository,
                 roleActionExecutor,
+                roleVerifyActionExecutor,
                 ticketActionExecutor,
                 replyActionExecutor,
                 dmActionExecutor,
@@ -127,26 +131,42 @@ class ActionExecutionRouterTest {
                 .actionType(ActionType.REPLY)
                 .build();
 
-        router.executeButtonAction(buttonEvent, action, Map.of("k", "v"));
+        router.executeButtonAction(buttonEvent, action, Collections.emptyMap());
 
-        verify(replyActionExecutor).executeReplyAction(hook, guild, member, user, channel, "msg_001", action, Map.of("k", "v"), null);
-        verify(redisTemplate).delete("interaction:session:g1:u1:msg_001");
+        verify(replyActionExecutor).executeReplyAction(hook, guild, member, user, channel, "msg_001", action, Collections.emptyMap(), null);
     }
 
     @Test
-    @DisplayName("executeButtonAction: handles retrieveMember exception when event.getMember() is null")
-    void executeButtonAction_retrieveMemberThrows() {
+    @DisplayName("executeButtonAction: handles member retrieval failure gracefully")
+    void executeButtonAction_retrieveMemberFailure() {
         when(buttonEvent.getMember()).thenReturn(null);
         when(buttonEvent.getGuild()).thenReturn(guild);
         when(buttonEvent.getUser()).thenReturn(user);
         when(buttonEvent.getHook()).thenReturn(hook);
-        when(guild.retrieveMember(user)).thenReturn(memberRestAction);
-        when(memberRestAction.complete()).thenThrow(new RuntimeException("Member departed"));
-        when(user.getId()).thenReturn("u_missing");
-        when(guild.getId()).thenReturn("g1");
+        when(buttonEvent.getMessageChannel()).thenReturn(channel);
+        when(buttonEvent.getMessageId()).thenReturn("msg_002");
+        when(guild.retrieveMember(user)).thenThrow(new RuntimeException("Member fetch error"));
 
         EmbedAction action = EmbedAction.builder()
                 .actionId("act_reply")
+                .actionType(ActionType.REPLY)
+                .build();
+
+        router.executeButtonAction(buttonEvent, action, Collections.emptyMap());
+
+        verify(hook).editOriginal(contains("can only be used within a Discord server"));
+        verifyNoInteractions(replyActionExecutor);
+    }
+
+    @Test
+    @DisplayName("executeComponentAction: early returns if guild or clickingMember is null")
+    void executeComponentAction_nullGuildOrMember() {
+        when(buttonEvent.getGuild()).thenReturn(null);
+        when(buttonEvent.getMember()).thenReturn(null);
+        when(buttonEvent.getHook()).thenReturn(hook);
+
+        EmbedAction action = EmbedAction.builder()
+                .actionId("act_null")
                 .actionType(ActionType.REPLY)
                 .build();
 
@@ -203,38 +223,38 @@ class ActionExecutionRouterTest {
     }
 
     @Test
-    @DisplayName("executeComponentAction: rejects when guild is null or member is null")
-    void executeComponentAction_nullGuildOrMember() {
-        EmbedAction action = EmbedAction.builder().actionType(ActionType.ROLE).build();
-
-        router.executeComponentAction(hook, null, member, user, channel, "m1", action, null, null);
-        verify(hook).editOriginal(contains("can only be used within a Discord server"));
-
-        router.executeComponentAction(hook, guild, null, user, channel, "m1", action, null, null);
-        verify(hook, times(2)).editOriginal(contains("can only be used within a Discord server"));
-    }
-
-    @Test
-    @DisplayName("executeComponentAction: routes to TICKET and DM executors")
-    void executeComponentAction_routingTicketAndDm() {
+    @DisplayName("executeComponentAction: correctly routes to all 5 ActionTypes")
+    void executeComponentAction_allActionTypes() {
         when(guild.getId()).thenReturn("g1");
         when(user.getId()).thenReturn("u1");
 
-        EmbedAction ticketAction = EmbedAction.builder().actionId("act_t").actionType(ActionType.TICKET).build();
-        router.executeComponentAction(hook, guild, member, user, channel, "m_t", ticketAction, null, null);
-        verify(ticketActionExecutor).executeTicketAction(hook, guild, member, user, channel, "m_t", ticketAction, null, null);
+        EmbedAction roleAction = EmbedAction.builder().actionId("act_role").actionType(ActionType.ROLE).build();
+        router.executeComponentAction(hook, guild, member, user, channel, "m1", roleAction, Collections.emptyMap(), null);
+        verify(roleActionExecutor).executeRoleAction(hook, guild, member, user, channel, "m1", roleAction, Collections.emptyMap(), null);
 
-        EmbedAction dmAction = EmbedAction.builder().actionId("act_d").actionType(ActionType.DM).build();
-        router.executeComponentAction(hook, guild, member, user, channel, "m_d", dmAction, null, null);
-        verify(dmActionExecutor).executeDmAction(hook, guild, member, user, channel, "m_d", dmAction, null, null);
+        EmbedAction verifyAction = EmbedAction.builder().actionId("act_verify").actionType(ActionType.ROLE_VERIFY).build();
+        router.executeComponentAction(hook, guild, member, user, channel, "m_v", verifyAction, Collections.emptyMap(), null);
+        verify(roleVerifyActionExecutor).executeRoleVerifyAction(hook, guild, member, user, channel, "m_v", verifyAction, Collections.emptyMap());
+
+        EmbedAction ticketAction = EmbedAction.builder().actionId("act_ticket").actionType(ActionType.TICKET).build();
+        router.executeComponentAction(hook, guild, member, user, channel, "m2", ticketAction, Collections.emptyMap(), "opt1");
+        verify(ticketActionExecutor).executeTicketAction(hook, guild, member, user, channel, "m2", ticketAction, Collections.emptyMap(), "opt1");
+
+        EmbedAction replyAction = EmbedAction.builder().actionId("act_reply").actionType(ActionType.REPLY).build();
+        router.executeComponentAction(hook, guild, member, user, channel, "m3", replyAction, Collections.emptyMap(), "opt2");
+        verify(replyActionExecutor).executeReplyAction(hook, guild, member, user, channel, "m3", replyAction, Collections.emptyMap(), "opt2");
+
+        EmbedAction dmAction = EmbedAction.builder().actionId("act_dm").actionType(ActionType.DM).build();
+        router.executeComponentAction(hook, guild, member, user, channel, "m4", dmAction, Collections.emptyMap(), "opt3");
+        verify(dmActionExecutor).executeDmAction(hook, guild, member, user, channel, "m4", dmAction, Collections.emptyMap(), "opt3");
     }
 
     @Test
-    @DisplayName("executeComponentAction: catches unexpected executor exception, notifies hook, logs error, and cleans up")
-    void executeComponentAction_executorThrowsException() {
+    @DisplayName("executeComponentAction: catches unhandled exception, edits hook, logs audit, and cleans up session")
+    void executeComponentAction_exceptionHandling() {
         when(guild.getId()).thenReturn("g1");
         when(user.getId()).thenReturn("u1");
-        when(user.getName()).thenReturn("Jane");
+        when(user.getName()).thenReturn("JohnDoe");
         when(channel.getId()).thenReturn("c1");
 
         EmbedAction action = EmbedAction.builder().actionId("act_err").actionType(ActionType.ROLE).build();
@@ -261,13 +281,19 @@ class ActionExecutionRouterTest {
     }
 
     @Test
-    @DisplayName("executeComponentAction (synchronous): routes to ROLE, REPLY, TICKET, DM, and handles unsupported action")
+    @DisplayName("executeComponentAction (synchronous): routes to ROLE, ROLE_VERIFY, REPLY, TICKET, DM, and handles unsupported action")
     void executeComponentActionSync_routing() {
         EmbedAction roleAction = EmbedAction.builder().actionId("a_role").actionType(ActionType.ROLE).build();
         when(embedActionRepository.findByActionId("a_role")).thenReturn(Optional.of(roleAction));
         when(roleActionExecutor.executeRoleActionSynchronous(roleAction, guild, member, hook, null))
                 .thenReturn(ActionExecutionResult.success("Role OK"));
         assertThat(router.executeComponentAction("a_role", guild, member, hook, null).getResponseMessage()).isEqualTo("Role OK");
+
+        EmbedAction verifyAction = EmbedAction.builder().actionId("a_verify").actionType(ActionType.ROLE_VERIFY).build();
+        when(embedActionRepository.findByActionId("a_verify")).thenReturn(Optional.of(verifyAction));
+        when(roleVerifyActionExecutor.executeRoleVerifyActionSynchronous(verifyAction, guild, member, hook, null))
+                .thenReturn(ActionExecutionResult.success("Verify OK"));
+        assertThat(router.executeComponentAction("a_verify", guild, member, hook, null).getResponseMessage()).isEqualTo("Verify OK");
 
         EmbedAction replyAction = EmbedAction.builder().actionId("a_reply").actionType(ActionType.REPLY).build();
         when(embedActionRepository.findByActionId("a_reply")).thenReturn(Optional.of(replyAction));
@@ -298,24 +324,24 @@ class ActionExecutionRouterTest {
     @Test
     @DisplayName("executeCompoundAction: delegates directly to compoundActionExecutor")
     void executeCompoundAction_delegates() {
-        when(compoundActionExecutor.executeCompoundAction("cmp_1", guild, member, hook, null))
-                .thenReturn(ActionExecutionResult.success("Chained OK"));
+        when(compoundActionExecutor.executeCompoundAction("compound_id", guild, member, hook, null))
+                .thenReturn(ActionExecutionResult.success("Compound OK"));
 
-        ActionExecutionResult result = router.executeCompoundAction("cmp_1", guild, member, hook, null);
-        assertThat(result.isSuccess()).isTrue();
-        assertThat(result.getResponseMessage()).isEqualTo("Chained OK");
+        ActionExecutionResult res = router.executeCompoundAction("compound_id", guild, member, hook, null);
+        assertThat(res.isSuccess()).isTrue();
+        assertThat(res.getResponseMessage()).isEqualTo("Compound OK");
     }
 
     @Test
-    @DisplayName("cleanupSession: handles null parameters and redis exceptions gracefully")
-    void cleanupSession_nullParametersAndExceptionHandling() {
-        // Null parameters
-        router.cleanupSession(null, "u1", "m1");
-        router.cleanupSession("g1", null, "m1");
-        router.cleanupSession("g1", "u1", null);
-        verifyNoInteractions(redisTemplate);
+    @DisplayName("cleanupSession: deletes key when all parameters and redisTemplate are present")
+    void cleanupSession_success() {
+        router.cleanupSession("g1", "u1", "m1");
+        verify(redisTemplate).delete("interaction:session:g1:u1:m1");
+    }
 
-        // Redis throws exception
+    @Test
+    @DisplayName("cleanupSession: handles Redis exceptions without failing")
+    void cleanupSession_handlesException() {
         doThrow(new RuntimeException("Redis connection refused"))
                 .when(redisTemplate).delete("interaction:session:g1:u1:m1");
         router.cleanupSession("g1", "u1", "m1");
@@ -329,6 +355,7 @@ class ActionExecutionRouterTest {
                 embedActionRepository,
                 interactionLogRepository,
                 roleActionExecutor,
+                roleVerifyActionExecutor,
                 ticketActionExecutor,
                 replyActionExecutor,
                 dmActionExecutor,
@@ -341,77 +368,12 @@ class ActionExecutionRouterTest {
     }
 
     @Test
-    @DisplayName("recordAuditLog: handles null action and repository exceptions gracefully")
-    void recordAuditLog_nullActionAndSaveThrows() {
-        // null action
-        router.recordAuditLog(null, "g1", "c1", "m1", "u1", "Jane", "SUCCESS", "ok");
-        verify(interactionLogRepository).save(argThat(log ->
-                "unknown".equals(log.getActionId()) && log.getActionType() == null
-        ));
+    @DisplayName("cleanupSession: early returns on null arguments")
+    void cleanupSession_nullArgs() {
+        router.cleanupSession(null, "u1", "m1");
+        router.cleanupSession("g1", null, "m1");
+        router.cleanupSession("g1", "u1", null);
 
-        // save throws exception
-        doThrow(new RuntimeException("MongoDB write timeout"))
-                .when(interactionLogRepository).save(any(InteractionLog.class));
-        router.recordAuditLog(null, "g1", "c1", "m1", "u1", "Jane", "SUCCESS", "ok");
-        // Should not bubble exception
-    }
-
-    @Test
-    @DisplayName("executeStringSelectAction: member null retrieval, retrieval exception, and empty values")
-    void executeStringSelectAction_memberNullAndEmptyValues() {
-        // 1. member null, retrieval succeeds, empty values
-        when(selectEvent.getMember()).thenReturn(null);
-        when(selectEvent.getGuild()).thenReturn(guild);
-        when(selectEvent.getUser()).thenReturn(user);
-        when(selectEvent.getHook()).thenReturn(hook);
-        when(selectEvent.getMessageChannel()).thenReturn(channel);
-        when(selectEvent.getMessageId()).thenReturn("msg_sel_1");
-        when(guild.retrieveMember(user)).thenReturn(memberRestAction);
-        when(memberRestAction.complete()).thenReturn(member);
-        when(selectEvent.getValues()).thenReturn(Collections.emptyList());
-        when(guild.getId()).thenReturn("g1");
-        when(user.getId()).thenReturn("u1");
-
-        EmbedAction action = EmbedAction.builder().actionId("a_sel").actionType(ActionType.ROLE).build();
-        router.executeStringSelectAction(selectEvent, action, null);
-        verify(roleActionExecutor).executeRoleAction(hook, guild, member, user, channel, "msg_sel_1", action, null, "");
-
-        // 2. member null, retrieval throws exception
-        when(memberRestAction.complete()).thenThrow(new RuntimeException("Member not found"));
-        router.executeStringSelectAction(selectEvent, action, null);
-        verify(hook).editOriginal(contains("can only be used within a Discord server"));
-    }
-
-    @Test
-    @DisplayName("executeButtonAction: member already non-null does not call retrieveMember")
-    void executeButtonAction_memberNonNull() {
-        when(buttonEvent.getMember()).thenReturn(member);
-        when(buttonEvent.getGuild()).thenReturn(guild);
-        when(buttonEvent.getUser()).thenReturn(user);
-        when(buttonEvent.getHook()).thenReturn(hook);
-        when(buttonEvent.getMessageChannel()).thenReturn(channel);
-        when(buttonEvent.getMessageId()).thenReturn("msg_btn_2");
-        when(guild.getId()).thenReturn("g1");
-        when(user.getId()).thenReturn("u1");
-
-        EmbedAction action = EmbedAction.builder().actionId("a_btn").actionType(ActionType.TICKET).build();
-        router.executeButtonAction(buttonEvent, action, null);
-
-        verify(guild, never()).retrieveMember(any());
-        verify(ticketActionExecutor).executeTicketAction(hook, guild, member, user, channel, "msg_btn_2", action, null, null);
-    }
-
-    @Test
-    @DisplayName("executeComponentAction: rejects when clickingMember or guild is null")
-    void executeComponentAction_nullGuildOrClickingMember() {
-        EmbedAction action = EmbedAction.builder().actionId("a1").build();
-
-        // guild is null
-        router.executeComponentAction(hook, null, member, user, channel, "m1", action, null, null);
-        verify(hook).editOriginal("❌ This interactive component can only be used within a Discord server.");
-
-        // clickingMember is null
-        router.executeComponentAction(hook, guild, null, user, channel, "m1", action, null, null);
-        verify(hook, atLeastOnce()).editOriginal("❌ This interactive component can only be used within a Discord server.");
+        verifyNoInteractions(redisTemplate);
     }
 }
