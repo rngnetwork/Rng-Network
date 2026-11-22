@@ -2,11 +2,12 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { Plus, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Plus, Trash2, Image as ImageIcon, Upload, Loader2 } from 'lucide-react';
 import type { DiscordMediaGalleryComponent, DiscordMediaItem } from '@/lib/model/embed';
 import { Modal } from '@/components/common/feedback/Modal';
 import { TextInput } from '@/components/common/input/TextInput';
 import { Button } from '@/components/common/input/Button';
+import { uploadImageFile } from '@/lib/api/upload';
 
 export interface MediaGalleryConfigModalProps {
   isOpen: boolean;
@@ -26,11 +27,15 @@ export const MediaGalleryConfigModal: React.FC<MediaGalleryConfigModalProps> = (
   const [items, setItems] = useState<(DiscordMediaItem | string)[]>(
     gallery?.items || []
   );
+  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
+  const [isUploadingNew, setIsUploadingNew] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   if (gallery !== prevGallery) {
     setPrevGallery(gallery);
     setCustomId(gallery?.id || '');
     setItems(gallery?.items || []);
+    setUploadError(null);
   }
 
   const getMediaUrl = (item: DiscordMediaItem | string): string => {
@@ -42,10 +47,12 @@ export const MediaGalleryConfigModal: React.FC<MediaGalleryConfigModalProps> = (
     const updated = [...items];
     updated[idx] = { media: { url }, url };
     setItems(updated);
+    setUploadError(null);
   };
 
   const handleRemoveItem = (idx: number) => {
     setItems(items.filter((_, i) => i !== idx));
+    setUploadError(null);
   };
 
   const handleAddItem = () => {
@@ -57,6 +64,45 @@ export const MediaGalleryConfigModal: React.FC<MediaGalleryConfigModalProps> = (
         url: 'https://cdn.discordapp.com/embed/avatars/0.png',
       },
     ]);
+    setUploadError(null);
+  };
+
+  const handleUploadNewItem = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || items.length >= 4) return;
+    setUploadError(null);
+    setIsUploadingNew(true);
+    try {
+      const publicUrl = await uploadImageFile(file);
+      setItems((prev) => [
+        ...prev,
+        { media: { url: publicUrl }, url: publicUrl },
+      ]);
+    } catch (err: unknown) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed.');
+    } finally {
+      setIsUploadingNew(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleUploadReplaceItem = async (
+    idx: number,
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadError(null);
+    setUploadingIdx(idx);
+    try {
+      const publicUrl = await uploadImageFile(file);
+      handleUpdateUrl(idx, publicUrl);
+    } catch (err: unknown) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed.');
+    } finally {
+      setUploadingIdx(null);
+      e.target.value = '';
+    }
   };
 
   const handleSave = () => {
@@ -111,16 +157,42 @@ export const MediaGalleryConfigModal: React.FC<MediaGalleryConfigModalProps> = (
               Gallery Images ({items.length}/4)
             </label>
             {items.length < 4 && (
-              <button
-                type="button"
-                onClick={handleAddItem}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-apple-sm bg-white/[0.05] hover:bg-white/[0.1] text-[11px] font-medium text-zinc-200 transition-colors cursor-pointer"
-              >
-                <Plus size={12} />
-                <span>Add Media</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <label className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-apple-sm bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-[11px] font-medium text-zinc-200 transition-colors cursor-pointer">
+                  {isUploadingNew ? (
+                    <>
+                      <Loader2 size={12} className="animate-spin text-brand-red" />
+                      <span>Uploading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={12} className="text-cyan-400" />
+                      <span>+ Upload</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={isUploadingNew}
+                    onChange={handleUploadNewItem}
+                    className="hidden"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={handleAddItem}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-apple-sm bg-white/[0.05] hover:bg-white/[0.1] text-[11px] font-medium text-zinc-200 transition-colors cursor-pointer"
+                >
+                  <Plus size={12} />
+                  <span>Add URL</span>
+                </button>
+              </div>
             )}
           </div>
+
+          {uploadError && (
+            <p className="text-[11px] text-red-400 font-sans">{uploadError}</p>
+          )}
 
           <div className="flex flex-col gap-2.5">
             {items.map((item, idx) => {
@@ -155,6 +227,25 @@ export const MediaGalleryConfigModal: React.FC<MediaGalleryConfigModalProps> = (
                       className="w-full px-3 py-1.5 rounded bg-black/40 border border-white/10 focus:border-brand-red text-xs text-white outline-none font-sans"
                     />
                   </div>
+
+                  {/* Upload from device to replace */}
+                  <label
+                    title="Upload from device to replace this image"
+                    className="p-1.5 rounded text-zinc-400 hover:text-cyan-300 hover:bg-white/[0.08] transition-colors cursor-pointer shrink-0"
+                  >
+                    {uploadingIdx === idx ? (
+                      <Loader2 size={14} className="animate-spin text-brand-red" />
+                    ) : (
+                      <Upload size={14} />
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={uploadingIdx === idx}
+                      onChange={(e) => handleUploadReplaceItem(idx, e)}
+                      className="hidden"
+                    />
+                  </label>
 
                   {/* Delete button */}
                   {items.length > 1 && (
