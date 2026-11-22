@@ -8,6 +8,7 @@ package com.rednecksgaming.embed.domain;
  */
 public enum ActionType {
     ROLE,
+    ROLE_VERIFY,
     REPLY,
     TICKET,
     DM

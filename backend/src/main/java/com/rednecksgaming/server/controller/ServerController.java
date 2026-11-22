@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -59,8 +60,11 @@ public class ServerController {
     }
 
     @GetMapping("/{idOrSlug}/emojis")
-    public ResponseEntity<ApiResponse<List<DiscordEmojiDto>>> getServerEmojis(@PathVariable("idOrSlug") String idOrSlug) {
-        List<DiscordEmojiDto> emojis = serverService.getServerEmojis(idOrSlug);
+    public ResponseEntity<ApiResponse<List<DiscordEmojiDto>>> getServerEmojis(
+            @PathVariable("idOrSlug") String idOrSlug,
+            @RequestParam(name = "refresh", required = false, defaultValue = "false") boolean refresh
+    ) {
+        List<DiscordEmojiDto> emojis = serverService.getServerEmojis(idOrSlug, refresh);
         return ResponseEntity.ok(ApiResponse.success(emojis));
     }
 

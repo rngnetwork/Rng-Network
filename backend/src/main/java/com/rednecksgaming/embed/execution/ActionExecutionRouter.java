@@ -37,6 +37,7 @@ public class ActionExecutionRouter {
     private final EmbedActionRepository embedActionRepository;
     private final InteractionLogRepository interactionLogRepository;
     private final RoleActionExecutor roleActionExecutor;
+    private final RoleVerifyActionExecutor roleVerifyActionExecutor;
     private final TicketActionExecutor ticketActionExecutor;
     private final ReplyActionExecutor replyActionExecutor;
     private final DmActionExecutor dmActionExecutor;
@@ -48,6 +49,7 @@ public class ActionExecutionRouter {
             EmbedActionRepository embedActionRepository,
             InteractionLogRepository interactionLogRepository,
             RoleActionExecutor roleActionExecutor,
+            RoleVerifyActionExecutor roleVerifyActionExecutor,
             TicketActionExecutor ticketActionExecutor,
             ReplyActionExecutor replyActionExecutor,
             DmActionExecutor dmActionExecutor,
@@ -56,6 +58,7 @@ public class ActionExecutionRouter {
         this.embedActionRepository = embedActionRepository;
         this.interactionLogRepository = interactionLogRepository;
         this.roleActionExecutor = roleActionExecutor;
+        this.roleVerifyActionExecutor = roleVerifyActionExecutor;
         this.ticketActionExecutor = ticketActionExecutor;
         this.replyActionExecutor = replyActionExecutor;
         this.dmActionExecutor = dmActionExecutor;
@@ -127,6 +130,7 @@ public class ActionExecutionRouter {
         try {
             switch (action.getActionType()) {
                 case ROLE -> roleActionExecutor.executeRoleAction(hook, guild, clickingMember, user, channel, messageId, action, sessionData, selectedOption);
+                case ROLE_VERIFY -> roleVerifyActionExecutor.executeRoleVerifyAction(hook, guild, clickingMember, user, channel, messageId, action, sessionData);
                 case TICKET -> ticketActionExecutor.executeTicketAction(hook, guild, clickingMember, user, channel, messageId, action, sessionData, selectedOption);
                 case REPLY -> replyActionExecutor.executeReplyAction(hook, guild, clickingMember, user, channel, messageId, action, sessionData, selectedOption);
                 case DM -> dmActionExecutor.executeDmAction(hook, guild, clickingMember, user, channel, messageId, action, sessionData, selectedOption);
@@ -153,6 +157,10 @@ public class ActionExecutionRouter {
 
         if (action.getActionType() == ActionType.ROLE) {
             return roleActionExecutor.executeRoleActionSynchronous(action, guild, operator, hook, sessionData);
+        }
+
+        if (action.getActionType() == ActionType.ROLE_VERIFY) {
+            return roleVerifyActionExecutor.executeRoleVerifyActionSynchronous(action, guild, operator, hook, sessionData);
         }
 
         if (action.getActionType() == ActionType.REPLY) {

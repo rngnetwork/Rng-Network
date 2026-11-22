@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rednecksgaming.common.exception.InternalServerException;
 import com.rednecksgaming.common.exception.ResourceNotFoundException;
+import com.rednecksgaming.embed.domain.ActionType;
 import com.rednecksgaming.embed.domain.EmbedAction;
 import com.rednecksgaming.embed.domain.EmbedTemplate;
 import com.rednecksgaming.embed.domain.ResponseType;
@@ -93,6 +94,12 @@ public class EmbedActionServiceImpl implements EmbedActionService {
             }
             if (!isHighCommand) {
                 throw new AccessDeniedException("Only High Command can create global action templates");
+            }
+        }
+
+        if (request.actionType() == ActionType.ROLE_VERIFY) {
+            if (request.roleId() == null || request.roleId().trim().isBlank()) {
+                throw new IllegalArgumentException("Verification Role ID is required for ROLE_VERIFY action");
             }
         }
 
@@ -184,6 +191,11 @@ public class EmbedActionServiceImpl implements EmbedActionService {
             if (!isHighCommand) {
                 throw new AccessDeniedException("Only High Command can modify global action templates");
             }
+        }
+
+        if ((request.actionType() == ActionType.ROLE_VERIFY || (request.actionType() == null && existing.getActionType() == ActionType.ROLE_VERIFY))
+                && request.roleId() != null && request.roleId().trim().isBlank()) {
+            throw new IllegalArgumentException("Verification Role ID cannot be blank for ROLE_VERIFY action");
         }
 
         if (request.responseEmbedTemplateId() != null && !request.responseEmbedTemplateId().isBlank()) {

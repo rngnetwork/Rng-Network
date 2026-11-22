@@ -65,6 +65,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/logout",
                                 "/api/v1/auth/forgot-password/initiate",
                                 "/api/v1/auth/forgot-password/verify-discord",
+                                "/api/v1/embeds/media/**",
                                 "/oauth2/**",
                                 "/login/oauth2/**",
                                 "/error"
@@ -87,10 +88,6 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(List.of(
-                "http://localhost:3000",
-                "http://localhost:8080",
-                "https://*.github.dev",
-                "https://*.app.github.dev",
                 "https://rednecksgaming.com",
                 "https://www.rednecksgaming.com"
         ));

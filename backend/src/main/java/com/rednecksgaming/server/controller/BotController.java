@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -22,8 +23,10 @@ public class BotController {
     private final ServerService serverService;
 
     @GetMapping("/emojis")
-    public ResponseEntity<ApiResponse<List<DiscordEmojiDto>>> getBotEmojis() {
-        List<DiscordEmojiDto> emojis = serverService.getBotEmojis();
+    public ResponseEntity<ApiResponse<List<DiscordEmojiDto>>> getBotEmojis(
+            @RequestParam(name = "refresh", required = false, defaultValue = "false") boolean refresh
+    ) {
+        List<DiscordEmojiDto> emojis = serverService.getBotEmojis(refresh);
         return ResponseEntity.ok(ApiResponse.success(emojis));
     }
 }

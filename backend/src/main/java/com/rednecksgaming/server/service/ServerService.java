@@ -637,8 +637,15 @@ public class ServerService {
         return idOrSlug;
     }
 
-    @Cacheable(value = "emojis:server", key = "#idOrSlug")
-    public List<DiscordEmojiDto> getServerEmojis(String idOrSlug) {
+    @Caching(
+            evict = {
+                    @CacheEvict(value = "emojis:server", key = "#idOrSlug", condition = "#refresh", beforeInvocation = true)
+            },
+            cacheable = {
+                    @Cacheable(value = "emojis:server", key = "#idOrSlug")
+            }
+    )
+    public List<DiscordEmojiDto> getServerEmojis(String idOrSlug, boolean refresh) {
         String guildId = resolveGuildId(idOrSlug);
         if (guildId == null || !guildId.matches("\\d+")) {
             log.warn("Cannot resolve valid Discord snowflake ID for server identifier: {}", idOrSlug);
@@ -679,8 +686,19 @@ public class ServerService {
         return List.of();
     }
 
-    @Cacheable(value = "emojis:bot", key = "'all'")
-    public List<DiscordEmojiDto> getBotEmojis() {
+    public List<DiscordEmojiDto> getServerEmojis(String idOrSlug) {
+        return getServerEmojis(idOrSlug, false);
+    }
+
+    @Caching(
+            evict = {
+                    @CacheEvict(value = "emojis:bot", allEntries = true, condition = "#refresh", beforeInvocation = true)
+            },
+            cacheable = {
+                    @Cacheable(value = "emojis:bot", key = "'all'")
+            }
+    )
+    public List<DiscordEmojiDto> getBotEmojis(boolean refresh) {
         // Resolve Application ID and fetch application-scoped emojis
         String appId = null;
         if (jda.isPresent()) {
@@ -706,5 +724,9 @@ public class ServerService {
         }
 
         return List.of();
+    }
+
+    public List<DiscordEmojiDto> getBotEmojis() {
+        return getBotEmojis(false);
     }
 }

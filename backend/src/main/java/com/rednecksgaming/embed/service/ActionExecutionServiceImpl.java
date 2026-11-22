@@ -25,7 +25,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.Map;
 
-
 @Slf4j
 @Service
 public class ActionExecutionServiceImpl implements ActionExecutionService {
@@ -52,11 +51,12 @@ public class ActionExecutionServiceImpl implements ActionExecutionService {
             @Autowired(required = false) DiscordDispatchService discordDispatchService) {
         TemplateVariableInterpolator interpolator = new TemplateVariableInterpolator();
         RoleActionExecutor roleExecutor = new RoleActionExecutor(interactionLogRepository, embedTemplateRepository, interpolator, embedTemplateRenderer, discordDispatchService);
+        RoleVerifyActionExecutor roleVerifyExecutor = new RoleVerifyActionExecutor(interactionLogRepository, embedTemplateRepository, interpolator, embedTemplateRenderer, discordDispatchService);
         DmActionExecutor dmExecutor = new DmActionExecutor(interactionLogRepository, embedTemplateRepository, interpolator, roleExecutor, embedTemplateRenderer, discordDispatchService);
         ReplyActionExecutor replyExecutor = new ReplyActionExecutor(interactionLogRepository, embedTemplateRepository, interpolator, roleExecutor, embedTemplateRenderer, discordDispatchService);
         TicketActionExecutor ticketExecutor = new TicketActionExecutor(interactionLogRepository, embedTemplateRepository, interpolator, roleExecutor, dmExecutor, replyExecutor, embedTemplateRenderer);
         CompoundActionExecutor compoundExecutor = new CompoundActionExecutor(embedActionRepository, embedTemplateRepository, interpolator, roleExecutor, dmExecutor, embedTemplateRenderer);
-        this.actionExecutionRouter = new ActionExecutionRouter(embedActionRepository, interactionLogRepository, roleExecutor, ticketExecutor, replyExecutor, dmExecutor, compoundExecutor, redisTemplate);
+        this.actionExecutionRouter = new ActionExecutionRouter(embedActionRepository, interactionLogRepository, roleExecutor, roleVerifyExecutor, ticketExecutor, replyExecutor, dmExecutor, compoundExecutor, redisTemplate);
         this.roleActionExecutor = roleExecutor;
         this.dmActionExecutor = dmExecutor;
     }

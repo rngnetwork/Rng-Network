@@ -15,8 +15,10 @@ import com.rednecksgaming.embed.dto.UpdateTemplateRequest;
 import com.rednecksgaming.embed.repository.EmbedTemplateRepository;
 import com.rednecksgaming.identity.domain.User;
 import com.rednecksgaming.identity.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
+import com.rednecksgaming.server.domain.Server;
+import com.rednecksgaming.server.repository.ServerRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -29,31 +31,69 @@ import java.util.*;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class EmbedTemplateService {
 
     private final EmbedTemplateRepository templateRepository;
     private final UserRepository userRepository;
     private final PreFlightValidatorService validatorService;
+    private final ServerRepository serverRepository;
+
+    @Autowired
+    public EmbedTemplateService(
+            EmbedTemplateRepository templateRepository,
+            UserRepository userRepository,
+            PreFlightValidatorService validatorService,
+            ServerRepository serverRepository) {
+        this.templateRepository = templateRepository;
+        this.userRepository = userRepository;
+        this.validatorService = validatorService;
+        this.serverRepository = serverRepository;
+    }
+
+    public EmbedTemplateService(
+            EmbedTemplateRepository templateRepository,
+            UserRepository userRepository,
+            PreFlightValidatorService validatorService) {
+        this(templateRepository, userRepository, validatorService, null);
+    }
 
     public Page<TemplateResponse> listTemplates(Long operatorUserId, String serverId, String category, Pageable pageable) {
         Page<EmbedTemplate> templates;
-        String authorId = operatorUserId != null ? String.valueOf(operatorUserId) : null;
         boolean hasServer = serverId != null && !serverId.isBlank() && !serverId.equalsIgnoreCase("global");
-        boolean hasCategory = category != null && !category.isBlank();
+        boolean hasCategory = category != null && !category.isBlank() && !category.equalsIgnoreCase("all");
 
         if (hasServer) {
             String cleanServerId = serverId.trim();
+            String serverSnowflake = cleanServerId;
+            String serverSlug = cleanServerId;
+
+            if (serverRepository != null) {
+                Optional<Server> resolvedServer = serverRepository.findByIdOrSlug(cleanServerId);
+                if (resolvedServer.isPresent()) {
+                    serverSnowflake = resolvedServer.get().getId();
+                    serverSlug = resolvedServer.get().getSlug();
+                }
+            }
+
             if (hasCategory) {
-                templates = templateRepository.findAccessibleByServerAndCategory(cleanServerId, category.trim().toLowerCase(), pageable);
+                String cleanCategory = category.trim().toLowerCase();
+                if (serverSnowflake.equalsIgnoreCase(serverSlug)) {
+                    templates = templateRepository.findAccessibleByServerAndCategory(serverSnowflake, cleanCategory, pageable);
+                } else {
+                    templates = templateRepository.findAccessibleByServerAndCategory(serverSnowflake, serverSlug, cleanCategory, pageable);
+                }
             } else {
-                templates = templateRepository.findAccessibleByServer(cleanServerId, pageable);
+                if (serverSnowflake.equalsIgnoreCase(serverSlug)) {
+                    templates = templateRepository.findAccessibleByServer(serverSnowflake, pageable);
+                } else {
+                    templates = templateRepository.findAccessibleByServer(serverSnowflake, serverSlug, pageable);
+                }
             }
         } else {
             if (hasCategory) {
-                templates = templateRepository.findGlobalAccessibleByCategory(authorId, category.trim().toLowerCase(), pageable);
+                templates = templateRepository.findByCategoryIgnoreCase(category.trim().toLowerCase(), pageable);
             } else {
-                templates = templateRepository.findGlobalAccessible(authorId, pageable);
+                templates = templateRepository.findAll(pageable);
             }
         }
         return templates.map(this::toResponse);
@@ -147,7 +187,6 @@ public class EmbedTemplateService {
                     || operator.getEmail().equalsIgnoreCase(template.getAuthorName())));
 
         boolean isHighCommand = operator.isHighCommand()
-
                 || (operator.getRole() != null && (
                     operator.getRole().contains("HIGH_COMMAND")
                     || operator.getRole().contains("SUPER_ADMIN")
@@ -235,7 +274,6 @@ public class EmbedTemplateService {
                     || operator.getEmail().equalsIgnoreCase(template.getAuthorName())));
 
         boolean isHighCommand = operator.isHighCommand()
-
                 || (operator.getRole() != null && (
                     operator.getRole().contains("HIGH_COMMAND")
                     || operator.getRole().contains("SUPER_ADMIN")

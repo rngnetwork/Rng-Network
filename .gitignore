@@ -39,6 +39,7 @@ backend/.env.local
 backend/.env.production
 backend/.env.development
 apache-maven-3.9.6/
+backend/uploads
 
 # ------------------------------------------------------------------------------
 # 3. Root Environment Files
