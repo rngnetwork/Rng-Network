@@ -2,8 +2,9 @@ import React from 'react';
 import Link from 'next/link';
 
 export interface BreadcrumbItem {
-  label: string;
+  label: React.ReactNode;
   href?: string;
+  onClick?: () => void;
 }
 
 export interface BreadcrumbsProps {
@@ -21,7 +22,7 @@ export const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ items, className = '' 
           const isLast = index === items.length - 1;
 
           return (
-            <li key={`${item.label}-${index}`} className="flex items-center gap-1.5">
+            <li key={`crumb-${index}`} className="flex items-center gap-1.5">
               {index > 0 ? (
                 <svg
                   className="w-3.5 h-3.5 text-text-tertiary/60 flex-shrink-0"
@@ -35,22 +36,32 @@ export const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ items, className = '' 
                 </svg>
               ) : null}
 
-              {isLast || !item.href ? (
+              {isLast ? (
                 <span
-                  className={`font-medium ${
-                    isLast ? 'text-text-primary' : 'text-text-secondary'
-                  }`}
-                  aria-current={isLast ? 'page' : undefined}
+                  className="font-medium text-text-primary"
+                  aria-current="page"
                 >
                   {item.label}
                 </span>
-              ) : (
+              ) : item.onClick ? (
+                <button
+                  type="button"
+                  onClick={item.onClick}
+                  className="hover:text-text-primary transition-colors text-text-secondary cursor-pointer"
+                >
+                  {item.label}
+                </button>
+              ) : item.href ? (
                 <Link
                   href={item.href}
                   className="hover:text-text-primary transition-colors text-text-secondary"
                 >
                   {item.label}
                 </Link>
+              ) : (
+                <span className="font-medium text-text-secondary">
+                  {item.label}
+                </span>
               )}
             </li>
           );
