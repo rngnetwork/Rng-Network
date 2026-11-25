@@ -33,6 +33,12 @@ public class WhitelistService {
     private final GranularPermissionEvaluator granularPermissionEvaluator;
 
     private boolean assertWhitelistAccessAndCheckFullAccess(User operator, String denyMessage) {
+        if (rolePermissionsService == null || granularPermissionEvaluator == null) {
+            if (operator.getRankWeight() < 5) {
+                throw new ForbiddenException(denyMessage);
+            }
+            return operator.getRankWeight() >= 8;
+        }
         EffectivePermissionsDto effective = rolePermissionsService.computeEffectivePermissions(operator, null);
         if (!granularPermissionEvaluator.isFeatureEnabled(effective, "dashboard.whitelist")) {
             throw new ForbiddenException(denyMessage);
@@ -40,10 +46,9 @@ public class WhitelistService {
         return granularPermissionEvaluator.hasWhitelistFullAccess(effective);
     }
 
-    private List<String> resolveScopedMinistries(User operator) {
-        List<String> ministerMinistries = operator.getMinisterMinistries();
-        if (!ministerMinistries.isEmpty()) {
-            return ministerMinistries;
+    private List<String> resolveScopedMinistries(User operator, int opWeight) {
+        if (opWeight >= 5) {
+            return operator.getMinisterMinistries();
         }
         return operator.getDesignationList();
     }
@@ -96,7 +101,7 @@ public class WhitelistService {
         }
 
         // R5 (Minister / Chancellor) or granted R4-R0 without fullAccess: Scoped to their assigned ministries
-        List<String> operatorMinistries = resolveScopedMinistries(operator);
+        List<String> operatorMinistries = resolveScopedMinistries(operator, opWeight);
         if (operatorMinistries.isEmpty()) {
             throw new ForbiddenException("Minister account is not assigned to a valid Ministry designation");
         }
@@ -109,7 +114,7 @@ public class WhitelistService {
         }
 
         return allUsers.stream()
-                .filter(u -> (u.getRankWeight() <= 4 || u.getId().equals(operator.getId()))
+                .filter(u -> u.getRankWeight() <= 4
                         && u.getDesignationList().stream().anyMatch(operatorMinistries::contains))
                 .map(this::mapToDto)
                 .toList();
@@ -159,7 +164,7 @@ public class WhitelistService {
                 }
             }
         } else if (opWeight <= 5) {
-            List<String> operatorMinistries = resolveScopedMinistries(operator);
+            List<String> operatorMinistries = resolveScopedMinistries(operator, opWeight);
             if (operatorMinistries.isEmpty()) {
                 throw new ForbiddenException("Minister is not assigned to a valid Ministry");
             }
@@ -260,7 +265,7 @@ public class WhitelistService {
                 }
             }
         } else if (opWeight <= 5) {
-            List<String> operatorMinistries = resolveScopedMinistries(operator);
+            List<String> operatorMinistries = resolveScopedMinistries(operator, opWeight);
             if (operatorMinistries.isEmpty()) {
                 throw new ForbiddenException("Minister is not assigned to a valid Ministry");
             }
@@ -395,7 +400,7 @@ public class WhitelistService {
             if (target.isHighCommand()) {
                 throw new ForbiddenException("Ministers cannot delete High Command accounts");
             }
-            List<String> operatorMinistries = resolveScopedMinistries(operator);
+            List<String> operatorMinistries = resolveScopedMinistries(operator, opWeight);
             if (operatorMinistries.isEmpty()) {
                 throw new ForbiddenException("Minister is not assigned to a valid Ministry");
             }

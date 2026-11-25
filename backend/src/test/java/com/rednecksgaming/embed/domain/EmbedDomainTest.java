@@ -244,6 +244,7 @@ class EmbedDomainTest {
     void actionEnums_adhereToSpec() {
         assertThat(ActionType.values()).containsExactly(
                 ActionType.ROLE,
+                ActionType.ROLE_VERIFY,
                 ActionType.REPLY,
                 ActionType.TICKET,
                 ActionType.DM

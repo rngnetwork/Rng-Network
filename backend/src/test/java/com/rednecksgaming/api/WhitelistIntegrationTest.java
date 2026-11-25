@@ -13,6 +13,7 @@ import com.rednecksgaming.identity.dto.WhitelistUserRequest;
 import com.rednecksgaming.identity.repository.UserRepository;
 import com.rednecksgaming.personnel.perms.domain.RolePermissions;
 import com.rednecksgaming.personnel.perms.repository.RolePermissionsRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -138,6 +139,21 @@ class WhitelistIntegrationTest {
         regularDevToken = tokenService.generateAccessToken(regularDev.getId(), regularDev.getEmail(), regularDev.getRole());
     }
 
+    @AfterEach
+    void tearDown() {
+        rolePermissionsRepository.findById("des_tech:Minister").ifPresent(ministerPerms -> {
+            Map<String, Object> perms = new LinkedHashMap<>(ministerPerms.getPermissions());
+            perms.put("dashboard", Map.of("enabled", false));
+            perms.put("dashboard.whitelist", Map.of("enabled", false, "fullAccess", false));
+            ministerPerms.setPermissions(perms);
+            rolePermissionsRepository.saveAndFlush(ministerPerms);
+            var cache = cacheManager.getCache("personnel:role_perms");
+            if (cache != null) {
+                cache.evict("des_tech:Minister");
+            }
+        });
+    }
+
     @Test
     @DisplayName("GET /api/v1/whitelist - High Command views all whitelisted users")
     void testHighCommandViewsAllWhitelistedUsers() throws Exception {
@@ -162,8 +178,8 @@ class WhitelistIntegrationTest {
                         .header(SecurityConstants.AUTHORIZATION_HEADER, "Bearer " + ministerTechToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
-                .andExpect(jsonPath("$.data", hasSize(2)))
-                .andExpect(jsonPath("$.data[*].email", containsInAnyOrder("minister.tech@rng.com", "dev@rng.com")));
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[*].email", containsInAnyOrder("dev@rng.com")));
     }
 
     @Test
