@@ -34,11 +34,46 @@ export function setStoredAccessToken(token: string): void {
   localStorage.setItem('token', token);
 }
 
+export const PREVIEW_ROLE_STORAGE_KEY = 'rng_preview_role_id';
+
+export function getStoredPreviewRoleId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const val = window.sessionStorage?.getItem(PREVIEW_ROLE_STORAGE_KEY);
+    return val && val.trim().length > 0 ? val.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredPreviewRoleId(roleId: string | null): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (roleId && roleId.trim().length > 0) {
+      window.sessionStorage?.setItem(PREVIEW_ROLE_STORAGE_KEY, roleId.trim());
+    } else {
+      window.sessionStorage?.removeItem(PREVIEW_ROLE_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore storage quota / restricted environment errors
+  }
+}
+
+export function clearStoredPreviewRoleId(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage?.removeItem(PREVIEW_ROLE_STORAGE_KEY);
+  } catch {
+    // Ignore restricted environment errors
+  }
+}
+
 export function clearStoredAccessToken(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem('rng_access_token');
   localStorage.removeItem('accessToken');
   localStorage.removeItem('token');
+  clearStoredPreviewRoleId();
 }
 
 export function withTokenConfig(
@@ -93,10 +128,20 @@ export class HttpClient {
 
   private setupInterceptors(): void {
     this.instance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-      if (typeof window !== 'undefined' && config.headers && !config.headers.Authorization) {
-        const token = getStoredAccessToken();
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
+      if (typeof window !== 'undefined' && config.headers) {
+        if (!config.headers.Authorization) {
+          const token = getStoredAccessToken();
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+        }
+        if (config.url && config.url.includes('/auth/logout')) {
+          clearStoredPreviewRoleId();
+        } else if (!config.headers['X-Preview-Role-Id']) {
+          const previewRoleId = getStoredPreviewRoleId();
+          if (previewRoleId) {
+            config.headers['X-Preview-Role-Id'] = previewRoleId;
+          }
         }
       }
       return config;
@@ -104,10 +149,21 @@ export class HttpClient {
 
     this.instance.interceptors.response.use(
       (response: AxiosResponse<ApiResponse<unknown>>) => response,
-      async (error: AxiosError<ProblemDetails & { message?: string }>) => {
+      async (error: AxiosError<ProblemDetails & { message?: string; errorCode?: number }>) => {
         const originalRequest = error.config as
           | (InternalAxiosRequestConfig & { _retry?: boolean })
           | undefined;
+
+        if (
+          error.response?.status === 403 &&
+          error.response?.data?.errorCode === 1003 &&
+          typeof window !== 'undefined' &&
+          getStoredPreviewRoleId() &&
+          originalRequest?.url?.includes('/personnel/perms/')
+        ) {
+          clearStoredPreviewRoleId();
+          window.dispatchEvent(new CustomEvent('rng:preview-role-cleared'));
+        }
 
         if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
           if (this.isRefreshing) {
