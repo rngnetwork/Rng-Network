@@ -36,6 +36,7 @@ class RedisCacheConfigTest {
         assertThat(cacheManager.getCache("guild:channels")).isNotNull();
         assertThat(cacheManager.getCache("emojis:server")).isNotNull();
         assertThat(cacheManager.getCache("emojis:bot")).isNotNull();
+        assertThat(cacheManager.getCache("personnel:role_perms")).isNotNull();
     }
 
     @Test

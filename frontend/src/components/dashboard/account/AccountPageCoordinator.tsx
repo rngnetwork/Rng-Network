@@ -11,6 +11,7 @@ import { Badge } from '@/components/common/feedback/Badge';
 import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { AccountProfileDetails } from './AccountProfileDetails';
 import { PersonnelClearanceCard } from './PersonnelClearanceCard';
+import { RolePreviewTogglerCard } from './RolePreviewTogglerCard';
 import { ActiveSessionsList } from './ActiveSessionsList';
 
 export const AccountPageCoordinator: React.FC = () => {
@@ -127,6 +128,9 @@ export const AccountPageCoordinator: React.FC = () => {
           onRevokeSession={(id) => void handleRevokeSession(id)}
           revokingId={revokingId}
         />
+        <div className="lg:col-span-2">
+          <RolePreviewTogglerCard />
+        </div>
       </div>
     </div>
   );

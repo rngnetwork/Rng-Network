@@ -6,11 +6,13 @@ import { RotateCcw } from 'lucide-react';
 import { CyberWebCanvas } from './CyberWebCanvas';
 import { CyberHexNode } from './CyberHexNode';
 import { CYBER_NODES, type CyberNode } from './cyberWebData';
+import { useEffectivePermissions } from '@/components/dashboard/layout/EffectivePermissionsContext';
 
 const STORAGE_KEY = 'rng_cyber_web_positions';
 
 export const CyberWebCoordinator: React.FC = () => {
   const router = useRouter();
+  const { isRouteAllowed } = useEffectivePermissions();
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Load custom node positions from localStorage if available
@@ -143,7 +145,9 @@ export const CyberWebCoordinator: React.FC = () => {
       {/* Spatial Constellation Field - Floating Hexagonal Cyber Vertices */}
       <div className="absolute inset-0 z-10 pointer-events-none">
         <div className="relative w-full h-full pointer-events-auto">
-          {nodes.map((node) => (
+          {nodes
+            .filter((node) => !node.route || isRouteAllowed(node.route))
+            .map((node) => (
             <CyberHexNode
               key={node.id}
               node={node}
