@@ -4,6 +4,7 @@ import React from 'react';
 import { usePathname } from 'next/navigation';
 import { Settings, Bot, FileCode, LineChart } from 'lucide-react';
 import { TabStrip, type TabItem } from '@/components/common';
+import { useEffectivePermissions } from '@/components/dashboard/layout/EffectivePermissionsContext';
 
 export interface ServerNavigationTabStripProps {
   serverId: string;
@@ -15,6 +16,7 @@ export const ServerNavigationTabStrip: React.FC<ServerNavigationTabStripProps> =
   className = '',
 }) => {
   const pathname = usePathname();
+  const { hasServerPermission } = useEffectivePermissions();
 
   const tabs: TabItem[] = [
     {
@@ -41,7 +43,7 @@ export const ServerNavigationTabStrip: React.FC<ServerNavigationTabStripProps> =
       href: `/dashboard/servers/${serverId}/analytics`,
       icon: LineChart,
     },
-  ];
+  ].filter((tab) => hasServerPermission(serverId, tab.id));
 
   const activeTab =
     pathname === `/dashboard/servers/${serverId}`

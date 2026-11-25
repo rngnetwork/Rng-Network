@@ -10,9 +10,11 @@ import { Button } from '@/components/common/input/Button';
 import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { ServerSearchFilter } from './ServerSearchFilter';
 import { ManagedServersGrid } from './ManagedServersGrid';
+import { useEffectivePermissions } from '@/components/dashboard/layout/EffectivePermissionsContext';
 
 export const ServersPageCoordinator: React.FC = () => {
   const router = useRouter();
+  const { hasServerPermission, previewRoleId } = useEffectivePermissions();
   const [servers, setServers] = useState<ServerItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -53,18 +55,19 @@ export const ServersPageCoordinator: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [router]);
+  }, [router, previewRoleId]);
 
   const filteredServers = useMemo(() => {
+    const visibleServers = servers.filter((s) => hasServerPermission(s.slug || s.id));
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return servers;
-    return servers.filter(
+    if (!q) return visibleServers;
+    return visibleServers.filter(
       (s) =>
         s.name.toLowerCase().includes(q) ||
         s.slug.toLowerCase().includes(q) ||
         s.id.toLowerCase().includes(q)
     );
-  }, [servers, searchQuery]);
+  }, [servers, searchQuery, hasServerPermission]);
 
   const handleManageServer = (server: ServerItem) => {
     router.push(`/dashboard/servers/${server.slug || server.id}/settings`);

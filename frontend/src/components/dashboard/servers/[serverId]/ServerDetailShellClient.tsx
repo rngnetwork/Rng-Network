@@ -9,6 +9,7 @@ import type { ServerDetail } from '@/lib/model/server';
 import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { ServerContextBanner } from './ServerContextBanner';
 import { ServerNavigationTabStrip } from './ServerNavigationTabStrip';
+import { useEffectivePermissions } from '@/components/dashboard/layout/EffectivePermissionsContext';
 
 export interface ServerDetailShellClientProps {
   children: React.ReactNode;
@@ -21,6 +22,7 @@ export const ServerDetailShellClient: React.FC<ServerDetailShellClientProps> = (
   const pathname = usePathname();
   const serverId = (params?.serverId as string) || '';
   const isEmbedRoute = pathname?.includes('/embeds') ?? false;
+  const { hasServerPermission } = useEffectivePermissions();
 
   const [server, setServer] = useState<ServerDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,7 +66,7 @@ export const ServerDetailShellClient: React.FC<ServerDetailShellClientProps> = (
     );
   }
 
-  if (!server) {
+  if (!server || !hasServerPermission(server.slug || serverId)) {
     return (
       <div className="p-8 rounded-apple-xl bg-zinc-900/70 border border-white/10 text-center max-w-lg mx-auto">
         <AlertCircle size={32} className="text-brand-red mx-auto mb-3" />
