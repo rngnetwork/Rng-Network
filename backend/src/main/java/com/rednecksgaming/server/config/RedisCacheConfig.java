@@ -41,6 +41,7 @@ public class RedisCacheConfig {
         cacheConfigs.put("guild:channels", defaultConfig.entryTtl(Duration.ofMinutes(5)));
         cacheConfigs.put("emojis:server", defaultConfig.entryTtl(Duration.ofMinutes(10)));
         cacheConfigs.put("emojis:bot", defaultConfig.entryTtl(Duration.ofMinutes(10)));
+        cacheConfigs.put("personnel:role_perms", defaultConfig.entryTtl(Duration.ofHours(1)));
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)

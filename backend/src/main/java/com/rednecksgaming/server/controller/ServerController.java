@@ -6,6 +6,8 @@ package com.rednecksgaming.server.controller;
 import com.rednecksgaming.common.dto.ApiResponse;
 import com.rednecksgaming.identity.domain.User;
 import com.rednecksgaming.identity.repository.UserRepository;
+import com.rednecksgaming.personnel.perms.controller.GranularPermissionsInterceptor;
+import com.rednecksgaming.personnel.perms.dto.EffectivePermissionsDto;
 import com.rednecksgaming.server.dto.ChannelDto;
 import com.rednecksgaming.server.dto.DiscordEmojiDto;
 import com.rednecksgaming.server.dto.ServerDetailDto;
@@ -13,6 +15,7 @@ import com.rednecksgaming.server.dto.ServerDto;
 import com.rednecksgaming.server.dto.ServerRoleDto;
 import com.rednecksgaming.server.dto.UpdateServerSettingsRequest;
 import com.rednecksgaming.server.service.ServerService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -36,8 +39,12 @@ public class ServerController {
     private final UserRepository userRepository;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ServerDto>>> getAllServers() {
+    public ResponseEntity<ApiResponse<List<ServerDto>>> getAllServers(HttpServletRequest request) {
         List<ServerDto> servers = serverService.getAllServers();
+        Object attr = request.getAttribute(GranularPermissionsInterceptor.REQUEST_ATTR_EFFECTIVE_PERMS);
+        if (attr instanceof EffectivePermissionsDto effective) {
+            servers = serverService.filterVisibleServers(servers, effective);
+        }
         return ResponseEntity.ok(ApiResponse.success(servers));
     }
 

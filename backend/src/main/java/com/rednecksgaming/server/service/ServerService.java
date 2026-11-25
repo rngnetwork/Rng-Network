@@ -6,6 +6,8 @@ package com.rednecksgaming.server.service;
 import com.rednecksgaming.common.exception.ResourceNotFoundException;
 import com.rednecksgaming.identity.domain.User;
 import com.rednecksgaming.identity.repository.UserRepository;
+import com.rednecksgaming.personnel.perms.dto.EffectivePermissionsDto;
+import com.rednecksgaming.personnel.perms.service.GranularPermissionEvaluator;
 import com.rednecksgaming.server.client.DiscordServerClient;
 import com.rednecksgaming.server.domain.Server;
 import com.rednecksgaming.server.dto.ChannelDto;
@@ -56,6 +58,7 @@ public class ServerService {
     private final UserRepository userRepository;
     private final Optional<JDA> jda;
     private final DiscordServerMapper discordServerMapper;
+    private final GranularPermissionEvaluator granularPermissionEvaluator;
 
     @Autowired
     public ServerService(
@@ -63,13 +66,25 @@ public class ServerService {
             DiscordServerClient discordClient,
             UserRepository userRepository,
             @Autowired(required = false) JDA jda,
-            DiscordServerMapper discordServerMapper
+            DiscordServerMapper discordServerMapper,
+            @Autowired(required = false) GranularPermissionEvaluator granularPermissionEvaluator
     ) {
         this.serverRepository = serverRepository;
         this.discordClient = discordClient;
         this.userRepository = userRepository;
         this.jda = Optional.ofNullable(jda);
         this.discordServerMapper = discordServerMapper != null ? discordServerMapper : new DiscordServerMapper();
+        this.granularPermissionEvaluator = granularPermissionEvaluator;
+    }
+
+    public ServerService(
+            ServerRepository serverRepository,
+            DiscordServerClient discordClient,
+            UserRepository userRepository,
+            JDA jda,
+            DiscordServerMapper discordServerMapper
+    ) {
+        this(serverRepository, discordClient, userRepository, jda, discordServerMapper, null);
     }
 
     public ServerService(
@@ -78,7 +93,14 @@ public class ServerService {
             UserRepository userRepository,
             JDA jda
     ) {
-        this(serverRepository, discordClient, userRepository, jda, new DiscordServerMapper());
+        this(serverRepository, discordClient, userRepository, jda, new DiscordServerMapper(), null);
+    }
+
+    public List<ServerDto> filterVisibleServers(List<ServerDto> servers, EffectivePermissionsDto effective) {
+        if (servers == null || effective == null || granularPermissionEvaluator == null) {
+            return servers;
+        }
+        return granularPermissionEvaluator.filterVisibleServers(effective, servers);
     }
 
     @Cacheable(value = "guilds:summary", key = "'all'")

@@ -11,6 +11,8 @@ import com.rednecksgaming.identity.domain.User;
 import com.rednecksgaming.identity.dto.UpdateWhitelistedUserRequest;
 import com.rednecksgaming.identity.dto.WhitelistUserRequest;
 import com.rednecksgaming.identity.repository.UserRepository;
+import com.rednecksgaming.personnel.perms.domain.RolePermissions;
+import com.rednecksgaming.personnel.perms.repository.RolePermissionsRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,7 +23,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -45,6 +49,12 @@ class WhitelistIntegrationTest {
     @Autowired
     private TokenService tokenService;
 
+    @Autowired
+    private RolePermissionsRepository rolePermissionsRepository;
+
+    @Autowired
+    private org.springframework.cache.CacheManager cacheManager;
+
     private User chiefHighCommand;
     private User regularHighCommand;
     private User ministerTech;
@@ -59,6 +69,18 @@ class WhitelistIntegrationTest {
     @BeforeEach
     void setUp() {
         userRepository.deleteAll();
+
+        rolePermissionsRepository.findById("des_tech:Minister").ifPresent(ministerPerms -> {
+            Map<String, Object> perms = new LinkedHashMap<>(ministerPerms.getPermissions());
+            perms.put("dashboard", Map.of("enabled", true));
+            perms.put("dashboard.whitelist", Map.of("enabled", true, "fullAccess", false));
+            ministerPerms.setPermissions(perms);
+            rolePermissionsRepository.saveAndFlush(ministerPerms);
+            var cache = cacheManager.getCache("personnel:role_perms");
+            if (cache != null) {
+                cache.evict("des_tech:Minister");
+            }
+        });
 
         chiefHighCommand = userRepository.save(User.builder()
                 .email("arzenic@rednecksgaming.com")
