@@ -14,7 +14,9 @@ import {
   Bot,
   LogOut,
   ChevronRight,
+  EyeOff,
 } from 'lucide-react';
+import { useEffectivePermissions } from './EffectivePermissionsContext';
 import { fetchUserManagedServers } from '@/lib/api/dashboard/servers';
 import { logout } from '@/lib/api/auth/session';
 import { getDiscordAvatarUrl } from '@/lib/api/auth/discord';
@@ -73,45 +75,65 @@ export const DashboardSidebarNav: React.FC<DashboardSidebarNavProps> = ({
     user?.designations?.includes('Ministry');
   const canAccessWhitelist = Boolean(isHighCommand || isMinister);
 
+  const {
+    hasPermission,
+    isPreviewMode,
+    previewRoleName,
+    exitPreviewMode,
+  } = useEffectivePermissions();
+
+  const canAccessPersonnelRoles = hasPermission(
+    'dashboard',
+    'dashboard.personnel',
+    'dashboard.personnel.roles'
+  );
+  const canAccessPersonnelPerms = hasPermission(
+    'dashboard',
+    'dashboard.personnel',
+    'dashboard.personnel.perms'
+  );
+
   const navItems = [
     {
       label: 'Servers',
       href: '/dashboard/servers',
       icon: Server,
-      show: true,
+      show: hasPermission('dashboard', 'dashboard.servers'),
       badge: serverCount !== null ? `${serverCount} Live` : 'Live',
     },
     {
       label: 'Embed Builder',
       href: '/dashboard/embeds',
       icon: Boxes,
-      show: true,
+      show: hasPermission('dashboard', 'dashboard.embeds'),
       badge: 'V2',
     },
     {
       label: 'Bot Modules',
       href: '/dashboard/botconfig',
       icon: Bot,
-      show: isHighCommand,
+      show: hasPermission('dashboard', 'dashboard.botconfig'),
     },
     {
       label: 'Whitelist',
       href: '/dashboard/whitelist',
       icon: ShieldCheck,
-      show: canAccessWhitelist,
-      badge: isHighCommand ? 'Admin' : 'Scoped',
+      show: hasPermission('dashboard', 'dashboard.whitelist'),
+      badge: hasPermission('dashboard', 'dashboard.whitelist') && isHighCommand ? 'Admin' : 'Scoped',
     },
     {
       label: 'Personnel',
       href: '/dashboard/personnel',
       icon: Users,
-      show: true,
+      show:
+        hasPermission('dashboard', 'dashboard.personnel') &&
+        (canAccessPersonnelRoles || canAccessPersonnelPerms),
     },
     {
       label: 'Account',
       href: '/dashboard/account',
       icon: User,
-      show: true,
+      show: hasPermission('dashboard', 'dashboard.account'),
     },
   ];
 
@@ -251,6 +273,20 @@ export const DashboardSidebarNav: React.FC<DashboardSidebarNavProps> = ({
           </div>
 
           <div className="pt-4 border-t border-white/[0.08] flex flex-col gap-2">
+            {isPreviewMode && (
+              <button
+                type="button"
+                onClick={() => {
+                  void exitPreviewMode();
+                }}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-apple-md text-xs font-semibold text-amber-200 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 transition-all cursor-pointer"
+              >
+                <EyeOff size={14} />
+                <span className="truncate">
+                  Exit Preview ({previewRoleName || 'Active'})
+                </span>
+              </button>
+            )}
             {user && (
               <div className="px-3 py-2.5 rounded-apple-md bg-white/[0.02] border border-white/5 flex items-center justify-between">
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -334,6 +370,21 @@ export const DashboardSidebarNav: React.FC<DashboardSidebarNavProps> = ({
                       );
                     })}
                 </nav>
+                {isPreviewMode && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void exitPreviewMode();
+                      setMobileOpen(false);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 mb-2 rounded-apple-md text-xs font-semibold text-amber-200 bg-amber-500/15 border border-amber-500/30 min-h-[44px] cursor-pointer"
+                  >
+                    <EyeOff size={15} />
+                    <span className="truncate">
+                      Exit Preview ({previewRoleName || 'Active'})
+                    </span>
+                  </button>
+                )}
                 {user && (
                   <div className="px-3.5 py-3 mb-3 rounded-apple-md bg-white/[0.03] border border-white/5 flex items-center gap-3">
                     <Avatar
