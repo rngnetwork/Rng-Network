@@ -74,7 +74,12 @@ export const DiscordBotEmojiPicker: React.FC<DiscordBotEmojiPickerProps> = ({
   useEffect(() => {
     if (initialBotEmojis) return undefined;
     let isMounted = true;
-    void loadBotEmojis(false);
+    void Promise.resolve().then(() => {
+      if (isMounted) {
+        return loadBotEmojis(false);
+      }
+      return undefined;
+    });
     return () => {
       isMounted = false;
     };

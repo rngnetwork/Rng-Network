@@ -22,10 +22,11 @@ export const EditRoleModal: React.FC<EditRoleModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (role) {
+    if (!role) return;
+    queueMicrotask(() => {
       setRoleName(role.name);
       setError(null);
-    }
+    });
   }, [role]);
 
   const handleSubmit = (e: React.FormEvent) => {

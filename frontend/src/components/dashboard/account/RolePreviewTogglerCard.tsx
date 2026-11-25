@@ -23,15 +23,15 @@ export const RolePreviewTogglerCard: React.FC = () => {
 
   const [options, setOptions] = useState<PreviewRoleOption[]>([]);
   const [selectedRoleId, setSelectedRoleId] = useState<string>(previewRoleId || '');
-  const [loadingOptions, setLoadingOptions] = useState(false);
+  const [hasLoadedOptions, setHasLoadedOptions] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const isEligible = callerMaxRankWeight >= 8;
+  const loadingOptions = isEligible && !hasLoadedOptions;
 
   useEffect(() => {
     if (!isEligible) return;
     let isMounted = true;
-    setLoadingOptions(true);
     void (async () => {
       try {
         const token = getStoredAccessToken() || undefined;
@@ -43,7 +43,7 @@ export const RolePreviewTogglerCard: React.FC = () => {
       } catch {
         // Leave options empty if request fails
       } finally {
-        if (isMounted) setLoadingOptions(false);
+        if (isMounted) setHasLoadedOptions(true);
       }
     })();
     return () => {

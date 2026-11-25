@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { AlertCircle, CheckCircle2, Wand2, Search } from 'lucide-react';
 import { Button } from '@/components/common/input/Button';
 import {
@@ -21,19 +21,18 @@ export const PermsJsonEditor: React.FC<PermsJsonEditorProps> = ({
   onApplyParsedJson,
   searchQuery = '',
 }) => {
-  const [parseError, setParseError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
   const highlightOverlayRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const parseError = useMemo<string | null>(() => {
     try {
       if (jsonText.trim()) {
         JSON.parse(jsonText);
       }
-      setParseError(null);
+      return null;
     } catch (err) {
-      setParseError(err instanceof Error ? err.message : 'Invalid JSON syntax');
+      return err instanceof Error ? err.message : 'Invalid JSON syntax';
     }
   }, [jsonText]);
 
@@ -105,12 +104,9 @@ export const PermsJsonEditor: React.FC<PermsJsonEditorProps> = ({
       const parsed = JSON.parse(jsonText);
       const formatted = JSON.stringify(parsed, null, 2);
       onChange(formatted);
-      setParseError(null);
       onApplyParsedJson?.();
-    } catch (err) {
-      setParseError(
-        err instanceof Error ? err.message : 'Cannot format invalid JSON'
-      );
+    } catch {
+      // parseError is already derived via useMemo
     }
   };
 

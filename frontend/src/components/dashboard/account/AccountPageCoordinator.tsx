@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { User } from 'lucide-react';
 import { fetchUserProfile, fetchActiveSessions, revokeSession } from '@/lib/api/dashboard/account';
 import { fetchPersonnelHierarchy } from '@/lib/api/dashboard/whitelist';

@@ -58,7 +58,12 @@ export const ServerDiscordEmojiPicker: React.FC<
 
   useEffect(() => {
     let isMounted = true;
-    void loadEmojis(false);
+    void Promise.resolve().then(() => {
+      if (isMounted) {
+        return loadEmojis(false);
+      }
+      return undefined;
+    });
     return () => {
       isMounted = false;
     };

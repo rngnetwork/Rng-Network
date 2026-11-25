@@ -90,20 +90,15 @@ export const PersonnelPermsCoordinator: React.FC = () => {
     return null;
   }, [activeFolder, view]);
 
-  useEffect(() => {
-    if (activeFile) {
-      const text = JSON.stringify(activeFile.schema, null, 2);
-      setJsonText(text);
-      setBaselineJson(text);
-    }
-  }, [activeFile?.id]);
-
   const normalizedQuery = searchQuery.trim().toLowerCase();
-  const fileMatches = (f: PermsFileNode) =>
-    !normalizedQuery ||
-    f.name.toLowerCase().includes(normalizedQuery) ||
-    f.fileName.toLowerCase().includes(normalizedQuery) ||
-    f.rankCode.toLowerCase().includes(normalizedQuery);
+  const fileMatches = useCallback(
+    (f: PermsFileNode) =>
+      !normalizedQuery ||
+      f.name.toLowerCase().includes(normalizedQuery) ||
+      f.fileName.toLowerCase().includes(normalizedQuery) ||
+      f.rankCode.toLowerCase().includes(normalizedQuery),
+    [normalizedQuery]
+  );
 
   const filteredFolders = useMemo(() => {
     if (!normalizedQuery) return folders;
@@ -114,12 +109,12 @@ export const PersonnelPermsCoordinator: React.FC = () => {
         return matching.length > 0 ? { ...f, files: matching } : null;
       })
       .filter((f): f is PermsFolderNode => f !== null);
-  }, [folders, normalizedQuery]);
+  }, [folders, normalizedQuery, fileMatches]);
 
   const filteredActiveFolder = useMemo(() => {
     if (!activeFolder || !normalizedQuery) return activeFolder;
     return { ...activeFolder, files: activeFolder.files.filter(fileMatches) };
-  }, [activeFolder, normalizedQuery]);
+  }, [activeFolder, normalizedQuery, fileMatches]);
 
   const handleCopyJson = async () => {
     try {
@@ -265,7 +260,13 @@ export const PersonnelPermsCoordinator: React.FC = () => {
       {view.type === 'folder' && filteredActiveFolder && (
         <PermsFileList
           folder={filteredActiveFolder}
-          onSelectFile={(file) => { setSearchQuery(''); setView({ type: 'file', folderId: file.designationId, fileId: file.id }); }}
+          onSelectFile={(file) => {
+            const text = JSON.stringify(file.schema, null, 2);
+            setJsonText(text);
+            setBaselineJson(text);
+            setSearchQuery('');
+            setView({ type: 'file', folderId: file.designationId, fileId: file.id });
+          }}
         />
       )}
 

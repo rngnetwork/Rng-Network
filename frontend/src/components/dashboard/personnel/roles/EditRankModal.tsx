@@ -23,11 +23,12 @@ export const EditRankModal: React.FC<EditRankModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (rank) {
+    if (!rank) return;
+    queueMicrotask(() => {
       setCode(rank.code);
       setWeight(rank.weight);
       setError(null);
-    }
+    });
   }, [rank]);
 
   const handleSubmit = (e: React.FormEvent) => {

@@ -75,7 +75,16 @@ export const EffectivePermissionsProvider: React.FC<{ children: React.ReactNode 
   }, []);
 
   useEffect(() => {
-    void refreshPermissions();
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (active) {
+        return refreshPermissions();
+      }
+      return undefined;
+    });
+    return () => {
+      active = false;
+    };
   }, [refreshPermissions]);
 
   useEffect(() => {

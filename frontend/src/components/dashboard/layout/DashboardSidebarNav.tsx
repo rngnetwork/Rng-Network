@@ -69,11 +69,6 @@ export const DashboardSidebarNav: React.FC<DashboardSidebarNavProps> = ({
     user?.role === 'ROLE_HIGH_COMMAND' ||
     user?.roles?.includes('High Command') ||
     user?.designations?.includes('Supreme');
-  const isMinister =
-    user?.role === 'ROLE_MINISTER' ||
-    user?.roles?.includes('Minister') ||
-    user?.designations?.includes('Ministry');
-  const canAccessWhitelist = Boolean(isHighCommand || isMinister);
 
   const {
     hasPermission,

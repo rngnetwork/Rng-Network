@@ -22,10 +22,11 @@ export const EditDesignationModal: React.FC<EditDesignationModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (designation) {
+    if (!designation) return;
+    queueMicrotask(() => {
       setName(designation.name);
       setError(null);
-    }
+    });
   }, [designation]);
 
   const handleSubmit = (e: React.FormEvent) => {
