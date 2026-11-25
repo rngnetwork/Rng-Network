@@ -13,7 +13,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -67,7 +66,6 @@ public class WhitelistController {
     }
 
     @GetMapping("/hierarchy")
-    @PreAuthorize("hasAnyRole('HIGH_COMMAND', 'CHIEF_HIGH_COMMAND', 'MINISTER')")
     public ResponseEntity<ApiResponse<Map<String, List<String>>>> getPersonnelHierarchy() {
         return ResponseEntity.ok(ApiResponse.success(designationRoleService.getDesignationRolesMap()));
     }

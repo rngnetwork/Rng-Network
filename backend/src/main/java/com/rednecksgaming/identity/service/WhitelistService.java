@@ -11,6 +11,9 @@ import com.rednecksgaming.identity.dto.UpdateWhitelistedUserRequest;
 import com.rednecksgaming.identity.dto.WhitelistUserRequest;
 import com.rednecksgaming.identity.dto.WhitelistedUserDto;
 import com.rednecksgaming.identity.repository.UserRepository;
+import com.rednecksgaming.personnel.perms.dto.EffectivePermissionsDto;
+import com.rednecksgaming.personnel.perms.service.GranularPermissionEvaluator;
+import com.rednecksgaming.personnel.perms.service.RolePermissionsService;
 import com.rednecksgaming.personnel.roles.service.DesignationRoleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +29,24 @@ public class WhitelistService {
 
     private final UserRepository userRepository;
     private final DesignationRoleService designationRoleService;
+    private final RolePermissionsService rolePermissionsService;
+    private final GranularPermissionEvaluator granularPermissionEvaluator;
+
+    private boolean assertWhitelistAccessAndCheckFullAccess(User operator, String denyMessage) {
+        EffectivePermissionsDto effective = rolePermissionsService.computeEffectivePermissions(operator, null);
+        if (!granularPermissionEvaluator.isFeatureEnabled(effective, "dashboard.whitelist")) {
+            throw new ForbiddenException(denyMessage);
+        }
+        return granularPermissionEvaluator.hasWhitelistFullAccess(effective);
+    }
+
+    private List<String> resolveScopedMinistries(User operator) {
+        List<String> ministerMinistries = operator.getMinisterMinistries();
+        if (!ministerMinistries.isEmpty()) {
+            return ministerMinistries;
+        }
+        return operator.getDesignationList();
+    }
 
     public boolean isDesignationRoleValid(String designation, String role) {
         return designationRoleService.isValidRoleForDesignation(designation, role);
@@ -40,10 +61,10 @@ public class WhitelistService {
     public List<WhitelistedUserDto> getWhitelistedUsers(Long currentUserId, String ministry) {
         User operator = getOperator(currentUserId);
         int opWeight = operator.getRankWeight();
-
-        if (opWeight < 5) {
-            throw new ForbiddenException("Access Denied: Insufficient authorization scope to view whitelist");
-        }
+        boolean hasFullAccess = assertWhitelistAccessAndCheckFullAccess(
+                operator,
+                "Access Denied: Insufficient authorization scope to view whitelist"
+        );
 
         List<User> allUsers = userRepository.findAll();
 
@@ -54,13 +75,7 @@ public class WhitelistService {
                     .toList();
         }
 
-        // R9 (Chief High Command): Full global visibility (R9 - R0)
-        if (opWeight >= 9) {
-            return allUsers.stream().map(this::mapToDto).toList();
-        }
-
-        // R8 (High Command): Sees R9, R8, and R7 - R0 across all ministries
-        if (opWeight == 8) {
+        if (hasFullAccess || opWeight >= 8) {
             return allUsers.stream().map(this::mapToDto).toList();
         }
 
@@ -80,8 +95,8 @@ public class WhitelistService {
                     .toList();
         }
 
-        // R5 (Minister / Chancellor): Scoped strictly to their own assigned ministry (R4 - R0)
-        List<String> operatorMinistries = operator.getMinisterMinistries();
+        // R5 (Minister / Chancellor) or granted R4-R0 without fullAccess: Scoped to their assigned ministries
+        List<String> operatorMinistries = resolveScopedMinistries(operator);
         if (operatorMinistries.isEmpty()) {
             throw new ForbiddenException("Minister account is not assigned to a valid Ministry designation");
         }
@@ -94,7 +109,8 @@ public class WhitelistService {
         }
 
         return allUsers.stream()
-                .filter(u -> u.getRankWeight() <= 4 && u.getDesignationList().stream().anyMatch(operatorMinistries::contains))
+                .filter(u -> (u.getRankWeight() <= 4 || u.getId().equals(operator.getId()))
+                        && u.getDesignationList().stream().anyMatch(operatorMinistries::contains))
                 .map(this::mapToDto)
                 .toList();
     }
@@ -108,9 +124,10 @@ public class WhitelistService {
         }
 
         int opWeight = operator.getRankWeight();
-        if (opWeight < 5) {
-            throw new ForbiddenException("Access Denied: Only High Command and Ministers can whitelist members");
-        }
+        boolean hasFullAccess = assertWhitelistAccessAndCheckFullAccess(
+                operator,
+                "Access Denied: Only High Command and Ministers can whitelist members"
+        );
 
         List<String> requestedDesignations = request.getDesignations().stream().map(String::trim).toList();
         List<String> requestedRoles = request.getRoles().stream().map(String::trim).toList();
@@ -121,8 +138,8 @@ public class WhitelistService {
             }
         }
 
-        if (opWeight >= 8) {
-            if (opWeight == 8) {
+        if (opWeight >= 8 || hasFullAccess) {
+            if (opWeight < 9) {
                 for (String role : requestedRoles) {
                     if (User.getRoleRankWeight(role) >= 9) {
                         throw new ForbiddenException("Only Chief High Command can assign the Chief High Command role");
@@ -141,8 +158,8 @@ public class WhitelistService {
                     throw new ForbiddenException("Executive Directors can only assign roles from R5 down to R0");
                 }
             }
-        } else if (opWeight == 5) {
-            List<String> operatorMinistries = operator.getMinisterMinistries();
+        } else if (opWeight <= 5) {
+            List<String> operatorMinistries = resolveScopedMinistries(operator);
             if (operatorMinistries.isEmpty()) {
                 throw new ForbiddenException("Minister is not assigned to a valid Ministry");
             }
@@ -194,9 +211,10 @@ public class WhitelistService {
         int opWeight = operator.getRankWeight();
         int targetWeight = target.getRankWeight();
 
-        if (opWeight < 5) {
-            throw new ForbiddenException("Access Denied: Insufficient authorization scope to update whitelisted user");
-        }
+        boolean hasFullAccess = assertWhitelistAccessAndCheckFullAccess(
+                operator,
+                "Access Denied: Insufficient authorization scope to update whitelisted user"
+        );
 
         List<String> requestedDesignations = request.getDesignations().stream().map(String::trim).toList();
         List<String> requestedRoles = request.getRoles().stream().map(String::trim).toList();
@@ -213,7 +231,7 @@ public class WhitelistService {
             if (!isSelf && target.isChiefHighCommand()) {
                 throw new ForbiddenException("Chief High Command administrators cannot modify other Chief High Command members");
             }
-        } else if (opWeight == 8) {
+        } else if (opWeight == 8 || hasFullAccess) {
             if (!isSelf && target.isHighCommand()) {
                 throw new ForbiddenException("High Command administrators cannot modify other High Command members");
             }
@@ -241,8 +259,8 @@ public class WhitelistService {
                     throw new ForbiddenException("Executive Directors can only assign roles from R5 down to R0");
                 }
             }
-        } else if (opWeight == 5) {
-            List<String> operatorMinistries = operator.getMinisterMinistries();
+        } else if (opWeight <= 5) {
+            List<String> operatorMinistries = resolveScopedMinistries(operator);
             if (operatorMinistries.isEmpty()) {
                 throw new ForbiddenException("Minister is not assigned to a valid Ministry");
             }
@@ -335,9 +353,10 @@ public class WhitelistService {
         int opWeight = operator.getRankWeight();
         int targetWeight = target.getRankWeight();
 
-        if (opWeight < 5) {
-            throw new ForbiddenException("Access Denied: Insufficient authorization to delete whitelisted users");
-        }
+        boolean hasFullAccess = assertWhitelistAccessAndCheckFullAccess(
+                operator,
+                "Access Denied: Insufficient authorization to delete whitelisted users"
+        );
 
         if (opWeight >= 9) {
             userRepository.delete(target);
@@ -345,7 +364,7 @@ public class WhitelistService {
             return;
         }
 
-        if (opWeight == 8) {
+        if (opWeight == 8 || hasFullAccess) {
             if (target.isHighCommand()) {
                 throw new ForbiddenException("High Command administrators cannot delete other High Command members");
             }
@@ -372,11 +391,11 @@ public class WhitelistService {
             return;
         }
 
-        if (opWeight == 5) {
+        if (opWeight <= 5) {
             if (target.isHighCommand()) {
                 throw new ForbiddenException("Ministers cannot delete High Command accounts");
             }
-            List<String> operatorMinistries = operator.getMinisterMinistries();
+            List<String> operatorMinistries = resolveScopedMinistries(operator);
             if (operatorMinistries.isEmpty()) {
                 throw new ForbiddenException("Minister is not assigned to a valid Ministry");
             }

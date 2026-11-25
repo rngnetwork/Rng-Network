@@ -26,12 +26,14 @@ import org.springframework.data.web.config.EnableSpringDataWebSupport;
         "com.rednecksgaming.common.domain",
         "com.rednecksgaming.identity.domain",
         "com.rednecksgaming.server.domain",
-        "com.rednecksgaming.personnel.roles.domain"
+        "com.rednecksgaming.personnel.roles.domain",
+        "com.rednecksgaming.personnel.perms.domain"
 })
 @EnableJpaRepositories(basePackages = {
         "com.rednecksgaming.identity.repository",
         "com.rednecksgaming.server.repository",
-        "com.rednecksgaming.personnel.roles.repository"
+        "com.rednecksgaming.personnel.roles.repository",
+        "com.rednecksgaming.personnel.perms.repository"
 })
 public class RednecksGamingApplication {
 

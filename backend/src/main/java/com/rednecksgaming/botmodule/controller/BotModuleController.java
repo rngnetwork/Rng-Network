@@ -13,7 +13,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -40,14 +39,12 @@ public class BotModuleController {
     private final UserRepository userRepository;
 
     @GetMapping("/bot-modules/network")
-    @PreAuthorize("hasAnyRole('CHIEF_HIGH_COMMAND', 'HIGH_COMMAND')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getNetworkDefaultModules() {
         Map<String, Object> defaults = botModuleService.getNetworkDefaultModules();
         return ResponseEntity.ok(ApiResponse.success(defaults));
     }
 
     @PatchMapping("/bot-modules/network")
-    @PreAuthorize("hasAnyRole('CHIEF_HIGH_COMMAND', 'HIGH_COMMAND')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> patchNetworkDefaultModules(
             Authentication authentication,
             @Valid @RequestBody BotModuleConfigRequest request
