@@ -3,6 +3,7 @@
 import React from 'react';
 import { Layers, KeyRound } from 'lucide-react';
 import { TabStrip, TabItem } from '@/components/common';
+import { useEffectivePermissions } from '@/components/dashboard/layout/EffectivePermissionsContext';
 
 const PERSONNEL_TABS: TabItem[] = [
   {
@@ -26,9 +27,21 @@ export interface PersonnelNavigationTabStripProps {
 export const PersonnelNavigationTabStrip: React.FC<PersonnelNavigationTabStripProps> = ({
   className = '',
 }) => {
+  const { hasPermission } = useEffectivePermissions();
+
+  const visibleTabs = PERSONNEL_TABS.filter((tab) => {
+    if (tab.id === 'roles') {
+      return hasPermission('dashboard', 'dashboard.personnel', 'dashboard.personnel.roles');
+    }
+    if (tab.id === 'perms') {
+      return hasPermission('dashboard', 'dashboard.personnel', 'dashboard.personnel.perms');
+    }
+    return true;
+  });
+
   return (
     <TabStrip
-      tabs={PERSONNEL_TABS}
+      tabs={visibleTabs}
       layoutId="personnelActiveTabIndicator"
       ariaLabel="Personnel workspace tabs"
       className={className}

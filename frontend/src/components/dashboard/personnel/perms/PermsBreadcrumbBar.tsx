@@ -6,7 +6,12 @@ import { Button } from '@/components/common/input/Button';
 import { TextInput } from '@/components/common/input/TextInput';
 import { Badge } from '@/components/common/feedback/Badge';
 import { Breadcrumbs, BreadcrumbItem } from '@/components/common/navigation/Breadcrumbs';
-import type { ExplorerView, PermsFolderNode, PermsFileNode, PermsEditorTab } from './types';
+import type {
+  ExplorerView,
+  PermsFolderNode,
+  PermsFileNode,
+  PermsEditorTab,
+} from '@/lib/model/personnel/perms';
 
 export interface PermsBreadcrumbBarProps {
   view: ExplorerView;

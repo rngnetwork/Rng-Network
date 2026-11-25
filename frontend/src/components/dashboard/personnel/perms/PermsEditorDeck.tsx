@@ -3,8 +3,11 @@
 import React from 'react';
 import { PermsVisualRbacEditor } from './PermsVisualRbacEditor';
 import { PermsJsonEditor } from './PermsJsonEditor';
-import type { PermsFileNode, PermsEditorTab } from './types';
-import type { ServerItem } from '@/lib/model/server';
+import type {
+  PermsFileNode,
+  PermsEditorTab,
+  PermsServerSummary,
+} from '@/lib/model/personnel/perms';
 
 export interface PermsEditorDeckProps {
   selectedFile: PermsFileNode;
@@ -13,7 +16,8 @@ export interface PermsEditorDeckProps {
   onJsonChange: (text: string) => void;
   onTogglePermission: (path: string[], enabled: boolean) => void;
   searchQuery?: string;
-  servers?: ServerItem[];
+  servers?: PermsServerSummary[];
+  labels?: Record<string, string>;
   className?: string;
 }
 
@@ -25,6 +29,7 @@ export const PermsEditorDeck: React.FC<PermsEditorDeckProps> = ({
   onTogglePermission,
   searchQuery = '',
   servers,
+  labels,
   className = '',
 }) => {
   return (
@@ -35,6 +40,7 @@ export const PermsEditorDeck: React.FC<PermsEditorDeckProps> = ({
           onTogglePermission={onTogglePermission}
           searchQuery={searchQuery}
           servers={servers}
+          labels={labels}
         />
       ) : (
         <PermsJsonEditor

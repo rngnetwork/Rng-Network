@@ -6,7 +6,7 @@ import { List, ListItemProps } from '@/components/common/containers/List';
 import { Button } from '@/components/common/input/Button';
 import { Badge } from '@/components/common/feedback/Badge';
 import { Card } from '@/components/common/containers/Card';
-import type { PermsFolderNode, PermsFileNode } from './types';
+import type { PermsFolderNode, PermsFileNode } from '@/lib/model/personnel/perms';
 
 export interface PermsFileListProps {
   folder: PermsFolderNode;

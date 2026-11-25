@@ -9,9 +9,11 @@ import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinne
 import { PersonnelNavigationTabStrip } from './PersonnelNavigationTabStrip';
 import { RoleHierarchyCoordinator } from './roles/RoleHierarchyCoordinator';
 import { PersonnelPermsCoordinator } from './perms/PersonnelPermsCoordinator';
+import { useEffectivePermissions } from '@/components/dashboard/layout/EffectivePermissionsContext';
 
 export const PersonnelPageCoordinator: React.FC = () => {
   const pathname = usePathname();
+  const { hasPermission } = useEffectivePermissions();
   const [currentUser, setCurrentUser] = useState<UserProfileData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -117,9 +119,11 @@ export const PersonnelPageCoordinator: React.FC = () => {
 
       {pathname?.includes('/perms') ? (
         <PersonnelPermsCoordinator />
-      ) : (
+      ) : hasPermission('dashboard', 'dashboard.personnel', 'dashboard.personnel.roles') ? (
         <RoleHierarchyCoordinator />
-      )}
+      ) : hasPermission('dashboard', 'dashboard.personnel', 'dashboard.personnel.perms') ? (
+        <PersonnelPermsCoordinator />
+      ) : null}
     </div>
   );
 };
