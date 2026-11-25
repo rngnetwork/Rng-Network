@@ -1,6 +1,3 @@
-export * from './types';
-export * from './permsTextFormatter';
-export * from './permsSchemaHelper';
 export * from './permsJsonSearchHelper';
 export * from './PermsBreadcrumbBar';
 export * from './PermsFolderList';

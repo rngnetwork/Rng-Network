@@ -2,15 +2,17 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PersonnelPermsCoordinator } from '../PersonnelPermsCoordinator';
-import * as personnelApi from '@/lib/api/dashboard/personnel';
+import * as permsApi from '@/lib/api/dashboard/personnel/perms';
+import type { PermsExplorerResponse } from '@/lib/model/personnel/perms';
 import { ToastProvider } from '@/components/common/feedback/ToastProvider';
 
 vi.mock('@/lib/api/core/client', () => ({
   getStoredAccessToken: vi.fn().mockReturnValue('mock-jwt-token'),
 }));
 
-vi.mock('@/lib/api/dashboard/personnel', () => ({
-  fetchRoleHierarchyMatrix: vi.fn(),
+vi.mock('@/lib/api/dashboard/personnel/perms', () => ({
+  fetchPermsExplorer: vi.fn(),
+  updateRolePermissions: vi.fn(),
 }));
 
 function renderWithToast(ui: React.ReactElement) {
@@ -18,28 +20,156 @@ function renderWithToast(ui: React.ReactElement) {
 }
 
 describe('PersonnelPermsCoordinator File Explorer Navigation', () => {
-  const mockHierarchyMatrix: personnelApi.RoleHierarchyMatrixPayload = {
-    ranks: [
-      { weight: 9, code: 'R9' },
-      { weight: 8, code: 'R8' },
-      { weight: 5, code: 'R5' },
+  const samplePerms = {
+    dashboard: { enabled: true },
+    'dashboard.servers': {
+      enabled: true,
+      'dashboard.servers.[serverId]': {
+        'rednecks-gaming': {
+          enabled: true,
+          settings: { enabled: true },
+          botconfig: { enabled: true },
+          embeds: { enabled: true },
+          analytics: { enabled: true },
+        },
+        'rednecks-administrative-center': {
+          enabled: true,
+          settings: { enabled: true },
+          botconfig: { enabled: true },
+          embeds: { enabled: true },
+          analytics: { enabled: true },
+        },
+      },
+    },
+    'dashboard.embeds': { enabled: true },
+    'dashboard.botconfig': { enabled: true },
+    'dashboard.personnel': {
+      enabled: true,
+      'dashboard.personnel.roles': { enabled: true },
+      'dashboard.personnel.perms': { enabled: true },
+    },
+    'dashboard.whitelist': { enabled: true, fullAccess: true },
+    'dashboard.account': { enabled: true },
+  };
+
+  const mockExplorerResponse: PermsExplorerResponse = {
+    folders: [
+      {
+        id: 'des_supreme',
+        name: 'Supreme',
+        files: [
+          {
+            id: 'des_supreme:Chief High Command',
+            name: 'Chief High Command',
+            fileName: 'Chief High Command.json',
+            designationId: 'des_supreme',
+            designationName: 'Supreme',
+            rankWeight: 9,
+            rankCode: 'R9',
+            schema: {
+              title: '(Personnel) (Permission System)',
+              metadata: {
+                role_name: 'Chief High Command',
+                designation_id: 'des_supreme',
+                designation_name: 'Supreme',
+                code: 'R9',
+                weight: 9,
+                version: 0,
+              },
+              permissions: samplePerms,
+            },
+          },
+          {
+            id: 'des_supreme:High Command',
+            name: 'High Command',
+            fileName: 'High Command.json',
+            designationId: 'des_supreme',
+            designationName: 'Supreme',
+            rankWeight: 8,
+            rankCode: 'R8',
+            schema: {
+              title: '(Personnel) (Permission System)',
+              metadata: {
+                role_name: 'High Command',
+                designation_id: 'des_supreme',
+                designation_name: 'Supreme',
+                code: 'R8',
+                weight: 8,
+                version: 0,
+              },
+              permissions: samplePerms,
+            },
+          },
+        ],
+      },
+      {
+        id: 'des_tech',
+        name: 'Ministry of Tech',
+        files: [
+          {
+            id: 'des_tech:Minister',
+            name: 'Minister',
+            fileName: 'Minister.json',
+            designationId: 'des_tech',
+            designationName: 'Ministry of Tech',
+            rankWeight: 5,
+            rankCode: 'R5',
+            schema: {
+              title: '(Personnel) (Permission System)',
+              metadata: {
+                role_name: 'Minister',
+                designation_id: 'des_tech',
+                designation_name: 'Ministry of Tech',
+                code: 'R5',
+                weight: 5,
+                version: 0,
+              },
+              permissions: samplePerms,
+            },
+          },
+        ],
+      },
     ],
-    designations: [
-      { id: 'supreme', name: 'Supreme' },
-      { id: 'tech', name: 'Ministry of Tech' },
+    servers: [
+      { slug: 'rednecks-gaming', name: 'Rednecks Gaming' },
+      { slug: 'rednecks-administrative-center', name: 'Rednecks Administrative Center' },
     ],
-    cells: {
-      '9_supreme': [{ id: 'role_1', name: 'Chief High Command' }],
-      '8_supreme': [{ id: 'role_2', name: 'High Command' }],
-      '5_tech': [{ id: 'role_3', name: 'Minister' }],
+    labels: {
+      dashboard: 'Dashboard',
+      'dashboard.servers': 'Dashboard : Servers',
+      'dashboard.embeds': 'Dashboard : Embeds',
+      'dashboard.botconfig': 'Dashboard : Botconfig',
+      'dashboard.personnel': 'Dashboard : Personnel',
+      'dashboard.whitelist': 'Dashboard : Whitelist',
+      'dashboard.account': 'Dashboard : Account',
+      settings: 'Settings',
+      botconfig: 'Botconfig',
+      embeds: 'Embeds',
+      analytics: 'Analytics',
     },
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(personnelApi.fetchRoleHierarchyMatrix).mockResolvedValue({
+    vi.mocked(permsApi.fetchPermsExplorer).mockResolvedValue({
       success: true,
-      data: mockHierarchyMatrix,
+      data: mockExplorerResponse,
+    });
+    vi.mocked(permsApi.updateRolePermissions).mockResolvedValue({
+      success: true,
+      data: {
+        roleId: 'des_supreme:Chief High Command',
+        designationId: 'des_supreme',
+        designationName: 'Supreme',
+        roleName: 'Chief High Command',
+        rankWeight: 9,
+        rankCode: 'R9',
+        permissions: samplePerms,
+        labels: mockExplorerResponse.labels,
+        version: 1,
+        updatedBy: 'chief@rng.gg',
+        updatedAt: '2026-11-25T12:00:00Z',
+      },
     });
   });
 
