@@ -3,15 +3,14 @@
 import React, { useMemo, useState } from 'react';
 import { Accordion, AccordionItem } from '@/components/common/navigation/Accordion';
 import { PermsVisualRbacGroup } from './PermsVisualRbacGroup';
-import { formatPermKey } from './permsTextFormatter';
-import type { PermsRoleSchema } from './types';
-import type { ServerItem } from '@/lib/model/server';
+import type { PermsRoleSchema, PermsServerSummary } from '@/lib/model/personnel/perms';
 
 export interface PermsVisualRbacEditorProps {
   schema: PermsRoleSchema;
   onTogglePermission: (path: string[], enabled: boolean) => void;
   searchQuery?: string;
-  servers?: ServerItem[];
+  servers?: PermsServerSummary[];
+  labels?: Record<string, string>;
 }
 
 const NON_EXPANDABLE_KEYS = new Set([
@@ -26,6 +25,7 @@ export const PermsVisualRbacEditor: React.FC<PermsVisualRbacEditorProps> = ({
   onTogglePermission,
   searchQuery = '',
   servers,
+  labels = {},
 }) => {
   const permissionsEntries = useMemo(() => {
     const raw = Object.entries(schema.permissions || {});
@@ -33,10 +33,10 @@ export const PermsVisualRbacEditor: React.FC<PermsVisualRbacEditorProps> = ({
     if (!q) return raw;
 
     return raw.filter(([key]) => {
-      const formatted = formatPermKey(key).toLowerCase();
+      const formatted = (labels[key] ?? key).toLowerCase();
       return key.toLowerCase().includes(q) || formatted.includes(q);
     });
-  }, [schema.permissions, searchQuery]);
+  }, [schema.permissions, searchQuery, labels]);
 
   const [openIds, setOpenIds] = useState<string[]>(() =>
     permissionsEntries
@@ -46,6 +46,7 @@ export const PermsVisualRbacEditor: React.FC<PermsVisualRbacEditorProps> = ({
 
   const accordionItems: AccordionItem[] = useMemo(() => {
     return permissionsEntries.map(([key, val]) => {
+      const label = labels[key] ?? key;
       const dataObj = (typeof val === 'object' && val !== null ? val : {}) as Record<string, unknown>;
       const isEnabled = dataObj.enabled !== undefined ? Boolean(dataObj.enabled) : true;
       const hasHeaderToggle = key !== 'dashboard.servers';
@@ -59,14 +60,14 @@ export const PermsVisualRbacEditor: React.FC<PermsVisualRbacEditorProps> = ({
             {...(isNonExpandable ? { 'data-no-chevron': 'true' } : {})}
           >
             <span className="text-xs sm:text-sm font-semibold text-white tracking-tight truncate">
-              {formatPermKey(key)}
+              {label}
             </span>
             {hasHeaderToggle && (
               <span
                 role="switch"
                 tabIndex={0}
                 aria-checked={isEnabled}
-                aria-label={`Toggle ${formatPermKey(key)}`}
+                aria-label={`Toggle ${label}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onTogglePermission([key, 'enabled'], !isEnabled);
@@ -98,11 +99,12 @@ export const PermsVisualRbacEditor: React.FC<PermsVisualRbacEditorProps> = ({
             parentEnabled={isEnabled}
             onToggle={onTogglePermission}
             servers={servers}
+            labels={labels}
           />
         ),
       };
     });
-  }, [permissionsEntries, onTogglePermission, servers]);
+  }, [permissionsEntries, onTogglePermission, servers, labels]);
 
   if (permissionsEntries.length === 0) {
     return null;

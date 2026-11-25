@@ -3,15 +3,15 @@
 import React from 'react';
 import { Accordion, AccordionItem } from '@/components/common/navigation/Accordion';
 import { ToggleSwitch } from '@/components/common/input/ToggleSwitch';
-import { formatPermKey } from './permsTextFormatter';
-import type { ServerItem } from '@/lib/model/server';
+import type { PermsServerSummary } from '@/lib/model/personnel/perms';
 
 export interface PermsVisualRbacGroupProps {
   parentKey: string;
   data: Record<string, unknown>;
   parentEnabled: boolean;
   onToggle: (path: string[], enabled: boolean) => void;
-  servers?: ServerItem[];
+  servers?: PermsServerSummary[];
+  labels?: Record<string, string>;
 }
 
 export const PermsVisualRbacGroup: React.FC<PermsVisualRbacGroupProps> = ({
@@ -20,7 +20,10 @@ export const PermsVisualRbacGroup: React.FC<PermsVisualRbacGroupProps> = ({
   parentEnabled,
   onToggle,
   servers,
+  labels = {},
 }) => {
+  const resolveLabel = (key: string) => labels[key] ?? key;
+
   // 1. Dashboard : Servers -> Direct Accordion of Servers
   if (parentKey === 'dashboard.servers') {
     const serversMapKey =
@@ -31,9 +34,9 @@ export const PermsVisualRbacGroup: React.FC<PermsVisualRbacGroupProps> = ({
     const serverEntries =
       servers && servers.length > 0
         ? servers.map((s) => ({
-            slug: s.slug || s.id,
+            slug: s.slug,
             name: s.name,
-            data: (serversData[s.slug] || serversData[s.id] || {
+            data: (serversData[s.slug] || {
               enabled: true,
               settings: { enabled: true },
               botconfig: { enabled: true },
@@ -43,7 +46,7 @@ export const PermsVisualRbacGroup: React.FC<PermsVisualRbacGroupProps> = ({
           }))
         : Object.entries(serversData).map(([slug, sObj]) => ({
             slug,
-            name: formatPermKey(slug),
+            name: resolveLabel(slug),
             data: (sObj || {}) as Record<string, unknown>,
           }));
 
@@ -99,7 +102,7 @@ export const PermsVisualRbacGroup: React.FC<PermsVisualRbacGroupProps> = ({
                   }`}
                 >
                   <span className="text-xs font-medium text-zinc-300 tracking-tight">
-                    {formatPermKey(featKey)}
+                    {resolveLabel(featKey)}
                   </span>
                   <ToggleSwitch
                     checked={isFeatEnabled}
@@ -108,7 +111,7 @@ export const PermsVisualRbacGroup: React.FC<PermsVisualRbacGroupProps> = ({
                     }
                     disabled={!isServerEnabled}
                     size="sm"
-                    aria-label={`Toggle ${srv.name} ${formatPermKey(featKey)}`}
+                    aria-label={`Toggle ${srv.name} ${resolveLabel(featKey)}`}
                   />
                 </div>
               );

@@ -5,10 +5,10 @@ import { useToast } from '@/components/common/feedback/ToastProvider';
 import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { GlobalUnsavedChangesBar } from '@/components/dashboard/layout/GlobalUnsavedChangesBar';
 import { getStoredAccessToken } from '@/lib/api/core/client';
-import { fetchRoleHierarchyMatrix } from '@/lib/api/dashboard/personnel';
-import { fetchServers } from '@/lib/api/dashboard/servers';
-import type { ServerItem } from '@/lib/model/server';
-import { buildDirectoryTree, updatePermissionAtPath } from './permsSchemaHelper';
+import {
+  fetchPermsExplorer,
+  updateRolePermissions,
+} from '@/lib/api/dashboard/personnel/perms';
 import { PermsBreadcrumbBar } from './PermsBreadcrumbBar';
 import { PermsFolderList } from './PermsFolderList';
 import { PermsFileList } from './PermsFileList';
@@ -18,14 +18,30 @@ import type {
   PermsFileNode,
   PermsRoleSchema,
   PermsEditorTab,
+  PermsObject,
+  PermsServerSummary,
   ExplorerView,
-} from './types';
+} from '@/lib/model/personnel/perms';
+
+function setNestedBoolean(target: PermsObject, path: string[], val: boolean): PermsObject {
+  if (path.length === 0) return target;
+  const [head, ...tail] = path;
+  if (tail.length === 0) {
+    return { ...target, [head]: val };
+  }
+  const child = (target[head] && typeof target[head] === 'object' ? target[head] : {}) as PermsObject;
+  return {
+    ...target,
+    [head]: setNestedBoolean(child, tail, val),
+  };
+}
 
 export const PersonnelPermsCoordinator: React.FC = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [folders, setFolders] = useState<PermsFolderNode[]>([]);
-  const [servers, setServers] = useState<ServerItem[]>([]);
+  const [servers, setServers] = useState<PermsServerSummary[]>([]);
+  const [labels, setLabels] = useState<Record<string, string>>({});
   const [view, setView] = useState<ExplorerView>({ type: 'root' });
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<PermsEditorTab>('visual');
@@ -39,24 +55,18 @@ export const PersonnelPermsCoordinator: React.FC = () => {
     void (async () => {
       try {
         const token = getStoredAccessToken() || undefined;
-        const [res, sRes] = await Promise.all([
-          fetchRoleHierarchyMatrix(token),
-          fetchServers(token).catch(() => null),
-        ]);
-        if (isMounted) {
-          if (res?.success && res.data) {
-            setFolders(buildDirectoryTree(res.data.ranks || [], res.data.designations || [], res.data.cells || {}));
-          }
-          if (sRes?.success && sRes.data) {
-            setServers(sRes.data);
-          }
+        const res = await fetchPermsExplorer(token);
+        if (isMounted && res?.success && res.data) {
+          setFolders(res.data.folders || []);
+          setServers(res.data.servers || []);
+          setLabels(res.data.labels || {});
         }
       } catch (err: unknown) {
         if (isMounted) {
           toast({
             type: 'error',
-            title: 'Failed to Synchronize Hierarchy Directory',
-            description: err instanceof Error ? err.message : 'Error loading roles.',
+            title: 'Failed to Synchronize Permissions Directory',
+            description: err instanceof Error ? err.message : 'Error loading role permissions.',
           });
         }
       } finally {
@@ -130,7 +140,10 @@ export const PersonnelPermsCoordinator: React.FC = () => {
 
   const handleTogglePermission = (path: string[], enabled: boolean) => {
     if (!activeFile) return;
-    const nextSchema = updatePermissionAtPath(activeFile.schema, path, enabled);
+    const nextSchema: PermsRoleSchema = {
+      ...activeFile.schema,
+      permissions: setNestedBoolean(activeFile.schema.permissions, path, enabled),
+    };
     setJsonText(JSON.stringify(nextSchema, null, 2));
     handleUpdateFileSchema(activeFile.id, nextSchema);
   };
@@ -158,15 +171,49 @@ export const PersonnelPermsCoordinator: React.FC = () => {
   const handleSave = useCallback(async () => {
     if (!activeFile) return;
     setIsSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setBaselineJson(jsonText);
-    setIsSaving(false);
-    toast({
-      type: 'info',
-      title: 'Policy Changes Staged',
-      description: 'Changes staged locally. Remote backend endpoint is pending implementation.',
-    });
-  }, [activeFile, jsonText, toast]);
+    try {
+      const token = getStoredAccessToken() || undefined;
+      const res = await updateRolePermissions(
+        activeFile.id,
+        activeFile.schema.permissions,
+        activeFile.schema.metadata.version,
+        token
+      );
+      if (res?.success && res.data) {
+        const syncedSchema: PermsRoleSchema = {
+          ...activeFile.schema,
+          metadata: {
+            ...activeFile.schema.metadata,
+            version: res.data.version,
+            last_modified_at: res.data.updatedAt ?? activeFile.schema.metadata.last_modified_at,
+            last_modified_by: res.data.updatedBy ?? activeFile.schema.metadata.last_modified_by,
+          },
+          permissions: res.data.permissions || activeFile.schema.permissions,
+        };
+        const syncedText = JSON.stringify(syncedSchema, null, 2);
+        handleUpdateFileSchema(activeFile.id, syncedSchema);
+        setJsonText(syncedText);
+        setBaselineJson(syncedText);
+        if (res.data.labels) {
+          setLabels((prev) => ({ ...prev, ...res.data.labels }));
+        }
+        window.dispatchEvent(new CustomEvent('rng:permissions-updated'));
+        toast({
+          type: 'success',
+          title: 'Permissions Saved',
+          description: `Updated policy for ${activeFile.name} (v${res.data.version}).`,
+        });
+      }
+    } catch (err: unknown) {
+      toast({
+        type: 'error',
+        title: 'Failed to Save Permissions',
+        description: err instanceof Error ? err.message : 'Unable to persist role permissions.',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [activeFile, toast]);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -231,6 +278,7 @@ export const PersonnelPermsCoordinator: React.FC = () => {
           onTogglePermission={handleTogglePermission}
           searchQuery={searchQuery}
           servers={servers}
+          labels={labels}
         />
       )}
 
