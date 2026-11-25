@@ -9,6 +9,8 @@ import { Button } from '@/components/common/input/Button';
 import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
 import { DashboardSidebarNav } from './DashboardSidebarNav';
 import { DashboardAppHeader } from './DashboardAppHeader';
+import { EffectivePermissionsProvider } from './EffectivePermissionsContext';
+import { PermissionsGuard } from './PermissionsGuard';
 
 export interface DashboardShellClientProps {
   children: React.ReactNode;
@@ -115,8 +117,9 @@ export const DashboardShellClient: React.FC<DashboardShellClientProps> = ({ chil
   }
 
   return (
-    <div
-      className={`w-full bg-surface-canvas text-white flex relative ${
+    <EffectivePermissionsProvider>
+      <div
+        className={`w-full bg-surface-canvas text-white flex relative ${
         isEmbedRoute
           ? 'h-screen max-h-screen overflow-hidden'
           : 'min-h-screen overflow-x-hidden'
@@ -159,9 +162,10 @@ export const DashboardShellClient: React.FC<DashboardShellClientProps> = ({ chil
               : 'flex-1 p-4 md:p-6 w-full'
           }
         >
-          {children}
+          <PermissionsGuard>{children}</PermissionsGuard>
         </main>
       </div>
-    </div>
+      </div>
+    </EffectivePermissionsProvider>
   );
 };
