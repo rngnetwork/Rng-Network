@@ -8,23 +8,28 @@ import com.rednecksgaming.common.security.TokenService;
 import com.rednecksgaming.identity.domain.AuthProvider;
 import com.rednecksgaming.identity.domain.User;
 import com.rednecksgaming.identity.repository.UserRepository;
+import com.rednecksgaming.personnel.perms.repository.RolePermissionsRepository;
 import com.rednecksgaming.personnel.roles.domain.MatrixCell;
 import com.rednecksgaming.personnel.roles.dto.*;
 import com.rednecksgaming.personnel.roles.repository.DesignationRoleRepository;
 import com.rednecksgaming.personnel.roles.repository.MatrixCellRepository;
 import com.rednecksgaming.personnel.roles.repository.MatrixDesignationRepository;
 import com.rednecksgaming.personnel.roles.repository.MatrixRankRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -63,6 +68,12 @@ public class RoleHierarchyIntegrationTest {
     @Autowired
     private DesignationRoleRepository designationRoleRepository;
 
+    @Autowired
+    private RolePermissionsRepository rolePermissionsRepository;
+
+    @Autowired
+    private CacheManager cacheManager;
+
     private User chiefHighCommand;
     private User regularHighCommand;
     private User ministerUser;
@@ -76,6 +87,18 @@ public class RoleHierarchyIntegrationTest {
     @BeforeEach
     void setUp() {
         userRepository.deleteAll();
+
+        rolePermissionsRepository.findById("des_tech:Minister").ifPresent(ministerPerms -> {
+            Map<String, Object> perms = new LinkedHashMap<>(ministerPerms.getPermissions());
+            perms.put("dashboard", Map.of("enabled", true));
+            perms.put("dashboard.whitelist", Map.of("enabled", true, "fullAccess", false));
+            ministerPerms.setPermissions(perms);
+            rolePermissionsRepository.saveAndFlush(ministerPerms);
+            Cache cache = cacheManager.getCache("personnel:role_perms");
+            if (cache != null) {
+                cache.evict("des_tech:Minister");
+            }
+        });
 
         chiefHighCommand = userRepository.save(User.builder()
                 .email("arzenic@rednecksgaming.com")
@@ -121,6 +144,21 @@ public class RoleHierarchyIntegrationTest {
         regularHighCommandToken = tokenService.generateAccessToken(regularHighCommand.getId(), regularHighCommand.getEmail(), regularHighCommand.getRole());
         ministerToken = tokenService.generateAccessToken(ministerUser.getId(), ministerUser.getEmail(), ministerUser.getRole());
         regularUserToken = tokenService.generateAccessToken(regularUser.getId(), regularUser.getEmail(), regularUser.getRole());
+    }
+
+    @AfterEach
+    void tearDown() {
+        rolePermissionsRepository.findById("des_tech:Minister").ifPresent(ministerPerms -> {
+            Map<String, Object> perms = new LinkedHashMap<>(ministerPerms.getPermissions());
+            perms.put("dashboard", Map.of("enabled", false));
+            perms.put("dashboard.whitelist", Map.of("enabled", false, "fullAccess", false));
+            ministerPerms.setPermissions(perms);
+            rolePermissionsRepository.saveAndFlush(ministerPerms);
+            Cache cache = cacheManager.getCache("personnel:role_perms");
+            if (cache != null) {
+                cache.evict("des_tech:Minister");
+            }
+        });
     }
 
     @Test
