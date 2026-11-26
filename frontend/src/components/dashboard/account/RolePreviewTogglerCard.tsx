@@ -14,6 +14,7 @@ import { Dropdown, type DropdownOption } from '@/components/common/input/Dropdow
 export const RolePreviewTogglerCard: React.FC = () => {
   const {
     callerMaxRankWeight,
+    loading: permsLoading,
     isPreviewMode,
     previewRoleId,
     previewRoleName,
@@ -26,7 +27,7 @@ export const RolePreviewTogglerCard: React.FC = () => {
   const [hasLoadedOptions, setHasLoadedOptions] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const isEligible = callerMaxRankWeight >= 8;
+  const isEligible = permsLoading !== true && callerMaxRankWeight >= 8;
   const loadingOptions = isEligible && !hasLoadedOptions;
 
   useEffect(() => {

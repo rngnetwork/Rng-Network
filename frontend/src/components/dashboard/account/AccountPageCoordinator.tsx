@@ -15,7 +15,7 @@ import { RolePreviewTogglerCard } from './RolePreviewTogglerCard';
 import { ActiveSessionsList } from './ActiveSessionsList';
 
 export const AccountPageCoordinator: React.FC = () => {
-  const { callerMaxRankWeight } = useEffectivePermissions();
+  const { callerMaxRankWeight, loading: permsLoading } = useEffectivePermissions();
   const [user, setUser] = useState<UserProfileData | null>(null);
   const [hierarchy, setHierarchy] = useState<PersonnelHierarchyMap>({});
   const [sessions, setSessions] = useState<ActiveSessionItem[]>([]);
@@ -129,9 +129,11 @@ export const AccountPageCoordinator: React.FC = () => {
           onRevokeSession={(id) => void handleRevokeSession(id)}
           revokingId={revokingId}
         />
-        <div className="lg:col-span-2">
-          <RolePreviewTogglerCard />
-        </div>
+        {permsLoading !== true && callerMaxRankWeight >= 8 && (
+          <div className="lg:col-span-2">
+            <RolePreviewTogglerCard />
+          </div>
+        )}
       </div>
     </div>
   );

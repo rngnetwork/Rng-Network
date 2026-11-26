@@ -233,4 +233,39 @@ class RolePermissionsServiceTest {
         assertThat(service.resolveRoleTokensMaxRankWeight(List.of("Security Ops:Custom Lead"))).isEqualTo(7);
         assertThat(service.resolveRoleTokensMaxRankWeight(List.of("Security Ops:Custom Intern"))).isEqualTo(0);
     }
+
+    @Test
+    @DisplayName("Prefers MatrixCell rank weights even when RolePermissions rows are missing")
+    void shouldResolveWeightsFromMatrixCellsWhenRolePermissionsMissing() {
+        com.rednecksgaming.personnel.roles.repository.MatrixCellRepository matrixCellRepository =
+                org.mockito.Mockito.mock(com.rednecksgaming.personnel.roles.repository.MatrixCellRepository.class);
+        RolePermissionsService matrixAwareService = new RolePermissionsService(
+                rolePermissionsRepository,
+                designationRepository,
+                serverRepository,
+                new RolePermissionsMapper(new PermsTextFormatter()),
+                new PermsSchemaNormalizer(),
+                new PermsTextFormatter(),
+                new AdditiveUnionResolver(),
+                roleResolutionService,
+                new org.springframework.cache.concurrent.ConcurrentMapCacheManager("personnel:role_perms"),
+                eventPublisher,
+                matrixCellRepository
+        );
+
+        when(designationRepository.findAllByOrderByPositionAsc()).thenReturn(List.of(
+                new MatrixDesignation("des_security", "Security Ops", 1)
+        ));
+        when(matrixCellRepository.findAll()).thenReturn(List.of(
+                new com.rednecksgaming.personnel.roles.domain.MatrixCell(7, "des_security", "Ops Commander"),
+                new com.rednecksgaming.personnel.roles.domain.MatrixCell(6, "des_security", "Ops Executive")
+        ));
+        when(rolePermissionsRepository.findAll()).thenReturn(List.of());
+
+        assertThat(matrixAwareService.getHierarchyRankWeights())
+                .containsEntry("Security Ops:Ops Commander", 7)
+                .containsEntry("Security Ops:Ops Executive", 6);
+        assertThat(matrixAwareService.resolveRoleTokensMaxRankWeight(List.of("Security Ops:Ops Commander")))
+                .isEqualTo(7);
+    }
 }

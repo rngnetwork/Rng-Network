@@ -1370,4 +1370,91 @@ class WhitelistServiceTest {
         assertThatThrownBy(() -> dynamicService.deleteWhitelistedUser(60L, 10L))
                 .isInstanceOf(ForbiddenException.class);
     }
+
+    @Test
+    @DisplayName("R6 operator cannot self-escalate to R7/R8 or whitelist R6+ with fullAccess=true or fullAccess=false")
+    void testR6OperatorCannotSelfEscalateOrWhitelistAboveSubordinates() {
+        com.rednecksgaming.personnel.perms.service.RolePermissionsService permsService =
+                mock(com.rednecksgaming.personnel.perms.service.RolePermissionsService.class);
+        com.rednecksgaming.personnel.perms.service.GranularPermissionEvaluator evaluator =
+                mock(com.rednecksgaming.personnel.perms.service.GranularPermissionEvaluator.class);
+        WhitelistService dynamicService = new WhitelistService(
+                userRepository, designationRoleService, permsService, evaluator
+        );
+
+        User r6Operator = User.builder()
+                .id(70L)
+                .email("exec70@rng.com")
+                .fullName("Exec Seventy")
+                .role("ROLE_USER")
+                .designations("Security Ops")
+                .roles("Security Ops:Custom Exec")
+                .status("ACTIVE")
+                .build();
+
+        com.rednecksgaming.personnel.perms.dto.EffectivePermissionsDto effectiveFull =
+                new com.rednecksgaming.personnel.perms.dto.EffectivePermissionsDto(
+                        "70", java.util.Set.of("des_sec:Custom Exec"), false, null, null, 6,
+                        java.util.Map.of("dashboard", java.util.Map.of("enabled", true),
+                                "dashboard.whitelist", java.util.Map.of("enabled", true, "fullAccess", true))
+                );
+
+        when(userRepository.findById(70L)).thenReturn(Optional.of(r6Operator));
+        when(permsService.resolveUserRankWeight(r6Operator)).thenReturn(6);
+        when(permsService.computeEffectivePermissions(r6Operator, null)).thenReturn(effectiveFull);
+        when(evaluator.isFeatureEnabled(effectiveFull, "dashboard.whitelist")).thenReturn(true);
+        when(evaluator.hasWhitelistFullAccess(effectiveFull)).thenReturn(true);
+        when(designationRoleService.isValidDesignation("Security Ops")).thenReturn(true);
+        when(designationRoleService.isValidRoleForDesignation("Security Ops", "Custom Commander")).thenReturn(true);
+        when(designationRoleService.isValidRoleForDesignation("Security Ops", "Custom Exec")).thenReturn(true);
+        when(designationRoleService.isValidRoleForDesignation("Security Ops", "Custom Watcher")).thenReturn(true);
+        when(permsService.resolveRoleTokensMaxRankWeight(List.of("Security Ops:Custom Exec"))).thenReturn(6);
+        when(permsService.resolveRoleTokensMaxRankWeight(List.of("Security Ops:Custom Commander"))).thenReturn(7);
+        when(permsService.resolveRoleTokensMaxRankWeight(List.of("Security Ops:Custom Marshal"))).thenReturn(8);
+        when(permsService.resolveRoleTokensMaxRankWeight(List.of("Security Ops:Custom Watcher"))).thenReturn(2);
+
+        // Self-escalation to R7/R8 under fullAccess=true must fail
+        UpdateWhitelistedUserRequest selfR7Req = UpdateWhitelistedUserRequest.builder()
+                .userName("Exec Seventy")
+                .designations(List.of("Security Ops"))
+                .roles(List.of("Security Ops:Custom Commander"))
+                .build();
+        assertThatThrownBy(() -> dynamicService.updateWhitelistedUser(70L, 70L, selfR7Req))
+                .isInstanceOf(ForbiddenException.class);
+
+        UpdateWhitelistedUserRequest selfR8Req = UpdateWhitelistedUserRequest.builder()
+                .userName("Exec Seventy")
+                .designations(List.of("Security Ops"))
+                .roles(List.of("Security Ops:Custom Marshal"))
+                .build();
+        assertThatThrownBy(() -> dynamicService.updateWhitelistedUser(70L, 70L, selfR8Req))
+                .isInstanceOf(ForbiddenException.class);
+
+        // Creating a peer R6 or higher R7 user under fullAccess=true must fail
+        when(userRepository.existsByEmail("newpeer@rng.com")).thenReturn(false);
+        WhitelistUserRequest createPeerReq = WhitelistUserRequest.builder()
+                .email("newpeer@rng.com")
+                .userName("New Peer")
+                .provider(AuthProvider.EMAIL)
+                .designations(List.of("Security Ops"))
+                .roles(List.of("Security Ops:Custom Exec"))
+                .build();
+        assertThatThrownBy(() -> dynamicService.createWhitelistedUser(70L, createPeerReq))
+                .isInstanceOf(ForbiddenException.class);
+
+        // Self-escalation to R7 under fullAccess=false must also fail
+        when(evaluator.hasWhitelistFullAccess(effectiveFull)).thenReturn(false);
+        assertThatThrownBy(() -> dynamicService.updateWhitelistedUser(70L, 70L, selfR7Req))
+                .isInstanceOf(ForbiddenException.class);
+
+        // Self-update retaining own R6 role + adding subordinate R2 role must succeed
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+        UpdateWhitelistedUserRequest validSelfReq = UpdateWhitelistedUserRequest.builder()
+                .userName("Exec Seventy Updated")
+                .designations(List.of("Security Ops"))
+                .roles(List.of("Security Ops:Custom Exec", "Security Ops:Custom Watcher"))
+                .build();
+        WhitelistedUserDto updated = dynamicService.updateWhitelistedUser(70L, 70L, validSelfReq);
+        assertThat(updated.getUserName()).isEqualTo("Exec Seventy Updated");
+    }
 }

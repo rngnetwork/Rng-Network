@@ -140,6 +140,10 @@ export const EffectivePermissionsProvider: React.FC<{ children: React.ReactNode 
       let current: Record<string, unknown> = effectivePermissions.permissions;
       for (let i = startIndex; i < path.length; i++) {
         const next = current[path[i]];
+        const isLeaf = i === path.length - 1;
+        if (isLeaf && typeof next === 'boolean') {
+          return next;
+        }
         if (!isRecord(next) || next.enabled !== true) {
           return false;
         }
