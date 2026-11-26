@@ -54,6 +54,12 @@ class WhitelistIntegrationTest {
     private RolePermissionsRepository rolePermissionsRepository;
 
     @Autowired
+    private com.rednecksgaming.personnel.roles.repository.MatrixDesignationRepository matrixDesignationRepository;
+
+    @Autowired
+    private com.rednecksgaming.personnel.roles.repository.DesignationRoleRepository designationRoleRepository;
+
+    @Autowired
     private org.springframework.cache.CacheManager cacheManager;
 
     private User chiefHighCommand;
@@ -310,5 +316,91 @@ class WhitelistIntegrationTest {
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.data.Supreme", hasItems("Chief High Command", "High Command")))
                 .andExpect(jsonPath("$.data['Ministry of Tech']", hasItems("Minister", "Secretary", "Tech Specialist", "Senior Dev", "Junior Dev")));
+    }
+
+    @Test
+    @DisplayName("Custom ROLE_USER role created in Role Hierarchy with dashboard.whitelist enabled accesses and uses whitelist endpoints")
+    void testCustomRoleUserWithWhitelistPermission_fullLifecycle() throws Exception {
+        com.rednecksgaming.personnel.roles.domain.MatrixDesignation secDes =
+                matrixDesignationRepository.saveAndFlush(new com.rednecksgaming.personnel.roles.domain.MatrixDesignation("des_sec_it", "Security Ops IT", 99));
+        com.rednecksgaming.personnel.roles.domain.DesignationRole leadRole =
+                designationRoleRepository.saveAndFlush(new com.rednecksgaming.personnel.roles.domain.DesignationRole("des_sec_it", "Security Ops IT", "Security Lead"));
+        com.rednecksgaming.personnel.roles.domain.DesignationRole watcherRole =
+                designationRoleRepository.saveAndFlush(new com.rednecksgaming.personnel.roles.domain.DesignationRole("des_sec_it", "Security Ops IT", "Security Watcher"));
+
+        RolePermissions leadPerms = new RolePermissions(
+                "des_sec_it:Security Lead",
+                "des_sec_it",
+                "Security Lead",
+                4,
+                Map.of(
+                        "dashboard", Map.of("enabled", true),
+                        "dashboard.whitelist", Map.of("enabled", true, "fullAccess", false)
+                ),
+                "TEST"
+        );
+        RolePermissions watcherPerms = new RolePermissions(
+                "des_sec_it:Security Watcher",
+                "des_sec_it",
+                "Security Watcher",
+                2,
+                Map.of("dashboard", Map.of("enabled", false)),
+                "TEST"
+        );
+        rolePermissionsRepository.saveAllAndFlush(List.of(leadPerms, watcherPerms));
+
+        try {
+            User customOperator = userRepository.save(User.builder()
+                    .email("sec.lead.it@rng.com")
+                    .fullName("Security Lead IT")
+                    .provider(AuthProvider.EMAIL)
+                    .role("ROLE_USER")
+                    .designations("Security Ops IT")
+                    .roles("Security Ops IT: Security Lead")
+                    .status("ACTIVE")
+                    .build());
+            String customToken = tokenService.generateAccessToken(customOperator.getId(), customOperator.getEmail(), "ROLE_USER");
+
+            mockMvc.perform(get("/api/v1/whitelist")
+                            .header(SecurityConstants.AUTHORIZATION_HEADER, "Bearer " + customToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success", is(true)));
+
+            mockMvc.perform(get("/api/v1/whitelist/hierarchy/weights")
+                            .header(SecurityConstants.AUTHORIZATION_HEADER, "Bearer " + customToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data['Security Ops IT:Security Lead']", is(4)));
+
+            WhitelistUserRequest createReq = WhitelistUserRequest.builder()
+                    .email("sec.watcher.it@rng.com")
+                    .userName("Security Watcher IT")
+                    .provider(AuthProvider.EMAIL)
+                    .designations(List.of("Security Ops IT"))
+                    .roles(List.of("Security Ops IT:Security Watcher"))
+                    .build();
+
+            mockMvc.perform(post("/api/v1/whitelist")
+                            .header(SecurityConstants.AUTHORIZATION_HEADER, "Bearer " + customToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(createReq)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.data.email", is("sec.watcher.it@rng.com")))
+                    .andExpect(jsonPath("$.data.rankWeight", is(2)));
+        } finally {
+            rolePermissionsRepository.deleteById("des_sec_it:Security Lead");
+            rolePermissionsRepository.deleteById("des_sec_it:Security Watcher");
+            designationRoleRepository.delete(leadRole);
+            designationRoleRepository.delete(watcherRole);
+            matrixDesignationRepository.delete(secDes);
+            var permsCache = cacheManager.getCache("personnel:role_perms");
+            if (permsCache != null) {
+                permsCache.evict("des_sec_it:Security Lead");
+                permsCache.evict("des_sec_it:Security Watcher");
+            }
+            var rolesCache = cacheManager.getCache("personnel:hierarchy:designation-roles");
+            if (rolesCache != null) {
+                rolesCache.clear();
+            }
+        }
     }
 }

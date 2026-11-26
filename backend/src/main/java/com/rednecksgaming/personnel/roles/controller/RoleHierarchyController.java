@@ -3,6 +3,9 @@
 // Year: 2026
 package com.rednecksgaming.personnel.roles.controller;
 
+import com.rednecksgaming.identity.domain.User;
+import com.rednecksgaming.identity.repository.UserRepository;
+import com.rednecksgaming.personnel.perms.service.RolePermissionsService;
 import com.rednecksgaming.personnel.roles.dto.*;
 import com.rednecksgaming.personnel.roles.service.DesignationRoleService;
 import com.rednecksgaming.personnel.roles.service.RoleMatrixService;
@@ -11,6 +14,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -19,6 +23,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/personnel/hierarchy")
@@ -27,10 +32,24 @@ public class RoleHierarchyController {
 
     private final RoleMatrixService matrixService;
     private final DesignationRoleService designationRoleService;
+    private final UserRepository userRepository;
+    private final RolePermissionsService rolePermissionsService;
 
     public RoleHierarchyController(RoleMatrixService matrixService, DesignationRoleService designationRoleService) {
+        this(matrixService, designationRoleService, null, null);
+    }
+
+    @Autowired
+    public RoleHierarchyController(
+            RoleMatrixService matrixService,
+            DesignationRoleService designationRoleService,
+            @Autowired(required = false) UserRepository userRepository,
+            @Autowired(required = false) RolePermissionsService rolePermissionsService
+    ) {
         this.matrixService = matrixService;
         this.designationRoleService = designationRoleService;
+        this.userRepository = userRepository;
+        this.rolePermissionsService = rolePermissionsService;
     }
 
     @GetMapping("/matrix")
@@ -119,11 +138,30 @@ public class RoleHierarchyController {
 
     private void assertChiefHighCommandIfRank9(Authentication authentication, Integer rankWeight) {
         if (rankWeight != null && rankWeight == 9) {
-            boolean isChief = authentication != null && authentication.getAuthorities().stream()
+            boolean hasLegacyChiefAuthority = authentication != null && authentication.getAuthorities().stream()
                     .anyMatch(a -> a.getAuthority().equals("ROLE_CHIEF_HIGH_COMMAND"));
-            if (!isChief) {
-                throw new AccessDeniedException("Insufficient hierarchical clearance: Mutating Rank 9 requires ROLE_CHIEF_HIGH_COMMAND");
+            if (hasLegacyChiefAuthority || resolveAuthenticatedRankWeight(authentication) >= 9) {
+                return;
+            }
+            throw new AccessDeniedException("Insufficient hierarchical clearance: Mutating Rank 9 requires ROLE_CHIEF_HIGH_COMMAND or Rank 9 clearance");
+        }
+    }
+
+    private int resolveAuthenticatedRankWeight(Authentication authentication) {
+        if (authentication == null || userRepository == null || rolePermissionsService == null) {
+            return 0;
+        }
+        Optional<User> caller = Optional.empty();
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof Long userId) {
+            caller = userRepository.findById(userId);
+        } else if (principal instanceof String s && !s.isBlank()) {
+            try {
+                caller = userRepository.findById(Long.parseLong(s.trim()));
+            } catch (NumberFormatException ignored) {
+                caller = userRepository.findByEmail(s.trim().toLowerCase());
             }
         }
+        return caller.map(rolePermissionsService::resolveUserRankWeight).orElse(0);
     }
 }
