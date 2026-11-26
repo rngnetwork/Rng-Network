@@ -324,6 +324,30 @@ describe('PersonnelPermsCoordinator File Explorer Navigation', () => {
     });
     expect(dashboardHeaderSwitch).toHaveAttribute('aria-checked', 'true');
 
+    // Dashboard : Servers toggle is on the header and works identically
+    const serversHeaderSwitch = screen.getByRole('switch', {
+      name: 'Toggle Dashboard : Servers',
+    });
+    expect(serversHeaderSwitch).toHaveAttribute('aria-checked', 'true');
+    const serverItemSwitch = screen.getByRole('switch', {
+      name: 'Toggle Rednecks Gaming',
+    });
+    expect(serverItemSwitch).toHaveAttribute('aria-disabled', 'false');
+
+    fireEvent.click(serversHeaderSwitch);
+    expect(serversHeaderSwitch).toHaveAttribute('aria-checked', 'false');
+    expect(serverItemSwitch).toHaveAttribute('aria-disabled', 'true');
+
+    // Click the Reset button before testing Dashboard : Personnel
+    await waitFor(() => {
+      expect(screen.getByText(/Careful — you have unsaved policy edits!/i)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Reset/i }));
+    await waitFor(() => {
+      expect(serversHeaderSwitch).toHaveAttribute('aria-checked', 'true');
+      expect(serverItemSwitch).toHaveAttribute('aria-disabled', 'false');
+    });
+
     // Find the enabler switch in the header for Dashboard : Personnel
     const personnelHeaderSwitch = screen.getByRole('switch', {
       name: 'Toggle Dashboard : Personnel',
@@ -345,6 +369,85 @@ describe('PersonnelPermsCoordinator File Explorer Navigation', () => {
 
     await waitFor(() => {
       expect(personnelHeaderSwitch).toHaveAttribute('aria-checked', 'true');
+    });
+  });
+
+  it('allows enabling Dashboard : Servers from false on seeded R5 Minister role', async () => {
+    const ministerResponse: PermsExplorerResponse = {
+      ...mockExplorerResponse,
+      folders: [
+        {
+          id: 'des_tech',
+          name: 'Ministry of Tech',
+          files: [
+            {
+              id: 'des_tech:Minister',
+              name: 'Minister',
+              fileName: 'Minister.json',
+              designationId: 'des_tech',
+              designationName: 'Ministry of Tech',
+              rankWeight: 5,
+              rankCode: 'R5',
+              schema: {
+                title: '(Personnel) (Permission System)',
+                metadata: {
+                  role_name: 'Minister',
+                  designation_id: 'des_tech',
+                  designation_name: 'Ministry of Tech',
+                  code: 'R5',
+                  weight: 5,
+                  version: 0,
+                },
+                permissions: {
+                  ...samplePerms,
+                  'dashboard.servers': {
+                    enabled: false,
+                    'dashboard.servers.[serverId]': {},
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    };
+    vi.mocked(permsApi.fetchPermsExplorer).mockResolvedValueOnce({
+      success: true,
+      data: ministerResponse,
+    });
+
+    renderWithToast(<PersonnelPermsCoordinator />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Ministry of Tech')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Open designation folder Ministry of Tech/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Minister.json')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Open role file Minister\.json/i }));
+
+    const serversHeaderSwitch = await screen.findByRole('switch', {
+      name: 'Toggle Dashboard : Servers',
+    });
+    expect(serversHeaderSwitch).toHaveAttribute('aria-checked', 'false');
+
+    fireEvent.click(serversHeaderSwitch);
+    expect(serversHeaderSwitch).toHaveAttribute('aria-checked', 'true');
+
+    const saveBtn = await screen.findByRole('button', { name: /Save Changes/i });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(permsApi.updateRolePermissions).toHaveBeenCalledWith(
+        'des_tech:Minister',
+        expect.objectContaining({
+          'dashboard.servers': expect.objectContaining({ enabled: true }),
+        }),
+        0,
+        'mock-jwt-token'
+      );
     });
   });
 });
