@@ -31,9 +31,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -325,6 +327,116 @@ public class RolePermissionsService {
                 .sorted(order)
                 .map(rp -> mapper.toPreviewOptionDto(rp, designationNames))
                 .toList();
+    }
+
+    /**
+     * Resolves an operator or target user's authoritative maximum rank weight from
+     * persisted {@link RolePermissions} (with legacy fallback when no rows match).
+     *
+     * @param user target user entity
+     * @return effective rank weight (0-9)
+     */
+    @Transactional(readOnly = true)
+    public int resolveUserRankWeight(User user) {
+        if (user == null) {
+            return 0;
+        }
+        Set<String> assignedRoleIds = roleResolutionService.resolveRoleIds(user);
+        List<RolePermissions> assignedEntities = assignedRoleIds.isEmpty()
+                ? List.of()
+                : rolePermissionsRepository.findAllByRoleIdIn(assignedRoleIds);
+        return roleResolutionService.resolveMaxRankWeight(user, assignedEntities);
+    }
+
+    /**
+     * Returns a lookup map of {@code "DesignationName:RoleName"} -> persisted {@code rankWeight}
+     * for dynamic whitelist hierarchy checks.
+     *
+     * @return ordered map of display-scoped role tokens to numeric rank weights
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Integer> getHierarchyRankWeights() {
+        Map<String, String> designationNames = loadDesignationNamesById();
+        Map<String, Integer> weights = new LinkedHashMap<>();
+        for (RolePermissions rp : rolePermissionsRepository.findAll()) {
+            if (rp.getDesignationId() == null || rp.getRoleName() == null) {
+                continue;
+            }
+            String desName = designationNames.getOrDefault(rp.getDesignationId(), rp.getDesignationId());
+            int weight = rp.getRankWeight() != null ? rp.getRankWeight() : 0;
+            weights.put(desName + ":" + rp.getRoleName(), weight);
+        }
+        return weights;
+    }
+
+    /**
+     * Computes the maximum numeric rank weight across arbitrary requested role tokens
+     * (supporting {@code DesignationName:RoleName}, {@code designationId:roleName}, and unprefixed names).
+     *
+     * @param rawRoleTokens raw role tokens from a whitelist create/update payload
+     * @return highest resolved rank weight across the tokens
+     */
+    @Transactional(readOnly = true)
+    public int resolveRoleTokensMaxRankWeight(Collection<String> rawRoleTokens) {
+        if (rawRoleTokens == null || rawRoleTokens.isEmpty()) {
+            return 0;
+        }
+        Map<String, String> designationNamesById = loadDesignationNamesById();
+        Map<String, String> nameToId = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : designationNamesById.entrySet()) {
+            if (entry.getKey() != null) {
+                nameToId.put(entry.getKey().toLowerCase(Locale.ROOT), entry.getKey());
+            }
+            if (entry.getValue() != null) {
+                nameToId.put(entry.getValue().toLowerCase(Locale.ROOT), entry.getKey());
+            }
+        }
+        List<RolePermissions> allRoles = rolePermissionsRepository.findAll();
+
+        Integer maxWeight = null;
+        for (String raw : rawRoleTokens) {
+            if (raw == null || raw.isBlank()) {
+                continue;
+            }
+            String trimmed = raw.trim();
+            Integer resolvedWeight = resolveSingleTokenWeight(trimmed, nameToId, allRoles);
+            int weight = resolvedWeight != null ? resolvedWeight : User.getRoleRankWeight(trimmed);
+            maxWeight = maxWeight == null ? weight : Math.max(maxWeight, weight);
+        }
+        return maxWeight != null ? maxWeight : 0;
+    }
+
+    private Integer resolveSingleTokenWeight(
+            String trimmed,
+            Map<String, String> nameToId,
+            List<RolePermissions> allRoles
+    ) {
+        if (trimmed.contains(":")) {
+            int colonIdx = trimmed.indexOf(':');
+            String prefix = trimmed.substring(0, colonIdx).trim();
+            String roleName = trimmed.substring(colonIdx + 1).trim();
+            if (roleName.isEmpty()) {
+                return null;
+            }
+            String targetDesId = nameToId.getOrDefault(prefix.toLowerCase(Locale.ROOT), prefix);
+            for (RolePermissions rp : allRoles) {
+                if (rp.getDesignationId() != null
+                        && rp.getDesignationId().equalsIgnoreCase(targetDesId)
+                        && rp.getRoleName() != null
+                        && rp.getRoleName().equalsIgnoreCase(roleName)) {
+                    return rp.getRankWeight() != null ? rp.getRankWeight() : 0;
+                }
+            }
+            return null;
+        }
+        Integer highest = null;
+        for (RolePermissions rp : allRoles) {
+            if (rp.getRoleName() != null && rp.getRoleName().equalsIgnoreCase(trimmed)) {
+                int w = rp.getRankWeight() != null ? rp.getRankWeight() : 0;
+                highest = highest == null ? w : Math.max(highest, w);
+            }
+        }
+        return highest;
     }
 
     private Map<String, Object> getCachedOrPutPermissions(RolePermissions entity) {

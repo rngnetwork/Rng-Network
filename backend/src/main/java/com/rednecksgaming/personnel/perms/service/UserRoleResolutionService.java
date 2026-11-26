@@ -78,22 +78,27 @@ public class UserRoleResolutionService {
     }
 
     /**
-     * Computes the caller's maximum effective rank weight across Spring rank and persisted role permissions.
+     * Computes the caller's maximum effective rank weight from persisted role permissions,
+     * falling back to legacy {@link User#getRankWeight(User)} only when no {@link RolePermissions} rows match.
      *
      * @param user            authenticated user entity
      * @param rolePermissions persisted role permission rows assigned to the user
      * @return highest numeric rank weight (0-9)
      */
     public int resolveMaxRankWeight(User user, Collection<RolePermissions> rolePermissions) {
-        int maxWeight = User.getRankWeight(user);
-        if (rolePermissions != null) {
+        if (rolePermissions != null && !rolePermissions.isEmpty()) {
+            Integer maxFromPerms = null;
             for (RolePermissions rp : rolePermissions) {
-                if (rp != null && rp.getRankWeight() != null && rp.getRankWeight() > maxWeight) {
-                    maxWeight = rp.getRankWeight();
+                if (rp != null && rp.getRankWeight() != null) {
+                    int w = rp.getRankWeight();
+                    maxFromPerms = maxFromPerms == null ? w : Math.max(maxFromPerms, w);
                 }
             }
+            if (maxFromPerms != null) {
+                return maxFromPerms;
+            }
         }
-        return maxWeight;
+        return User.getRankWeight(user);
     }
 
     private Map<String, String> buildDesignationNameToIdMap() {
