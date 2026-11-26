@@ -16,10 +16,13 @@ import com.rednecksgaming.personnel.perms.dto.UpdateRolePermissionsRequest;
 import com.rednecksgaming.personnel.perms.event.RolePermissionsUpdatedEvent;
 import com.rednecksgaming.personnel.perms.mapper.RolePermissionsMapper;
 import com.rednecksgaming.personnel.perms.repository.RolePermissionsRepository;
+import com.rednecksgaming.personnel.roles.domain.MatrixCell;
 import com.rednecksgaming.personnel.roles.domain.MatrixDesignation;
+import com.rednecksgaming.personnel.roles.repository.MatrixCellRepository;
 import com.rednecksgaming.personnel.roles.repository.MatrixDesignationRepository;
 import com.rednecksgaming.server.domain.Server;
 import com.rednecksgaming.server.repository.ServerRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.context.ApplicationEventPublisher;
@@ -60,6 +63,7 @@ public class RolePermissionsService {
     private final UserRoleResolutionService roleResolutionService;
     private final CacheManager cacheManager;
     private final ApplicationEventPublisher eventPublisher;
+    private final MatrixCellRepository matrixCellRepository;
 
     public RolePermissionsService(
             RolePermissionsRepository rolePermissionsRepository,
@@ -73,6 +77,35 @@ public class RolePermissionsService {
             CacheManager cacheManager,
             ApplicationEventPublisher eventPublisher
     ) {
+        this(
+                rolePermissionsRepository,
+                designationRepository,
+                serverRepository,
+                mapper,
+                schemaNormalizer,
+                textFormatter,
+                unionResolver,
+                roleResolutionService,
+                cacheManager,
+                eventPublisher,
+                null
+        );
+    }
+
+    @Autowired
+    public RolePermissionsService(
+            RolePermissionsRepository rolePermissionsRepository,
+            MatrixDesignationRepository designationRepository,
+            ServerRepository serverRepository,
+            RolePermissionsMapper mapper,
+            PermsSchemaNormalizer schemaNormalizer,
+            PermsTextFormatter textFormatter,
+            AdditiveUnionResolver unionResolver,
+            UserRoleResolutionService roleResolutionService,
+            CacheManager cacheManager,
+            ApplicationEventPublisher eventPublisher,
+            MatrixCellRepository matrixCellRepository
+    ) {
         this.rolePermissionsRepository = rolePermissionsRepository;
         this.designationRepository = designationRepository;
         this.serverRepository = serverRepository;
@@ -83,6 +116,7 @@ public class RolePermissionsService {
         this.roleResolutionService = roleResolutionService;
         this.cacheManager = cacheManager;
         this.eventPublisher = eventPublisher;
+        this.matrixCellRepository = matrixCellRepository;
     }
 
     /**
@@ -358,13 +392,23 @@ public class RolePermissionsService {
     public Map<String, Integer> getHierarchyRankWeights() {
         Map<String, String> designationNames = loadDesignationNamesById();
         Map<String, Integer> weights = new LinkedHashMap<>();
+        if (matrixCellRepository != null) {
+            for (MatrixCell cell : matrixCellRepository.findAll()) {
+                if (cell.getDesignationId() == null || cell.getRoleName() == null) {
+                    continue;
+                }
+                String desName = designationNames.getOrDefault(cell.getDesignationId(), cell.getDesignationId());
+                int weight = cell.getRankWeight() != null ? cell.getRankWeight() : 0;
+                weights.put(desName + ":" + cell.getRoleName(), weight);
+            }
+        }
         for (RolePermissions rp : rolePermissionsRepository.findAll()) {
             if (rp.getDesignationId() == null || rp.getRoleName() == null) {
                 continue;
             }
             String desName = designationNames.getOrDefault(rp.getDesignationId(), rp.getDesignationId());
             int weight = rp.getRankWeight() != null ? rp.getRankWeight() : 0;
-            weights.put(desName + ":" + rp.getRoleName(), weight);
+            weights.putIfAbsent(desName + ":" + rp.getRoleName(), weight);
         }
         return weights;
     }
@@ -391,6 +435,7 @@ public class RolePermissionsService {
                 nameToId.put(entry.getValue().toLowerCase(Locale.ROOT), entry.getKey());
             }
         }
+        List<MatrixCell> allCells = matrixCellRepository != null ? matrixCellRepository.findAll() : List.of();
         List<RolePermissions> allRoles = rolePermissionsRepository.findAll();
 
         Integer maxWeight = null;
@@ -399,7 +444,7 @@ public class RolePermissionsService {
                 continue;
             }
             String trimmed = raw.trim();
-            Integer resolvedWeight = resolveSingleTokenWeight(trimmed, nameToId, allRoles);
+            Integer resolvedWeight = resolveSingleTokenWeight(trimmed, nameToId, allCells, allRoles);
             int weight = resolvedWeight != null ? resolvedWeight : User.getRoleRankWeight(trimmed);
             maxWeight = maxWeight == null ? weight : Math.max(maxWeight, weight);
         }
@@ -409,6 +454,7 @@ public class RolePermissionsService {
     private Integer resolveSingleTokenWeight(
             String trimmed,
             Map<String, String> nameToId,
+            List<MatrixCell> allCells,
             List<RolePermissions> allRoles
     ) {
         if (trimmed.contains(":")) {
@@ -419,6 +465,15 @@ public class RolePermissionsService {
                 return null;
             }
             String targetDesId = nameToId.getOrDefault(prefix.toLowerCase(Locale.ROOT), prefix);
+            for (MatrixCell cell : allCells) {
+                if (cell.getDesignationId() != null
+                        && cell.getDesignationId().equalsIgnoreCase(targetDesId)
+                        && cell.getRoleName() != null
+                        && cell.getRoleName().equalsIgnoreCase(roleName)
+                        && cell.getRankWeight() != null) {
+                    return cell.getRankWeight();
+                }
+            }
             for (RolePermissions rp : allRoles) {
                 if (rp.getDesignationId() != null
                         && rp.getDesignationId().equalsIgnoreCase(targetDesId)
@@ -430,6 +485,14 @@ public class RolePermissionsService {
             return null;
         }
         Integer highest = null;
+        for (MatrixCell cell : allCells) {
+            if (cell.getRoleName() != null && cell.getRoleName().equalsIgnoreCase(trimmed) && cell.getRankWeight() != null) {
+                highest = highest == null ? cell.getRankWeight() : Math.max(highest, cell.getRankWeight());
+            }
+        }
+        if (highest != null) {
+            return highest;
+        }
         for (RolePermissions rp : allRoles) {
             if (rp.getRoleName() != null && rp.getRoleName().equalsIgnoreCase(trimmed)) {
                 int w = rp.getRankWeight() != null ? rp.getRankWeight() : 0;

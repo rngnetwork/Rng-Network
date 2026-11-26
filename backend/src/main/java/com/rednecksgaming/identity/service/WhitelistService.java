@@ -95,6 +95,58 @@ public class WhitelistService {
         return operator.getDesignationList();
     }
 
+    private void assertSelfRoleBounds(
+            User target,
+            int opWeight,
+            String requestedRole,
+            String targetDes,
+            int tokenWeight
+    ) {
+        if (opWeight >= 9) {
+            return;
+        }
+        if (tokenWeight >= 9) {
+            throw new ForbiddenException("Only Chief High Command can assign the Chief High Command role");
+        }
+        if (opWeight == 8) {
+            return;
+        }
+        int effectiveOp = Math.max(opWeight, 1);
+        if (tokenWeight > effectiveOp) {
+            throw new ForbiddenException("Cannot escalate self to a role higher than your own rank: " + requestedRole);
+        }
+        if (tokenWeight == effectiveOp && !wasRoleAlreadyAssigned(target, requestedRole, targetDes)) {
+            throw new ForbiddenException("Cannot assign new peer-level role '" + requestedRole + "' to self");
+        }
+    }
+
+    private boolean wasRoleAlreadyAssigned(User target, String requestedRole, String targetDes) {
+        if (target == null || requestedRole == null) {
+            return false;
+        }
+        String pureRequested = requestedRole.contains(":")
+                ? requestedRole.substring(requestedRole.indexOf(":") + 1).trim()
+                : requestedRole.trim();
+        for (String existing : target.getRoleList()) {
+            if (existing == null || existing.isBlank()) {
+                continue;
+            }
+            String trimmed = existing.trim();
+            if (trimmed.contains(":")) {
+                String existingDes = trimmed.substring(0, trimmed.indexOf(":")).trim();
+                String existingPure = trimmed.substring(trimmed.indexOf(":") + 1).trim();
+                if (existingPure.equalsIgnoreCase(pureRequested)
+                        && (targetDes == null || targetDes.isBlank() || existingDes.equalsIgnoreCase(targetDes.trim()))) {
+                    return true;
+                }
+            } else if (trimmed.equalsIgnoreCase(pureRequested)
+                    && (targetDes == null || targetDes.isBlank() || containsIgnoreCase(target.getDesignationList(), targetDes))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private boolean containsIgnoreCase(List<String> values, String target) {
         if (values == null || target == null) {
             return false;
@@ -213,7 +265,7 @@ public class WhitelistService {
                     if (tokenWeight >= 9) {
                         throw new ForbiddenException("Only Chief High Command can assign the Chief High Command role");
                     }
-                    if (opWeight < 8 && tokenWeight >= opWeight) {
+                    if (opWeight < 8 && tokenWeight >= Math.max(opWeight, 1)) {
                         throw new ForbiddenException("Operators cannot assign roles equal to or higher than their own rank");
                     }
                 }
@@ -315,11 +367,16 @@ public class WhitelistService {
             }
             for (String role : requestedRoles) {
                 String pureRole = role.contains(":") ? role.substring(role.indexOf(":") + 1).trim() : role.trim();
+                String targetDes = role.contains(":")
+                        ? role.substring(0, role.indexOf(":")).trim()
+                        : (requestedDesignations.isEmpty() ? "" : requestedDesignations.get(0));
                 int tokenWeight = resolveDynamicTokenWeight(role, requestedDesignations);
                 if (pureRole.equalsIgnoreCase("Chief High Command") || tokenWeight >= 9) {
                     throw new ForbiddenException("Only Chief High Command can assign the Chief High Command role");
                 }
-                if (opWeight < 8 && !isSelf && tokenWeight >= opWeight) {
+                if (isSelf) {
+                    assertSelfRoleBounds(target, opWeight, role, targetDes, tokenWeight);
+                } else if (opWeight < 8 && tokenWeight >= Math.max(opWeight, 1)) {
                     throw new ForbiddenException("Operators cannot assign roles equal to or higher than their own rank");
                 }
             }
@@ -401,10 +458,10 @@ public class WhitelistService {
                     int tokenWeight = resolveDynamicTokenWeight(role, List.of(targetDes));
                     if (!designationRoleService.isValidRoleForDesignation(targetDes, pureRole)
                             || pureRole.equalsIgnoreCase("High Command")
-                            || pureRole.equalsIgnoreCase("Chief High Command")
-                            || tokenWeight >= Math.max(opWeight + 1, 8)) {
+                            || pureRole.equalsIgnoreCase("Chief High Command")) {
                         throw new ForbiddenException("Cannot assign role '" + role + "' under ministry: " + targetDes);
                     }
+                    assertSelfRoleBounds(target, opWeight, role, targetDes, tokenWeight);
                 }
             }
         }
