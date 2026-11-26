@@ -6,16 +6,20 @@ import { fetchCurrentUser } from '@/lib/api/auth/session';
 import {
   fetchWhitelistedUsers,
   fetchPersonnelHierarchy,
+  fetchHierarchyRankWeights,
   createWhitelistedUser,
   updateWhitelistedUser,
   deleteWhitelistedUser,
 } from '@/lib/api/dashboard/whitelist';
+import { useEffectivePermissions } from '@/components/dashboard/layout/EffectivePermissionsContext';
 import type { UserProfileData } from '@/lib/model/user';
-import type {
-  WhitelistedUser,
-  CreateWhitelistPayload,
-  UpdateWhitelistPayload,
-  PersonnelHierarchyMap,
+import {
+  resolveRoleWeight,
+  type WhitelistedUser,
+  type CreateWhitelistPayload,
+  type UpdateWhitelistPayload,
+  type PersonnelHierarchyMap,
+  type HierarchyRankWeightsMap,
 } from '@/lib/model/whitelist';
 import { Button } from '@/components/common/input/Button';
 import { Badge } from '@/components/common/feedback/Badge';
@@ -31,9 +35,16 @@ import { RevokePersonnelModal } from './RevokePersonnelModal';
 
 export const WhitelistPageCoordinator: React.FC = () => {
   const { toast } = useToast();
+  const {
+    hasPermission,
+    callerMaxRankWeight,
+    isPreviewMode,
+    loading: permsLoading,
+  } = useEffectivePermissions();
   const [currentUser, setCurrentUser] = useState<UserProfileData | null>(null);
   const [whitelistedUsers, setWhitelistedUsers] = useState<WhitelistedUser[]>([]);
   const [hierarchy, setHierarchy] = useState<PersonnelHierarchyMap>({});
+  const [hierarchyWeights, setHierarchyWeights] = useState<HierarchyRankWeightsMap>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDesignationFilter, setSelectedDesignationFilter] = useState<string>('ALL');
@@ -54,56 +65,67 @@ export const WhitelistPageCoordinator: React.FC = () => {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const isChiefHighCommand = useMemo(() => {
-    const hasChiefRole =
-      currentUser?.roleList?.some((r) => {
-        const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
-        return pure.toLowerCase() === 'chief high command';
-      }) || currentUser?.roles?.toLowerCase().includes('chief high command');
-    return Boolean(currentUser?.role === 'ROLE_CHIEF_HIGH_COMMAND' || hasChiefRole);
-  }, [currentUser]);
+  const operatorRankWeight = useMemo(() => {
+    if (callerMaxRankWeight > 0) return callerMaxRankWeight;
+    if (!currentUser) return 0;
+    const roleTokens = currentUser.roleList || [];
+    if (roleTokens.length > 0) {
+      let max = 0;
+      roleTokens.forEach((token) => {
+        const des = token.includes(':') ? token.split(':')[0].trim() : (currentUser.designationList?.[0] ?? '');
+        const w = resolveRoleWeight(des, token, hierarchyWeights);
+        if (w > max) max = w;
+      });
+      return max;
+    }
+    if (currentUser.role === 'ROLE_CHIEF_HIGH_COMMAND') return 9;
+    if (currentUser.role === 'ROLE_HIGH_COMMAND') return 8;
+    if (currentUser.role === 'ROLE_MINISTER') return 5;
+    return 1;
+  }, [callerMaxRankWeight, currentUser, hierarchyWeights]);
 
-  const isHighCommand = useMemo(() => {
-    if (isChiefHighCommand) return true;
-    const hasHcRole =
-      currentUser?.roleList?.some((r) => {
-        const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
-        return pure.toLowerCase() === 'high command' || pure.toLowerCase() === 'chief high command';
-      }) || currentUser?.roles?.toLowerCase().includes('high command');
-    return Boolean(
-      currentUser?.role === 'ROLE_HIGH_COMMAND' ||
-        currentUser?.role === 'ROLE_CHIEF_HIGH_COMMAND' ||
-        hasHcRole
-    );
-  }, [currentUser, isChiefHighCommand]);
+  const hasWhitelistPermission = hasPermission('dashboard', 'dashboard.whitelist');
+  const hasFullAccess =
+    hasPermission('dashboard', 'dashboard.whitelist', 'fullAccess') ||
+    (!isPreviewMode && operatorRankWeight >= 8);
+  const isChiefHighCommand = operatorRankWeight >= 9;
+  const isHighCommand = operatorRankWeight >= 8;
 
-  const isMinister = useMemo(() => {
-    if (isHighCommand) return false;
+  const isLegacyMinister = useMemo(() => {
+    if (operatorRankWeight >= 8) return false;
     const hasMinisterRole =
       currentUser?.roleList?.some((r) => {
         const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
         return pure.toLowerCase() === 'minister' || pure.toLowerCase().startsWith('chancellor');
-      }) ||
-      currentUser?.roles?.toLowerCase().includes('minister') ||
-      currentUser?.roles?.toLowerCase().includes('chancellor');
+      }) || false;
     return Boolean(currentUser?.role === 'ROLE_MINISTER' || hasMinisterRole);
-  }, [currentUser, isHighCommand]);
+  }, [currentUser, operatorRankWeight]);
 
-  const ministerMinistries = useMemo(() => {
-    if (!isMinister || !currentUser) return [];
+  const scopedDesignations = useMemo(() => {
+    if (hasFullAccess || !currentUser) return [];
     const list = currentUser.designationList || [];
-    return list.filter((d) => d.startsWith('Ministry of') || d.toLowerCase() === 'chancellory');
-  }, [isMinister, currentUser]);
+    if (isLegacyMinister && operatorRankWeight === 5) {
+      const legacyMinisterScoped = list.filter(
+        (d) => d.startsWith('Ministry of') || d.toLowerCase() === 'chancellory'
+      );
+      if (legacyMinisterScoped.length > 0) {
+        return legacyMinisterScoped;
+      }
+      return list.filter((d) => d.toLowerCase() !== 'chancellory');
+    }
+    return list;
+  }, [hasFullAccess, currentUser, isLegacyMinister, operatorRankWeight]);
 
-  const canManage = isHighCommand || isMinister;
+  const canManage = hasWhitelistPermission;
 
   const refreshData = useCallback(async () => {
     const currentToken = localStorage.getItem('accessToken');
     if (!currentToken) return;
 
-    const [userRes, hierRes, listRes] = await Promise.allSettled([
+    const [userRes, hierRes, weightsRes, listRes] = await Promise.allSettled([
       fetchCurrentUser(currentToken),
       fetchPersonnelHierarchy(currentToken),
+      fetchHierarchyRankWeights(currentToken),
       fetchWhitelistedUsers(currentToken),
     ]);
 
@@ -112,6 +134,9 @@ export const WhitelistPageCoordinator: React.FC = () => {
     }
     if (hierRes.status === 'fulfilled' && hierRes.value.success && hierRes.value.data) {
       setHierarchy(hierRes.value.data);
+    }
+    if (weightsRes.status === 'fulfilled' && weightsRes.value.success && weightsRes.value.data) {
+      setHierarchyWeights(weightsRes.value.data);
     }
     if (listRes.status === 'fulfilled' && listRes.value.success && listRes.value.data) {
       setWhitelistedUsers(listRes.value.data);
@@ -129,9 +154,10 @@ export const WhitelistPageCoordinator: React.FC = () => {
       }
 
       try {
-        const [userRes, hierRes, listRes] = await Promise.allSettled([
+        const [userRes, hierRes, weightsRes, listRes] = await Promise.allSettled([
           fetchCurrentUser(currentToken),
           fetchPersonnelHierarchy(currentToken),
+          fetchHierarchyRankWeights(currentToken),
           fetchWhitelistedUsers(currentToken),
         ]);
 
@@ -141,6 +167,9 @@ export const WhitelistPageCoordinator: React.FC = () => {
           }
           if (hierRes.status === 'fulfilled' && hierRes.value.success && hierRes.value.data) {
             setHierarchy(hierRes.value.data);
+          }
+          if (weightsRes.status === 'fulfilled' && weightsRes.value.success && weightsRes.value.data) {
+            setHierarchyWeights(weightsRes.value.data);
           }
           if (listRes.status === 'fulfilled' && listRes.value.success && listRes.value.data) {
             setWhitelistedUsers(listRes.value.data);
@@ -180,7 +209,7 @@ export const WhitelistPageCoordinator: React.FC = () => {
       email: '',
       userName: '',
       provider: 'EMAIL',
-      designations: isMinister && ministerMinistries.length > 0 ? [...ministerMinistries] : [],
+      designations: !hasFullAccess && scopedDesignations.length > 0 ? [...scopedDesignations] : [],
       roles: [],
     });
     setAddModalOpen(true);
@@ -217,7 +246,12 @@ export const WhitelistPageCoordinator: React.FC = () => {
   };
 
   const handleToggleDesignation = (des: string) => {
-    if (isMinister && !ministerMinistries.includes(des)) return;
+    if (
+      !hasFullAccess &&
+      !scopedDesignations.some((d) => d.toLowerCase() === des.toLowerCase())
+    ) {
+      return;
+    }
 
     setFormData((prev) => {
       const exists = prev.designations.includes(des);
@@ -245,18 +279,22 @@ export const WhitelistPageCoordinator: React.FC = () => {
   const handleToggleRoleForDept = (des: string, role: string) => {
     const scopedToken = `${des}:${role}`;
     const isEditingSelf = Boolean(userToEdit && currentUser && userToEdit.id === currentUser.id);
+    const roleWeight = resolveRoleWeight(des, role, hierarchyWeights);
 
-    if (!isChiefHighCommand && role === 'Chief High Command') return;
-    if (isMinister && isEditingSelf && role === 'Minister' && ministerMinistries.includes(des)) {
+    if (!isChiefHighCommand && roleWeight >= 9) return;
+    if (
+      isLegacyMinister &&
+      operatorRankWeight === 5 &&
+      isEditingSelf &&
+      role === 'Minister' &&
+      scopedDesignations.some((d) => d.toLowerCase() === des.toLowerCase())
+    ) {
       return;
     }
     if (
-      isMinister &&
       !isEditingSelf &&
-      (role === 'Minister' ||
-        role === 'High Command' ||
-        role === 'Chief High Command' ||
-        role.toLowerCase().startsWith('chancellor'))
+      operatorRankWeight < 9 &&
+      roleWeight >= Math.max(operatorRankWeight, 1)
     ) {
       return;
     }
@@ -397,80 +435,57 @@ export const WhitelistPageCoordinator: React.FC = () => {
     }
   };
 
-  const canEditMember = (member: WhitelistedUser) => {
-    const isMemberChiefHc =
-      member.role === 'ROLE_CHIEF_HIGH_COMMAND' ||
-      member.roles.some((r) => {
-        const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
-        return pure.toLowerCase() === 'chief high command';
-      });
+  const getMemberRankWeight = (member: WhitelistedUser): number => {
+    if (typeof member.rankWeight === 'number') {
+      return member.rankWeight;
+    }
+    let maxWeight = 0;
+    for (const r of member.roles || []) {
+      const des = r.includes(':') ? r.split(':')[0].trim() : (member.designations?.[0] ?? '');
+      const w = resolveRoleWeight(des, r, hierarchyWeights);
+      if (w > maxWeight) maxWeight = w;
+    }
+    if (maxWeight > 0) return maxWeight;
+    if (member.role === 'ROLE_CHIEF_HIGH_COMMAND') return 9;
+    if (member.role === 'ROLE_HIGH_COMMAND') return 8;
+    if (member.role === 'ROLE_MINISTER') return 5;
+    return 1;
+  };
 
-    const isMemberHc =
-      isMemberChiefHc ||
-      member.role === 'ROLE_HIGH_COMMAND' ||
-      member.roles.some((r) => {
-        const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
-        return pure.toLowerCase() === 'high command';
-      });
+  const canEditMember = (member: WhitelistedUser) => {
+    if (!canManage) return false;
+    const memberWeight = getMemberRankWeight(member);
 
     if (isChiefHighCommand) {
-      if (isMemberChiefHc && member.id !== currentUser?.id) return false;
+      if (memberWeight >= 9 && member.id !== currentUser?.id) return false;
       return true;
     }
-    if (isHighCommand) {
-      if (isMemberHc && member.id !== currentUser?.id) return false;
-      return true;
-    }
-    if (isMinister) {
+    if (hasFullAccess) {
       if (member.id === currentUser?.id) return true;
-      if (isMemberHc) return false;
-      const isMemberMinister =
-        member.role === 'ROLE_MINISTER' ||
-        member.roles.some((r) => {
-          const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
-          return pure.toLowerCase() === 'minister' || pure.toLowerCase().startsWith('chancellor');
-        });
-      if (isMemberMinister) return false;
-      return member.designations.some((d) => ministerMinistries.includes(d));
+      return memberWeight < operatorRankWeight;
     }
-    return false;
+    if (member.id === currentUser?.id) return true;
+    if (memberWeight >= operatorRankWeight) return false;
+    return member.designations.some((d) =>
+      scopedDesignations.some((sd) => sd.toLowerCase() === d.toLowerCase())
+    );
   };
 
   const canDeleteMember = (member: WhitelistedUser) => {
-    const isMemberChiefHc =
-      member.role === 'ROLE_CHIEF_HIGH_COMMAND' ||
-      member.roles.some((r) => {
-        const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
-        return pure.toLowerCase() === 'chief high command';
-      });
-
-    const isMemberHc =
-      isMemberChiefHc ||
-      member.role === 'ROLE_HIGH_COMMAND' ||
-      member.roles.some((r) => {
-        const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
-        return pure.toLowerCase() === 'high command';
-      });
-
+    if (!canManage) return false;
     if (member.id === currentUser?.id) return false;
-    if (isMemberChiefHc) return false;
+    const memberWeight = getMemberRankWeight(member);
+    if (memberWeight >= 9) return false;
+
     if (isChiefHighCommand) return true;
-    if (isHighCommand) return !isMemberHc;
-    if (isMinister) {
-      if (isMemberHc) return false;
-      const isMemberMinister =
-        member.role === 'ROLE_MINISTER' ||
-        member.roles.some((r) => {
-          const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
-          return pure.toLowerCase() === 'minister' || pure.toLowerCase().startsWith('chancellor');
-        });
-      if (isMemberMinister) return false;
-      return member.designations.some((d) => ministerMinistries.includes(d));
-    }
-    return false;
+    if (hasFullAccess) return memberWeight < operatorRankWeight;
+    if (memberWeight >= operatorRankWeight) return false;
+    return member.designations.some((d) =>
+      scopedDesignations.some((sd) => sd.toLowerCase() === d.toLowerCase())
+    );
   };
 
-  if (loading) {
+  if (loading || permsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <RngLoadingSpinner size="lg" label="Loading Personnel Registry..." />
@@ -486,7 +501,7 @@ export const WhitelistPageCoordinator: React.FC = () => {
         </div>
         <h2 className="text-xl font-bold text-white mb-2">Access Restricted</h2>
         <p className="text-sm text-zinc-400 leading-relaxed">
-          The Whitelist Control Center requires High Command or Minister authorization.
+          You do not have permission to access the Whitelist Control Center.
         </p>
       </div>
     );
@@ -504,19 +519,21 @@ export const WhitelistPageCoordinator: React.FC = () => {
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
                 Whitelist Management
               </h1>
-              <Badge variant={isHighCommand ? 'crimson' : 'warning'}>
+              <Badge variant={hasFullAccess ? 'crimson' : 'warning'}>
                 {isChiefHighCommand
                   ? 'Chief High Command'
                   : isHighCommand
                   ? 'High Command'
-                  : ministerMinistries.join(' & ') || 'Ministry Scoped'}
+                  : hasFullAccess
+                  ? 'Full Access'
+                  : scopedDesignations.join(' & ') || 'Designation Scoped'}
               </Badge>
             </div>
             <p className="text-xs md:text-sm text-zinc-400">
-              {isHighCommand
+              {hasFullAccess
                 ? 'Manage system-wide personnel credentials, designations, and permissions.'
                 : `Scoped access: Manage personnel strictly within ${
-                    ministerMinistries.join(' & ') || 'your assigned ministries'
+                    scopedDesignations.join(' & ') || 'your assigned designations'
                   }.`}
             </p>
           </div>
@@ -566,8 +583,11 @@ export const WhitelistPageCoordinator: React.FC = () => {
         onChangeFormData={setFormData}
         hierarchy={hierarchy}
         isHighCommand={isHighCommand}
-        isMinister={isMinister}
-        ministerMinistries={ministerMinistries}
+        isMinister={isLegacyMinister}
+        ministerMinistries={scopedDesignations}
+        hasFullAccess={hasFullAccess}
+        operatorRankWeight={operatorRankWeight}
+        hierarchyWeights={hierarchyWeights}
         onToggleDesignation={handleToggleDesignation}
         onToggleRoleForDept={handleToggleRoleForDept}
         isRoleSelectedInDept={isRoleSelectedInDept}
@@ -585,8 +605,11 @@ export const WhitelistPageCoordinator: React.FC = () => {
         onChangeFormData={setFormData}
         hierarchy={hierarchy}
         isHighCommand={isHighCommand}
-        isMinister={isMinister}
-        ministerMinistries={ministerMinistries}
+        isMinister={isLegacyMinister}
+        ministerMinistries={scopedDesignations}
+        hasFullAccess={hasFullAccess}
+        operatorRankWeight={operatorRankWeight}
+        hierarchyWeights={hierarchyWeights}
         onToggleDesignation={handleToggleDesignation}
         onToggleRoleForDept={handleToggleRoleForDept}
         isRoleSelectedInDept={isRoleSelectedInDept}

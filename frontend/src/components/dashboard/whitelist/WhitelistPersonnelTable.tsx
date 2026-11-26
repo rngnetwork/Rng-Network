@@ -35,6 +35,7 @@ export const WhitelistPersonnelTable: React.FC<WhitelistPersonnelTableProps> = (
       cell: (member) => {
         const avatar = getDiscordAvatarUrl(member.discordId, member.discordAvatar);
         const isUserChiefHighCommand =
+          (typeof member.rankWeight === 'number' && member.rankWeight >= 9) ||
           member.role === 'ROLE_CHIEF_HIGH_COMMAND' ||
           member.roles.some((r) => {
             const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
@@ -43,6 +44,7 @@ export const WhitelistPersonnelTable: React.FC<WhitelistPersonnelTableProps> = (
 
         const isUserHighCommand =
           isUserChiefHighCommand ||
+          (typeof member.rankWeight === 'number' && member.rankWeight >= 8) ||
           member.role === 'ROLE_HIGH_COMMAND' ||
           member.roles.some((r) => {
             const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
