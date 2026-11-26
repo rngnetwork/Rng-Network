@@ -5,6 +5,7 @@ import type {
   CreateWhitelistPayload,
   UpdateWhitelistPayload,
   PersonnelHierarchyMap,
+  HierarchyRankWeightsMap,
 } from '../../model/whitelist';
 
 export async function fetchWhitelistedUsers(
@@ -110,6 +111,15 @@ export async function fetchPersonnelHierarchy(
 ): Promise<ApiResponse<PersonnelHierarchyMap>> {
   return httpClient.get<PersonnelHierarchyMap>(
     '/whitelist/hierarchy',
+    withTokenConfig(accessToken)
+  );
+}
+
+export async function fetchHierarchyRankWeights(
+  accessToken?: string
+): Promise<ApiResponse<HierarchyRankWeightsMap>> {
+  return httpClient.get<HierarchyRankWeightsMap>(
+    '/whitelist/hierarchy/weights',
     withTokenConfig(accessToken)
   );
 }
