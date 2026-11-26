@@ -8,12 +8,14 @@ import type { UserProfileData, ActiveSessionItem } from '@/lib/model/user';
 import type { PersonnelHierarchyMap } from '@/lib/model/whitelist';
 import { Badge } from '@/components/common/feedback/Badge';
 import { RngLoadingSpinner } from '@/components/common/feedback/RngLoadingSpinner';
+import { useEffectivePermissions } from '@/components/dashboard/layout/EffectivePermissionsContext';
 import { AccountProfileDetails } from './AccountProfileDetails';
 import { PersonnelClearanceCard } from './PersonnelClearanceCard';
 import { RolePreviewTogglerCard } from './RolePreviewTogglerCard';
 import { ActiveSessionsList } from './ActiveSessionsList';
 
 export const AccountPageCoordinator: React.FC = () => {
+  const { callerMaxRankWeight } = useEffectivePermissions();
   const [user, setUser] = useState<UserProfileData | null>(null);
   const [hierarchy, setHierarchy] = useState<PersonnelHierarchyMap>({});
   const [sessions, setSessions] = useState<ActiveSessionItem[]>([]);
@@ -118,7 +120,7 @@ export const AccountPageCoordinator: React.FC = () => {
         <Badge variant="success">Active Session</Badge>
       </div>
 
-      <AccountProfileDetails user={user} />
+      <AccountProfileDetails user={user} rankWeight={callerMaxRankWeight} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <PersonnelClearanceCard user={user} hierarchy={hierarchy} />

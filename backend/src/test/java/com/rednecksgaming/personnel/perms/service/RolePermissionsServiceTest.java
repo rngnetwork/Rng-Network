@@ -197,4 +197,40 @@ class RolePermissionsServiceTest {
         assertThat(options).hasSize(2);
         assertThat(options.getFirst().roleId()).isEqualTo("des_supreme:High Command");
     }
+
+    @Test
+    @DisplayName("Resolves user rank weight, hierarchy rank weights map, and role token weights dynamically")
+    void shouldResolveDynamicUserAndHierarchyWeights() {
+        User customUser = new User();
+        customUser.setId(99L);
+        customUser.setRole("ROLE_USER");
+        customUser.setDesignations("Security Ops");
+        customUser.setRoles("Security Ops:Custom Lead");
+
+        RolePermissions customRp = new RolePermissions(
+                "des_security:Custom Lead", "des_security", "Custom Lead", 7, Map.of(), "ADMIN"
+        );
+        RolePermissions internRp = new RolePermissions(
+                "des_security:Custom Intern", "des_security", "Custom Intern", 0, Map.of(), "ADMIN"
+        );
+
+        when(roleResolutionService.resolveRoleIds(customUser)).thenReturn(Set.of("des_security:Custom Lead"));
+        when(rolePermissionsRepository.findAllByRoleIdIn(Set.of("des_security:Custom Lead"))).thenReturn(List.of(customRp));
+        when(roleResolutionService.resolveMaxRankWeight(customUser, List.of(customRp))).thenReturn(7);
+
+        assertThat(service.resolveUserRankWeight(customUser)).isEqualTo(7);
+
+        when(designationRepository.findAllByOrderByPositionAsc()).thenReturn(List.of(
+                new MatrixDesignation("des_security", "Security Ops", 1)
+        ));
+        when(rolePermissionsRepository.findAll()).thenReturn(List.of(customRp, internRp));
+
+        Map<String, Integer> weights = service.getHierarchyRankWeights();
+        assertThat(weights)
+                .containsEntry("Security Ops:Custom Lead", 7)
+                .containsEntry("Security Ops:Custom Intern", 0);
+
+        assertThat(service.resolveRoleTokensMaxRankWeight(List.of("Security Ops:Custom Lead"))).isEqualTo(7);
+        assertThat(service.resolveRoleTokensMaxRankWeight(List.of("Security Ops:Custom Intern"))).isEqualTo(0);
+    }
 }

@@ -244,4 +244,45 @@ class RoleHierarchyControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
     }
+
+    @Test
+    @DisplayName("Rank 9 mutation succeeds for custom ROLE_USER whose dynamic rankWeight resolves to 9")
+    void testRank9MutationAllowedForCustomRoleUserWithDynamicWeight9() throws Exception {
+        com.rednecksgaming.identity.repository.UserRepository mockUserRepo =
+                org.mockito.Mockito.mock(com.rednecksgaming.identity.repository.UserRepository.class);
+        com.rednecksgaming.personnel.perms.service.RolePermissionsService mockPermsService =
+                org.mockito.Mockito.mock(com.rednecksgaming.personnel.perms.service.RolePermissionsService.class);
+        RoleHierarchyController dynamicController = new RoleHierarchyController(
+                matrixService, designationRoleService, mockUserRepo, mockPermsService
+        );
+        MockMvc dynamicMvc = MockMvcBuilders.standaloneSetup(dynamicController)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+
+        com.rednecksgaming.identity.domain.User customSupreme = com.rednecksgaming.identity.domain.User.builder()
+                .id(77L)
+                .email("custom.r9@rng.com")
+                .role("ROLE_USER")
+                .roles("Supreme:Custom Supreme")
+                .build();
+        when(mockUserRepo.findById(77L)).thenReturn(java.util.Optional.of(customSupreme));
+        when(mockPermsService.resolveUserRankWeight(customSupreme)).thenReturn(9);
+
+        AddRoleRequest req = new AddRoleRequest(9, "des_supreme", "Overlord");
+        RoleHierarchyMatrixDto refreshedDto = new RoleHierarchyMatrixDto(List.of(), List.of(), Collections.emptyMap());
+        when(matrixService.addRole(any(AddRoleRequest.class))).thenReturn(refreshedDto);
+
+        UsernamePasswordAuthenticationToken customAuth = new UsernamePasswordAuthenticationToken(
+                77L,
+                "credentials",
+                List.of(new SimpleGrantedAuthority("ROLE_USER"))
+        );
+
+        dynamicMvc.perform(post("/api/v1/personnel/hierarchy/matrix/roles")
+                        .principal(customAuth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true));
+    }
 }

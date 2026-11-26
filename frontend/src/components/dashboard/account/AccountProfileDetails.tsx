@@ -10,23 +10,40 @@ import { Badge } from '@/components/common/feedback/Badge';
 
 export interface AccountProfileDetailsProps {
   user: UserProfileData;
+  rankWeight?: number;
 }
 
-export const AccountProfileDetails: React.FC<AccountProfileDetailsProps> = ({ user }) => {
+export const AccountProfileDetails: React.FC<AccountProfileDetailsProps> = ({ user, rankWeight }) => {
   const [avatarError, setAvatarError] = useState(false);
   const avatarUrl = avatarError
     ? '/assets/staff.png'
     : getDiscordAvatarUrl(user.discordId, user.discordAvatar);
 
-  const isHighCommand =
+  const isLegacyHighCommand =
     user.role === 'ROLE_CHIEF_HIGH_COMMAND' ||
     user.role === 'ROLE_HIGH_COMMAND' ||
     user.roles?.includes('High Command') ||
     user.designations?.includes('Supreme');
-  const isMinister =
+  const isLegacyMinister =
     user.role === 'ROLE_MINISTER' ||
     user.roles?.includes('Minister') ||
     user.designations?.includes('Ministry');
+
+  const badgeVariant =
+    typeof rankWeight === 'number' && rankWeight > 0
+      ? rankWeight >= 8
+        ? 'crimson'
+        : rankWeight >= 5
+        ? 'warning'
+        : 'neutral'
+      : isLegacyHighCommand
+      ? 'crimson'
+      : isLegacyMinister
+      ? 'warning'
+      : 'neutral';
+
+  const clearanceLabel =
+    typeof rankWeight === 'number' && rankWeight > 0 ? `Rank R${rankWeight}` : user.role;
 
   return (
     <Card className="relative overflow-hidden">
@@ -48,10 +65,8 @@ export const AccountProfileDetails: React.FC<AccountProfileDetailsProps> = ({ us
               <h2 className="text-xl md:text-2xl font-bold text-white">
                 {user.fullName || user.email.split('@')[0]}
               </h2>
-              <Badge
-                variant={isHighCommand ? 'crimson' : isMinister ? 'warning' : 'neutral'}
-              >
-                {user.role}
+              <Badge variant={badgeVariant}>
+                {clearanceLabel}
               </Badge>
             </div>
 

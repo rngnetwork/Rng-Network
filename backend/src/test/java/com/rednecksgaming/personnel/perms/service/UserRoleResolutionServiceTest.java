@@ -136,4 +136,22 @@ class UserRoleResolutionServiceTest {
         RolePermissions rp = new RolePermissions("des_supreme:High Command", "des_supreme", "High Command", 8, Map.of(), "SEED");
         assertThat(resolutionService.resolveMaxRankWeight(user, List.of(rp))).isEqualTo(8);
     }
+
+    @Test
+    @DisplayName("Uses RolePermissions rankWeight even when lower than legacy default")
+    void shouldUseRolePermissionsWeightEvenWhenLowerThanLegacyDefault() {
+        User user = new User();
+        user.setRole("ROLE_USER");
+        user.setRoles("Custom Dept:Custom Intern");
+
+        RolePermissions rankZeroRole = new RolePermissions(
+                "des_custom:Custom Intern", "des_custom", "Custom Intern", 0, Map.of(), "ADMIN"
+        );
+        assertThat(resolutionService.resolveMaxRankWeight(user, List.of(rankZeroRole))).isEqualTo(0);
+
+        RolePermissions rankSevenRole = new RolePermissions(
+                "des_custom:Custom Director", "des_custom", "Custom Director", 7, Map.of(), "ADMIN"
+        );
+        assertThat(resolutionService.resolveMaxRankWeight(user, List.of(rankSevenRole))).isEqualTo(7);
+    }
 }

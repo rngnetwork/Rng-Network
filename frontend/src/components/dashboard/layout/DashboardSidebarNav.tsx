@@ -64,18 +64,17 @@ export const DashboardSidebarNav: React.FC<DashboardSidebarNavProps> = ({
     };
   }, []);
 
-  const isHighCommand =
-    user?.role === 'ROLE_CHIEF_HIGH_COMMAND' ||
-    user?.role === 'ROLE_HIGH_COMMAND' ||
-    user?.roles?.includes('High Command') ||
-    user?.designations?.includes('Supreme');
-
   const {
     hasPermission,
     isPreviewMode,
     previewRoleName,
+    callerMaxRankWeight,
     exitPreviewMode,
   } = useEffectivePermissions();
+
+  const hasWhitelistAdminAccess =
+    hasPermission('dashboard', 'dashboard.whitelist', 'fullAccess') ||
+    (!isPreviewMode && callerMaxRankWeight >= 8);
 
   const canAccessPersonnelRoles = hasPermission(
     'dashboard',
@@ -114,7 +113,7 @@ export const DashboardSidebarNav: React.FC<DashboardSidebarNavProps> = ({
       href: '/dashboard/whitelist',
       icon: ShieldCheck,
       show: hasPermission('dashboard', 'dashboard.whitelist'),
-      badge: hasPermission('dashboard', 'dashboard.whitelist') && isHighCommand ? 'Admin' : 'Scoped',
+      badge: hasWhitelistAdminAccess ? 'Admin' : 'Scoped',
     },
     {
       label: 'Personnel',
