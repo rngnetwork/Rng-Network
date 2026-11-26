@@ -1244,4 +1244,130 @@ class WhitelistServiceTest {
                 .isInstanceOf(ForbiddenException.class)
                 .hasMessageContaining("Access Denied: Insufficient authorization to delete whitelisted users");
     }
+
+    @Test
+    @DisplayName("Custom ROLE_USER with dashboard.whitelist manages scoped custom-designation subordinates via dynamic rankWeight")
+    void testCustomRoleOperatorWithWhitelistPermission_scopedCustomDesignation() {
+        com.rednecksgaming.personnel.perms.service.RolePermissionsService permsService =
+                mock(com.rednecksgaming.personnel.perms.service.RolePermissionsService.class);
+        com.rednecksgaming.personnel.perms.service.GranularPermissionEvaluator evaluator =
+                mock(com.rednecksgaming.personnel.perms.service.GranularPermissionEvaluator.class);
+        WhitelistService dynamicService = new WhitelistService(
+                userRepository, designationRoleService, permsService, evaluator
+        );
+
+        User customLead = User.builder()
+                .id(50L)
+                .email("lead@rng.com")
+                .fullName("Security Lead")
+                .role("ROLE_USER")
+                .designations("Security Ops")
+                .roles("Security Ops:Custom Lead")
+                .status("ACTIVE")
+                .build();
+        User customJunior = User.builder()
+                .id(51L)
+                .email("sec.jr@rng.com")
+                .fullName("Security Junior")
+                .role("ROLE_USER")
+                .designations("Security Ops")
+                .roles("Security Ops:Custom Watcher")
+                .status("ACTIVE")
+                .build();
+        User customDirectorSameDept = User.builder()
+                .id(52L)
+                .email("sec.dir@rng.com")
+                .fullName("Security Director")
+                .role("ROLE_USER")
+                .designations("Security Ops")
+                .roles("Security Ops:Custom Director")
+                .status("ACTIVE")
+                .build();
+
+        com.rednecksgaming.personnel.perms.dto.EffectivePermissionsDto effective =
+                new com.rednecksgaming.personnel.perms.dto.EffectivePermissionsDto(
+                        "50", java.util.Set.of("des_sec:Custom Lead"), false, null, null, 6,
+                        java.util.Map.of("dashboard", java.util.Map.of("enabled", true),
+                                "dashboard.whitelist", java.util.Map.of("enabled", true, "fullAccess", false))
+                );
+
+        when(permsService.computeEffectivePermissions(customLead, null)).thenReturn(effective);
+        when(evaluator.isFeatureEnabled(effective, "dashboard.whitelist")).thenReturn(true);
+        when(evaluator.hasWhitelistFullAccess(effective)).thenReturn(false);
+        when(permsService.resolveUserRankWeight(customLead)).thenReturn(6);
+        when(permsService.resolveUserRankWeight(customJunior)).thenReturn(2);
+        when(permsService.resolveUserRankWeight(customDirectorSameDept)).thenReturn(7);
+        when(userRepository.findById(50L)).thenReturn(Optional.of(customLead));
+        when(userRepository.findById(52L)).thenReturn(Optional.of(customDirectorSameDept));
+        when(userRepository.findAll()).thenReturn(List.of(customLead, customJunior, customDirectorSameDept));
+
+        List<WhitelistedUserDto> visible = dynamicService.getWhitelistedUsers(50L);
+        assertThat(visible).extracting(WhitelistedUserDto::getEmail).containsExactly("sec.jr@rng.com");
+        assertThat(visible.getFirst().getRankWeight()).isEqualTo(2);
+
+        when(designationRoleService.isValidRoleForDesignation("Security Ops", "Custom Watcher")).thenReturn(true);
+        when(permsService.resolveRoleTokensMaxRankWeight(List.of("Security Ops:Custom Watcher"))).thenReturn(2);
+        when(userRepository.existsByEmail("new.watcher@rng.com")).thenReturn(false);
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId(53L);
+            return u;
+        });
+
+        WhitelistUserRequest createReq = WhitelistUserRequest.builder()
+                .email("new.watcher@rng.com")
+                .userName("New Watcher")
+                .provider(AuthProvider.EMAIL)
+                .designations(List.of("Security Ops"))
+                .roles(List.of("Security Ops:Custom Watcher"))
+                .build();
+        WhitelistedUserDto created = dynamicService.createWhitelistedUser(50L, createReq);
+        assertThat(created.getEmail()).isEqualTo("new.watcher@rng.com");
+
+        assertThatThrownBy(() -> dynamicService.deleteWhitelistedUser(50L, 52L))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("Custom ROLE_USER with fullAccess=true manages system-wide subordinates up to own dynamic weight")
+    void testCustomRoleOperatorWithFullAccess_systemWideAccess() {
+        com.rednecksgaming.personnel.perms.service.RolePermissionsService permsService =
+                mock(com.rednecksgaming.personnel.perms.service.RolePermissionsService.class);
+        com.rednecksgaming.personnel.perms.service.GranularPermissionEvaluator evaluator =
+                mock(com.rednecksgaming.personnel.perms.service.GranularPermissionEvaluator.class);
+        WhitelistService dynamicService = new WhitelistService(
+                userRepository, designationRoleService, permsService, evaluator
+        );
+
+        User customUser = User.builder()
+                .id(60L)
+                .email("ops@rng.com")
+                .fullName("Ops Helper")
+                .role("ROLE_USER")
+                .designations("Security Ops")
+                .roles("Security Ops:Custom Lead")
+                .status("ACTIVE")
+                .build();
+
+        com.rednecksgaming.personnel.perms.dto.EffectivePermissionsDto effective =
+                new com.rednecksgaming.personnel.perms.dto.EffectivePermissionsDto(
+                        "60", java.util.Set.of("des_sec:Custom Lead"), false, null, null, 4,
+                        java.util.Map.of("dashboard", java.util.Map.of("enabled", true),
+                                "dashboard.whitelist", java.util.Map.of("enabled", true, "fullAccess", true))
+                );
+
+        when(permsService.computeEffectivePermissions(customUser, null)).thenReturn(effective);
+        when(evaluator.isFeatureEnabled(effective, "dashboard.whitelist")).thenReturn(true);
+        when(evaluator.hasWhitelistFullAccess(effective)).thenReturn(true);
+        when(permsService.resolveUserRankWeight(customUser)).thenReturn(4);
+        when(permsService.resolveUserRankWeight(regularDevUser)).thenReturn(1);
+        when(permsService.resolveUserRankWeight(highCommandUser)).thenReturn(8);
+        when(userRepository.findById(60L)).thenReturn(Optional.of(customUser));
+        when(userRepository.findById(10L)).thenReturn(Optional.of(highCommandUser));
+        when(userRepository.findAll()).thenReturn(List.of(customUser, regularDevUser, highCommandUser));
+
+        assertThat(dynamicService.getWhitelistedUsers(60L)).hasSize(3);
+        assertThatThrownBy(() -> dynamicService.deleteWhitelistedUser(60L, 10L))
+                .isInstanceOf(ForbiddenException.class);
+    }
 }
