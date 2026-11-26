@@ -49,7 +49,6 @@ export const PermsVisualRbacEditor: React.FC<PermsVisualRbacEditorProps> = ({
       const label = labels[key] ?? key;
       const dataObj = (typeof val === 'object' && val !== null ? val : {}) as Record<string, unknown>;
       const isEnabled = dataObj.enabled !== undefined ? Boolean(dataObj.enabled) : true;
-      const hasHeaderToggle = key !== 'dashboard.servers';
       const isNonExpandable = NON_EXPANDABLE_KEYS.has(key);
 
       return {
@@ -62,34 +61,32 @@ export const PermsVisualRbacEditor: React.FC<PermsVisualRbacEditorProps> = ({
             <span className="text-xs sm:text-sm font-semibold text-white tracking-tight truncate">
               {label}
             </span>
-            {hasHeaderToggle && (
-              <span
-                role="switch"
-                tabIndex={0}
-                aria-checked={isEnabled}
-                aria-label={`Toggle ${label}`}
-                onClick={(e) => {
+            <span
+              role="switch"
+              tabIndex={0}
+              aria-checked={isEnabled}
+              aria-label={`Toggle ${label}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePermission([key, 'enabled'], !isEnabled);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === ' ' || e.key === 'Enter') {
+                  e.preventDefault();
                   e.stopPropagation();
                   onTogglePermission([key, 'enabled'], !isEnabled);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === ' ' || e.key === 'Enter') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onTogglePermission([key, 'enabled'], !isEnabled);
-                  }
-                }}
-                className={`relative inline-flex items-center flex-shrink-0 transition-colors duration-200 ease-in-out rounded-full border border-transparent outline-none cursor-pointer w-9 h-5 px-0.5 ${
-                  isEnabled ? 'bg-brand-red shadow-sm shadow-brand-red/30' : 'bg-white/[0.12]'
+                }
+              }}
+              className={`relative inline-flex items-center flex-shrink-0 transition-colors duration-200 ease-in-out rounded-full border border-transparent outline-none cursor-pointer w-9 h-5 px-0.5 ${
+                isEnabled ? 'bg-brand-red shadow-sm shadow-brand-red/30' : 'bg-white/[0.12]'
+              }`}
+            >
+              <span
+                className={`inline-block rounded-full bg-white shadow-md transform transition-transform duration-200 ease-in-out pointer-events-none w-4 h-4 ${
+                  isEnabled ? 'translate-x-4' : 'translate-x-0'
                 }`}
-              >
-                <span
-                  className={`inline-block rounded-full bg-white shadow-md transform transition-transform duration-200 ease-in-out pointer-events-none w-4 h-4 ${
-                    isEnabled ? 'translate-x-4' : 'translate-x-0'
-                  }`}
-                />
-              </span>
-            )}
+              />
+            </span>
           </div>
         ),
         content: isNonExpandable ? null : (

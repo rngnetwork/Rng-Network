@@ -67,6 +67,32 @@ class UserRoleResolutionServiceTest {
     }
 
     @Test
+    @DisplayName("Resolves whitelist designation display-name prefixed roles with and without whitespace")
+    void shouldResolveWhitelistDisplayNamePrefixedMultiRoles() {
+        stubCatalogData();
+        User user = new User();
+        user.setDesignations("Supreme, Ministry of Tech");
+        user.setRoles("Supreme: High Command, Ministry of Tech:Minister");
+        user.setRole("ROLE_HIGH_COMMAND");
+
+        Set<String> resolved = resolutionService.resolveRoleIds(user);
+        assertThat(resolved).containsExactly("des_supreme:High Command", "des_tech:Minister");
+    }
+
+    @Test
+    @DisplayName("Resolves case-insensitive prefixed roles and safely handles malformed colons")
+    void shouldResolveCaseInsensitivePrefixedRolesAndEdgeColons() {
+        stubCatalogData();
+        User user = new User();
+        user.setDesignations("Ministry of Tech");
+        user.setRoles("ministry of tech: minister, :Regional Treasurer, Supreme:");
+        user.setRole("ROLE_USER");
+
+        Set<String> resolved = resolutionService.resolveRoleIds(user);
+        assertThat(resolved).containsExactly("des_tech:Minister", "des_finance:Regional Treasurer");
+    }
+
+    @Test
     @DisplayName("Resolves unprefixed legacy role names using user's designation context")
     void shouldResolveUnprefixedRoleViaUserDesignation() {
         stubCatalogData();

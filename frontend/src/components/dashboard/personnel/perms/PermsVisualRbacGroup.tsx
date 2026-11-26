@@ -63,21 +63,26 @@ export const PermsVisualRbacGroup: React.FC<PermsVisualRbacGroupProps> = ({
             </span>
             <span
               role="switch"
-              tabIndex={0}
+              tabIndex={parentEnabled ? 0 : -1}
               aria-checked={isServerEnabled}
+              aria-disabled={!parentEnabled}
               aria-label={`Toggle ${srv.name}`}
               onClick={(e) => {
                 e.stopPropagation();
+                if (!parentEnabled) return;
                 onToggle(['dashboard.servers', serversMapKey, srv.slug, 'enabled'], !isServerEnabled);
               }}
               onKeyDown={(e) => {
                 if (e.key === ' ' || e.key === 'Enter') {
                   e.preventDefault();
                   e.stopPropagation();
+                  if (!parentEnabled) return;
                   onToggle(['dashboard.servers', serversMapKey, srv.slug, 'enabled'], !isServerEnabled);
                 }
               }}
-              className={`relative inline-flex items-center flex-shrink-0 transition-colors duration-200 ease-in-out rounded-full border border-transparent outline-none cursor-pointer w-8 h-4 px-0.5 ${
+              className={`relative inline-flex items-center flex-shrink-0 transition-colors duration-200 ease-in-out rounded-full border border-transparent outline-none w-8 h-4 px-0.5 ${
+                !parentEnabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+              } ${
                 isServerEnabled ? 'bg-brand-red shadow-sm shadow-brand-red/30' : 'bg-white/[0.12]'
               }`}
             >
@@ -94,11 +99,12 @@ export const PermsVisualRbacGroup: React.FC<PermsVisualRbacGroupProps> = ({
             {subKeys.map((featKey) => {
               const featVal = (srv.data[featKey] || {}) as { enabled?: boolean };
               const isFeatEnabled = featVal.enabled !== undefined ? Boolean(featVal.enabled) : false;
+              const isSubDisabled = !parentEnabled || !isServerEnabled;
               return (
                 <div
                   key={featKey}
                   className={`flex items-center justify-between p-2.5 rounded-apple-md bg-surface-elevated/30 border border-white/[0.04] ${
-                    !isServerEnabled ? 'opacity-40 cursor-not-allowed' : ''
+                    isSubDisabled ? 'opacity-40 cursor-not-allowed' : ''
                   }`}
                 >
                   <span className="text-xs font-medium text-zinc-300 tracking-tight">
@@ -109,7 +115,7 @@ export const PermsVisualRbacGroup: React.FC<PermsVisualRbacGroupProps> = ({
                     onChange={(c) =>
                       onToggle(['dashboard.servers', serversMapKey, srv.slug, featKey, 'enabled'], c)
                     }
-                    disabled={!isServerEnabled}
+                    disabled={isSubDisabled}
                     size="sm"
                     aria-label={`Toggle ${srv.name} ${resolveLabel(featKey)}`}
                   />
@@ -122,7 +128,7 @@ export const PermsVisualRbacGroup: React.FC<PermsVisualRbacGroupProps> = ({
     });
 
     return (
-      <div className="flex flex-col gap-2">
+      <div className={`flex flex-col gap-2 ${!parentEnabled ? 'opacity-50 select-none' : ''}`}>
         <Accordion
           items={serverAccordionItems}
           allowMultiple={true}

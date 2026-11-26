@@ -54,7 +54,8 @@ public class UserRoleResolutionService {
             byRoleId.put(rp.getRoleId(), rp);
         }
 
-        List<String> userDesignationIds = resolveUserDesignationIds(user);
+        Map<String, String> nameToId = buildDesignationNameToIdMap();
+        List<String> userDesignationIds = resolveUserDesignationIds(user, nameToId);
         Set<String> resolved = new LinkedHashSet<>();
 
         for (String rawRole : user.getRoleList()) {
@@ -63,7 +64,7 @@ public class UserRoleResolutionService {
             }
             String trimmed = rawRole.trim();
             if (trimmed.contains(":")) {
-                resolved.add(trimmed);
+                resolvePrefixedRole(trimmed, nameToId, byRoleId, allRolePermissions, userDesignationIds, resolved);
                 continue;
             }
             resolveUnprefixedRole(trimmed, userDesignationIds, allRolePermissions, resolved);
@@ -95,18 +96,21 @@ public class UserRoleResolutionService {
         return maxWeight;
     }
 
-    private List<String> resolveUserDesignationIds(User user) {
+    private Map<String, String> buildDesignationNameToIdMap() {
         List<MatrixDesignation> designations = designationRepository.findAll();
         Map<String, String> nameToId = new LinkedHashMap<>();
         for (MatrixDesignation md : designations) {
             if (md.getId() != null) {
                 nameToId.put(md.getId().toLowerCase(Locale.ROOT), md.getId());
             }
-            if (md.getName() != null) {
+            if (md.getName() != null && md.getId() != null) {
                 nameToId.put(md.getName().toLowerCase(Locale.ROOT), md.getId());
             }
         }
+        return nameToId;
+    }
 
+    private List<String> resolveUserDesignationIds(User user, Map<String, String> nameToId) {
         List<String> resolvedIds = new ArrayList<>();
         for (String entry : user.getDesignationList()) {
             if (entry == null || entry.isBlank()) {
@@ -119,6 +123,49 @@ public class UserRoleResolutionService {
             }
         }
         return resolvedIds;
+    }
+
+    /**
+     * Resolves {@code prefix:roleName} entries whether {@code prefix} is already a canonical
+     * {@code designation_id} (e.g. {@code des_supreme}) or a human-readable {@link MatrixDesignation}
+     * display name written by the whitelist workflow (e.g. {@code "Supreme: High Command"}).
+     */
+    private void resolvePrefixedRole(
+            String trimmed,
+            Map<String, String> nameToId,
+            Map<String, RolePermissions> byRoleId,
+            List<RolePermissions> allRolePermissions,
+            List<String> userDesignationIds,
+            Set<String> resolved
+    ) {
+        int colonIdx = trimmed.indexOf(':');
+        String rawPrefix = trimmed.substring(0, colonIdx).trim();
+        String rawRoleName = trimmed.substring(colonIdx + 1).trim();
+
+        if (rawRoleName.isEmpty()) {
+            return;
+        }
+        if (rawPrefix.isEmpty()) {
+            resolveUnprefixedRole(rawRoleName, userDesignationIds, allRolePermissions, resolved);
+            return;
+        }
+
+        String canonicalCandidate = rawPrefix + ":" + rawRoleName;
+        if (byRoleId.containsKey(canonicalCandidate)) {
+            resolved.add(canonicalCandidate);
+            return;
+        }
+
+        String targetDesignationId = nameToId.getOrDefault(rawPrefix.toLowerCase(Locale.ROOT), rawPrefix);
+        for (RolePermissions rp : allRolePermissions) {
+            if (rp.getDesignationId() != null
+                    && rp.getDesignationId().equalsIgnoreCase(targetDesignationId)
+                    && rp.getRoleName() != null
+                    && rp.getRoleName().equalsIgnoreCase(rawRoleName)) {
+                resolved.add(rp.getRoleId());
+                return;
+            }
+        }
     }
 
     private void resolveUnprefixedRole(
