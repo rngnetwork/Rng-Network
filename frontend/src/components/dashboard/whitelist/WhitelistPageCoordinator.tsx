@@ -205,6 +205,7 @@ export const WhitelistPageCoordinator: React.FC = () => {
 
   const openAddModal = () => {
     setFormError(null);
+    setUserToEdit(null);
     setFormData({
       email: '',
       userName: '',
@@ -278,7 +279,9 @@ export const WhitelistPageCoordinator: React.FC = () => {
 
   const handleToggleRoleForDept = (des: string, role: string) => {
     const scopedToken = `${des}:${role}`;
-    const isEditingSelf = Boolean(userToEdit && currentUser && userToEdit.id === currentUser.id);
+    const isEditingSelf = Boolean(
+      !addModalOpen && userToEdit && currentUser && userToEdit.id === currentUser.id
+    );
     const roleWeight = resolveRoleWeight(des, role, hierarchyWeights);
 
     if (!isChiefHighCommand && roleWeight >= 9) return;
@@ -291,12 +294,33 @@ export const WhitelistPageCoordinator: React.FC = () => {
     ) {
       return;
     }
-    if (
-      !isEditingSelf &&
-      operatorRankWeight < 9 &&
-      roleWeight >= Math.max(operatorRankWeight, 1)
-    ) {
-      return;
+    const effectiveOpWeight = Math.max(operatorRankWeight, 1);
+    if (operatorRankWeight < 9) {
+      if (!isEditingSelf && roleWeight >= effectiveOpWeight) {
+        return;
+      }
+      if (isEditingSelf) {
+        const isOriginallyAssignedOnSelf = Boolean(
+          userToEdit?.roles?.some((r) => {
+            const trimmed = r.trim().toLowerCase();
+            if (trimmed.includes(':')) {
+              return trimmed === scopedToken.trim().toLowerCase();
+            }
+            return (
+              (userToEdit?.designations?.length ?? 0) <= 1 &&
+              trimmed === role.trim().toLowerCase()
+            );
+          })
+        );
+        if (
+          roleWeight > effectiveOpWeight ||
+          (!isOriginallyAssignedOnSelf &&
+            !isRoleSelectedInDept(des, role) &&
+            roleWeight >= effectiveOpWeight)
+        ) {
+          return;
+        }
+      }
     }
 
     setFormData((prev) => {
@@ -598,7 +622,10 @@ export const WhitelistPageCoordinator: React.FC = () => {
 
       <RankElevationModal
         isOpen={editModalOpen}
-        onClose={() => setEditModalOpen(false)}
+        onClose={() => {
+          setEditModalOpen(false);
+          setUserToEdit(null);
+        }}
         userToEdit={userToEdit}
         currentUser={currentUser}
         formData={formData}

@@ -140,23 +140,43 @@ export const RankElevationModal: React.FC<RankElevationModalProps> = ({
                   <div className="flex flex-wrap gap-1.5">
                     {deptRoles.map((role) => {
                       const roleWeight = resolveRoleWeight(des, role, hierarchyWeights);
+                      const isSelected = isRoleSelectedInDept(des, role);
+                      const isOriginallyAssignedOnSelf =
+                        isEditingSelf &&
+                        Boolean(
+                          userToEdit?.roles?.some((r) => {
+                            const trimmed = r.trim().toLowerCase();
+                            if (trimmed.includes(':')) {
+                              return trimmed === `${des}:${role}`.trim().toLowerCase();
+                            }
+                            return (
+                              (userToEdit?.designations?.length ?? 0) <= 1 &&
+                              trimmed === role.trim().toLowerCase()
+                            );
+                          })
+                        );
                       const isMinisterSelfLock = Boolean(
                         isMinister &&
                           isEditingSelf &&
                           role === 'Minister' &&
                           ministerMinistries.some((m) => m.toLowerCase() === des.toLowerCase())
                       );
+                      const effectiveOpWeight = Math.max(operatorRankWeight ?? 0, 1);
                       const isSubordinateLock =
                         typeof operatorRankWeight === 'number'
-                          ? !isEditingSelf &&
-                            operatorRankWeight < 9 &&
-                            (roleWeight >= 9 || roleWeight >= Math.max(operatorRankWeight, 1))
+                          ? operatorRankWeight < 9 &&
+                            (roleWeight >= 9 ||
+                              (isEditingSelf
+                                ? roleWeight > effectiveOpWeight ||
+                                  (!isOriginallyAssignedOnSelf &&
+                                    !isSelected &&
+                                    roleWeight >= effectiveOpWeight)
+                                : roleWeight >= effectiveOpWeight))
                           : Boolean(
                               isMinister &&
                                 !isEditingSelf &&
                                 (role === 'Minister' || role === 'High Command')
                             );
-                      const isSelected = isRoleSelectedInDept(des, role);
 
                       return (
                         <button
