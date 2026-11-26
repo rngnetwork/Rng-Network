@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { CheckCircle2 } from 'lucide-react';
-import type { PersonnelHierarchyMap, WhitelistedUser } from '@/lib/model/whitelist';
+import type { PersonnelHierarchyMap, WhitelistedUser, HierarchyRankWeightsMap } from '@/lib/model/whitelist';
+import { resolveRoleWeight } from '@/lib/model/whitelist';
 import type { UserProfileData } from '@/lib/model/user';
 import { Modal } from '@/components/common/feedback/Modal';
 import { TextInput } from '@/components/common/input/TextInput';
@@ -21,6 +22,9 @@ export interface RankElevationModalProps {
   isHighCommand: boolean;
   isMinister: boolean;
   ministerMinistries: string[];
+  hasFullAccess?: boolean;
+  operatorRankWeight?: number;
+  hierarchyWeights?: HierarchyRankWeightsMap;
   onToggleDesignation: (des: string) => void;
   onToggleRoleForDept: (des: string, role: string) => void;
   isRoleSelectedInDept: (des: string, role: string) => boolean;
@@ -40,6 +44,9 @@ export const RankElevationModal: React.FC<RankElevationModalProps> = ({
   isHighCommand,
   isMinister,
   ministerMinistries,
+  hasFullAccess,
+  operatorRankWeight,
+  hierarchyWeights = {},
   onToggleDesignation,
   onToggleRoleForDept,
   isRoleSelectedInDept,
@@ -48,6 +55,7 @@ export const RankElevationModal: React.FC<RankElevationModalProps> = ({
   formError,
 }) => {
   const isEditingSelf = Boolean(userToEdit && currentUser && userToEdit.id === currentUser.id);
+  const effectiveFullAccess = hasFullAccess ?? isHighCommand;
 
   return (
     <Modal
@@ -77,7 +85,7 @@ export const RankElevationModal: React.FC<RankElevationModalProps> = ({
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <label className="text-xs font-mono text-zinc-400 uppercase tracking-wider">
-              Designations ({isHighCommand ? 'Full Authority' : 'Ministry Scoped'})
+              Designations ({effectiveFullAccess ? 'Full Authority' : 'Designation Scoped'})
             </label>
             <span className="text-[11px] text-zinc-500">
               {formData.designations.length} Selected
@@ -87,18 +95,20 @@ export const RankElevationModal: React.FC<RankElevationModalProps> = ({
           <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2.5 rounded-apple-md bg-white/[0.02] border border-white/[0.08]">
             {Object.keys(hierarchy).map((des) => {
               const isSelected = formData.designations.includes(des);
-              const isLockedForMinister = isMinister && !ministerMinistries.includes(des);
+              const isLockedForScoped =
+                !effectiveFullAccess &&
+                !ministerMinistries.some((m) => m.toLowerCase() === des.toLowerCase());
 
               return (
                 <button
                   key={des}
                   type="button"
-                  disabled={isLockedForMinister}
+                  disabled={isLockedForScoped}
                   onClick={() => onToggleDesignation(des)}
                   className={`text-xs px-3 py-1.5 rounded-apple-sm font-medium transition-all ${
                     isSelected
                       ? 'bg-brand-red/20 text-red-300 border border-brand-red/40'
-                      : isLockedForMinister
+                      : isLockedForScoped
                       ? 'bg-white/[0.01] text-zinc-600 border border-white/5 cursor-not-allowed opacity-40'
                       : 'bg-white/[0.03] text-zinc-400 hover:text-white border border-white/5'
                   }`}
@@ -129,31 +139,37 @@ export const RankElevationModal: React.FC<RankElevationModalProps> = ({
                   <span className="text-xs font-semibold text-red-300 font-mono">{des}</span>
                   <div className="flex flex-wrap gap-1.5">
                     {deptRoles.map((role) => {
+                      const roleWeight = resolveRoleWeight(des, role, hierarchyWeights);
                       const isMinisterSelfLock = Boolean(
                         isMinister &&
                           isEditingSelf &&
                           role === 'Minister' &&
-                          ministerMinistries.includes(des)
+                          ministerMinistries.some((m) => m.toLowerCase() === des.toLowerCase())
                       );
-                      const isMinisterSubordinateLock = Boolean(
-                        isMinister &&
-                          !isEditingSelf &&
-                          (role === 'Minister' || role === 'High Command')
-                      );
+                      const isSubordinateLock =
+                        typeof operatorRankWeight === 'number'
+                          ? !isEditingSelf &&
+                            operatorRankWeight < 9 &&
+                            (roleWeight >= 9 || roleWeight >= Math.max(operatorRankWeight, 1))
+                          : Boolean(
+                              isMinister &&
+                                !isEditingSelf &&
+                                (role === 'Minister' || role === 'High Command')
+                            );
                       const isSelected = isRoleSelectedInDept(des, role);
 
                       return (
                         <button
                           key={role}
                           type="button"
-                          disabled={isMinisterSubordinateLock}
+                          disabled={isSubordinateLock}
                           onClick={() => onToggleRoleForDept(des, role)}
                           className={`text-xs px-2.5 py-1 rounded-apple-sm font-medium transition-all ${
                             isSelected
                               ? isMinisterSelfLock
                                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 cursor-not-allowed'
                                 : 'bg-brand-red/20 text-white border border-brand-red/40'
-                              : isMinisterSubordinateLock
+                              : isSubordinateLock
                               ? 'bg-white/[0.01] text-zinc-600 border border-white/5 cursor-not-allowed opacity-30'
                               : 'bg-white/[0.03] text-zinc-400 hover:text-white border border-white/5'
                           }`}

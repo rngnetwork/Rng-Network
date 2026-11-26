@@ -13,21 +13,12 @@ import { useEffectivePermissions } from '@/components/dashboard/layout/Effective
 
 export const PersonnelPageCoordinator: React.FC = () => {
   const pathname = usePathname();
-  const { hasPermission } = useEffectivePermissions();
+  const { hasPermission, callerMaxRankWeight, isPreviewMode } = useEffectivePermissions();
   const [currentUser, setCurrentUser] = useState<UserProfileData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const isChiefHighCommand = useMemo(() => {
-    const hasChiefRole =
-      currentUser?.roleList?.some((r) => {
-        const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
-        return pure.toLowerCase() === 'chief high command';
-      }) || currentUser?.roles?.toLowerCase().includes('chief high command');
-    return Boolean(currentUser?.role === 'ROLE_CHIEF_HIGH_COMMAND' || hasChiefRole);
-  }, [currentUser]);
-
-  const isHighCommand = useMemo(() => {
-    if (isChiefHighCommand) return true;
+  const isGlobalCommand = useMemo(() => {
+    if (!isPreviewMode && callerMaxRankWeight >= 8) return true;
     const hasHcRole =
       currentUser?.roleList?.some((r) => {
         const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
@@ -38,23 +29,12 @@ export const PersonnelPageCoordinator: React.FC = () => {
         currentUser?.role === 'ROLE_CHIEF_HIGH_COMMAND' ||
         hasHcRole
     );
-  }, [currentUser, isChiefHighCommand]);
+  }, [currentUser, callerMaxRankWeight, isPreviewMode]);
 
-  const isMinister = useMemo(() => {
-    if (isHighCommand) return false;
-    const hasMinisterRole =
-      currentUser?.roleList?.some((r) => {
-        const pure = r.includes(':') ? r.substring(r.indexOf(':') + 1).trim() : r.trim();
-        return pure.toLowerCase() === 'minister';
-      }) || currentUser?.roles?.toLowerCase().includes('minister');
-    return Boolean(currentUser?.role === 'ROLE_MINISTER' || hasMinisterRole);
-  }, [currentUser, isHighCommand]);
-
-  const ministerMinistries = useMemo(() => {
-    if (!isMinister || !currentUser) return [];
-    const list = currentUser.designationList || [];
-    return list.filter((d) => d.startsWith('Ministry of'));
-  }, [isMinister, currentUser]);
+  const scopedDesignations = useMemo(() => {
+    if (isGlobalCommand || !currentUser) return [];
+    return currentUser.designationList || [];
+  }, [isGlobalCommand, currentUser]);
 
   useEffect(() => {
     let isMounted = true;
@@ -105,10 +85,10 @@ export const PersonnelPageCoordinator: React.FC = () => {
               Personnel
             </h1>
             <p className="text-xs md:text-sm text-zinc-400">
-              {isHighCommand
+              {isGlobalCommand || callerMaxRankWeight >= 5
                 ? 'Authoritative command hierarchy, ministry designations, and granular access permissions.'
                 : `Scoped access: Manage personnel strictly within ${
-                    ministerMinistries.join(' & ') || 'your assigned ministries'
+                    scopedDesignations.join(' & ') || 'your assigned designations'
                   }.`}
             </p>
           </div>

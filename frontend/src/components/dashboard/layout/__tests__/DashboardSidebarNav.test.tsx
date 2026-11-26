@@ -83,4 +83,54 @@ describe('DashboardSidebarNav', () => {
     fireEvent.click(exitBtns[0]);
     expect(exitPreviewMode).toHaveBeenCalledTimes(1);
   });
+
+  it('shows Admin badge on Whitelist link for custom ROLE_USER when fullAccess is true', () => {
+    vi.mocked(useEffectivePermissions).mockReturnValue({
+      effectivePermissions: {
+        userId: '50',
+        rolesEvaluated: ['des_sec:Security Lead'],
+        isPreviewMode: false,
+        previewRoleId: null,
+        previewRoleName: null,
+        callerMaxRankWeight: 4,
+        permissions: {
+          dashboard: { enabled: true },
+          'dashboard.whitelist': { enabled: true, fullAccess: true },
+        },
+      },
+      loading: false,
+      isPreviewMode: false,
+      previewRoleId: null,
+      previewRoleName: null,
+      callerMaxRankWeight: 4,
+      refreshPermissions: vi.fn(),
+      enterPreviewMode: vi.fn(),
+      exitPreviewMode,
+      hasPermission: (...path: string[]) => {
+        const leaf = path[path.length - 1];
+        return leaf === 'dashboard' || leaf === 'dashboard.whitelist' || leaf === 'fullAccess';
+      },
+      hasServerPermission: () => false,
+      isRouteAllowed: () => true,
+    });
+
+    render(
+      <DashboardSidebarNav
+        user={{
+          id: 50,
+          email: 'lead@rng.com',
+          fullName: 'Security Lead',
+          role: 'ROLE_USER',
+          designations: 'Security Ops',
+          roles: 'Security Ops:Security Lead',
+          status: 'ACTIVE',
+          discordLinked: true,
+        }}
+      />
+    );
+
+    expect(screen.getByText('Whitelist')).toBeInTheDocument();
+    expect(screen.getByText('Admin')).toBeInTheDocument();
+    expect(screen.queryByText('Scoped')).not.toBeInTheDocument();
+  });
 });

@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { CheckCircle2 } from 'lucide-react';
-import type { PersonnelHierarchyMap } from '@/lib/model/whitelist';
+import type { PersonnelHierarchyMap, HierarchyRankWeightsMap } from '@/lib/model/whitelist';
+import { resolveRoleWeight } from '@/lib/model/whitelist';
 import { Modal } from '@/components/common/feedback/Modal';
 import { TextInput } from '@/components/common/input/TextInput';
 import { Button } from '@/components/common/input/Button';
@@ -25,6 +26,9 @@ export interface AddPersonnelModalProps {
   isHighCommand: boolean;
   isMinister: boolean;
   ministerMinistries: string[];
+  hasFullAccess?: boolean;
+  operatorRankWeight?: number;
+  hierarchyWeights?: HierarchyRankWeightsMap;
   onToggleDesignation: (des: string) => void;
   onToggleRoleForDept: (des: string, role: string) => void;
   isRoleSelectedInDept: (des: string, role: string) => boolean;
@@ -42,6 +46,9 @@ export const AddPersonnelModal: React.FC<AddPersonnelModalProps> = ({
   isHighCommand,
   isMinister,
   ministerMinistries,
+  hasFullAccess,
+  operatorRankWeight,
+  hierarchyWeights = {},
   onToggleDesignation,
   onToggleRoleForDept,
   isRoleSelectedInDept,
@@ -49,6 +56,7 @@ export const AddPersonnelModal: React.FC<AddPersonnelModalProps> = ({
   isSubmitting,
   formError,
 }) => {
+  const effectiveFullAccess = hasFullAccess ?? isHighCommand;
   return (
     <Modal
       isOpen={isOpen}
@@ -102,7 +110,7 @@ export const AddPersonnelModal: React.FC<AddPersonnelModalProps> = ({
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <label className="text-xs font-mono text-zinc-400 uppercase tracking-wider">
-              Designations ({isHighCommand ? 'All Ministries' : 'Scoped Ministry'})
+              Designations ({effectiveFullAccess ? 'All Ministries' : 'Scoped Designation'})
             </label>
             <span className="text-[11px] text-zinc-500">
               {formData.designations.length} Selected
@@ -112,18 +120,20 @@ export const AddPersonnelModal: React.FC<AddPersonnelModalProps> = ({
           <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2.5 rounded-apple-md bg-white/[0.02] border border-white/[0.08]">
             {Object.keys(hierarchy).map((des) => {
               const isSelected = formData.designations.includes(des);
-              const isLockedForMinister = isMinister && !ministerMinistries.includes(des);
+              const isLockedForScoped =
+                !effectiveFullAccess &&
+                !ministerMinistries.some((m) => m.toLowerCase() === des.toLowerCase());
 
               return (
                 <button
                   key={des}
                   type="button"
-                  disabled={isLockedForMinister}
+                  disabled={isLockedForScoped}
                   onClick={() => onToggleDesignation(des)}
                   className={`text-xs px-3 py-1.5 rounded-apple-sm font-medium transition-all ${
                     isSelected
                       ? 'bg-brand-red/20 text-red-300 border border-brand-red/40'
-                      : isLockedForMinister
+                      : isLockedForScoped
                       ? 'bg-white/[0.01] text-zinc-600 border border-white/5 cursor-not-allowed opacity-40'
                       : 'bg-white/[0.03] text-zinc-400 hover:text-white border border-white/5'
                   }`}
@@ -159,13 +169,18 @@ export const AddPersonnelModal: React.FC<AddPersonnelModalProps> = ({
                     <span className="text-xs font-semibold text-red-300 font-mono">{des}</span>
                     <div className="flex flex-wrap gap-1.5">
                       {deptRoles.map((role) => {
-                        const isSubordinateLock = Boolean(
-                          isMinister &&
-                            (role === 'Minister' ||
-                              role === 'High Command' ||
-                              role === 'Chief High Command' ||
-                              role.toLowerCase().startsWith('chancellor'))
-                        );
+                        const roleWeight = resolveRoleWeight(des, role, hierarchyWeights);
+                        const isSubordinateLock =
+                          typeof operatorRankWeight === 'number'
+                            ? operatorRankWeight < 9 &&
+                              (roleWeight >= 9 || roleWeight >= Math.max(operatorRankWeight, 1))
+                            : Boolean(
+                                isMinister &&
+                                  (role === 'Minister' ||
+                                    role === 'High Command' ||
+                                    role === 'Chief High Command' ||
+                                    role.toLowerCase().startsWith('chancellor'))
+                              );
                         const isSelected = isRoleSelectedInDept(des, role);
 
                         return (
