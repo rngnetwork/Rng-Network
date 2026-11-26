@@ -40,6 +40,11 @@ backend/.env.production
 backend/.env.development
 apache-maven-3.9.6/
 backend/uploads
+bin/
+.project
+.classpath
+.settings/
+
 
 # ------------------------------------------------------------------------------
 # 3. Root Environment Files
