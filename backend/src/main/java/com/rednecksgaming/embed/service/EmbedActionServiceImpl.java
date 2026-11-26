@@ -20,6 +20,7 @@ import com.rednecksgaming.embed.repository.EmbedTemplateRepository;
 import com.rednecksgaming.embed.repository.InteractionLogRepository;
 import com.rednecksgaming.identity.domain.User;
 import com.rednecksgaming.identity.repository.UserRepository;
+import com.rednecksgaming.personnel.perms.service.RolePermissionsService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -55,6 +56,7 @@ public class EmbedActionServiceImpl implements EmbedActionService {
     private final UserRepository userRepository;
     private final Optional<StringRedisTemplate> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final RolePermissionsService rolePermissionsService;
 
     public EmbedActionServiceImpl(
             EmbedActionRepository embedActionRepository,
@@ -63,12 +65,41 @@ public class EmbedActionServiceImpl implements EmbedActionService {
             UserRepository userRepository,
             @Autowired(required = false) StringRedisTemplate redisTemplate,
             ObjectMapper objectMapper) {
+        this(embedActionRepository, interactionLogRepository, embedTemplateRepository,
+                userRepository, redisTemplate, objectMapper, null);
+    }
+
+    @Autowired
+    public EmbedActionServiceImpl(
+            EmbedActionRepository embedActionRepository,
+            InteractionLogRepository interactionLogRepository,
+            EmbedTemplateRepository embedTemplateRepository,
+            UserRepository userRepository,
+            @Autowired(required = false) StringRedisTemplate redisTemplate,
+            ObjectMapper objectMapper,
+            @Autowired(required = false) RolePermissionsService rolePermissionsService) {
         this.embedActionRepository = embedActionRepository;
         this.interactionLogRepository = interactionLogRepository;
         this.embedTemplateRepository = embedTemplateRepository;
         this.userRepository = userRepository;
         this.redisTemplate = Optional.ofNullable(redisTemplate);
         this.objectMapper = objectMapper;
+        this.rolePermissionsService = rolePermissionsService;
+    }
+
+    private boolean isOperatorHighCommand(User operator) {
+        if (operator == null) {
+            return false;
+        }
+        if (rolePermissionsService != null && rolePermissionsService.resolveUserRankWeight(operator) >= 8) {
+            return true;
+        }
+        return (operator.getRole() != null
+                && (operator.getRole().equals("ROLE_CHIEF_HIGH_COMMAND") || operator.getRole().equals("ROLE_HIGH_COMMAND")))
+                || (operator.getRoleList() != null
+                && (operator.getRoleList().contains("ROLE_CHIEF_HIGH_COMMAND")
+                || operator.getRoleList().contains("ROLE_HIGH_COMMAND")))
+                || operator.isHighCommand();
     }
 
     @Override
@@ -83,10 +114,7 @@ public class EmbedActionServiceImpl implements EmbedActionService {
     })
     public EmbedActionDto createAction(CreateActionRequest request, String operatorEmail) {
         User operator = tryResolveOperatorUser(operatorEmail);
-        boolean isHighCommand = operator != null && ((operator.getRole() != null && 
-                (operator.getRole().equals("ROLE_CHIEF_HIGH_COMMAND") || operator.getRole().equals("ROLE_HIGH_COMMAND")))
-                || (operator.getRoleList() != null && (operator.getRoleList().contains("ROLE_CHIEF_HIGH_COMMAND")
-                || operator.getRoleList().contains("ROLE_HIGH_COMMAND"))));
+        boolean isHighCommand = isOperatorHighCommand(operator);
 
         if (Boolean.TRUE.equals(request.isGlobal())) {
             if (operatorEmail == null || operatorEmail.isBlank()) {

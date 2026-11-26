@@ -15,6 +15,7 @@ import com.rednecksgaming.embed.dto.UpdateTemplateRequest;
 import com.rednecksgaming.embed.repository.EmbedTemplateRepository;
 import com.rednecksgaming.identity.domain.User;
 import com.rednecksgaming.identity.repository.UserRepository;
+import com.rednecksgaming.personnel.perms.service.RolePermissionsService;
 import com.rednecksgaming.server.domain.Server;
 import com.rednecksgaming.server.repository.ServerRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -37,24 +38,49 @@ public class EmbedTemplateService {
     private final UserRepository userRepository;
     private final PreFlightValidatorService validatorService;
     private final ServerRepository serverRepository;
+    private final RolePermissionsService rolePermissionsService;
 
     @Autowired
     public EmbedTemplateService(
             EmbedTemplateRepository templateRepository,
             UserRepository userRepository,
             PreFlightValidatorService validatorService,
-            ServerRepository serverRepository) {
+            ServerRepository serverRepository,
+            @Autowired(required = false) RolePermissionsService rolePermissionsService) {
         this.templateRepository = templateRepository;
         this.userRepository = userRepository;
         this.validatorService = validatorService;
         this.serverRepository = serverRepository;
+        this.rolePermissionsService = rolePermissionsService;
+    }
+
+    public EmbedTemplateService(
+            EmbedTemplateRepository templateRepository,
+            UserRepository userRepository,
+            PreFlightValidatorService validatorService,
+            ServerRepository serverRepository) {
+        this(templateRepository, userRepository, validatorService, serverRepository, null);
     }
 
     public EmbedTemplateService(
             EmbedTemplateRepository templateRepository,
             UserRepository userRepository,
             PreFlightValidatorService validatorService) {
-        this(templateRepository, userRepository, validatorService, null);
+        this(templateRepository, userRepository, validatorService, null, null);
+    }
+
+    private boolean isOperatorHighCommand(User operator) {
+        if (operator == null) {
+            return false;
+        }
+        if (rolePermissionsService != null && rolePermissionsService.resolveUserRankWeight(operator) >= 8) {
+            return true;
+        }
+        return operator.isHighCommand()
+                || (operator.getRole() != null && (
+                    operator.getRole().contains("HIGH_COMMAND")
+                    || operator.getRole().contains("SUPER_ADMIN")
+                    || operator.getRole().contains("ADMIN")));
     }
 
     public Page<TemplateResponse> listTemplates(Long operatorUserId, String serverId, String category, Pageable pageable) {
@@ -186,11 +212,7 @@ public class EmbedTemplateService {
                     operator.getEmail().equalsIgnoreCase(template.getAuthorId())
                     || operator.getEmail().equalsIgnoreCase(template.getAuthorName())));
 
-        boolean isHighCommand = operator.isHighCommand()
-                || (operator.getRole() != null && (
-                    operator.getRole().contains("HIGH_COMMAND")
-                    || operator.getRole().contains("SUPER_ADMIN")
-                    || operator.getRole().contains("ADMIN")));
+        boolean isHighCommand = isOperatorHighCommand(operator);
 
         if (!isAuthor && !isHighCommand) {
             throw new ForbiddenException("Only the original template author or High Command may modify this template.");
@@ -273,11 +295,7 @@ public class EmbedTemplateService {
                     operator.getEmail().equalsIgnoreCase(template.getAuthorId())
                     || operator.getEmail().equalsIgnoreCase(template.getAuthorName())));
 
-        boolean isHighCommand = operator.isHighCommand()
-                || (operator.getRole() != null && (
-                    operator.getRole().contains("HIGH_COMMAND")
-                    || operator.getRole().contains("SUPER_ADMIN")
-                    || operator.getRole().contains("ADMIN")));
+        boolean isHighCommand = isOperatorHighCommand(operator);
 
         if (!isAuthor && !isHighCommand) {
             throw new ForbiddenException("Only the original template author or High Command may delete this template.");

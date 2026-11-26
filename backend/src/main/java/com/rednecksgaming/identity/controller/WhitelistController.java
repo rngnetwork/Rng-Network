@@ -69,4 +69,9 @@ public class WhitelistController {
     public ResponseEntity<ApiResponse<Map<String, List<String>>>> getPersonnelHierarchy() {
         return ResponseEntity.ok(ApiResponse.success(designationRoleService.getDesignationRolesMap()));
     }
+
+    @GetMapping("/hierarchy/weights")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> getHierarchyRankWeights() {
+        return ResponseEntity.ok(ApiResponse.success(whitelistService.getHierarchyRankWeights()));
+    }
 }

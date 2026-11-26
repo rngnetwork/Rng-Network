@@ -16,6 +16,7 @@ import com.rednecksgaming.embed.dto.*;
 import com.rednecksgaming.embed.repository.DispatchLogRepository;
 import com.rednecksgaming.identity.domain.User;
 import com.rednecksgaming.identity.repository.UserRepository;
+import com.rednecksgaming.personnel.perms.service.RolePermissionsService;
 import com.rednecksgaming.server.client.DiscordServerClient;
 import com.rednecksgaming.server.domain.Server;
 import com.rednecksgaming.server.dto.ChannelDto;
@@ -58,6 +59,7 @@ public class EmbedDispatchService {
     private final Optional<JDA> jda;
     private final DiscordServerClient discordClient;
     private final ServerRepository serverRepository;
+    private final RolePermissionsService rolePermissionsService;
 
     public EmbedDispatchService(
             DiscordDispatchService discordDispatchService,
@@ -70,7 +72,22 @@ public class EmbedDispatchService {
             @Autowired(required = false) DiscordServerClient discordClient
     ) {
         this(discordDispatchService, validatorService, rateLimiterService, scheduledDispatchService,
-                dispatchLogRepository, userRepository, jda, discordClient, null);
+                dispatchLogRepository, userRepository, jda, discordClient, null, null);
+    }
+
+    public EmbedDispatchService(
+            DiscordDispatchService discordDispatchService,
+            PreFlightValidatorService validatorService,
+            RedisRateLimiterService rateLimiterService,
+            RedisScheduledDispatchService scheduledDispatchService,
+            DispatchLogRepository dispatchLogRepository,
+            UserRepository userRepository,
+            @Autowired(required = false) JDA jda,
+            @Autowired(required = false) DiscordServerClient discordClient,
+            @Autowired(required = false) ServerRepository serverRepository
+    ) {
+        this(discordDispatchService, validatorService, rateLimiterService, scheduledDispatchService,
+                dispatchLogRepository, userRepository, jda, discordClient, serverRepository, null);
     }
 
     @Autowired
@@ -83,7 +100,8 @@ public class EmbedDispatchService {
             UserRepository userRepository,
             @Autowired(required = false) JDA jda,
             @Autowired(required = false) DiscordServerClient discordClient,
-            @Autowired(required = false) ServerRepository serverRepository
+            @Autowired(required = false) ServerRepository serverRepository,
+            @Autowired(required = false) RolePermissionsService rolePermissionsService
     ) {
         this.discordDispatchService = discordDispatchService;
         this.validatorService = validatorService;
@@ -94,6 +112,7 @@ public class EmbedDispatchService {
         this.jda = Optional.ofNullable(jda);
         this.discordClient = discordClient;
         this.serverRepository = serverRepository;
+        this.rolePermissionsService = rolePermissionsService;
     }
 
     public String resolveServerId(String serverIdOrSlug) {
@@ -226,7 +245,8 @@ public class EmbedDispatchService {
                 .orElseThrow(() -> new UnauthorizedException("Authenticated operator not found."));
 
         boolean isAuthor = String.valueOf(operatorUserId).equals(logEntry.getUserId());
-        boolean isHighCommand = operator.isHighCommand();
+        boolean isHighCommand = (rolePermissionsService != null && rolePermissionsService.resolveUserRankWeight(operator) >= 8)
+                || operator.isHighCommand();
 
         if (!isAuthor && !isHighCommand) {
             throw new ForbiddenException("Only the author or High Command may cancel a scheduled dispatch.");

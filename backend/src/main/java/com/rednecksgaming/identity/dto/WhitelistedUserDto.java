@@ -22,6 +22,7 @@ public class WhitelistedUserDto {
     private String userName;
     private String provider;
     private String role;
+    private Integer rankWeight;
     private List<String> designations;
     private List<String> roles;
     private String discordId;
