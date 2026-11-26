@@ -155,7 +155,7 @@ export const CyberWebCanvas: React.FC<CyberWebCanvasProps> = ({ nodes = CYBER_NO
         const to = nodePos.get(link.to);
         if (!from || !to) return;
 
-        const isLinkActive = link.status === 'active';
+        const isLinkActive = link.status === 'active' && from.active && to.active;
 
         if (isLinkActive) {
           // Outer Glow Beam
@@ -199,7 +199,7 @@ export const CyberWebCanvas: React.FC<CyberWebCanvasProps> = ({ nodes = CYBER_NO
 
         const from = nodePos.get(link.from);
         const to = nodePos.get(link.to);
-        if (!from || !to) return;
+        if (!from || !to || !from.active || !to.active) return;
 
         const currX = from.x + (to.x - from.x) * p.progress;
         const currY = from.y + (to.y - from.y) * p.progress;

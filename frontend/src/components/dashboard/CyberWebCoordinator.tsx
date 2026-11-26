@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { RotateCcw } from 'lucide-react';
 import { CyberWebCanvas } from './CyberWebCanvas';
@@ -39,6 +39,18 @@ export const CyberWebCoordinator: React.FC = () => {
     typeof window !== 'undefined' ? Boolean(localStorage.getItem(STORAGE_KEY)) : false
   );
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+
+  const effectiveNodes = useMemo(
+    () =>
+      nodes.map((node) =>
+        node.status === 'active' && node.route && !isRouteAllowed(node.route)
+          ? { ...node, status: 'locked' as const }
+          : node
+      ),
+    [nodes, isRouteAllowed]
+  );
+
+  const activeNodesCount = effectiveNodes.filter((n) => n.status === 'active').length;
 
   const handleNavigate = (route: string) => {
     router.push(route);
@@ -114,7 +126,7 @@ export const CyberWebCoordinator: React.FC = () => {
       className="relative w-full min-h-[calc(100vh-5.5rem)] rounded-apple-2xl overflow-hidden border border-white/[0.06] bg-[#030305] select-none"
     >
       {/* 3D Cybernetic Neural Canvas with Laser Vectors, Photons & Starburst Filaments */}
-      <CyberWebCanvas nodes={nodes} />
+      <CyberWebCanvas nodes={effectiveNodes} />
 
       {/* Cyber Grid Subtle Background Texture */}
       <div
@@ -138,16 +150,14 @@ export const CyberWebCoordinator: React.FC = () => {
 
         <div className="px-3 py-1.5 rounded-full bg-[#E11D2E]/10 border border-[#E11D2E]/30 text-[#E11D2E] text-xs font-mono font-bold flex items-center gap-2 shadow-[0_0_12px_rgba(225,29,46,0.3)] backdrop-blur-md">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span>4 / 9 SYSTEMS LIVE</span>
+          <span>{activeNodesCount} / {effectiveNodes.length} SYSTEMS LIVE</span>
         </div>
       </div>
 
       {/* Spatial Constellation Field - Floating Hexagonal Cyber Vertices */}
       <div className="absolute inset-0 z-10 pointer-events-none">
         <div className="relative w-full h-full pointer-events-auto">
-          {nodes
-            .filter((node) => !node.route || isRouteAllowed(node.route))
-            .map((node) => (
+          {effectiveNodes.map((node) => (
             <CyberHexNode
               key={node.id}
               node={node}
