@@ -325,4 +325,20 @@ class WhitelistControllerTest {
                 .andExpect(jsonPath("$.data.Supreme").isArray())
                 .andExpect(jsonPath("$.data['Ministry of Tech']").isArray());
     }
+
+    @Test
+    @DisplayName("GET /api/v1/whitelist/hierarchy/weights returns dynamic role rankWeight map")
+    void testGetHierarchyRankWeights() throws Exception {
+        when(whitelistService.getHierarchyRankWeights()).thenReturn(Map.of(
+                "Supreme:High Command", 8,
+                "Security Ops:Custom Lead", 6
+        ));
+
+        mockMvc.perform(get("/api/v1/whitelist/hierarchy/weights")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data['Supreme:High Command']", is(8)))
+                .andExpect(jsonPath("$.data['Security Ops:Custom Lead']", is(6)));
+    }
 }

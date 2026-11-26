@@ -635,4 +635,37 @@ class EmbedDispatchServiceTest {
         );
         assertThat(shortService).isNotNull();
     }
+
+    @Test
+    @DisplayName("Custom ROLE_USER with dynamic rankWeight >= 8 cancels foreign scheduled dispatch")
+    void customRoleUserWithDynamicWeight8_cancelsForeignDispatch() {
+        com.rednecksgaming.personnel.perms.service.RolePermissionsService permsService =
+                mock(com.rednecksgaming.personnel.perms.service.RolePermissionsService.class);
+        EmbedDispatchService dynamicService = new EmbedDispatchService(
+                discordDispatchService, validatorService, rateLimiterService,
+                scheduledDispatchService, dispatchLogRepository, userRepository,
+                jda, discordServerClient, null, permsService
+        );
+
+        com.rednecksgaming.embed.domain.DispatchLog foreignLog =
+                com.rednecksgaming.embed.domain.DispatchLog.builder()
+                        .dispatchId("dsp_foreign")
+                        .userId("999")
+                        .status(com.rednecksgaming.embed.domain.DispatchStatus.QUEUED)
+                        .build();
+        User customHc = User.builder()
+                .id(88L)
+                .email("custom.hc@rng.com")
+                .role("ROLE_USER")
+                .roles("Security Ops:Overlord")
+                .build();
+
+        when(dispatchLogRepository.findByDispatchId("dsp_foreign")).thenReturn(Optional.of(foreignLog));
+        when(userRepository.findById(88L)).thenReturn(Optional.of(customHc));
+        when(permsService.resolveUserRankWeight(customHc)).thenReturn(8);
+        when(scheduledDispatchService.cancelTask("dsp_foreign")).thenReturn(true);
+
+        boolean removed = dynamicService.cancelScheduledDispatch(88L, "dsp_foreign");
+        assertThat(removed).isTrue();
+    }
 }

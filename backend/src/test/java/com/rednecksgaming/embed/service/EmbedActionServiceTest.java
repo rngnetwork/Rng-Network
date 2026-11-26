@@ -1178,4 +1178,37 @@ class EmbedActionServiceTest {
                 .isInstanceOf(com.rednecksgaming.common.exception.InternalServerException.class)
                 .hasMessageContaining("Failed to generate unique action ID after maximum retries");
     }
+
+    @Test
+    @DisplayName("Custom ROLE_USER with dynamic rankWeight >= 8 creates and updates global actions")
+    void customRoleUserWithDynamicWeight8_createsAndUpdatesGlobalAction() {
+        com.rednecksgaming.personnel.perms.service.RolePermissionsService permsService =
+                mock(com.rednecksgaming.personnel.perms.service.RolePermissionsService.class);
+        EmbedActionServiceImpl dynamicService = new EmbedActionServiceImpl(
+                embedActionRepository, interactionLogRepository, embedTemplateRepository,
+                userRepository, redisTemplate, objectMapper, permsService
+        );
+
+        User customHc = User.builder()
+                .id(88L)
+                .email("custom.hc@rng.com")
+                .role("ROLE_USER")
+                .designations("Security Ops")
+                .roles("Security Ops:Overlord")
+                .build();
+        when(userRepository.findByEmail("custom.hc@rng.com")).thenReturn(Optional.of(customHc));
+        when(permsService.resolveUserRankWeight(customHc)).thenReturn(8);
+        when(embedActionRepository.existsByActionId(anyString())).thenReturn(false);
+        when(embedActionRepository.save(any(EmbedAction.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CreateActionRequest req = CreateActionRequest.builder()
+                .name("Global Custom Action")
+                .actionType(ActionType.REPLY)
+                .replyContent("ok")
+                .isGlobal(true)
+                .build();
+
+        EmbedActionDto dto = dynamicService.createAction(req, "custom.hc@rng.com");
+        assertThat(dto.isGlobal()).isTrue();
+    }
 }

@@ -904,4 +904,34 @@ class EmbedTemplateServiceTest {
         assertThat(r3.serverId()).isEqualTo("srv_first");
         assertThat(r3.serverIds()).containsExactly("srv_first", "srv_second");
     }
+
+    @Test
+    @DisplayName("Custom ROLE_USER with dynamic rankWeight >= 8 deletes foreign embed template")
+    void customRoleUserWithDynamicWeight8_deletesForeignTemplate() {
+        com.rednecksgaming.personnel.perms.service.RolePermissionsService permsService =
+                mock(com.rednecksgaming.personnel.perms.service.RolePermissionsService.class);
+        EmbedTemplateService dynamicService = new EmbedTemplateService(
+                templateRepository, userRepository, validatorService, null, permsService
+        );
+
+        EmbedTemplate foreignTemplate = EmbedTemplate.builder()
+                .templateId("tpl_foreign")
+                .name("Foreign Template")
+                .authorId("999")
+                .authorName("author@rng.com")
+                .build();
+        User customHc = User.builder()
+                .id(88L)
+                .email("custom.hc@rng.com")
+                .role("ROLE_USER")
+                .roles("Security Ops:Overlord")
+                .build();
+
+        when(templateRepository.findByTemplateId("tpl_foreign")).thenReturn(Optional.of(foreignTemplate));
+        when(userRepository.findById(88L)).thenReturn(Optional.of(customHc));
+        when(permsService.resolveUserRankWeight(customHc)).thenReturn(8);
+
+        dynamicService.deleteTemplate(88L, "tpl_foreign");
+        verify(templateRepository).delete(foreignTemplate);
+    }
 }
