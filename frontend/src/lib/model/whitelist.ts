@@ -44,12 +44,21 @@ export function resolveRoleWeight(
   roleName: string,
   weights: HierarchyRankWeightsMap = {}
 ): number {
-  const exactKey = `${designation}:${roleName}`;
+  const cleanDes = designation.trim();
+  const cleanRole = roleName.includes(':')
+    ? roleName.split(':').slice(1).join(':').trim()
+    : roleName.trim();
+  const exactKey = `${cleanDes}:${cleanRole}`;
   if (typeof weights[exactKey] === 'number') {
     return weights[exactKey];
   }
-  const pure = roleName.includes(':') ? roleName.split(':').slice(1).join(':').trim() : roleName.trim();
-  const normalized = pure.toLowerCase();
+  const normalizedTargetKey = exactKey.toLowerCase();
+  for (const [k, v] of Object.entries(weights)) {
+    if (k.trim().toLowerCase() === normalizedTargetKey && typeof v === 'number') {
+      return v;
+    }
+  }
+  const normalized = cleanRole.toLowerCase();
   if (normalized === 'chief high command') return 9;
   if (normalized === 'high command') return 8;
   if (normalized === 'director') return 7;

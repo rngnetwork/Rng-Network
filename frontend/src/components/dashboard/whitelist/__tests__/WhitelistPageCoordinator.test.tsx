@@ -253,4 +253,120 @@ describe('WhitelistPageCoordinator Permission-Driven Access & Dynamic Ranks', ()
       expect(screen.getByText('Access Restricted')).toBeInTheDocument();
     });
   });
+
+  it('prevents R6 operator from escalating self to R7/R8 when editing self and locks R6-R9 in AddPersonnelModal', async () => {
+    vi.mocked(whitelistApi.fetchPersonnelHierarchy).mockResolvedValue({
+      success: true,
+      data: {
+        Supreme: ['Chief High Command', 'High Command'],
+        'Security Ops': [
+          'Ops Supreme',
+          'Ops Marshal',
+          'Ops Commander',
+          'Ops Executive',
+          'Ops Lead',
+          'Ops Watcher',
+        ],
+      },
+    });
+    vi.mocked(whitelistApi.fetchHierarchyRankWeights).mockResolvedValue({
+      success: true,
+      data: {
+        'Supreme:Chief High Command': 9,
+        'Supreme:High Command': 8,
+        'Security Ops:Ops Supreme': 9,
+        'Security Ops:Ops Marshal': 8,
+        'Security Ops:Ops Commander': 7,
+        'Security Ops:Ops Executive': 6,
+        'Security Ops:Ops Lead': 4,
+        'Security Ops:Ops Watcher': 2,
+      },
+    });
+    vi.mocked(sessionApi.fetchCurrentUser).mockResolvedValue({
+      success: true,
+      data: {
+        id: 60,
+        email: 'exec@rng.com',
+        fullName: 'Ops Executive',
+        role: 'ROLE_USER',
+        designations: 'Security Ops',
+        roles: 'Security Ops:Ops Executive',
+        designationList: ['Security Ops'],
+        roleList: ['Security Ops:Ops Executive'],
+        discordLinked: true,
+      },
+    });
+    vi.mocked(whitelistApi.fetchWhitelistedUsers).mockResolvedValue({
+      success: true,
+      data: [
+        {
+          id: 60,
+          email: 'exec@rng.com',
+          userName: 'Ops Executive',
+          provider: 'EMAIL',
+          role: 'ROLE_USER',
+          rankWeight: 6,
+          designations: ['Security Ops'],
+          roles: ['Security Ops:Ops Executive'],
+          discordLinked: true,
+          status: 'ACTIVE',
+          createdAt: '2026-11-26T00:00:00Z',
+          updatedAt: '2026-11-26T00:00:00Z',
+        },
+      ],
+    });
+    vi.mocked(useEffectivePermissions).mockReturnValue({
+      effectivePermissions: {
+        userId: '60',
+        rolesEvaluated: ['des_sec:Ops Executive'],
+        isPreviewMode: false,
+        previewRoleId: null,
+        previewRoleName: null,
+        callerMaxRankWeight: 6,
+        permissions: {
+          dashboard: { enabled: true },
+          'dashboard.whitelist': { enabled: true, fullAccess: true },
+        },
+      },
+      loading: false,
+      isPreviewMode: false,
+      previewRoleId: null,
+      previewRoleName: null,
+      callerMaxRankWeight: 6,
+      refreshPermissions: vi.fn(),
+      enterPreviewMode: vi.fn(),
+      exitPreviewMode: vi.fn(),
+      hasPermission: (...path: string[]) => {
+        const leaf = path[path.length - 1];
+        return leaf === 'dashboard' || leaf === 'dashboard.whitelist' || leaf === 'fullAccess';
+      },
+      hasServerPermission: () => false,
+      isRouteAllowed: () => true,
+    });
+
+    renderWithToast(<WhitelistPageCoordinator />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Edit Ops Executive/i })).toBeInTheDocument();
+    });
+
+    // Open Edit Self modal: R7 (Ops Commander), R8 (Ops Marshal), R9 (Ops Supreme) MUST all be disabled
+    fireEvent.click(screen.getByRole('button', { name: /Edit Ops Executive/i }));
+    const editDialog = await screen.findByRole('dialog');
+    expect(within(editDialog).getByRole('button', { name: 'Ops Commander' })).toBeDisabled();
+    expect(within(editDialog).getByRole('button', { name: 'Ops Marshal' })).toBeDisabled();
+    expect(within(editDialog).getByRole('button', { name: 'Ops Supreme' })).toBeDisabled();
+    expect(within(editDialog).getByRole('button', { name: 'Ops Lead' })).not.toBeDisabled();
+
+    // Close Edit Self modal and open Add Personnel Modal: R6-R9 must ALL be disabled
+    fireEvent.click(within(editDialog).getByRole('button', { name: /Cancel/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Whitelist Member/i }));
+    const addDialog = await screen.findByRole('dialog');
+    fireEvent.click(within(addDialog).getByRole('button', { name: 'Security Ops' }));
+    expect(within(addDialog).getByRole('button', { name: 'Ops Executive' })).toBeDisabled();
+    expect(within(addDialog).getByRole('button', { name: 'Ops Commander' })).toBeDisabled();
+    expect(within(addDialog).getByRole('button', { name: 'Ops Marshal' })).toBeDisabled();
+    expect(within(addDialog).getByRole('button', { name: 'Ops Supreme' })).toBeDisabled();
+    expect(within(addDialog).getByRole('button', { name: 'Ops Lead' })).not.toBeDisabled();
+  });
 });
